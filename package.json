@@ -1,0 +1,28 @@
+{
+  "name": "encouraging_prayer_server",
+  "version": "1.0.0",
+  "main": "./0-compiled/server.mjs",
+  "scripts": {
+    "prebuild": "rimraf 0-compiled/",
+    "build": "tsc",
+    "open": "start http://localhost:5000",
+    "preserve": "npm run build",
+    "serve": "ts-node .",
+    "start": "start http://localhost:5000 & npm run serve"
+  },
+  "dependencies": {
+    "@types/dotenv": "^8.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "path": "^0.12.7",
+    "rimraf": "^3.0.2",
+    "ts-node": "9.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.12",
+    "@types/express": "^4.17.14",
+    "@types/node": "^18.8.5",
+    "typescript": "^4.8.4"
+  }
+}

@@ -1,0 +1,7 @@
+/0-compiled/
+/build/
+/node_modules/
+
+package-lock.json
+.env
+
