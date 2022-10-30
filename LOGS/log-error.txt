@@ -1,0 +1,65 @@
+[10-28-2022 22:29:05] ERROR :: New Error
+     > null = 95:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:12:34] ERROR :: Server Error
+Invalid Request
+     > null = 96:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:13:22] ERROR :: Server Error
+Invalid Request
+     > null = 96:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:14:05] ERROR :: Server Error
+Invalid Request
+     > null = 96:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:14:24] ERROR :: Server Error
+Authentication Failed: missing JWT or UserId in request header: undefined :: undefined
+     > null = 96:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:14:51] ERROR :: Server Error
+Authentication Failed: missing JWT or UserId in request header: undefined :: undefined
+     > null = 96:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:15:30] ERROR :: Server Error
+Authentication Failed: missing JWT or UserId in request header: undefined :: undefined
+     > null = 96:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:17:57] ERROR :: Server Error
+Authentication Failed: missing JWT or UserId in request header: undefined :: undefined
+     > null = 96:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:19:07] ERROR :: Server Error
+Authentication Failed: missing JWT or UserId in request header: undefined :: undefined
+     > null = 96:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:20:03] ERROR :: Server Error
+Authentication Failed: missing JWT or UserId in request header: undefined :: undefined
+     > null = 96:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/log.mjs
+
+[10-29-2022 15:44:14] ERROR :: Server Error
+Invalid Request
+     > null = 97:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/services/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/services/log.mjs
+
