@@ -39,6 +39,13 @@ apiServer.use('/api/log', logRoutes);
 import authRoutes from './api/auth/auth.mjs';
 apiServer.use('/api/auth', authRoutes);
 
+import profileRoutes from './api/profile/profile.mjs';
+apiServer.use('/api/profile', profileRoutes);
+
+import prayerRequestRoutes from './api/prayer-request/prayer-request.mjs';
+apiServer.use('/api/prayer-request', prayerRequestRoutes);
+
+
 
 /* Error Handling  */
 apiServer.use((request: Request, response:Response, next: NextFunction) => {

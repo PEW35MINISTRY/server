@@ -63,3 +63,9 @@ Invalid Request
      >> Generator.next = null:null => null
      >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/services/log.mjs
 
+[11-5-2022 20:28:45] ERROR :: Server Error
+Authentication Failed: missing JWT or UserId in request header: 100.100.100 :: 101
+     > null = 99:19 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/services/log.mjs
+     >> Generator.next = null:null => null
+     >>> null = 7:71 => file:///C:/Users/ethan/Projects/PEW35/server/0-compiled/services/log.mjs
+

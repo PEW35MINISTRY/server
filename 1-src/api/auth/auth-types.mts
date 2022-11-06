@@ -1,19 +1,29 @@
 import { Request, Response, NextFunction } from "express";
+import { IncomingHttpHeaders } from "http";
 
 
 /*    Type Declarations     */
-export type loginRequest = Request & {
-    header:{
-        email: String, password: String
+export interface loginRequest extends Request {
+    headers: IncomingHttpHeaders & {
+        'email': String, 
+        'password': String
     }
 };
 
-export type credentialRequest = Request & {
-      header:{
-        JWT: String, userId: String
+export interface CredentialRequest extends Request {
+      headers: IncomingHttpHeaders & {
+        'jwt': String, 
+        'user-id': String
     }
 };
 
-export type loginResponse = {
-        JWT: String, userId: String, userRole: String, displayName: String, profileImage: String, service:String
+export interface loginResponseBody {
+    JWT: String, 
+    userId: String, 
+    userRole: String, 
+    displayName: String, 
+    profileImage: String, 
+    service:String
 };
+
+export interface loginResponse extends Response, loginResponseBody {};

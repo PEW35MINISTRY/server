@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
-import { loginResponse } from "./auth-types.mjs";
+import * as log from '../../services/log.mjs';
+import { CredentialRequest, loginResponse, loginResponseBody } from "./auth-types.mjs";
 
   
 /* Utility Methods */
@@ -14,22 +15,25 @@ export const verifyJWT = (JWT:String, userId:String):Boolean => {
     return (JWT === "100.100.100");
 }
 
-export const authenticateJWT = (request: Request|any, response: Response, next: NextFunction):any => {
+export const authenticateJWT = (request: CredentialRequest, response: Response, next: NextFunction):any => {
+
+    log.auth('Authenticating User: ', request.headers["user-id"]);
+
     //Verify Credentials Exist
-    if(!request.headers.jwt || !request.headers.userid)
+    if(!request.headers.jwt || !request.headers["user-id"])
         next(new Exception(400, `Authentication Failed: missing JWT or UserId in request header: ${request.headers.jwt} :: ${request.headers.userid}`));
 
     //Verify JWT
-    if(verifyJWT(request.headers.jwt, request.headers.userid)) 
+    if(verifyJWT(request.headers.jwt, request.headers["user-id"])) 
         next();
     else 
-        next(new Exception(401, `Authentication Failed for User: ${request.headers.userid}`));
+        next(new Exception(401, `Authentication Failed for User: ${request.headers["access-control-allow-methods"]}`));
 }
 
 export default authenticateJWT;
 
 
-export const getLoginResponse = (userId: String):loginResponse => {
+export const getLoginResponse = (userId: String):loginResponseBody => {
     //Database Query
 
     return {
