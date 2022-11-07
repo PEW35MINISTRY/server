@@ -5,25 +5,25 @@ import { IncomingHttpHeaders } from "http";
 /*    Type Declarations     */
 export interface loginRequest extends Request {
     headers: IncomingHttpHeaders & {
-        'email': String, 
-        'password': String
+        'email': string, 
+        'password': string
     }
 };
 
 export interface CredentialRequest extends Request {
       headers: IncomingHttpHeaders & {
-        'jwt': String, 
-        'user-id': String
+        'jwt': string, 
+        'user-id': string
     }
 };
 
 export interface loginResponseBody {
-    JWT: String, 
-    userId: String, 
-    userRole: String, 
-    displayName: String, 
-    profileImage: String, 
-    service:String
+    JWT: string, 
+    userId: number, 
+    userRole: string, 
+    displayName: string, 
+    profileImage: string, 
+    service:string
 };
 
 export interface loginResponse extends Response, loginResponseBody {};

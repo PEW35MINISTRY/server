@@ -4,19 +4,19 @@ import { CredentialRequest } from '../auth/auth-types.mjs';
 
 export interface PrayerRequestRequest extends CredentialRequest {
     headers: CredentialRequest['headers'] & {
-        'prayer-request-id': String
+        'prayer-request-id': string
     }
 };
 
 export interface PrayerRequestUserRequest extends CredentialRequest {
     headers: CredentialRequest['headers'] & {
-        'request-user-id': String
+        'request-user-id': string
     }
 };
 
 export interface PrayerRequestCircleRequest extends CredentialRequest {
     headers: CredentialRequest['headers'] & {
-        'circle-id': String
+        'circle-id': string
     }
 };
 
@@ -26,28 +26,28 @@ export enum PrayerRequestTopicEnum {
 }
 
 export interface PrayerRequest {
-    prayerRequestId: String,
-    userId: String, 
+    prayerRequestId: string,
+    userId: number, 
     topic: PrayerRequestTopicEnum, 
-    description: String,
+    description: string,
     prayerCount: number,
     expiration: number, 
     answered?:boolean,
     comments?: {
-        userId: String,
-        message: String,
+        userId: number,
+        message: string,
         likeCount: number
     }[],
 }
 
 export interface PrayerRequestNewRequest extends CredentialRequest {
     body: {
-        userId: String, 
+        userId: number, 
         topic: PrayerRequestTopicEnum, 
-        description: String,
+        description: string,
         expiration: number, 
-        partnerShareList: String[],
-        circleShareList: String[],
+        partnerShareList: string[],
+        circleShareList: string[],
         communityShare?: boolean
     }
 }

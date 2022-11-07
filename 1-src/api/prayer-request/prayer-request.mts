@@ -26,7 +26,7 @@ router.get('/', (request: PrayerRequestRequest, response: Response) => {
 router.post('/', (request: PrayerRequestNewRequest, response: Response) => {
     //Query Database
 
-    const newRequestId:String = '203';
+    const newRequestId:string = '203';
 
     response.status(200).send(getPrayerRequest(newRequestId));
     log.event("New Prayer Request Created.");

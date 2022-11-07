@@ -50,7 +50,7 @@ export const getLogFilePath = (type:LOG_TYPE):PathLike|PathOrFileDescriptor => {
 /*********************************/
 //  Write to File   [LOCAL] 
 /*********************************/
-const writeFile = async (type: LOG_TYPE, text: String):Promise<Boolean> => !SAVE_LOGS_LOCALLY ? true : 
+const writeFile = async (type: LOG_TYPE, text: string):Promise<Boolean> => !SAVE_LOGS_LOCALLY ? true : 
     new Promise((resolve, reject) => {
         if (!fs.existsSync(LOG_DIRECTORY)) fs.mkdirSync(LOG_DIRECTORY, { recursive: true});
 
@@ -69,21 +69,21 @@ export const readFile = async(type: LOG_TYPE):Promise<Boolean> => !SAVE_LOGS_LOC
 /*********************************/
 //  Write to Database      
 /*********************************/
-const writeDatabase = async (type: LOG_TYPE, text: String):Promise<Boolean> => !SAVE_LOGS_DATABASE ? true : false;
+const writeDatabase = async (type: LOG_TYPE, text: string):Promise<Boolean> => !SAVE_LOGS_DATABASE ? true : false;
 
 
 /*********************************/
 //   SEND EMAIL   
 /*********************************/
-const sendLogEmail = async (type: LOG_TYPE, body: String):Promise<Boolean> => !SEND_EMAILS ? true : false;
+const sendLogEmail = async (type: LOG_TYPE, body: string):Promise<Boolean> => !SEND_EMAILS ? true : false;
 
-const sendEmail = async (header: String, body: String):Promise<Boolean> => !SEND_EMAILS ? true : false;
+const sendEmail = async (header: string, body: string):Promise<Boolean> => !SEND_EMAILS ? true : false;
 
 
 /*********************************/
 //       Utility Functions     
 /*********************************/ 
-const formatLogEntry = (type: LOG_TYPE, ...messages: any[]):String => {
+const formatLogEntry = (type: LOG_TYPE, ...messages: any[]):string => {
     const time = new Date().getTime();
     let trace = '';
 
@@ -102,15 +102,15 @@ const formatLogEntry = (type: LOG_TYPE, ...messages: any[]):String => {
 /*********************************/ 
 
 export const alert = async(...messages: any[]):Promise<Boolean> => { //console.trace();
-    const entry:String = formatLogEntry(LOG_TYPE.ALERT, ...messages);
+    const entry:string = formatLogEntry(LOG_TYPE.ALERT, ...messages);
 
     return await writeFile(LOG_TYPE.ALERT, entry)
         && await writeDatabase(LOG_TYPE.ALERT, entry)
         && await sendEmail('SERVER ALERT', entry);
 }
 
-export const error = async(...messages: any[]):Promise<Boolean> => { //console.trace();
-    const entry:String = formatLogEntry(LOG_TYPE.ERROR, ...messages);
+export const error = async(...messages: any[]):Promise<Boolean> => { console.trace();
+    const entry:string = formatLogEntry(LOG_TYPE.ERROR, ...messages);
 
     return await writeFile(LOG_TYPE.ERROR, entry)
         && await writeDatabase(LOG_TYPE.ERROR, entry);
@@ -119,21 +119,21 @@ export const error = async(...messages: any[]):Promise<Boolean> => { //console.t
 export default error;
 
 export const warn = async(...messages: any[]):Promise<Boolean> => { //console.trace();
-    const entry:String = formatLogEntry(LOG_TYPE.AUTH, ...messages);
+    const entry:string = formatLogEntry(LOG_TYPE.AUTH, ...messages);
 
     return await writeFile(LOG_TYPE.WARN, entry)
         && await writeDatabase(LOG_TYPE.WARN, entry);
 }
 
 export const auth = async(...messages: any[]):Promise<Boolean> => { //console.trace();
-    const entry:String = formatLogEntry(LOG_TYPE.AUTH, ...messages);
+    const entry:string = formatLogEntry(LOG_TYPE.AUTH, ...messages);
 
     return await writeFile(LOG_TYPE.AUTH, entry)
         && await writeDatabase(LOG_TYPE.AUTH, entry);
 }
 
 export const event = async(...messages: any[]):Promise<Boolean> => { //console.trace();
-    const entry:String = formatLogEntry(LOG_TYPE.EVENT, ...messages);
+    const entry:string = formatLogEntry(LOG_TYPE.EVENT, ...messages);
 
     return await writeFile(LOG_TYPE.EVENT, entry)
         && await writeDatabase(LOG_TYPE.EVENT, entry);

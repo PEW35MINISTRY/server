@@ -12,17 +12,17 @@ export enum MessageTypeEnum {
 }
 
 export interface Message {
-    userId: String, 
+    userId: number, 
     topic: MessageTypeEnum, 
-    message: String,
+    message: string,
     time: number,
 }
 
 export interface ConversationNewRequest extends CredentialRequest {
     body: {
-        userId: String, 
+        userId: number, 
         topic: MessageTypeEnum, 
-        message: String,
+        message: string,
     }
 }
 

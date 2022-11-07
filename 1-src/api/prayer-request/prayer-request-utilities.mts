@@ -1,12 +1,12 @@
 import { PrayerRequest, PrayerRequestResponse, PrayerRequestTopicEnum } from "./prayer-request-types.mjs";
 
 
-export const getPrayerRequest = (prayerRequestId: String):PrayerRequest => {
+export const getPrayerRequest = (prayerRequestId: string):PrayerRequest => {
     //Database Query
 
     return {
         prayerRequestId: '202',
-        userId: '101', 
+        userId: 100, 
         topic: PrayerRequestTopicEnum.SELF,
         description: "This is the description for the prayer request.",
         expiration: 100,
@@ -16,7 +16,7 @@ export const getPrayerRequest = (prayerRequestId: String):PrayerRequest => {
     };
 }
 
-export const answerPrayerRequest = (prayerRequestId: String):PrayerRequest => {
+export const answerPrayerRequest = (prayerRequestId: string):PrayerRequest => {
     //Database Query
 
     return {
@@ -25,13 +25,13 @@ export const answerPrayerRequest = (prayerRequestId: String):PrayerRequest => {
     };
 }
 
-export const deletePrayerRequest = (prayerRequestId: String):Boolean => {
+export const deletePrayerRequest = (prayerRequestId: string):Boolean => {
     //Database Query
 
     return true;
 }
 
-export const getUserPrayerRequestList = (userId: String):PrayerRequestResponse => {
+export const getUserPrayerRequestList = (userId: string):PrayerRequestResponse => {
     //Database Query
 
     return {
@@ -43,7 +43,7 @@ export const getUserPrayerRequestList = (userId: String):PrayerRequestResponse =
     };
 }
 
-export const getCirclePrayerRequestList = (circleId: String):PrayerRequestResponse => {
+export const getCirclePrayerRequestList = (circleId: string):PrayerRequestResponse => {
     //Database Query
 
     return {

@@ -1,6 +1,7 @@
 /0-compiled/
 /build/
 /node_modules/
+/LOGS/
 
 package-lock.json
 .env
