@@ -12,7 +12,7 @@ router.get('/event', (request: Request, response: Response) => {
 });
 
 router.post('/event', (request: Request, response: Response) => {
-    if(log.event(request.body.tostring())) response.status(200).send("Event message has been saved.");
+    if(log.event(request.body.toString())) response.status(200).send("Event message has been saved.");
     else response.status(500).send("Server Error, failed to save Event message.");
 });
 
@@ -24,7 +24,7 @@ router.get('/auth', (request: Request, response: Response) => {
 });
 
 router.post('/auth', (request: Request, response: Response) => {
-    if(log.auth(request.body.tostring())) response.status(200).send("Authentication message has been saved.");
+    if(log.auth(request.body.toString())) response.status(200).send("Authentication message has been saved.");
     else response.status(500).send("Server Error, failed to save Authentication message.");
 });
 
@@ -36,13 +36,13 @@ router.get('/warn', (request: Request, response: Response) => {
 });
 
 router.post('/warn', (request: Request, response: Response) => { console.log(request.body);
-    if(log.warn(request.body.tostring())) response.status(200).send("Warning message has been saved.");
+    if(log.warn(request.body.toString())) response.status(200).send("Warning message has been saved.");
     else response.status(500).send("Server Error, failed to save Warning message.");
 });
 
 //Alert
 router.post('/alert', (request: Request, response: Response) => {
-    if(log.warn(request.body.tostring())) response.status(200).send("Alert message has been sent.");
+    if(log.warn(request.body.toString())) response.status(200).send("Alert message has been sent.");
     else response.status(500).send("Server Error, failed to send Alert message.");
 });
 
@@ -53,7 +53,7 @@ router.get('*', (request: Request, response: Response) => {
 });
 
 router.post('*', (request: Request, response: Response) => {
-    if(log.error(request.body.tostring())) response.status(200).send("Error message has been saved.");
+    if(log.error(request.body.toString())) response.status(200).send("Error message has been saved.");
     else response.status(500).send("Server Error, failed to save Error message.");
 });
 

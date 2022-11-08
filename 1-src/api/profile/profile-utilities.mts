@@ -106,95 +106,94 @@ export const isProfileEditAllowed = async(userId: number, requestorId?: number):
     return false;
 }
 
-export const editProfile = async(userId: number, httpRequest:ProfileEditRequest, role?:RoleEnum, requestorId?: number):Promise<TestResult> => {
-         let setColumn:string = '';
-        let setParameter:any[] = [];
+export const editProfile = async(userId: number, httpRequest:ProfileEditRequest, role?:RoleEnum):Promise<TestResult> => {
+         let columns:string = '';
+        let valueList:any[] = [];
         const fields = Object.entries(httpRequest.body);
     
         //Only list Fields Student can Edit
         fields.forEach((field, index) => { 
             try {
-                if(role && role === RoleEnum.ADMIN) {
-                    if(!getAdminProfileChanges(userId, field, setColumn, setParameter))
-                        log.warn("User Editing Profile:", userId, "Unmatched Field: ", field);
-                } else {
-                    if(!getProfileChanges(userId, field, setColumn, setParameter))
-                        log.warn("Admin: ", requestorId, "Editing Profile:", userId, "Unmatched Field: ", field);
-                }
+                if(role && role === RoleEnum.ADMIN) 
+                    getAdminProfileChanges(userId, field, columns, valueList);
+                 else 
+                    getProfileChanges(userId, field, columns, valueList);                
 
-                    if(setColumn && (typeof setColumn[setColumn.length-1] === 'string')){ //Only adding formatting if valid field
-                    setColumn += ` = $${setParameter.length}${index == fields.length-1 ? '' : ','} `; //Remove trailing comma        
-                }  
+                    if(columns && (typeof columns[columns.length-1] === 'string')){ //Only adding formatting if valid field
+                        columns += ` = $${valueList.length}${index == fields.length-1 ? '' : ','} `; //Remove trailing comma        
+                    }  
                 
-            }catch(error){log.error('User Edit Profile Error: ', userId, error);
-                return { success: false, result: {setColumn, setParameter}, error: error};
-            }
+                }catch(error){log.error('User Edit Profile Error: ', userId, error);
+                    return { success: false, result: {columns, valueList}, error: error};
+                }
         });
     
-        return await queryTest(`UPDATE user_table SET ${setColumn} WHERE user_id = $${setParameter.length+1};`, [...setParameter, userId]);
+        return await queryTest(`UPDATE user_table SET ${columns} WHERE user_id = $${valueList.length+1};`, [...valueList, userId]);
     }
 
 //Student or Relevant Leader
-    const getProfileChanges = (userId:number, field:[string,unknown], setColumn:string, setParameter:any[]):boolean => {
+    const getProfileChanges = (userId:number, field:[string,unknown], columns:string, valueList:any[], logWarn:boolean=true):boolean => {
         if(field[0] == "displayName"){      //JSON Name
-            setColumn += `display_name`;    //DatabaseName
-            setParameter.push(field[1]);    //New Value
+            columns += `display_name`;    //DatabaseName
+            valueList.push(field[1]);    //New Value
         } else if(field[0] == "dob"){
-            setColumn += `dob`;
-            setParameter.push(parseInt(field[1] as string));
+            columns += `dob`;
+            valueList.push(parseInt(field[1] as string));
         } else if(field[0] == "gender"){
-            setColumn += `gender`;
-            setParameter.push(GenderEnum[field[1] as string]);
+            columns += `gender`;
+            valueList.push(GenderEnum[field[1] as string]);
         } else if(field[0] == "zipcode"){
-            setColumn += `zipcode`;
-            setParameter.push(field[1]);
+            columns += `zipcode`;
+            valueList.push(field[1]);
         } else if(field[0] == "stage"){
-            setColumn += `stage`;
-            setParameter.push(StageEnum[field[1] as string]);
+            columns += `stage`;
+            valueList.push(StageEnum[field[1] as string]);
         } else if(field[0] == "dailyNotificationHour"){
-            setColumn += `daily_notification_hour`;
-            setParameter.push(parseInt(field[1] as string));
+            columns += `daily_notification_hour`;
+            valueList.push(parseInt(field[1] as string));
         } else if(field[0] == "circleList"){
-            setColumn += `circles`;
-            setParameter.push(field[1]);
+            columns += `circles`;
+            valueList.push(field[1]);
         } else if(field[0] == "profileImage"){
-            setColumn += `profile_image`;
-            setParameter.push(parseInt(field[1] as string));
+            columns += `profile_image`;
+            valueList.push(parseInt(field[1] as string));
         } else {
-           return false;
+            if(logWarn) log.warn("User Editing Profile:", userId, "Unmatched Field: ", field);
+            return false;
         }
         return true;
     }
 
     //Note: userId is profile being changed; admin already authenticated in route
-    const getAdminProfileChanges = (userId:number, field:[string,unknown], setColumn:string, setParameter:any[]) => {
+    const getAdminProfileChanges = (userId:number, field:[string,unknown], columns:string, valueList:any[], logWarn:boolean=true) => {
         //General Edits
-        if(getProfileChanges(userId, field, setColumn, setParameter)){
+        if(getProfileChanges(userId, field, columns, valueList, false)){
             return true;
 
         //Additional Admin Edits
         } else if(field[0] == "userRole"){
-            setColumn += `user_role`;
-            setParameter.push(RoleEnum[field[1] as string]);
+            columns += `user_role`;
+            valueList.push(RoleEnum[field[1] as string]);
         } else if(field[0] == "email"){
-            setColumn += `email`;
-            setParameter.push(field[1]);
+            columns += `email`;
+            valueList.push(field[1]);
         } else if(field[0] == "phone"){
-            setColumn += `phone`;
-            setParameter.push(field[1]);
+            columns += `phone`;
+            valueList.push(field[1]);
         } else if(field[0] == "password"){
-            setColumn += `password_hash`;
-            setParameter.push(getPasswordHash(field[1] as string));
+            columns += `password_hash`;
+            valueList.push(getPasswordHash(field[1] as string));
         } else if(field[0] == "verified"){
-            setColumn += `verified`;
-            setParameter.push((/true/i).test(field[1] as string));
+            columns += `verified`;
+            valueList.push((/true/i).test(field[1] as string));
         } else if(field[0] == "partnerList"){
-            setColumn += `partners`;
-            setParameter.push(field[1]);
+            columns += `partners`;
+            valueList.push(field[1]);
         } else if(field[0] == "notes"){
-            setColumn += `notes`;
-            setParameter.push(parseInt(field[1] as string));
+            columns += `notes`;
+            valueList.push(parseInt(field[1] as string));
         } else {
+            if(logWarn) log.warn("Admin Editing Profile:", userId, "Unmatched Field: ", field);
             return false;
          }
          return true;

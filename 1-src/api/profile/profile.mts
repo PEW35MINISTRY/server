@@ -41,7 +41,7 @@ router.patch('/', async(request: ProfileEditRequest, response: Response) => {
     const requestorId:number = parseInt(request.headers["user-id"]);
 
     if(await isProfileEditAllowed(userId, requestorId)){
-        const queryResult:TestResult = await editProfile(userId, request, getProfileRoles(requestorId)[0].userRole, requestorId);
+        const queryResult:TestResult = await editProfile(userId, request, getProfileRoles(requestorId)[0].userRole);
         const currentProfile:ProfileResponse = await getProfile(userId);
 
         response.status(queryResult.success ? 202 : 404).send({profile: currentProfile, success: queryResult.success, result: queryResult.result || 'None', error: queryResult.error || 'None'});
