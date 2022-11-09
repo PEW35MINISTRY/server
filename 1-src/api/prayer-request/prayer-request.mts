@@ -2,7 +2,7 @@ import express, {Router, Request, Response, NextFunction} from 'express';
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { CredentialRequest } from '../auth/auth-types.mjs';
-import authenticateJWT from '../auth/auth-utilities.mjs';
+import authenticateAccess, { authenticateIdentity } from '../auth/auth-utilities.mjs';
 import { PrayerRequestCircleRequest, PrayerRequestNewRequest, PrayerRequestRequest, PrayerRequestUserRequest } from './prayer-request-types.mjs';
 import { getPrayerRequest, getUserPrayerRequestList, getCirclePrayerRequestList } from './prayer-request-utilities.mjs';
 
@@ -10,9 +10,12 @@ import { getPrayerRequest, getUserPrayerRequestList, getCirclePrayerRequestList 
 const router:Router = express.Router();
 router.use(express.json());
 
-//Verify Authentication
-router.use((request:CredentialRequest, response:Response, next:NextFunction) => authenticateJWT(request, response, next));
-   
+//Verify Identity
+router.use((request:CredentialRequest, response:Response, next:NextFunction) => authenticateIdentity(request, response, next));
+
+//Verify Authorization
+router.use((request:CredentialRequest, response:Response, next:NextFunction) => authenticateAccess(request, response, next));
+
 
 /* Return Individual Prayer Request */
 router.get('/', (request: PrayerRequestRequest, response: Response) => {

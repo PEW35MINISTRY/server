@@ -1,10 +1,9 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
 import { CredentialRequest } from '../auth/auth-types.mjs';
-import { ProfilePublicRequest } from '../profile/profile-types.mjs';
 
-export interface ConversationUserRequest extends ProfilePublicRequest {};
+export interface ConversationUserRequest extends CredentialRequest {};
 
-export interface ConversationCircleRequest extends ProfilePublicRequest {};
+export interface ConversationCircleRequest extends CredentialRequest {};
 
 export enum MessageTypeEnum {
     DIRECT,

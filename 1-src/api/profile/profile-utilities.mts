@@ -2,13 +2,10 @@ import { GenderEnum, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicRe
 import database, {query, queryAll, queryTest, TestResult} from '../../services/database.mjs';
 import { Exception } from "../api-types.mjs";
 import * as log from '../../services/log.mjs';
-import { User_TYPE } from "../../services/database-types.mjs";
+import { DB_USER } from "../../services/database-types.mjs";
 
-export const getPublicProfile = async(userId: number):Promise<ProfilePublicResponse> => {
-    //Database Query    
-    const user:User_TYPE = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
-
-    return {
+export const formatPublicProfile = (user: DB_USER):ProfilePublicResponse => 
+    ({
         userId: user.user_id, 
         userRole: user.user_role, 
         displayName: user.display_name, 
@@ -17,14 +14,17 @@ export const getPublicProfile = async(userId: number):Promise<ProfilePublicRespo
         circleList: [],
         proximity: 0,
         profileImage: user.profile_image,
-    };
+    });
+
+export const getPublicProfile = async(userId: number):Promise<ProfilePublicResponse> => {
+    //Database Query    
+    const user:DB_USER = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
+
+    return formatPublicProfile(user);
 }
 
-export const getProfile = async(userId: number):Promise<ProfileResponse> => {
-    //Database Query
-    const user:User_TYPE = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
-
-    return {
+export const formatProfile = (user: DB_USER):ProfileResponse => 
+    ({
         userId: user.user_id, 
         userRole: user.user_role, 
         displayName: user.display_name, 
@@ -37,16 +37,17 @@ export const getProfile = async(userId: number):Promise<ProfileResponse> => {
         zipcode: user.zipcode,
         stage: user.stage,
         dailyNotificationHour: user.daily_notification_hour,
-    };
+    });
+
+export const getProfile = async(userId: number):Promise<ProfileResponse> => {
+    //Database Query
+    const user:DB_USER = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
+
+    return formatProfile(user);
 }
 
-export const getPartnerProfile = async (userId: number, partnerId: number):Promise<ProfilePartnerResponse> => {
-    //Database Query
-    const partner:User_TYPE = await query("SELECT * FROM user_table WHERE user_id = $1;", [partnerId]);
-
-    if(partner.partners.includes(userId)) {     
-
-        return {
+export const formatPartnerProfile = (partner:DB_USER):ProfilePartnerResponse =>
+         ({
             userId: partner.user_id, 
             userRole: partner.user_role, 
             displayName: partner.display_name, 
@@ -61,9 +62,17 @@ export const getPartnerProfile = async (userId: number, partnerId: number):Promi
             answeredPrayerRequestList: [],
             messageList: [],
             profileImage: partner.profile_image,
-        };
-    } else 
-        new Exception(401, `Requested User ${partnerId} is not a Partner of ${userId}.`);
+        });
+
+export const getPartnerProfile = async (userId: number, requestorId: number):Promise<ProfilePartnerResponse> => {
+    //Database Query
+    const partner:DB_USER = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
+
+    if(partner.partners.includes(requestorId))  
+        return formatPartnerProfile(partner);
+
+     else 
+        new Exception(401, `Requested User ${userId} is not a Partner of ${requestorId}.`);
 }
 
 /******************
@@ -91,20 +100,6 @@ export const getProfileRoles = async(...idList: number[]):Promise<roleListResult
     return result;
 }
 
-export const isProfileEditAllowed = async(userId: number, requestorId?: number):Promise<boolean> => {
-    //TODO: add column circleId to leader Table
-    const requestorRoleAndCircle = await query("SELECT user_role FROM user_table WHERE user_id = $1;", [requestorId]);
-
-    if(userId === requestorId || requestorRoleAndCircle.user_role === RoleEnum.ADMIN) return true;
-
-    //Test Member of Leader's Circle
-    if(requestorRoleAndCircle.user_role === RoleEnum.LEADER) {
-        // const userCircleList = await query("SELECT circleList FROM user_table WHERE user_id = $1;", [userId]);
-        // if(userCircleList.includes(requestorRoleAndCircle.circleId))
-            return true;
-    }
-    return false;
-}
 
 export const editProfile = async(userId: number, httpRequest:ProfileEditRequest, role?:RoleEnum):Promise<TestResult> => {
          let columns:string = '';

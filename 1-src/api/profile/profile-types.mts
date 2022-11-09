@@ -1,6 +1,7 @@
 
 import express, {Router, Request, Response, NextFunction} from 'express';
 import { IncomingHttpHeaders } from 'http';
+import { CredentialRequest } from '../auth/auth-types.mjs';
 import { Message } from '../chat/chat-types.mjs';
 import { PrayerRequest } from '../prayer-request/prayer-request-types.mjs';
 
@@ -19,25 +20,6 @@ export enum RoleEnum {
     STUDENT = 'STUDENT',
     LEADER = 'LEADER',
     ADMIN = 'ADMIN',
-}
-
-export interface ProfileRequest extends Request {
-    headers: IncomingHttpHeaders & {
-        'jwt': string,
-        'user-id': string
-    }
-}
-
-export interface ProfilePublicRequest extends ProfileRequest {
-    headers: ProfileRequest['headers'] & {
-        'request-id': string
-    }
-}
-
-export interface ProfilePartnerRequest extends ProfileRequest {
-    headers: ProfileRequest['headers'] & {
-        'partner-id': string,
-    }
 }
 
 
@@ -75,7 +57,7 @@ export interface ProfilePartnerResponse extends ProfilePublicResponse  {
     messageList: Message[],
 };
 
-export interface ProfileEditRequest extends ProfileRequest {
+export interface ProfileEditRequest extends CredentialRequest {
     body: {
         userId: number,
         displayName?: string, 

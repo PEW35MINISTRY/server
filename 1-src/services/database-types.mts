@@ -1,7 +1,7 @@
 import { StageEnum } from "../api/profile/profile-types.mjs";
 
 
-export type User_TYPE = {
+export type DB_USER = {
     user_id: number, 
     email: string,
     phone: string,

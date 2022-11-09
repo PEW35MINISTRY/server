@@ -2,7 +2,7 @@ import express, {Router, Request, Response, NextFunction} from 'express';
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { CredentialRequest, loginRequest, loginResponse } from './auth-types.mjs';
-import authenticateJWT, {getLoginResponse} from './auth-utilities.mjs'
+import authenticateAccess, {authenticateIdentity, getLoginResponse} from './auth-utilities.mjs'
 
 
 const router:Router = express.Router();
@@ -19,15 +19,16 @@ router.post('/signup', (request: loginRequest, response: loginResponse) => {
         log.auth("New user created with user id: ", userId);
 });
 
-//Verify Authentication
-router.use((request:CredentialRequest, response:loginResponse, next:NextFunction) => authenticateJWT(request, response, next));
-   
+
 router.get('/login', (request: CredentialRequest, response: Response) => {
     //Query Database
 
     response.status(202).send(getLoginResponse(request.headers['user-id']));
     log.auth("Successfully logged in user: ", request.headers['user-id']);
 });
+
+//Verify Identity
+router.use((request:CredentialRequest, response:Response, next:NextFunction) => authenticateIdentity(request, response, next));
 
 router.post('/logout', (request: CredentialRequest, response: Response) => {
     //Perform Logout Operations and Remove JWT

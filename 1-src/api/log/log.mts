@@ -1,9 +1,14 @@
-import express, {Router, Request, Response} from 'express';
+import express, {Router, Request, Response, NextFunction} from 'express';
 import fs, { PathLike } from 'fs';
 import * as log from '../../services/log.mjs';
+import { CredentialRequest } from '../auth/auth-types.mjs';
+import authenticateAccess, { authenticateIdentity, authenticateIdentityAndAdmin } from '../auth/auth-utilities.mjs';
 
 const router:Router = express.Router();
 router.use(express.text());
+
+//Verify ADMIN ONLY
+router.use((request:CredentialRequest, response:Response, next:NextFunction) => authenticateIdentityAndAdmin(request, response, next));
 
 //Event
 router.get('/event', (request: Request, response: Response) => {
