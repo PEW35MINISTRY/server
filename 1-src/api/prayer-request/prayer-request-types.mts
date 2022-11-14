@@ -3,9 +3,9 @@ import { IncomingHttpHeaders } from 'http';
 import { CredentialRequest } from '../auth/auth-types.mjs';
 
 export interface PrayerRequestRequest extends CredentialRequest {
-    headers: CredentialRequest['headers'] & {
-        'prayer-request-id': string
-    }
+    params: {
+        prayer:string
+    },
 };
 
 export interface PrayerRequestUserRequest extends CredentialRequest {

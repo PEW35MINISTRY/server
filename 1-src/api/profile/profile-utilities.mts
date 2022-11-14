@@ -100,7 +100,7 @@ export const getProfileRoles = async(...idList: number[]):Promise<roleListResult
 }
 
 
-export const editProfile = async(userId: number, httpRequest:ProfileEditRequest | SignupRequest, role?:RoleEnum, newProfile?:boolean):Promise<TestResult> => {
+export const editProfile = async(editId: number, httpRequest:ProfileEditRequest | SignupRequest, role?:RoleEnum, newProfile?:boolean):Promise<TestResult> => {
         let columnList:string[] = [];
         let valueList:any[] = [];
         const fields = Object.entries(httpRequest.body);
@@ -111,11 +111,11 @@ export const editProfile = async(userId: number, httpRequest:ProfileEditRequest 
                 if(newProfile) 
                     getSignupChanges(field, columnList, valueList);
                 else if(role && role === RoleEnum.ADMIN) 
-                    getAdminProfileChanges(userId, field, columnList, valueList);
+                    getAdminProfileChanges(editId, field, columnList, valueList);
                  else 
-                    getProfileChanges(userId, field, columnList, valueList);                
+                    getProfileChanges(editId, field, columnList, valueList);                
                 
-                }catch(error){log.error('User Edit Profile Error: ', userId, error);
+                }catch(error){log.error('User Edit Profile Error: ', editId, error);
                     return { success: false, result: {columnList, valueList}, error: error};
                 }
         });
@@ -123,13 +123,13 @@ export const editProfile = async(userId: number, httpRequest:ProfileEditRequest 
         if(!columnList.length || !valueList.length)
             return formatTestResult(false, null, 'Invalid Profile Edit Request', columnList.toString(), valueList.toString())
         else if(newProfile)
-            return await queryTest(`INSERT INTO user_table ${columnList.join(', ')};`, [...valueList, userId]);
+            return await queryTest(`INSERT INTO user_table ${columnList.join(', ')};`, [...valueList, editId]);
         else
-            return await queryTest(`UPDATE user_table SET ${columnList.join(', ')} WHERE user_id = $${valueList.length+1};`, [...valueList, userId]);
+            return await queryTest(`UPDATE user_table SET ${columnList.join(', ')} WHERE user_id = $${valueList.length+1};`, [...valueList, editId]);
     }
 
 //Student or Relevant Leader
-    const getProfileChanges = (userId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true):boolean => {
+    const getProfileChanges = (editId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true):boolean => {
         //General Edits
         if( checkField('displayName', `display_name`, field[1], field[0], columnList, valueList)
             || checkField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
@@ -141,14 +141,14 @@ export const editProfile = async(userId: number, httpRequest:ProfileEditRequest 
             || checkField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
 
         ) return true;
-        if(logWarn) log.warn("Creating User:", userId, "Unmatched Field: ", field);
+        if(logWarn) log.warn("Creating User:", editId, "Unmatched Field: ", field);
         return false;
     }
 
-    //Note: userId is profile being changed; admin already authenticated in route
-    const getAdminProfileChanges = (userId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true) => {
+    //Note: editId is profile being changed; admin already authenticated in route
+    const getAdminProfileChanges = (editId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true) => {
         //General Edits
-        if( getProfileChanges(userId, field, columnList, valueList, false)
+        if( getProfileChanges(editId, field, columnList, valueList, false)
         //Additional Admin Edits
             || (checkField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList)
                 && checkField('userRole', `verified`, false, field[0], columnList, valueList)) //UnVerify account on role change
@@ -161,7 +161,7 @@ export const editProfile = async(userId: number, httpRequest:ProfileEditRequest 
             || checkField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList)
 
         ) return true;
-        if(logWarn) log.warn("Admin Editing Profile:", userId, "Unmatched Field: ", field);
+        if(logWarn) log.warn("Admin Editing Profile:", editId, "Unmatched Field: ", field);
         return false;
     }
 

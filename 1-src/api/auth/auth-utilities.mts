@@ -70,14 +70,14 @@ export const getUserLogin = async(email:string, password: string, next: NextFunc
  Utility Methods
 ******************* */
 
-export const isRequestorAllowedProfile = async(userProfile: DB_USER, requestorProfile: DB_USER):Promise<boolean> => { //TODO: add column circleId to leader Table
+export const isRequestorAllowedProfile = async(clientProfile: DB_USER, userProfile: DB_USER):Promise<boolean> => { //TODO: add column circleId to leader Table
 
-    if(userProfile.user_id === requestorProfile.user_id || requestorProfile.user_role === RoleEnum.ADMIN) return true;
+    if(clientProfile.user_id === userProfile.user_id || userProfile.user_role === RoleEnum.ADMIN) return true;
 
     //Test Member of Leader's Circle
-    if(requestorProfile.user_role === RoleEnum.LEADER) {
-        return (requestorProfile.circles.find((circleId, index) => {
-            return userProfile.circles.includes(circleId);
+    if(userProfile.user_role === RoleEnum.LEADER) {
+        return (userProfile.circles && userProfile.circles.find((circleId, index) => {
+            return clientProfile.circles.includes(circleId);
           }))
           ? true : false; //Because .find returns undefine for no match
     }

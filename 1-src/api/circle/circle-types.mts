@@ -6,9 +6,3 @@ import { GenderEnum, ProfileResponse, RoleEnum, StageEnum } from "../profile/pro
 
 
 
-export interface CircleRequest extends CredentialRequest {
-    headers: CredentialRequest["headers"] & {
-      'circle-id': number
-    }
-    circleId: number
-};

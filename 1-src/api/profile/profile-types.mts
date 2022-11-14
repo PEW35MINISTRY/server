@@ -1,7 +1,7 @@
 
 import express, {Router, Request, Response, NextFunction} from 'express';
 import { IncomingHttpHeaders } from 'http';
-import { CredentialRequest } from '../auth/auth-types.mjs';
+import { CredentialRequest, ProfileRequest } from '../auth/auth-types.mjs';
 import { Message } from '../chat/chat-types.mjs';
 import { PrayerRequest } from '../prayer-request/prayer-request-types.mjs';
 
@@ -57,7 +57,7 @@ export interface ProfilePartnerResponse extends ProfilePublicResponse  {
     messageList: Message[],
 };
 
-export interface ProfileEditRequest extends CredentialRequest {
+export interface ProfileEditRequest extends ProfileRequest {
     body: {
         userId: number,
         displayName?: string, 
