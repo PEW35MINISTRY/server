@@ -1,137 +1,97 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
-import { CredentialRequest, loginResponse, loginResponseBody } from "./auth-types.mjs";
-import { query, queryAll, queryTest } from "../../services/database.mjs";
+import { CredentialRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
+import { query, queryAll, queryTest, TestResult } from "../../services/database.mjs";
 import { DB_USER } from "../../services/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
+import { formatProfile } from "../profile/profile-utilities.mjs";
 
   
-/* Utility Methods */
-const generateJWT = (requestorId:string):string => {
 
-    return "100.100.100";
+/* *******************
+ JWT Token Management
+******************* */
+export const generateJWT = async(userId:number):Promise<string> => {
+    //generate JWT
+    return '100.100.100';
 }
 
-export const verifyJWT = (JWT:string, requestorId:number):Boolean => {
-    
+export const updateJWTQuery = async(userId:number):Promise<string> => {
+    //generate JWT
+    const JWT:string = await generateJWT(userId);
+
+    const query:TestResult  =await queryTest(`UPDATE user_table SET jwt = $1 WHERE user_id = $2;`, [JWT, userId]);
+
+    if(query.success) return JWT;
+    else {
+        new Exception(502, 'Database Failed to save JWT: Error: '+query.error);
+        // return null;
+    }
+}
+
+export const verifyJWT = (JWT:string, userId:number):Boolean => {
+    //Verify JWT still valid
 
     return (JWT === "100.100.100");
 }
 
-//Private Local Utility
-const generalAuthentication = async(request: CredentialRequest, response: Response, next: NextFunction):Promise<Boolean> => {
+//Login Operation
+export const getUserLogin = async(email:string, password: string, next: NextFunction):Promise<LoginResponseBody> => {
+    //Query Database
+    const passwordHash:string = getPasswordHash(password);
+    const userProfile:DB_USER = await query("SELECT * FROM user_table WHERE (email = $1 AND password_hash = $2);", [email, passwordHash]);
 
-    //Verify Credentials Exist
-    if(!request.headers.jwt || !request.headers["user-id"])
-        next(new Exception(400, `Authentication Failed: missing JWT or UserId in request header: ${request.headers.jwt} :: ${request.headers.userid}`));
+    //Login Failed
+    if (userProfile && !userProfile.verified) {
+        next(new Exception(403, `Login Failed: Please verify account for user: ${userProfile.user_id} as a ${userProfile.user_role}.`));
+        // return null;  
 
-    //Verify Client Exists
-    const userId:number = parseInt(request.headers['user-id'] as unknown as string);
-    const requestorId:number = parseInt(request.headers["requestor-id"] as string || request.headers["user-id"] as string);
+    //Login Success
+    } else if(userProfile && userProfile.user_id) {
+        log.auth("Successfully logged in user: ", userProfile.user_id);
 
-    const userIdList:DB_USER[] = await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
-    const requestorIdList:DB_USER[] = (userId === requestorId) ? userIdList : await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [requestorId]);
-
-
-    if(userIdList.length !== 1 && requestorIdList.length !== 1) 
-        next(new Exception(400, `Authentication Failed: User: ${userId} OR Requestor: ${requestorId} - DOES NOT EXIST`));
-
-    //Verify JWT
-    else if(!verifyJWT(request.headers.jwt, requestorId)) 
-        next(new Exception(401, `Authentication Failed JWT for User: ${userId}`));
-
-    else {
-        request.headers.userId = userId;
-        request.headers.userProfile = userIdList[0];
-        request.headers.requestorId = requestorId;
-        request.headers.requestorProfile = requestorIdList[0];
-        return true;
-    }
-
-    return false;
-}
-
-
-export const authenticateIdentity = async(request: CredentialRequest, response: Response, next: NextFunction):Promise<Boolean> => {
-
-    if(generalAuthentication(request, response, next)) {
-
-        log.auth(`AUTHENTICATED :: User verified, and authenticated: Requestor: ${request.headers.requestorId} has access to User: ${request.headers.userId}`);
-        next();
-        return true;
-    }
-    return false;
-}
-
-export const authenticateIdentityAndAdmin = async(request: CredentialRequest, response: Response, next: NextFunction):Promise<Boolean> => {
-
-    if(generalAuthentication(request, response, next) && RoleEnum[request.headers.requestorProfile.user_role as string] === RoleEnum.ADMIN) {
-
-        log.auth(`AUTHENTICATED :: User verified, and authenticated: Requestor: ${request.headers.requestorId} has access to User: ${request.headers.userId}`);
-        next();
-        return true;
-    }
-    return false;
-}
-
-export const authenticateIdentityAndAccess = async(request: CredentialRequest, response: Response, next: NextFunction):Promise<Boolean> => {
-
-    if(generalAuthentication(request, response, next)) {
-
-        //Verify Requestor Authorization
-        if(!isRequestorAllowed(request.headers.userId, request.headers.requestorId)) 
-            next(new Exception(401, `Authentication Failed Authorization for Requestor: ${request.headers.requestorId} to access User: ${request.headers.userId}`));
-
-        else {
-            log.auth(`TOTAL AUTHORIZATION :: User verified, authorized, and authenticated: Requestor: ${request.headers.requestorId} has access to User: ${request.headers.userId}`);
-            next();
-            return true;
+        return {
+            JWT: await updateJWTQuery(userProfile.user_id),
+            userId: userProfile.user_id,
+            userProfile: formatProfile(userProfile),
+            service: 'Email & Password Authenticated'
         }
+
+    //Login Failed
+    } else {
+        next(new Exception(400, `Login Failed: Email and/or Password does not match our records.`));
+        // return null;  
     }
-    return false;
 }
 
-export const authenticateRequestorAllowed = async(request: CredentialRequest, response: Response, next: NextFunction):Promise<Boolean> => {
 
-    //Verify Requestor Authorization
-    if(!isRequestorAllowed(request.headers.userId, request.headers.requestorId)) 
-        next(new Exception(401, `Authentication Failed Authorization for Requestor: ${request.headers.requestorId} to access User: ${request.headers.userId}`));
+/* *******************
+ Utility Methods
+******************* */
 
-    else {
-        log.auth(`ACCESS :: User verified, authorized, and authenticated: Requestor: ${request.headers.requestorId} has access to User: ${request.headers.userId}`);
-        next();
-        return true;
-    }
-    return false;
-}
+export const isRequestorAllowedProfile = async(userProfile: DB_USER, requestorProfile: DB_USER):Promise<boolean> => { //TODO: add column circleId to leader Table
 
-export default authenticateIdentityAndAccess;
-
-export const isRequestorAllowed = async(userId: number, requestorId: number):Promise<boolean> => {
-    //TODO: add column circleId to leader Table
-    const requestorRoleAndCircle = await query("SELECT user_role FROM user_table WHERE user_id = $1;", [requestorId]);
-
-    if(userId === requestorId || requestorRoleAndCircle.user_role === RoleEnum.ADMIN) return true;
+    if(userProfile.user_id === requestorProfile.user_id || requestorProfile.user_role === RoleEnum.ADMIN) return true;
 
     //Test Member of Leader's Circle
-    if(requestorRoleAndCircle.user_role === RoleEnum.LEADER) {
-        // const userCircleList = await query("SELECT circleList FROM user_table WHERE user_id = $1;", [userId]);
-        // if(userCircleList.includes(requestorRoleAndCircle.circleId))
-            return true;
+    if(requestorProfile.user_role === RoleEnum.LEADER) {
+        return (requestorProfile.circles.find((circleId, index) => {
+            return userProfile.circles.includes(circleId);
+          }))
+          ? true : false; //Because .find returns undefine for no match
     }
     return false;
 }
 
-export const getLoginResponse = (userId: string):loginResponseBody => {
-    //Database Query
+export const isRequestorAllowedProfileQuery = async(userId: number, requestorId: number):Promise<boolean> => {
 
-    return {
-        JWT: '100.100.100', 
-        userId: 101, 
-        userRole: 'Student', 
-        displayName: 'Ethan', 
-        profileImage: 'Profile Image coming soon.', 
-        service: 'Email'
-    };
+    const userProfile = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
+    const requestorProfile = await query("SELECT * FROM user_table WHERE user_id = $1;", [requestorId]);
+
+    return await isRequestorAllowedProfile(userProfile, requestorProfile);
+}
+
+export const getPasswordHash = (password:string):string => {
+    return 'password';
 }

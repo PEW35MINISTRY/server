@@ -14,7 +14,7 @@ const pool = new Pool({
 
 
 export const query = (query:string, parameters?:any[]):any => new Promise((resolve, reject) => {
-    log.event("Executing Query: ", query, parameters);
+    log.db("Executing Query: ", query, parameters);
 
     pool.query(query, parameters || [], (error, result) => {
         if (error) reject(error);
@@ -23,12 +23,12 @@ export const query = (query:string, parameters?:any[]):any => new Promise((resol
 });})
 .then((res) => res)
 .catch(error => {
-    log.error('Database Query Failed:', query, parameters, error);   
+    log.db('ERROR :: Database Query Failed:', query, parameters, error);   
     return error;
 });
 
 export const queryAll = (query:string, parameters?:any[]):any => new Promise((resolve, reject) => {
-    log.event("Executing Query All", query, parameters);
+    log.db("Executing Query All", query, parameters);
 
     pool.query(query, parameters || [], (error, result) => {
    if (error) reject(error);
@@ -37,27 +37,39 @@ export const queryAll = (query:string, parameters?:any[]):any => new Promise((re
 });})
 .then((res) => res || [])
 .catch(error => {
-    log.error('Database Query ALL Failed:', query, parameters, error);   
+    log.db('ERROR :: Database Query ALL Failed:', query, parameters, error);   
     new Exception(502, error);
     return error;
 });
 
 export type TestResult = {
     success: boolean,
-    result?: string,
-    error?: string,
+    result: string,
+    error: string,
+    query: string,
+    parameters: string
 }
 
+export const formatTestResult = (success: boolean = false, result: string = 'NONE', error: string = 'NONE', query: string = '', parameters: string = ''):TestResult => ({
+    success: success,
+    result: result,
+    error: error,
+    query: query,
+    parameters: parameters
+});
+
 export const queryTest = (query:string, parameters?:any[]):Promise<TestResult> => new Promise((resolve, reject) => {
-    log.event("Executing Test Query: ", query, parameters);
+    log.db("Executing Test Query: ", query, parameters);
     pool.query(query, parameters || [], (error, result) => {
         if (error) 
-            log.warn('Database Query Test Processed:', query, parameters, error, result); 
+            log.db('FAILED :: Database Query Test Failed:', query, parameters, error, result); 
         
         resolve({
             success: !error,
-            result: result,
-            error: error
+            result: result ? result.toString() : 'NONE',
+            error: error ? error.toString() : 'NONE',
+            query: query,
+            parameters: parameters.toString()
         });
 });}).then((res:TestResult) => res);
 

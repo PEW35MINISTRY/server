@@ -17,7 +17,7 @@ export type DB_USER = {
     partners: number[],
     circles: number[],
     profile_image: string, 
-
+	jwt: string,
 };
 
 

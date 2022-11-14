@@ -8,7 +8,7 @@
     "open": "start http://localhost:5000",
     "preserve": "npm run build",
     "serve": "ts-node .",
-    "start": "npm run build & npm run serve"
+    "start": "npm run build & npm run open & npm run serve"
   },
   "dependencies": {
     "@types/dotenv": "^8.2.0",

@@ -18,7 +18,7 @@ const SEND_EMAILS = process.env.SEND_EMAILS || false;
 /*********************************/
 
 export enum LOG_TYPE {
-    ALERT, ERROR, WARN, AUTH, EVENT
+    ALERT, ERROR, WARN, AUTH, EVENT, DB
   }
 
 const LOG_TYPE_LABEL = new Map<number, string>([
@@ -27,6 +27,7 @@ const LOG_TYPE_LABEL = new Map<number, string>([
     [LOG_TYPE.WARN, 'WARN'],
     [LOG_TYPE.AUTH, 'AUTH'],
     [LOG_TYPE.EVENT, 'EVENT'],
+    [LOG_TYPE.DB, 'DB'],
   ]);
 
 export const getTypeLabel = (type: LOG_TYPE): string => LOG_TYPE_LABEL.get(type);
@@ -36,12 +37,14 @@ const LOG_ERROR_FILE:PathOrFileDescriptor = path.join(LOG_DIRECTORY, process.env
 const LOG_WARN_FILE:PathOrFileDescriptor =  path.join(LOG_DIRECTORY, process.env.LOG_WARN_FILE || 'log-warn.txt');
 const LOG_EVENT_FILE:PathOrFileDescriptor = path.join(LOG_DIRECTORY, process.env.LOG_EVENT_FILE || 'log-event.txt');
 const LOG_AUTH_FILE:PathOrFileDescriptor =  path.join(LOG_DIRECTORY, process.env.LOG_AUTH_FILE || 'log-auth.txt');
+const LOG_DB_FILE:PathOrFileDescriptor =  path.join(LOG_DIRECTORY, process.env.LOG_DB_FILE || 'log-db.txt');
 
 export const getLogFilePath = (type:LOG_TYPE):PathLike|PathOrFileDescriptor => {
     switch (type) {
         case LOG_TYPE.WARN: return LOG_WARN_FILE;
         case LOG_TYPE.EVENT: return LOG_EVENT_FILE;
         case LOG_TYPE.AUTH: return LOG_AUTH_FILE;
+        case LOG_TYPE.DB: return LOG_DB_FILE;
         default: return LOG_ERROR_FILE;
     }
 }
@@ -52,15 +55,15 @@ export const getLogFilePath = (type:LOG_TYPE):PathLike|PathOrFileDescriptor => {
 /*********************************/
 const writeFile = async (type: LOG_TYPE, text: string):Promise<Boolean> => !SAVE_LOGS_LOCALLY ? true : 
     new Promise((resolve, reject) => {
-        if (!fs.existsSync(LOG_DIRECTORY)) fs.mkdirSync(LOG_DIRECTORY, { recursive: true});
+        if (!fs.existsSync(LOG_DIRECTORY)) fs.mkdirSync(LOG_DIRECTORY, { recursive: true});   console.log(text);
 
-        fs.appendFile (getLogFilePath(type), `${text}\n`, (error) => {     console.error(text, error);  
+        fs.appendFile (getLogFilePath(type), `${text}\n`, (error) => {     console.error(text);  
             if (error) {console.error(error, text); resolve(false);}
             else resolve(true);
     });});
 
 export const readFile = async(type: LOG_TYPE):Promise<Boolean> => !SAVE_LOGS_LOCALLY ? true : 
-    new Promise((resolve, reject) => fs.readFile(getLogFilePath(type), (error) => {     console.error(getTypeLabel(type), error);  
+    new Promise((resolve, reject) => fs.readFile(getLogFilePath(type), (error) => {     console.error(getTypeLabel(type));  
         if (error) {console.error(type, error); resolve(false);}
         else resolve(true);
     }));
@@ -85,6 +88,8 @@ const sendEmail = async (header: string, body: string):Promise<Boolean> => !SEND
 /*********************************/ 
 const formatLogEntry = (type: LOG_TYPE, ...messages: any[]):string => {
     const time = new Date().getTime();
+    const regexTitle = new RegExp(/^[A-Z]+|[:]$/); //Matches first charter capitalized or last is colon
+    const regexLineLength = new RegExp(/(?<=^|\n|\r)(.){100,}$/); //Matches if last line is longer than 100
     let trace = '';
 
     if(type == LOG_TYPE.ERROR || type == LOG_TYPE.ALERT) {
@@ -93,7 +98,7 @@ const formatLogEntry = (type: LOG_TYPE, ...messages: any[]):string => {
         if(stack.length>=3) trace  += `     >> ${stack[2].getFunctionName()} = ${stack[2].getLineNumber()}:${stack[2].getColumnNumber()} => ${stack[2].getFileName()}\n`;
         if(stack.length>=4) trace  += `     >>> ${stack[3].getFunctionName()} = ${stack[3].getLineNumber()}:${stack[3].getColumnNumber()} => ${stack[3].getFileName()}\n`;
     }
-    return `[${dateFormat(time, 'm-d-yyyy H:MM:ss',)}] ${getTypeLabel(type)} :: ` + messages.reduce((previous, current)=>previous+=`${current}\n`, '') + trace;
+    return `[${dateFormat(time, 'm-d-yyyy H:MM:ss',)}] ${getTypeLabel(type)} :: ` + messages.reduce((previous, current)=>previous+=`${(regexLineLength.test(previous) || (previous.length && regexTitle.test(current))) ? '\n' : ' - '}${current}`, '') + '\n' + trace;
 }
 
 
@@ -137,5 +142,12 @@ export const event = async(...messages: any[]):Promise<Boolean> => { //console.t
 
     return await writeFile(LOG_TYPE.EVENT, entry)
         && await writeDatabase(LOG_TYPE.EVENT, entry);
+}
+
+export const db = async(...messages: any[]):Promise<Boolean> => { //console.trace();
+    const entry:string = formatLogEntry(LOG_TYPE.DB, ...messages);
+
+    return await writeFile(LOG_TYPE.DB, entry)
+        && await writeDatabase(LOG_TYPE.DB, entry);
 }
 

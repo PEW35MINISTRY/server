@@ -1,43 +1,55 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
+import { DB_USER } from '../../services/database-types.mjs';
+import { query, queryTest, TestResult } from '../../services/database.mjs';
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
-import { CredentialRequest, loginRequest, loginResponse } from './auth-types.mjs';
-import authenticateAccess, {authenticateIdentity, getLoginResponse} from './auth-utilities.mjs'
+import { RoleEnum } from '../profile/profile-types.mjs';
+import { editProfile, formatProfile } from '../profile/profile-utilities.mjs';
+import { CredentialRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from './auth-types.mjs';
+import {generateJWT, getPasswordHash, getUserLogin, updateJWTQuery} from './auth-utilities.mjs'
 
 
-const router:Router = express.Router();
-router.use(express.json());
 
 
-router.post('/signup', (request: loginRequest, response: loginResponse) => {
+/********************
+ Unauthenticated Routes
+ *********************/
+ export const POST_signup =  async(request: SignupRequest, response: Response, next: NextFunction) => { //TODO Signup Process & Verify Accounts
         //Verify Password & Email
 
-        //Save to Database
-        const userId = "New User ID"
+        //Save New Profile to Database
+        const query:TestResult = await editProfile(null, request, null, true);
+        if(query.success) {
+            const body:LoginResponseBody = await getUserLogin(request.body['email'], request.body['password'], next);
+            log.auth('Success :: New User Created:', body.userId, body.userProfile.displayName, body.userProfile.userRole)
+            response.status(201).send(body);
+        } else
+            next(new Exception(500, "Failed to signup user"));
+};
 
-        response.status(201).send(getLoginResponse(userId));
-        log.auth("New user created with user id: ", userId);
-});
+
+export const GET_login =  async(request: LoginRequest, response: Response, next: NextFunction) => {
+
+    response.status(202).send(await getUserLogin(request.body['email'], request.body['password'], next));
+};
 
 
-router.get('/login', (request: CredentialRequest, response: Response) => {
-    //Query Database
 
-    response.status(202).send(getLoginResponse(request.headers['user-id']));
-    log.auth("Successfully logged in user: ", request.headers['user-id']);
-});
 
-//Verify Identity
-router.use((request:CredentialRequest, response:Response, next:NextFunction) => authenticateIdentity(request, response, next));
-
-router.post('/logout', (request: CredentialRequest, response: Response) => {
+/********************
+ Authenticated Routes
+ *********************/
+ export const POST_logout =  async (request: CredentialRequest, response: Response, next: NextFunction) => {
     //Perform Logout Operations and Remove JWT
-    
-    response.status(202).send("You have been logged out of Encouraging Prayer System.");
-    log.auth("Successfully logged out user: ", request.headers['user-id']);
-});
 
+    const query:TestResult  = await queryTest(`UPDATE user_table SET jwt = $1 WHERE user_id = $2;`, [null, request.userId]);
 
-export default router;
+    if(query.success) {
+        response.status(202).send("You have been logged out of Encouraging Prayer System.");
+        log.auth("Successfully logged out user: ", request.headers['user-id']);
+    } else {
+        next(new Exception(502, `Database failed to logout user: ${request.userId} | Error: `+query.error));
+    }
+};
 
 

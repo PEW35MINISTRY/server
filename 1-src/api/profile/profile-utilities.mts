@@ -1,8 +1,10 @@
 import { GenderEnum, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, RoleEnum, StageEnum } from "./profile-types.mjs";
-import database, {query, queryAll, queryTest, TestResult} from '../../services/database.mjs';
+import database, {formatTestResult, query, queryAll, queryTest, TestResult} from '../../services/database.mjs';
 import { Exception } from "../api-types.mjs";
 import * as log from '../../services/log.mjs';
 import { DB_USER } from "../../services/database-types.mjs";
+import { getPasswordHash } from "../auth/auth-utilities.mjs";
+import { SignupRequest } from "../auth/auth-types.mjs";
 
 export const formatPublicProfile = (user: DB_USER):ProfilePublicResponse => 
     ({
@@ -79,9 +81,6 @@ export const getPartnerProfile = async (userId: number, requestorId: number):Pro
  * Edit Profile by Authorization
  * NOTE: requestorId is user requesting edit on userId
  */
-export const getPasswordHash = async (password:string):Promise<string> => {
-    return 'hashed_password';
-}
 
 export type roleListResult = 
     {
@@ -101,71 +100,104 @@ export const getProfileRoles = async(...idList: number[]):Promise<roleListResult
 }
 
 
-export const editProfile = async(userId: number, httpRequest:ProfileEditRequest, role?:RoleEnum):Promise<TestResult> => {
-         let columns:string = '';
+export const editProfile = async(userId: number, httpRequest:ProfileEditRequest | SignupRequest, role?:RoleEnum, newProfile?:boolean):Promise<TestResult> => {
+        let columnList:string[] = [];
         let valueList:any[] = [];
         const fields = Object.entries(httpRequest.body);
     
         //Only list Fields Student can Edit
         fields.forEach((field, index) => { 
             try {
-                if(role && role === RoleEnum.ADMIN) 
-                    getAdminProfileChanges(userId, field, columns, valueList);
+                if(newProfile) 
+                    getSignupChanges(field, columnList, valueList);
+                else if(role && role === RoleEnum.ADMIN) 
+                    getAdminProfileChanges(userId, field, columnList, valueList);
                  else 
-                    getProfileChanges(userId, field, columns, valueList);                
-
-                    if(columns && (typeof columns[columns.length-1] === 'string')){ //Only adding formatting if valid field
-                        columns += ` = $${valueList.length}${index == fields.length-1 ? '' : ','} `; //Remove trailing comma        
-                    }  
+                    getProfileChanges(userId, field, columnList, valueList);                
                 
                 }catch(error){log.error('User Edit Profile Error: ', userId, error);
-                    return { success: false, result: {columns, valueList}, error: error};
+                    return { success: false, result: {columnList, valueList}, error: error};
                 }
         });
-    
-        return await queryTest(`UPDATE user_table SET ${columns} WHERE user_id = $${valueList.length+1};`, [...valueList, userId]);
+
+        if(!columnList.length || !valueList.length)
+            return formatTestResult(false, null, 'Invalid Profile Edit Request', columnList.toString(), valueList.toString())
+        else if(newProfile)
+            return await queryTest(`INSERT INTO user_table ${columnList.join(', ')};`, [...valueList, userId]);
+        else
+            return await queryTest(`UPDATE user_table SET ${columnList.join(', ')} WHERE user_id = $${valueList.length+1};`, [...valueList, userId]);
     }
 
 //Student or Relevant Leader
-    const getProfileChanges = (userId:number, field:[string,unknown], columns:string, valueList:any[], logWarn:boolean=true):boolean => {
+    const getProfileChanges = (userId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true):boolean => {
         //General Edits
-        if( checkField('displayName', `display_name`, field[1], field[0], columns, valueList)
-            || checkField('dob', `dob`, parseInt(field[1] as string), field[0], columns, valueList)
-            || checkField('gender', `gender`, GenderEnum[field[1] as string], field[0], columns, valueList)
-            || checkField('zipcode', `zipcode`, field[1], field[0], columns, valueList)
-            || checkField('stage', `stage`, StageEnum[field[1] as string], field[0], columns, valueList)
-            || checkField('dailyNotificationHour', `dailyNotificationHour`, parseInt(field[1] as string), field[0], columns, valueList)
-            || checkField('circleList', `circles`, field[1], field[0], columns, valueList)
-            || checkField('profileImage', `profile_image`, field[1], field[0], columns, valueList)
+        if( checkField('displayName', `display_name`, field[1], field[0], columnList, valueList)
+            || checkField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || checkField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)
+            || checkField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
+            || checkField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
+            || checkField('dailyNotificationHour', `dailyNotificationHour`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || checkField('circleList', `circles`, field[1], field[0], columnList, valueList)
+            || checkField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
 
         ) return true;
-        if(logWarn) log.warn("User Editing Profile:", userId, "Unmatched Field: ", field);
+        if(logWarn) log.warn("Creating User:", userId, "Unmatched Field: ", field);
         return false;
     }
 
     //Note: userId is profile being changed; admin already authenticated in route
-    const getAdminProfileChanges = (userId:number, field:[string,unknown], columns:string, valueList:any[], logWarn:boolean=true) => {
+    const getAdminProfileChanges = (userId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true) => {
         //General Edits
-        if( getProfileChanges(userId, field, columns, valueList, false)
+        if( getProfileChanges(userId, field, columnList, valueList, false)
         //Additional Admin Edits
-            || checkField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columns, valueList)
-            || checkField('email', `email`, field[1], field[0], columns, valueList)
-            || checkField('phone', `phone`, field[1], field[0], columns, valueList)
-            || checkField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columns, valueList)
-            || checkField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columns, valueList)
-            || checkField('partnerList', `partners`, field[1], field[0], columns, valueList)
-            || checkField('notes', `notes`, parseInt(field[1] as string), field[0], columns, valueList)
+            || (checkField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList)
+                && checkField('userRole', `verified`, false, field[0], columnList, valueList)) //UnVerify account on role change
+            || checkField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
+            || checkField('email', `email`, field[1], field[0], columnList, valueList)
+            || checkField('phone', `phone`, field[1], field[0], columnList, valueList)
+            || checkField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
+            || checkField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
+            || checkField('partnerList', `partners`, field[1], field[0], columnList, valueList)
+            || checkField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList)
 
         ) return true;
         if(logWarn) log.warn("Admin Editing Profile:", userId, "Unmatched Field: ", field);
         return false;
     }
 
-    const checkField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columns:string, valueList:any[]):boolean => {
-        if(fieldName == jsonProperty){
-            columns += dbColumn;
-            valueList.push(parsedValue);
-            return true;
+    //INITIAL SIGNUP
+    const getSignupChanges = (field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true):boolean => {
+        //General Edits
+        if( checkField('userRole', `user_role`, RoleEnum[field[1] as string], field[0] == 'LEADER' ? RoleEnum.LEADER : RoleEnum.STUDENT, columnList, valueList) //Only Student or Leader Initially
+            || checkField('email', `email`, field[1], field[0], columnList, valueList)
+            || checkField('phone', `phone`, field[1], field[0], columnList, valueList)
+            || checkField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
+            || checkField('displayName', `display_name`, field[1], field[0], columnList, valueList)
+            || checkField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || checkField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)
+            || checkField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
+            || checkField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
+            || checkField('dailyNotificationHour', `dailyNotificationHour`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || checkField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
+
+        ) return true;
+        if(logWarn) log.warn("User Editing Profile: Unmatched Field: ", field);
+        return false;
+    }
+
+    const checkField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columnList:string[], valueList:any[]):boolean => {
+        if(fieldName == jsonProperty && parsedValue != null){
+
+            if(columnList.includes(`${dbColumn} = \$${valueList.length}`)){
+                const index:number = columnList.indexOf(`${dbColumn} = \$${valueList.length}`);
+                valueList[index] = parsedValue;
+                return true;
+
+            } else { //Add New
+                valueList.push(parsedValue);
+                columnList.push(`${dbColumn} = \$${valueList.length}`);
+                return true;
+            }
         } return false;
     }
 
