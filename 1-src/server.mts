@@ -12,7 +12,7 @@ import * as log from './services/log.mjs';
 import logRoutes from './api/log/log.mjs';
 import apiRoutes from './api/api.mjs';
 
-import {GET_login, POST_logout, POST_signup } from './api/auth/auth.mjs';
+import {POST_login, POST_logout, POST_signup } from './api/auth/auth.mjs';
 import { GET_partnerProfile, GET_publicProfile, GET_userProfile, PATCH_userProfile } from './api/profile/profile.mjs';
 import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
@@ -49,7 +49,7 @@ apiServer.get('/portal', (request: Request, response: Response) => {
 apiServer.use(express.json());
 
 apiServer.post('/signup', POST_signup);
-apiServer.post('/login', GET_login);
+apiServer.post('/login', POST_login);
 
 
 //***************************************
@@ -127,12 +127,12 @@ apiServer.use((request: Request, response:Response, next: NextFunction) => {
 
 apiServer.use((error: Exception, request: Request, response:Response, next: NextFunction) => {
     const status = error.status || 500;
-    const message = request.url + ' | ' + error.message || 'Server Error';
-    response.status(error.status || 500).send({status: status, message: message, url: request.originalUrl, params: request.params, header: request.headers, body: request.body});
+    const message = request.method + ' -> ' + request.url + ' = ' + error.message || 'Server Error';
+    response.status(error.status || 500).send({status: status, message: message, type: request.method, url: request.originalUrl, params: request.params, query: request.query, header: request.headers, body: request.body});
 
     if(status < 400) log.event('API Event:', message);
     else if(status >= 400 && status <= 403) log.auth('HTTP user verification failed:', message);
     else log.error('API Server Error:', message);
 
-    console.error("API", status, message, request.originalUrl, request.params, request.headers, request.body);
+    console.error("API", status, message, request.method, request.originalUrl, request.params, request.query, request.headers, request.body);
 });

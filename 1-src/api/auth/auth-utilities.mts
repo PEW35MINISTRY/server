@@ -37,13 +37,13 @@ export const verifyJWT = (JWT:string, userId:number):Boolean => {
 }
 
 //Login Operation
-export const getUserLogin = async(email:string, password: string, next: NextFunction):Promise<LoginResponseBody> => {
+export const getUserLogin = async(email:string, password: string, next: NextFunction, verifyVerification = true):Promise<LoginResponseBody> => {
     //Query Database
     const passwordHash:string = getPasswordHash(password);
     const userProfile:DB_USER = await query("SELECT * FROM user_table WHERE (email = $1 AND password_hash = $2);", [email, passwordHash]);
 
     //Login Failed
-    if (userProfile && !userProfile.verified) {
+    if (verifyVerification && userProfile && !userProfile.verified) {
         next(new Exception(403, `Login Failed: Please verify account for user: ${userProfile.user_id} as a ${userProfile.user_role}.`));
         // return null;  
 

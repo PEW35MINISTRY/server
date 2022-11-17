@@ -123,7 +123,7 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
         if(!columnList.length || !valueList.length)
             return formatTestResult(false, null, 'Invalid Profile Edit Request', columnList.toString(), valueList.toString())
         else if(newProfile)
-            return await queryTest(`INSERT INTO user_table ${columnList.join(', ')};`, [...valueList, editId]);
+            return await queryTest(`INSERT INTO user_table (${columnList.join(', ')}) VALUES (${valueList.map((v,i)=>`\$${i+1}`).join(', ')});`, [...valueList]);
         else
             return await queryTest(`UPDATE user_table SET ${columnList.join(', ')} WHERE user_id = $${valueList.length+1};`, [...valueList, editId]);
     }
@@ -131,14 +131,14 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
 //Student or Relevant Leader
     const getProfileChanges = (editId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true):boolean => {
         //General Edits
-        if( checkField('displayName', `display_name`, field[1], field[0], columnList, valueList)
-            || checkField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || checkField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)
-            || checkField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
-            || checkField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
-            || checkField('dailyNotificationHour', `dailyNotificationHour`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || checkField('circleList', `circles`, field[1], field[0], columnList, valueList)
-            || checkField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
+        if( updateField('displayName', `display_name`, field[1], field[0], columnList, valueList)
+            || updateField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || updateField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)
+            || updateField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
+            || updateField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
+            || updateField('dailyNotificationHour', `dailyNotificationHour`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || updateField('circleList', `circles`, field[1], field[0], columnList, valueList)
+            || updateField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
 
         ) return true;
         if(logWarn) log.warn("Creating User:", editId, "Unmatched Field: ", field);
@@ -150,15 +150,15 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
         //General Edits
         if( getProfileChanges(editId, field, columnList, valueList, false)
         //Additional Admin Edits
-            || (checkField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList)
-                && checkField('userRole', `verified`, false, field[0], columnList, valueList)) //UnVerify account on role change
-            || checkField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
-            || checkField('email', `email`, field[1], field[0], columnList, valueList)
-            || checkField('phone', `phone`, field[1], field[0], columnList, valueList)
-            || checkField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
-            || checkField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
-            || checkField('partnerList', `partners`, field[1], field[0], columnList, valueList)
-            || checkField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || (updateField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList)
+                && updateField('userRole', `verified`, false, field[0], columnList, valueList)) //UnVerify account on role change
+            || updateField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
+            || updateField('email', `email`, field[1], field[0], columnList, valueList)
+            || updateField('phone', `phone`, field[1], field[0], columnList, valueList)
+            || updateField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
+            || updateField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
+            || updateField('partnerList', `partners`, field[1], field[0], columnList, valueList)
+            || updateField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList)
 
         ) return true;
         if(logWarn) log.warn("Admin Editing Profile:", editId, "Unmatched Field: ", field);
@@ -168,27 +168,27 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
     //INITIAL SIGNUP
     const getSignupChanges = (field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true):boolean => {
         //General Edits
-        if( checkField('userRole', `user_role`, RoleEnum[field[1] as string], field[0] == 'LEADER' ? RoleEnum.LEADER : RoleEnum.STUDENT, columnList, valueList) //Only Student or Leader Initially
-            || checkField('email', `email`, field[1], field[0], columnList, valueList)
-            || checkField('phone', `phone`, field[1], field[0], columnList, valueList)
-            || checkField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
-            || checkField('displayName', `display_name`, field[1], field[0], columnList, valueList)
-            || checkField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || checkField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)
-            || checkField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
-            || checkField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
-            || checkField('dailyNotificationHour', `dailyNotificationHour`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || checkField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
+        if( insertField('userRole', `user_role`, RoleEnum[field[1] as string], field[0] == 'LEADER' ? RoleEnum.LEADER : RoleEnum.STUDENT, columnList, valueList) //Only Student or Leader Initially
+            || insertField('email', `email`, field[1], field[0], columnList, valueList)
+            || insertField('phone', `phone`, field[1], field[0], columnList, valueList)
+            || insertField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
+            || insertField('displayName', `display_name`, field[1], field[0], columnList, valueList)
+            || insertField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || insertField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)
+            || insertField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
+            || insertField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
+            || insertField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || insertField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
 
         ) return true;
         if(logWarn) log.warn("User Editing Profile: Unmatched Field: ", field);
         return false;
     }
 
-    const checkField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columnList:string[], valueList:any[]):boolean => {
+    const updateField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columnList:string[], valueList:any[]):boolean => {
         if(fieldName == jsonProperty && parsedValue != null){
 
-            if(columnList.includes(`${dbColumn} = \$${valueList.length}`)){
+            if(columnList.includes(`${dbColumn} = \$${valueList.length}`)){ //Replaces Duplicates
                 const index:number = columnList.indexOf(`${dbColumn} = \$${valueList.length}`);
                 valueList[index] = parsedValue;
                 return true;
@@ -196,6 +196,22 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
             } else { //Add New
                 valueList.push(parsedValue);
                 columnList.push(`${dbColumn} = \$${valueList.length}`);
+                return true;
+            }
+        } return false;
+    }
+
+    const insertField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columnList:string[], valueList:any[]):boolean => {
+        if(fieldName == jsonProperty && parsedValue != null){
+
+            if(columnList.includes(dbColumn)){ //Replaces Duplicates
+                const index:number = columnList.indexOf(dbColumn);
+                valueList[index] = parsedValue;
+                return true;
+
+            } else { //Add New
+                valueList.push(parsedValue);
+                columnList.push(dbColumn);
                 return true;
             }
         } return false;

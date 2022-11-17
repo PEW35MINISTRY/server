@@ -15,20 +15,22 @@ import {generateJWT, getPasswordHash, getUserLogin, updateJWTQuery} from './auth
  Unauthenticated Routes
  *********************/
  export const POST_signup =  async(request: SignupRequest, response: Response, next: NextFunction) => { //TODO Signup Process & Verify Accounts
-        //Verify Password & Email
+        //Verify Password & Email Exist
+    if(!request.body.email || !request.body.password)
+        next(new Exception(400, `Signup Failed :: missing required Email or Password in request.`));
 
         //Save New Profile to Database
         const query:TestResult = await editProfile(null, request, null, true);
         if(query.success) {
-            const body:LoginResponseBody = await getUserLogin(request.body['email'], request.body['password'], next);
-            log.auth('Success :: New User Created:', body.userId, body.userProfile.displayName, body.userProfile.userRole)
+            const body:LoginResponseBody = await getUserLogin(request.body['email'], request.body['password'], next, false);
+            log.auth(`Success :: New User Created: ${body.userId}`);
             response.status(201).send(body);
         } else
             next(new Exception(500, "Failed to signup user"));
 };
 
 
-export const GET_login =  async(request: LoginRequest, response: Response, next: NextFunction) => {
+export const POST_login =  async(request: LoginRequest, response: Response, next: NextFunction) => {
 
     response.status(202).send(await getUserLogin(request.body['email'], request.body['password'], next));
 };
@@ -45,8 +47,8 @@ export const GET_login =  async(request: LoginRequest, response: Response, next:
     const query:TestResult  = await queryTest(`UPDATE user_table SET jwt = $1 WHERE user_id = $2;`, [null, request.userId]);
 
     if(query.success) {
-        response.status(202).send("You have been logged out of Encouraging Prayer System.");
-        log.auth("Successfully logged out user: ", request.headers['user-id']);
+        response.status(202).send(`User: ${request.userId} has been logged out of Encouraging Prayer System.`);
+        log.auth("Successfully logged out user: ", request.userId);
     } else {
         next(new Exception(502, `Database failed to logout user: ${request.userId} | Error: `+query.error));
     }

@@ -124,7 +124,7 @@ export const error = async(...messages: any[]):Promise<Boolean> => { console.tra
 export default error;
 
 export const warn = async(...messages: any[]):Promise<Boolean> => { //console.trace();
-    const entry:string = formatLogEntry(LOG_TYPE.AUTH, ...messages);
+    const entry:string = formatLogEntry(LOG_TYPE.WARN, ...messages);
 
     return await writeFile(LOG_TYPE.WARN, entry)
         && await writeDatabase(LOG_TYPE.WARN, entry);
