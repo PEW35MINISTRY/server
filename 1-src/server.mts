@@ -9,6 +9,7 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 import {Exception} from './api/api-types.mjs'
 import * as log from './services/log.mjs';
+import CHAT from './services/chat/chat.mjs';
 
 //Import Routes
 import logRoutes from './api/log/log.mjs';
@@ -22,7 +23,10 @@ import { CircleRequest, CredentialRequest, ProfileRequest } from './api/auth/aut
 import { authenticatePartner, authenticateCircle, authenticateProfile, authenticateLeader, authenticateAdmin, authenticateIdentity } from './api/auth/authorization.mjs';
 import { SocketContact, SocketMessage } from './services/chat/chat-types.mjs';
 import { verifyJWT } from './api/auth/auth-utilities.mjs';
-import { fetchNames, formatMessageNames } from './services/chat/chat-utilities.mjs';
+import { fetchCircleMessageNames, fetchNames, formatMessageNames } from './services/chat/chat-utilities.mjs';
+import { GET_userContacts } from './api/chat/chat.mjs';
+import { GET_userCircles } from './api/circle/circle.mjs';
+import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
 
  
 
@@ -33,85 +37,22 @@ const apiServer: Application = express();
    Socket.IO Chat
  *********************/
 const httpServer = createServer(apiServer);
-const chatIO = new Server(httpServer, { 
+const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
     path: '/chat',
     cors: { origin: "*"}
 });
 httpServer.listen( SERVER_PORT, () => console.log(`Back End Server listening on LOCAL port: ${SERVER_PORT}`));
 
-chatIO.on("connection", (socket) => {
-    console.log('Main Connection');
-    socket.emit('server', "hello");
-  });
-
-
-const contactMap = new Map<number, string>(); //userId:socketId
-
-const getSocketId = (userId: number):string => contactMap.get(userId);
-
-const getUserId = (socketId: string):number => [...contactMap].find(([key, val]) => val === socketId)[0];
-
-
 //Socket Middleware Authenticates JWT before Connect
 chatIO.use((socket, next)=> {
     console.log('Requesting to join direct chat:', socket.handshake.auth);
 
-    if(verifyJWT(socket.handshake.auth.JWT, socket.handshake.auth.userId)) 
-        next();
-    else 
-        next(new Error('Invalid JWT, Please Login Again to Chat'));
-    // console.log('Direct Contacts Online: ', contactMap);
+    if(verifyJWT(socket.handshake.auth.JWT, socket.handshake.auth.userId))  next();
+    else  next(new Error('Invalid JWT, Please Login Again to Chat'));
 });
 
-chatIO.on("connection", async (socket:Socket) => {
-    console.log('\nDirect Chat: New Connection:', socket.handshake.auth.userId, socket.id);
-    
-    contactMap.set(socket.handshake.auth.userId, socket.id);
-    console.log('Direct Contacts Online: ', contactMap);
-
-    //Send All Available Contacts Online //TODO: Filter contacts from database table
-    chatIO.emit('contactMap', JSON.stringify(await fetchNames(Array.from(contactMap.keys()))));
-    
-    //Announce Online
-    socket.emit('server', 'Welcome to Direct Chat!'); 
-    chatIO.emit('server', `User: ${socket.handshake.auth.userId} has joined Direct Chat!`); 
-
-//Socket Listeners
-    socket.on('log', (text:string)=>{
-        log.event('Direct Chat Event:', socket.id, getUserId(socket.id), text);
-    });
-
-    socket.on('leave', (userId:number)=>{
-        console.log('Direct Chat: Leaving:', userId, socket.id);
-        chatIO.emit('server', `User ${userId} has left the chat`)
-        contactMap.delete(userId);
-        console.log('Direct Contacts Online: ', contactMap);
-    });
-
-    socket.on('disconnect', ()=>{
-        console.log('Direct Chat: Disconnecting:', socket.id);
-    });
-
-    socket.on('message', async (content:SocketMessage)=> {
-        console.log('Direct Chat: Message:', content, contactMap.get(content.recipientId));
-
-        //Note: Not authenticating Message
-
-        if(contactMap.has(content.recipientId)) {
-            const details = await formatMessageNames(content);
-            chatIO.to(contactMap.get(content.recipientId)).emit('message', details);
-            socket.emit('message', details);
-            log.event(`Direct Message: [${content.time}] ${details.senderId}|${details.senderName} to ${content.recipientId}|${content.recipientName}:`, content.message);
-        } else 
-            socket.emit('server', 'Failed to send message: \"'+content.message+'/"');
-        // TODO Send to Database
-    });
-    
-
-    
-  });
-
-
+/*  Initialize Direct and Circle Chat */
+CHAT(chatIO);
 
 /* Middleware  */
 apiServer.use(express.static(path.join(__dirname, 'build')));
@@ -153,6 +94,11 @@ apiServer.post('/api/logout/:client', POST_logout);
 apiServer.get('/api/public/profile/:client', GET_publicProfile);
 
 // apiServer.get('/api/public/circle/:circle', GET_publicCircle);
+
+apiServer.get('/api/contacts', GET_userContacts); //Returns id and Name
+
+apiServer.get('/api/circles', GET_userCircles);
+
 
 
 //******************************

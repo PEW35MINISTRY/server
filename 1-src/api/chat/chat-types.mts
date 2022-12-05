@@ -29,4 +29,9 @@ export interface ConversationResponse {
     prayerRequestList: Message[],
 };
 
+export type Contact = {
+    id: number,
+    name: string
+}
+
 
