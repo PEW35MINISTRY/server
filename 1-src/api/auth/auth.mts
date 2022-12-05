@@ -1,6 +1,6 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
-import { DB_USER } from '../../services/database-types.mjs';
-import { query, queryTest, TestResult } from '../../services/database.mjs';
+import { DB_USER } from '../../services/database/database-types.mjs';
+import { query, queryTest, TestResult } from "../../services/database/database.mjs";
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { RoleEnum } from '../profile/profile-types.mjs';

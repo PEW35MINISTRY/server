@@ -1,6 +1,6 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
 import { format } from 'path';
-import { TestResult } from '../../services/database.mjs';
+import { TestResult } from "../../services/database/database.mjs";
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { CredentialRequest, ProfileRequest } from '../auth/auth-types.mjs';

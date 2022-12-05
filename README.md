@@ -1,7 +1,7 @@
 # Encouraging Prayer Server
 Learn more at: [encouragingprayer.org](https://encouragingprayer.org/)
 
-The **Encouraging Prayer Server** will will support the mobile application handling communication and managing content storage.
+The **Encouraging Prayer Server** will support the mobile application handling communication and managing content storage.
 
 
 ![alt text](http://encouragingprayer.org/encouraging-prayer.png)

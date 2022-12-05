@@ -1,7 +1,7 @@
 import Pool from 'pg-pool';
-import * as log from './log.mjs';
+import * as log from './../log.mjs';
 import dotenv from 'dotenv';
-import { Exception } from '../api/api-types.mjs';
+import { Exception } from '../../api/api-types.mjs';
 dotenv.config(); 
 
 const pool = new Pool({

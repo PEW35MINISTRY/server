@@ -57,7 +57,7 @@ const writeFile = async (type: LOG_TYPE, text: string):Promise<Boolean> => !SAVE
     new Promise((resolve, reject) => {
         if (!fs.existsSync(LOG_DIRECTORY)) fs.mkdirSync(LOG_DIRECTORY, { recursive: true});   console.log(text);
 
-        fs.appendFile (getLogFilePath(type), `${text}\n`, (error) => {     console.error(text);  
+        fs.appendFile (getLogFilePath(type), `${text}\n`, (error) => {     
             if (error) {console.error(error, text); resolve(false);}
             else resolve(true);
     });});

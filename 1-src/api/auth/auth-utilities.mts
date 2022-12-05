@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
 import { CredentialRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
-import { query, queryAll, queryTest, TestResult } from "../../services/database.mjs";
-import { DB_USER } from "../../services/database-types.mjs";
+import { query, queryAll, queryTest, TestResult } from "../../services/database/database.mjs";
+import { DB_USER } from "../../services/database/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
 import { formatProfile } from "../profile/profile-utilities.mjs";
 
@@ -93,5 +93,5 @@ export const isRequestorAllowedProfileQuery = async(userId: number, requestorId:
 }
 
 export const getPasswordHash = (password:string):string => {
-    return 'password';
+    return password;
 }

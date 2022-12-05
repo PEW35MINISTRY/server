@@ -2,8 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
 import { CircleRequest, CredentialRequest, ProfileRequest } from "./auth-types.mjs";
-import { queryAll } from "../../services/database.mjs";
-import { DB_USER } from "../../services/database-types.mjs";
+import { queryAll } from "../../services/database/database.mjs";
+import { DB_USER } from "../../services/database/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
 import { isRequestorAllowedProfile, verifyJWT } from "./auth-utilities.mjs";
 

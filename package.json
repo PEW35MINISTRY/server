@@ -20,6 +20,7 @@
     "path": "^0.12.7",
     "pg-pool": "^3.5.2",
     "rimraf": "^3.0.2",
+    "socket.io": "^4.5.4",
     "stack-trace": "^1.0.0-pre1",
     "ts-node": "9.1"
   },

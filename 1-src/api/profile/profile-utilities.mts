@@ -1,8 +1,8 @@
 import { GenderEnum, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, RoleEnum, StageEnum } from "./profile-types.mjs";
-import database, {formatTestResult, query, queryAll, queryTest, TestResult} from '../../services/database.mjs';
+import database, {formatTestResult, query, queryAll, queryTest, TestResult} from "../../services/database/database.mjs";
 import { Exception } from "../api-types.mjs";
 import * as log from '../../services/log.mjs';
-import { DB_USER } from "../../services/database-types.mjs";
+import { DB_USER } from "../../services/database/database-types.mjs";
 import { getPasswordHash } from "../auth/auth-utilities.mjs";
 import { SignupRequest } from "../auth/auth-types.mjs";
 

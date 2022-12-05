@@ -1,4 +1,4 @@
-import { StageEnum } from "../api/profile/profile-types.mjs";
+import { StageEnum } from "../../api/profile/profile-types.mjs";
 
 
 export type DB_USER = {
