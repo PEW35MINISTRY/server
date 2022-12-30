@@ -30,6 +30,8 @@ export const formatProfile = (user: DB_USER):ProfileResponse =>
         userId: user.user_id, 
         userRole: user.user_role, 
         displayName: user.display_name, 
+        firstName: user.display_name, 
+        lastName: user.display_name, 
         dob: user.dob,
         gender: user.gender,
         circleList: [],
@@ -132,10 +134,7 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
     const getProfileChanges = (editId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true):boolean => {
         //General Edits
         if( updateField('displayName', `display_name`, field[1], field[0], columnList, valueList)
-            || updateField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || updateField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)
             || updateField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
-            || updateField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
             || updateField('dailyNotificationHour', `dailyNotificationHour`, parseInt(field[1] as string), field[0], columnList, valueList)
             || updateField('circleList', `circles`, field[1], field[0], columnList, valueList)
             || updateField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
@@ -156,8 +155,11 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
             || updateField('email', `email`, field[1], field[0], columnList, valueList)
             || updateField('phone', `phone`, field[1], field[0], columnList, valueList)
             || updateField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
-            || updateField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
-            || updateField('partnerList', `partners`, field[1], field[0], columnList, valueList)
+            // || insertField('firstName', `display_name`, field[1], field[0], columnList, valueList)
+            // || insertField('lastName', `display_name`, field[1], field[0], columnList, valueList)
+            || updateField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || updateField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)            || updateField('partnerList', `partners`, field[1], field[0], columnList, valueList)
+            || updateField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
             || updateField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList)
 
         ) return true;
@@ -173,17 +175,21 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
             || insertField('phone', `phone`, field[1], field[0], columnList, valueList)
             || insertField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
             || insertField('displayName', `display_name`, field[1], field[0], columnList, valueList)
+            // || insertField('firstName', `display_name`, field[1], field[0], columnList, valueList)
+            // || insertField('lastName', `display_name`, field[1], field[0], columnList, valueList)
             || insertField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
             || insertField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)
             || insertField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
-            || insertField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
+            // || insertField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
             || insertField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || insertField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
+            // || insertField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
 
         ) return true;
         if(logWarn) log.warn("User Editing Profile: Unmatched Field: ", field);
         return false;
     }
+
+    //TODO: Account Verify Email Send
 
     const updateField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columnList:string[], valueList:any[]):boolean => {
         if(fieldName == jsonProperty && parsedValue != null){

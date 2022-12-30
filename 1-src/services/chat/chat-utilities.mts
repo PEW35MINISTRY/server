@@ -6,7 +6,7 @@ import { SocketMessage } from "./chat-types.mjs";
 import { isArray } from "util";
 
 /* Socket Direct Messaging */
-export const fetchContacts = async (userId:number):Promise<Array<{id:number, name:string}>> => { //TODO Filter Correctly
+export const fetchContacts = async (userId:number):Promise<Array<{id:number, name:string}>> => { //TODO Filter Correctly | Contacts Include: Partners, members of circles, circle leader of circles, all admin
     const result =  await queryAll("SELECT user_id, display_name FROM user_table;", []); 
     if(result && Array.isArray(result) && result.length > 0) 
         return result.map((entry) => ({id: entry.user_id, name: entry.display_name}));

@@ -16,7 +16,7 @@ import logRoutes from './api/log/log.mjs';
 import apiRoutes from './api/api.mjs';
 
 import {POST_login, POST_logout, POST_signup } from './api/auth/auth.mjs';
-import { GET_partnerProfile, GET_publicProfile, GET_userProfile, PATCH_userProfile } from './api/profile/profile.mjs';
+import { GET_partnerProfile, GET_publicProfile, GET_RoleList, GET_userProfile, PATCH_userProfile } from './api/profile/profile.mjs';
 import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
 import { CircleRequest, CredentialRequest, ProfileRequest } from './api/auth/auth-types.mjs';
@@ -45,7 +45,7 @@ httpServer.listen( SERVER_PORT, () => console.log(`Back End Server listening on 
 
 //Socket Middleware Authenticates JWT before Connect
 chatIO.use((socket, next)=> {
-    console.log('Requesting to join direct chat:', socket.handshake.auth);
+    console.log('Requesting to join chat:', socket.handshake.auth);
 
     if(verifyJWT(socket.handshake.auth.JWT, socket.handshake.auth.userId))  next();
     else  next(new Error('Invalid JWT, Please Login Again to Chat'));
@@ -55,7 +55,7 @@ chatIO.use((socket, next)=> {
 CHAT(chatIO);
 
 /* Middleware  */
-apiServer.use(express.static(path.join(__dirname, 'build')));
+// apiServer.use(express.static(path.join(__dirname, 'build')));
 // apiServer.use(bodyParser.json());
 // apiServer.use(bodyParser.urlencoded({ extended: true }));
 // apiServer.use(bodyParser.raw());
@@ -66,18 +66,25 @@ apiServer.use(cors());
  *********************/
 
 /* Routes  */ //Order Matters: First Matches
+apiServer.use(express.static(path.join(__dirname, 'website')));
 apiServer.get('/', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(__dirname, 'build', 'index.html'));
+    response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
 });
 
+apiServer.get('/website', (request: Request, response: Response) => {
+    response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
+});
+
+apiServer.use(express.static(path.join(__dirname, 'portal')));
 apiServer.get('/portal', (request: Request, response: Response) => {
-    response.status(308).send("Portal Interface is coming Soon!");
+    response.status(200).sendFile(path.join(__dirname, 'portal', 'index.html'));
 });
 
 //Formatting Request Body
 apiServer.use(express.json());
 
 apiServer.post('/signup', POST_signup);
+apiServer.get('/resources/role-list', GET_RoleList);
 apiServer.post('/login', POST_login);
 
 

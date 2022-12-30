@@ -6,11 +6,13 @@ import {Exception} from '../api-types.mjs'
 import { CredentialRequest, ProfileRequest } from '../auth/auth-types.mjs';
 import { isRequestorAllowedProfile } from '../auth/auth-utilities.mjs';
 import { clientAuthentication } from '../auth/authorization.mjs';
-import { ProfileEditRequest,  ProfileResponse, RoleEnum } from './profile-types.mjs';
+import { getRoleList, ProfileEditRequest,  ProfileResponse, RoleEnum } from './profile-types.mjs';
 import { editProfile, formatPartnerProfile, formatProfile, formatPublicProfile, getPartnerProfile, getProfile, getPublicProfile } from './profile-utilities.mjs';
 
 
-
+export const GET_RoleList =  (request: Request, response: Response, next: NextFunction) => {
+    response.status(200).send(getRoleList());
+}
    
 export const GET_publicProfile =  async(request: ProfileRequest, response: Response, next: NextFunction) => {
 

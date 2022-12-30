@@ -2,6 +2,8 @@
 /build/
 /node_modules/
 /LOGS/
+/website/
+/portal/
 
 package-lock.json
 .env

@@ -22,6 +22,10 @@ export enum RoleEnum {
     ADMIN = 'ADMIN',
 }
 
+export const getRoleList = ():string[] => 
+    ([...Object.values(RoleEnum)]);
+
+
 
 export interface ProfilePublicResponse {
     userId: number, 
@@ -41,6 +45,8 @@ export interface ProfilePublicResponse {
 
 
 export interface ProfileResponse extends ProfilePublicResponse  {
+    firstName: string, 
+    lastName: string, 
     email:string,
     phone: string, 
     zipcode: string, 
@@ -61,6 +67,8 @@ export interface ProfileEditRequest extends ProfileRequest {
     body: {
         userId: number,
         displayName?: string, 
+        firstName?: string, 
+        lastName?: string, 
         profileImage?: string, 
         gender?:string,
         dob?:number,

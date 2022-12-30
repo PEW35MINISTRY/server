@@ -3,12 +3,25 @@
   "version": "1.0.0",
   "main": "./0-compiled/server.mjs",
   "scripts": {
+    "//": " --- Website --- ",
+    "prewebsite": "rimraf website/",
+    "website": "build-website",
+    "postwebsite": "cp -r ../website/build ../server/website",
+
+    "//": " --- Portal --- ",
+    "preportal": "rimraf portal/",
+    "portal": "build-portal",
+    "postportal": "cp -r ../portal/build ../server/portal",
+
+    "//": " --- Server --- ",
     "prebuild": "rimraf 0-compiled/",
     "build": "tsc",
     "open": "start http://localhost:5000",
     "preserve": "npm run build",
-    "serve": "ts-node .",
-    "start": "npm run build & npm run open & npm run serve"
+    "serve": "ts-node .",    
+    "start": "npm run build & npm run open & npm run serve",
+    
+    "update": "npm run website && npm run portal && npm run start"
   },
   "dependencies": {
     "@types/dotenv": "^8.2.0",

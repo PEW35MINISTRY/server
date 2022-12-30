@@ -49,6 +49,16 @@ adminRouter.post('/alert', (request: Request, response: Response) => {
 });
 
 //Error
+adminRouter.get('/error', (request: Request, response: Response) => {
+    const readStream = fs.createReadStream(log.getLogFilePath(log.LOG_TYPE.ERROR) as PathLike);
+    readStream.pipe(response);
+});
+
+adminRouter.post('/error', (request: Request, response: Response) => {
+    if(log.error(request.body.toString())) response.status(200).send("Error message has been saved.");
+    else response.status(500).send("Server Error, failed to save Error message.");
+});
+
 adminRouter.get('*', (request: Request, response: Response) => {
     const readStream = fs.createReadStream(log.getLogFilePath(log.LOG_TYPE.ERROR) as PathLike);
     readStream.pipe(response);
@@ -61,6 +71,3 @@ adminRouter.post('*', (request: Request, response: Response) => {
 
 export default adminRouter;
 
-export function auth(arg0: string, userid: any) {
-    throw new Error('Function not implemented.');
-}
