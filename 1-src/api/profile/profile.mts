@@ -1,6 +1,7 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
 import { format } from 'path';
-import { TestResult } from "../../services/database/database.mjs";
+import { DB_USER } from '../../services/database/database-types.mjs';
+import { queryAll, TestResult } from "../../services/database/database.mjs";
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { CredentialRequest, ProfileRequest } from '../auth/auth-types.mjs';
@@ -13,8 +14,22 @@ import { editProfile, formatPartnerProfile, formatProfile, formatPublicProfile, 
 export const GET_RoleList =  (request: Request, response: Response, next: NextFunction) => {
     response.status(200).send(getRoleList());
 }
+
+export const POST_EmailExists =  async (request: Request, response: Response, next: NextFunction) => {
+
+    const userList:DB_USER[] = await queryAll("SELECT * FROM user_table WHERE email = $1;", [request.body.email]);
+    if(userList.length === 0) 
+        response.status(404).send(`No Account exists for ${request.body.email}`);
+
+    else {
+        response.status(204).send(formatPublicProfile(userList[0]));
+
+        if(userList.length > 1)
+            log.error(`Multiple Accounts Detected with same email`, request.body.email, ...userList.map(user => user.user_id));
+    }
+}
    
-export const GET_publicProfile =  async(request: ProfileRequest, response: Response, next: NextFunction) => {
+export const GET_publicProfile =  async (request: ProfileRequest, response: Response, next: NextFunction) => {
 
     if(await clientAuthentication(request, response, next)) {
         response.status(200).send(await formatPublicProfile(request.clientProfile));
@@ -23,15 +38,21 @@ export const GET_publicProfile =  async(request: ProfileRequest, response: Respo
         next(new Exception(500, `FAILED to find public profile for User: ${request.clientId}`));
 };
 
+export const GET_profileAccessUserList =  async (request: ProfileRequest, response: Response, next: NextFunction) => { //TODO: Filter appropriately
+
+    const userList:DB_USER[] = await queryAll("SELECT user_id, display_name, user_role FROM user_table");
+
+    response.status(200).send(userList);
+}
 
 
-export const GET_userProfile = async(request: ProfileRequest, response: Response) => {
+export const GET_userProfile = async (request: ProfileRequest, response: Response) => {
 
     response.status(200).send(await formatProfile(request.clientProfile));
     log.event("Returning profile for userId: ", request.clientId);
 };
 
-export const GET_partnerProfile = async(request: ProfileRequest, response: Response) => {
+export const GET_partnerProfile = async (request: ProfileRequest, response: Response) => {
       
     response.status(200).send(await formatPartnerProfile(request.clientProfile));
     log.event("Returning profile for userId: ", request.clientId);
@@ -39,7 +60,7 @@ export const GET_partnerProfile = async(request: ProfileRequest, response: Respo
 
 /* Update Profiles */
 //NOTE: user-id is editor and request-id is profile editing
-export const PATCH_userProfile = async(request: ProfileEditRequest, response: Response) => {
+export const PATCH_userProfile = async (request: ProfileEditRequest, response: Response) => {
 
     if(await isRequestorAllowedProfile(request.clientProfile, request.userProfile)){
         const queryResult:TestResult = await editProfile(request.clientId, request, RoleEnum[request.userProfile.user_role as string]);

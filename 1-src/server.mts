@@ -15,8 +15,8 @@ import CHAT from './services/chat/chat.mjs';
 import logRoutes from './api/log/log.mjs';
 import apiRoutes from './api/api.mjs';
 
-import {POST_login, POST_logout, POST_signup } from './api/auth/auth.mjs';
-import { GET_partnerProfile, GET_publicProfile, GET_RoleList, GET_userProfile, PATCH_userProfile } from './api/profile/profile.mjs';
+import {GET_allUserCredentials, POST_login, POST_logout, POST_signup } from './api/auth/auth.mjs';
+import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_userProfile, PATCH_userProfile, POST_EmailExists } from './api/profile/profile.mjs';
 import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
 import { CircleRequest, CredentialRequest, ProfileRequest } from './api/auth/auth-types.mjs';
@@ -85,7 +85,12 @@ apiServer.use(express.json());
 
 apiServer.post('/signup', POST_signup);
 apiServer.get('/resources/role-list', GET_RoleList);
+apiServer.post('/resources/account-exists', POST_EmailExists);
 apiServer.post('/login', POST_login);
+
+//TODO: Temporary Debugging
+apiServer.get('/login/credentials', GET_allUserCredentials);
+
 
 
 //***************************************
@@ -103,6 +108,8 @@ apiServer.get('/api/public/profile/:client', GET_publicProfile);
 // apiServer.get('/api/public/circle/:circle', GET_publicCircle);
 
 apiServer.get('/api/contacts', GET_userContacts); //Returns id and Name
+
+apiServer.get('/api/profile/access', GET_profileAccessUserList); //Returns id Name, role
 
 apiServer.get('/api/circles', GET_userCircles);
 

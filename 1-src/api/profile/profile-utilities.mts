@@ -135,7 +135,7 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
         //General Edits
         if( updateField('displayName', `display_name`, field[1], field[0], columnList, valueList)
             || updateField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
-            || updateField('dailyNotificationHour', `dailyNotificationHour`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || updateField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList)
             || updateField('circleList', `circles`, field[1], field[0], columnList, valueList)
             || updateField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
 

@@ -1,6 +1,6 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
 import { DB_USER } from '../../services/database/database-types.mjs';
-import { query, queryTest, TestResult } from "../../services/database/database.mjs";
+import { query, queryAll, queryTest, TestResult } from "../../services/database/database.mjs";
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { RoleEnum } from '../profile/profile-types.mjs';
@@ -35,23 +35,31 @@ export const POST_login =  async(request: LoginRequest, response: Response, next
     response.status(202).send(await getUserLogin(request.body['email'], request.body['password'], next));
 };
 
+//Temporary for easy debugging
+export const GET_allUserCredentials =  async (request: Request, response: Response, next: NextFunction) => { 
+    const userList:DB_USER[] = await queryAll("SELECT user_id, display_name, user_role, email, password_hash FROM user_table");
 
+    response.status(200).send(userList);
+}
 
 
 /********************
  Authenticated Routes
  *********************/
  export const POST_logout =  async (request: CredentialRequest, response: Response, next: NextFunction) => {
-    //Perform Logout Operations and Remove JWT
+    //TODO: Perform Logout Operations and Remove JWT
 
-    const query:TestResult  = await queryTest(`UPDATE user_table SET jwt = $1 WHERE user_id = $2;`, [null, request.userId]);
+    // const query:TestResult  = await queryTest(`UPDATE user_table SET jwt = $1 WHERE user_id = $2;`, [null, request.userId]);
 
-    if(query.success) {
-        response.status(202).send(`User: ${request.userId} has been logged out of Encouraging Prayer System.`);
-        log.auth("Successfully logged out user: ", request.userId);
-    } else {
-        next(new Exception(502, `Database failed to logout user: ${request.userId} | Error: `+query.error));
-    }
+    // if(query.success) {
+    //     response.status(202).send(`User: ${request.userId} has been logged out of Encouraging Prayer System.`);
+    //     log.auth("Successfully logged out user: ", request.userId);
+    // } else {
+        // next(new Exception(502, `Database failed to logout user: ${request.userId} | Error: `+query.error));
+    // }
+
+    next(new Exception(502, `Database failed to logout user`));
+
 };
 
 
