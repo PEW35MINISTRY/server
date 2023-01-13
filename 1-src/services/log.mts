@@ -114,7 +114,7 @@ export const alert = async(...messages: any[]):Promise<Boolean> => { //console.t
         && await sendEmail('SERVER ALERT', entry);
 }
 
-export const error = async(...messages: any[]):Promise<Boolean> => { console.trace();
+export const error = async(...messages: any[]):Promise<Boolean> => { //console.trace('DEBUG :: Saving Error to File & Trace:');
     const entry:string = formatLogEntry(LOG_TYPE.ERROR, ...messages);
 
     return await writeFile(LOG_TYPE.ERROR, entry)

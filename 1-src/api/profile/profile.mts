@@ -6,7 +6,7 @@ import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { CredentialRequest, ProfileRequest } from '../auth/auth-types.mjs';
 import { isRequestorAllowedProfile } from '../auth/auth-utilities.mjs';
-import { clientAuthentication } from '../auth/authorization.mjs';
+import { extractClientProfile } from '../auth/authorization.mjs';
 import { getRoleList, ProfileEditRequest,  ProfileResponse, RoleEnum } from './profile-types.mjs';
 import { editProfile, formatPartnerProfile, formatProfile, formatPublicProfile, getPartnerProfile, getProfile, getPublicProfile } from './profile-utilities.mjs';
 
@@ -31,11 +31,15 @@ export const POST_EmailExists =  async (request: Request, response: Response, ne
    
 export const GET_publicProfile =  async (request: ProfileRequest, response: Response, next: NextFunction) => {
 
-    if(await clientAuthentication(request, response, next)) {
+    const clientException = await extractClientProfile(request);
+    if(clientException) 
+        next(clientException);
+        
+    else {
         response.status(200).send(await formatPublicProfile(request.clientProfile));
+        
         log.event("Returning public profile for userId: ", request.clientId);
-    } else
-        next(new Exception(500, `FAILED to find public profile for User: ${request.clientId}`));
+    } 
 };
 
 export const GET_profileAccessUserList =  async (request: ProfileRequest, response: Response, next: NextFunction) => { //TODO: Filter appropriately
@@ -74,3 +78,5 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
     } else 
         new Exception(401, `User ${request.userId} is UNAUTHORIZED to edit the profile of Client: ${request.clientId}`)
 };
+
+

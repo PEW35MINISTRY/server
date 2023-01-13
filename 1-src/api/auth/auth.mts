@@ -5,8 +5,9 @@ import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { RoleEnum } from '../profile/profile-types.mjs';
 import { editProfile, formatProfile } from '../profile/profile-utilities.mjs';
-import { CredentialRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from './auth-types.mjs';
-import {generateJWT, getPasswordHash, getUserLogin, updateJWTQuery} from './auth-utilities.mjs'
+import { CredentialRequest, JWTRequest, LoginRequest, loginResponse, LoginResponseBody, ProfileRequest, SignupRequest } from './auth-types.mjs';
+import {generateJWT, getPasswordHash, getUserLogin, verifyJWT} from './auth-utilities.mjs'
+import { extractClientProfile, jwtAuthenticationMiddleware } from './authorization.mjs';
 
 
 
@@ -46,20 +47,23 @@ export const GET_allUserCredentials =  async (request: Request, response: Respon
 /********************
  Authenticated Routes
  *********************/
- export const POST_logout =  async (request: CredentialRequest, response: Response, next: NextFunction) => {
-    //TODO: Perform Logout Operations and Remove JWT
+ export const GET_jwtVerify = async (request: JWTRequest, response: Response, next: NextFunction) => { //After jwtAuthenticationMiddleware; already authenticated
 
-    // const query:TestResult  = await queryTest(`UPDATE user_table SET jwt = $1 WHERE user_id = $2;`, [null, request.userId]);
+    response.status(202).send('JWT is valid.');
+};
 
-    // if(query.success) {
-    //     response.status(202).send(`User: ${request.userId} has been logged out of Encouraging Prayer System.`);
-    //     log.auth("Successfully logged out user: ", request.userId);
-    // } else {
-        // next(new Exception(502, `Database failed to logout user: ${request.userId} | Error: `+query.error));
+
+ export const POST_logout =  async (request: ProfileRequest, response: Response, next: NextFunction) => {
+    
+    // const clientException = await extractClientProfile(request);
+    // if(clientException) 
+    //     next(clientException);
+
+    // else {
+        response.status(200).send(`User ${request.clientId} has been logged out of Encouraging Prayer.`);
+        
+        // log.auth("Successfully logged out user: ", request.clientId);
     // }
-
-    next(new Exception(502, `Database failed to logout user`));
-
 };
 
 

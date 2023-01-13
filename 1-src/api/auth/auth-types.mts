@@ -27,13 +27,23 @@ export interface LoginRequest extends Request {
     }
 };
 
-export interface CredentialRequest extends Request {
-      headers: IncomingHttpHeaders & {
+export interface JWTRequest extends Request {
+    headers: IncomingHttpHeaders & {
+      'jwt': string
+    },
+
+    jwt?: string,
+    jwtUserId?: number,
+    jwtUserRole?: RoleEnum
+}
+
+export interface CredentialRequest extends JWTRequest {
+      headers: JWTRequest['headers'] & {
         'jwt': string, 
         'user-id': number,
       },
       userId?: number,
-      userProfile?: DB_USER,
+      userProfile?: DB_USER
 };
 
 export interface CircleRequest extends CredentialRequest {

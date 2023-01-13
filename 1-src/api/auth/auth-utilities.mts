@@ -12,25 +12,12 @@ import { formatProfile } from "../profile/profile-utilities.mjs";
 /* *******************
  JWT Token Management
 ******************* */
-export const generateJWT = async(userId:number):Promise<string> => {
+export const generateJWT = async(userProfile:DB_USER):Promise<string> => {
     //generate JWT
     return '100.100.100';
 }
 
-export const updateJWTQuery = async(userId:number):Promise<string> => {
-    //generate JWT
-    const JWT:string = await generateJWT(userId);
-
-    const query:TestResult  =await queryTest(`UPDATE user_table SET jwt = $1 WHERE user_id = $2;`, [JWT, userId]);
-
-    if(query.success) return JWT;
-    else {
-        new Exception(502, 'Database Failed to save JWT: Error: '+query.error);
-        // return null;
-    }
-}
-
-export const verifyJWT = (JWT:string, userId:number):Boolean => {
+export const verifyJWT = (JWT:string):Boolean => {
     //Verify JWT still valid
 
     return (JWT === "100.100.100");
@@ -52,7 +39,7 @@ export const getUserLogin = async(email:string, password: string, next: NextFunc
         log.auth("Successfully logged in user: ", userProfile.user_id);
 
         return {
-            JWT: await updateJWTQuery(userProfile.user_id),
+            JWT: await generateJWT(userProfile),
             userId: userProfile.user_id,
             userProfile: formatProfile(userProfile),
             service: 'Email & Password Authenticated'
