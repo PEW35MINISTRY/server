@@ -1,4 +1,4 @@
-import { GenderEnum, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, RoleEnum, StageEnum } from "./profile-types.mjs";
+import { editProfileAllowed, GenderEnum, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, RoleEnum, StageEnum } from "./profile-types.mjs";
 import database, {formatTestResult, query, queryAll, queryTest, TestResult} from "../../services/database/database.mjs";
 import { Exception } from "../api-types.mjs";
 import * as log from '../../services/log.mjs';
@@ -6,8 +6,7 @@ import { DB_USER } from "../../services/database/database-types.mjs";
 import { getPasswordHash } from "../auth/auth-utilities.mjs";
 import { SignupRequest } from "../auth/auth-types.mjs";
 
-export const formatPublicProfile = (user: DB_USER):ProfilePublicResponse => 
-    ({
+export const formatPublicProfile = (user: DB_USER):ProfilePublicResponse =>  ({
         userId: user.user_id, 
         userRole: user.user_role, 
         displayName: user.display_name, 
@@ -25,8 +24,7 @@ export const getPublicProfile = async(userId: number):Promise<ProfilePublicRespo
     return formatPublicProfile(user);
 }
 
-export const formatProfile = (user: DB_USER):ProfileResponse => 
-    ({
+export const formatProfile = (user: DB_USER):ProfileResponse =>  ({
         userId: user.user_id, 
         userRole: user.user_role, 
         displayName: user.display_name, 
@@ -50,8 +48,7 @@ export const getProfile = async(userId: number):Promise<ProfileResponse> => {
     return formatProfile(user);
 }
 
-export const formatPartnerProfile = (partner:DB_USER):ProfilePartnerResponse =>
-         ({
+export const formatPartnerProfile = (partner:DB_USER):ProfilePartnerResponse => ({
             userId: partner.user_id, 
             userRole: partner.user_role, 
             displayName: partner.display_name, 
@@ -101,8 +98,12 @@ export const getProfileRoles = async(...idList: number[]):Promise<roleListResult
     return result;
 }
 
+export enum EDIT_TYPES {
+    EDIT,
+    CREATE
+}
 
-export const editProfile = async(editId: number, httpRequest:ProfileEditRequest | SignupRequest, role?:RoleEnum, newProfile?:boolean):Promise<TestResult> => {
+export const editProfile = async(editId: number, httpRequest:ProfileEditRequest | SignupRequest, accessorUserRole:RoleEnum, editType:EDIT_TYPES = EDIT_TYPES.EDIT):Promise<TestResult> => {
         let columnList:string[] = [];
         let valueList:any[] = [];
         const fields = Object.entries(httpRequest.body);
@@ -110,117 +111,85 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
         //Only list Fields Student can Edit
         fields.forEach((field, index) => { 
             try {
-                if(newProfile) 
-                    getSignupChanges(field, columnList, valueList);
-                else if(role && role === RoleEnum.ADMIN) 
-                    getAdminProfileChanges(editId, field, columnList, valueList);
-                 else 
-                    getProfileChanges(editId, field, columnList, valueList);                
-                
-                }catch(error){log.error('User Edit Profile Error: ', editId, error);
-                    return { success: false, result: {columnList, valueList}, error: error};
-                }
+                if(!getProfileChanges(editId, field, columnList, valueList, accessorUserRole, editType))
+                log.warn("User Editing Profile: Unmatched Field: ", field);              
+            
+            }catch(error){log.error('User Edit Profile Error: ', editId, error);
+                return { success: false, result: {columnList, valueList}, error: error};
+            }
         });
 
         if(!columnList.length || !valueList.length)
             return formatTestResult(false, null, 'Invalid Profile Edit Request', columnList.toString(), valueList.toString())
-        else if(newProfile)
+        else if(editType === EDIT_TYPES.CREATE)
             return await queryTest(`INSERT INTO user_table (${columnList.join(', ')}) VALUES (${valueList.map((v,i)=>`\$${i+1}`).join(', ')});`, [...valueList]);
-        else
+        else if(editType === EDIT_TYPES.EDIT)
             return await queryTest(`UPDATE user_table SET ${columnList.join(', ')} WHERE user_id = $${valueList.length+1};`, [...valueList, editId]);
     }
 
 //Student or Relevant Leader
-    const getProfileChanges = (editId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true):boolean => {
-        //General Edits
-        if( updateField('displayName', `display_name`, field[1], field[0], columnList, valueList)
-            || updateField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
-            || updateField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || updateField('circleList', `circles`, field[1], field[0], columnList, valueList)
-            || updateField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
+    const getProfileChanges = (editId:number, field:[string, unknown], columnList:string[], valueList:any[], accessorUserRole:RoleEnum, editType:EDIT_TYPES = EDIT_TYPES.EDIT):boolean => {
+               
+        //Special Parsing Edits 
+        if( editProfileAllowed(field[0], accessorUserRole) && (
+            addField('email', `email`, field[1], field[0], columnList, valueList)
+            || addField('displayName', `display_name`, field[1], field[0], columnList, valueList, editType)
+            || addField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
+            || (addField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList)
+                && addField('userRole', `verified`, false, field[0], columnList, valueList)) //UnVerify account on role change
+            // || addField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
+            || addField('firstName', `display_name`, field[1], field[0], columnList, valueList)
+            || addField('lastName', `display_name`, field[1], field[0], columnList, valueList)
+            || addField('phone', `phone`, field[1], field[0], columnList, valueList)
+            || addField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || addField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)                      
+            || addField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
+            || addField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList)
 
-        ) return true;
-        if(logWarn) log.warn("Creating User:", editId, "Unmatched Field: ", field);
-        return false;
-    }
+            || addField('partnerList', `partners`, field[1], field[0], columnList, valueList)
+            || addField('circleList', `circles`, field[1], field[0], columnList, valueList)
+            || addField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
+                        
+            || addField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
+            || addField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList)
 
-    //Note: editId is profile being changed; admin already authenticated in route
-    const getAdminProfileChanges = (editId:number, field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true) => {
-        //General Edits
-        if( getProfileChanges(editId, field, columnList, valueList, false)
-        //Additional Admin Edits
-            || (updateField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList)
-                && updateField('userRole', `verified`, false, field[0], columnList, valueList)) //UnVerify account on role change
-            || updateField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
-            || updateField('email', `email`, field[1], field[0], columnList, valueList)
-            || updateField('phone', `phone`, field[1], field[0], columnList, valueList)
-            || updateField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
-            // || insertField('firstName', `display_name`, field[1], field[0], columnList, valueList)
-            // || insertField('lastName', `display_name`, field[1], field[0], columnList, valueList)
-            || updateField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || updateField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)            || updateField('partnerList', `partners`, field[1], field[0], columnList, valueList)
-            || updateField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
-            || updateField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList)
-
-        ) return true;
-        if(logWarn) log.warn("Admin Editing Profile:", editId, "Unmatched Field: ", field);
-        return false;
-    }
-
-    //INITIAL SIGNUP
-    const getSignupChanges = (field:[string,unknown], columnList:string[], valueList:any[], logWarn:boolean=true):boolean => {
-        //General Edits
-        if( insertField('userRole', `user_role`, RoleEnum[field[1] as string], field[0] == 'LEADER' ? RoleEnum.LEADER : RoleEnum.STUDENT, columnList, valueList) //Only Student or Leader Initially
-            || insertField('email', `email`, field[1], field[0], columnList, valueList)
-            || insertField('phone', `phone`, field[1], field[0], columnList, valueList)
-            || insertField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
-            || insertField('displayName', `display_name`, field[1], field[0], columnList, valueList)
-            // || insertField('firstName', `display_name`, field[1], field[0], columnList, valueList)
-            // || insertField('lastName', `display_name`, field[1], field[0], columnList, valueList)
-            || insertField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || insertField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)
-            || insertField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
-            // || insertField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
-            || insertField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList)
-            // || insertField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
-
-        ) return true;
-        if(logWarn) log.warn("User Editing Profile: Unmatched Field: ", field);
-        return false;
+        ))  return true;
+        else
+            return false;
     }
 
     //TODO: Account Verify Email Send
 
-    const updateField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columnList:string[], valueList:any[]):boolean => {
+    const addField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columnList:string[], valueList:any[], editType:EDIT_TYPES = EDIT_TYPES.EDIT):boolean => {
+        
         if(fieldName == jsonProperty && parsedValue != null){
+            //Update Field
+            if(editType === EDIT_TYPES.EDIT) {
+            
+                if(columnList.includes(`${dbColumn} = \$${valueList.length}`)){ //Replaces Duplicates
+                    const index:number = columnList.indexOf(`${dbColumn} = \$${valueList.length}`);
+                    valueList[index] = parsedValue;
+                    return true;
 
-            if(columnList.includes(`${dbColumn} = \$${valueList.length}`)){ //Replaces Duplicates
-                const index:number = columnList.indexOf(`${dbColumn} = \$${valueList.length}`);
-                valueList[index] = parsedValue;
-                return true;
+                } else { //Add New
+                    valueList.push(parsedValue);
+                    columnList.push(`${dbColumn} = \$${valueList.length}`);
+                    return true;
+                }
 
-            } else { //Add New
-                valueList.push(parsedValue);
-                columnList.push(`${dbColumn} = \$${valueList.length}`);
-                return true;
+            //Insert Field
+            } else if(editType === EDIT_TYPES.CREATE) {
+
+                if(columnList.includes(dbColumn)){ //Replaces Duplicates
+                    const index:number = columnList.indexOf(dbColumn);
+                    valueList[index] = parsedValue;
+                    return true;
+
+                } else { //Add New
+                    valueList.push(parsedValue);
+                    columnList.push(dbColumn);
+                    return true;
+                }
             }
         } return false;
     }
-
-    const insertField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columnList:string[], valueList:any[]):boolean => {
-        if(fieldName == jsonProperty && parsedValue != null){
-
-            if(columnList.includes(dbColumn)){ //Replaces Duplicates
-                const index:number = columnList.indexOf(dbColumn);
-                valueList[index] = parsedValue;
-                return true;
-
-            } else { //Add New
-                valueList.push(parsedValue);
-                columnList.push(dbColumn);
-                return true;
-            }
-        } return false;
-    }
-
-

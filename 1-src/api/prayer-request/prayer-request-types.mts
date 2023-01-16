@@ -1,21 +1,21 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
 import { IncomingHttpHeaders } from 'http';
-import { CredentialRequest } from '../auth/auth-types.mjs';
+import { IdentityRequest } from '../auth/auth-types.mjs';
 
-export interface PrayerRequestRequest extends CredentialRequest {
+export interface PrayerRequestRequest extends IdentityRequest {
     params: {
         prayer:string
     },
 };
 
-export interface PrayerRequestUserRequest extends CredentialRequest {
-    headers: CredentialRequest['headers'] & {
+export interface PrayerRequestUserRequest extends IdentityRequest {
+    headers: IdentityRequest['headers'] & {
         'request-user-id': string
     }
 };
 
-export interface PrayerRequestCircleRequest extends CredentialRequest {
-    headers: CredentialRequest['headers'] & {
+export interface PrayerRequestCircleRequest extends IdentityRequest {
+    headers: IdentityRequest['headers'] & {
         'circle-id': string
     }
 };
@@ -40,7 +40,7 @@ export interface PrayerRequest {
     }[],
 }
 
-export interface PrayerRequestNewRequest extends CredentialRequest {
+export interface PrayerRequestNewRequest extends IdentityRequest {
     body: {
         userId: number, 
         topic: PrayerRequestTopicEnum, 

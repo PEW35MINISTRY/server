@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
-import { CircleRequest, CredentialRequest, JWTRequest, ProfileRequest } from "./auth-types.mjs";
+import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTClientRequest, JWTRequest } from "./auth-types.mjs";
 import { queryAll } from "../../services/database/database.mjs";
 import { DB_USER } from "../../services/database/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
@@ -33,11 +33,11 @@ export const jwtAuthenticationMiddleware = async(request: JWTRequest, response: 
 }
 
 // #1 - Verify Identity
-export const authenticateUserMiddleware = async(request: CredentialRequest, response: Response, next: NextFunction):Promise<void> => {
+export const authenticateUserMiddleware = async(request: IdentityRequest, response: Response, next: NextFunction):Promise<void> => {
 
     //Verify Credentials Exist
-    if(!request.headers['jwt'] || !request.headers["user-id"]) 
-        next(new Exception(400, `FAILED AUTHENTICATED :: IDENTITY :: missing JWT or UserId in request header: ${request.headers['jwt']} :: ${request.headers["user-id"]}`));
+    if(!request.headers["user-id"]) 
+        next(new Exception(400, `FAILED AUTHENTICATED :: IDENTITY :: missing user-id in request header: ${request.headers['jwt']} :: ${request.headers["user-id"]}`));
 
     //Verify Client Exists
     else {
@@ -55,6 +55,7 @@ export const authenticateUserMiddleware = async(request: CredentialRequest, resp
         //Inject userProfile into request object
         else {
             request.userId = userId;
+            request.userRole = RoleEnum[userProfileList[0].user_role as string],
             request.userProfile = userProfileList[0];
 
             next();
@@ -63,7 +64,7 @@ export const authenticateUserMiddleware = async(request: CredentialRequest, resp
 }
 
 //HELPER UTILITY: Identify client ID in URL path and Inject client user profile into request object 
-export const extractClientProfile = async(request: ProfileRequest):Promise<Exception|false> => {
+export const extractClientProfile = async(request: JWTClientRequest | IdentityClientRequest):Promise<Exception|false> => {
     //Verify Credentials Exist
     if(!request.params.client) 
         return new Exception(400, `FAILED AUTHENTICATED :: CLIENT :: missing client-id parameter :: ${request.params.client}`);
@@ -84,7 +85,7 @@ export const extractClientProfile = async(request: ProfileRequest):Promise<Excep
 }
 
 // #2 - Verify Partner Status
-export const authenticatePartnerMiddleware = async(request: ProfileRequest, response: Response, next: NextFunction):Promise<void> => { //TODO: query patch to remove unmatched partner
+export const authenticatePartnerMiddleware = async(request: IdentityClientRequest, response: Response, next: NextFunction):Promise<void> => { //TODO: query patch to remove unmatched partner
 
     const clientException = await extractClientProfile(request);
     if(clientException) 
@@ -103,7 +104,7 @@ export const authenticatePartnerMiddleware = async(request: ProfileRequest, resp
 }
 
 //HELPER UTILITY: Identify circle ID in URL path and Inject circle profile into request object 
-export const extractCircleProfile = async(request: CircleRequest):Promise<Exception|false> => {
+export const extractCircleProfile = async(request: IdentityCircleRequest):Promise<Exception|false> => {
     //Verify Credentials Exist
     if(!request.params.circle) 
         return new Exception(400, `FAILED AUTHENTICATED :: CIRCLE :: missing circle-id parameter :: ${request.params.circle}`);
@@ -124,7 +125,7 @@ export const extractCircleProfile = async(request: CircleRequest):Promise<Except
 }
 
 // #3 - Verify Circle Status
-export const authenticateCircleMiddleware = async(request: CircleRequest, response: Response, next: NextFunction):Promise<void> => {
+export const authenticateCircleMiddleware = async(request: IdentityCircleRequest, response: Response, next: NextFunction):Promise<void> => {
 
     const circleException = await extractCircleProfile(request);
     if(circleException) 
@@ -143,7 +144,7 @@ export const authenticateCircleMiddleware = async(request: CircleRequest, respon
 
 
 // #4 - Verify User Profile Access
-export const authenticateProfileMiddleware = async(request: ProfileRequest, response: Response, next: NextFunction):Promise<void> => {
+export const authenticateProfileMiddleware = async(request: IdentityClientRequest, response: Response, next: NextFunction):Promise<void> => {
 
     const clientException = await extractClientProfile(request);
     if(clientException) 
@@ -162,7 +163,7 @@ export const authenticateProfileMiddleware = async(request: ProfileRequest, resp
 
 
 // #5 - Verify Leader Access
-export const authenticateLeaderMiddleware = async(request: CircleRequest, response: Response, next: NextFunction):Promise<void> => {
+export const authenticateLeaderMiddleware = async(request: IdentityCircleRequest, response: Response, next: NextFunction):Promise<void> => {
 
     const circleException = await extractCircleProfile(request);
     if(circleException) 
@@ -182,7 +183,7 @@ export const authenticateLeaderMiddleware = async(request: CircleRequest, respon
 
 
 // #6 - Verify ADMIN Access
-export const authenticateAdminMiddleware = async(request: CredentialRequest, response: Response, next: NextFunction):Promise<void> => {
+export const authenticateAdminMiddleware = async(request: IdentityRequest, response: Response, next: NextFunction):Promise<void> => {
 
     if(RoleEnum[request.userProfile.user_role as string] === RoleEnum.ADMIN) {
 

@@ -1,7 +1,7 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
 import fs, { PathLike } from 'fs';
 import * as log from '../../services/log.mjs';
-import { CredentialRequest } from '../auth/auth-types.mjs';
+import { IdentityRequest } from '../auth/auth-types.mjs';
 
 const adminRouter:Router = express.Router();
 adminRouter.use(express.text());

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
-import { CredentialRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
+import { IdentityRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
 import { query, queryAll, queryTest, TestResult } from "../../services/database/database.mjs";
 import { DB_USER } from "../../services/database/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
@@ -23,19 +23,33 @@ export const verifyJWT = (JWT:string):Boolean => {
     return (JWT === "100.100.100");
 }
 
+//Create Account token required for non student accounts
+export const verifyNewAccountToken = async(token: string, email: string, userRole: string):Promise<boolean> => {
+
+    switch(RoleEnum[userRole as string]) {
+        case RoleEnum.STUDENT:
+            return true;
+
+        //Universal Token Codes (Save to ENV)
+        case RoleEnum.ADMIN:
+            return token === 'ADMIN';
+        case RoleEnum.LEADER:
+            return token === "LEADER";
+
+        //Individual Codes:
+            default:
+    //TODO Query Special Database
+            // return await queryAll(`SELECT ');
+    }
+}
+
 //Login Operation
-export const getUserLogin = async(email:string, password: string, next: NextFunction, verifyVerification = true):Promise<LoginResponseBody> => {
+export const getUserLogin = async(email:string = '', displayName:string = '', password: string = ''):Promise<LoginResponseBody|undefined> => {
     //Query Database
     const passwordHash:string = getPasswordHash(password);
-    const userProfile:DB_USER = await query("SELECT * FROM user_table WHERE (email = $1 AND password_hash = $2);", [email, passwordHash]);
+    const userProfile:DB_USER = await query("SELECT * FROM user_table WHERE ((email = $1 OR display_name = $2) AND password_hash = $3);", [email, displayName, passwordHash]);
 
-    //Login Failed
-    if (verifyVerification && userProfile && !userProfile.verified) {
-        next(new Exception(403, `Login Failed: Please verify account for user: ${userProfile.user_id} as a ${userProfile.user_role}.`));
-        // return null;  
-
-    //Login Success
-    } else if(userProfile && userProfile.user_id) {
+    if(userProfile && userProfile.user_id) {
         log.auth("Successfully logged in user: ", userProfile.user_id);
 
         return {
@@ -47,8 +61,7 @@ export const getUserLogin = async(email:string, password: string, next: NextFunc
 
     //Login Failed
     } else {
-        next(new Exception(400, `Login Failed: Email and/or Password does not match our records.`));
-        // return null;  
+        return undefined;  
     }
 }
 

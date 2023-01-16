@@ -16,10 +16,10 @@ import logRoutes from './api/log/log.mjs';
 import apiRoutes from './api/api.mjs';
 
 import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup } from './api/auth/auth.mjs';
-import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_userProfile, PATCH_userProfile, POST_EmailExists } from './api/profile/profile.mjs';
+import { GET_partnerProfile, GET_profileAccessUserList, GET_ProfileRoleEditList, GET_publicProfile, GET_RoleList, GET_userProfile, PATCH_userProfile, POST_EmailExists, POST_UsernameExists } from './api/profile/profile.mjs';
 import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
-import { CircleRequest, CredentialRequest, JWTRequest, ProfileRequest } from './api/auth/auth-types.mjs';
+import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTRequest } from './api/auth/auth-types.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMiddleware, authenticateProfileMiddleware, authenticateLeaderMiddleware, authenticateAdminMiddleware, authenticateUserMiddleware, jwtAuthenticationMiddleware } from './api/auth/authorization.mjs';
 import { SocketContact, SocketMessage } from './services/chat/chat-types.mjs';
 import { fetchCircleMessageNames, fetchNames, formatMessageNames } from './services/chat/chat-utilities.mjs';
@@ -86,7 +86,10 @@ apiServer.use(express.json());
 apiServer.post('/signup', POST_signup);
 
 apiServer.get('/resources/role-list', GET_RoleList);
-apiServer.post('/resources/account-exists', POST_EmailExists);
+// apiServer.post('/resources/account-exists', POST_EmailExists);
+// apiServer.post('/resources/name-exists', POST_UsernameExists);
+
+apiServer.get('/resources/profile-edit-list', GET_ProfileRoleEditList);
 
 apiServer.post('/login', POST_login);
 
@@ -113,7 +116,7 @@ apiServer.get('/api/public/profile/:client', GET_publicProfile);
 //***************************************
 // #1 - Verify Identity & Cache Profiles
 //***************************************
-apiServer.use('/api/user', (request:CredentialRequest, response:Response, next:NextFunction) => authenticateUserMiddleware(request, response, next));
+apiServer.use('/api/user', (request:IdentityRequest, response:Response, next:NextFunction) => authenticateUserMiddleware(request, response, next));
 
 // apiServer.get('/api/public/circle/:circle', GET_publicCircle);
 
@@ -128,7 +131,7 @@ apiServer.get('/api/user/circles', GET_userCircles);
 //******************************
 // #2 - Verify Partner Status & Cache Client
 //******************************
-apiServer.use('/api/user/partner/:client', (request:ProfileRequest, response:Response, next:NextFunction) => authenticatePartnerMiddleware(request, response, next));
+apiServer.use('/api/user/partner/:client', (request:IdentityClientRequest, response:Response, next:NextFunction) => authenticatePartnerMiddleware(request, response, next));
 
 apiServer.get('/api/user/partner/:client', GET_partnerProfile);
 
@@ -139,7 +142,7 @@ apiServer.get('/api/user/partner/:client/prayer-request/:prayer', GET_profilePra
 //******************************
 // #3 - Verify Circle Status & Cache Circle
 //******************************
-apiServer.use('/api/user/circle/:circle', (request:CircleRequest, response:Response, next:NextFunction) => authenticateCircleMiddleware(request, response, next));
+apiServer.use('/api/user/circle/:circle', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateCircleMiddleware(request, response, next));
 
 apiServer.get('/api/user/circle/:circle/prayer-request', GET_prayerRequestCircle);
 apiServer.get('/api/user/circle/:circle/prayer-request/:prayer', GET_profilePrayerRequestSpecific);
@@ -148,7 +151,7 @@ apiServer.get('/api/user/circle/:circle/prayer-request/:prayer', GET_profilePray
 //******************************
 // #4 - Verify User Profile Access
 //******************************
-apiServer.use('/api/user/profile/:client', async (request:ProfileRequest, response:Response, next:NextFunction) => await authenticateProfileMiddleware(request, response, next));
+apiServer.use('/api/user/profile/:client', async (request:IdentityClientRequest, response:Response, next:NextFunction) => await authenticateProfileMiddleware(request, response, next));
 
 apiServer.get('/api/user/profile/:client', GET_userProfile);
 apiServer.patch('/api/user/profile/:client', PATCH_userProfile);
@@ -164,13 +167,13 @@ apiServer.delete('/api/user/profile/:client/prayer-request/:prayer', DELETE_pray
 //******************************
 // #5 - Verify Leader Access
 //******************************
-apiServer.use('/api/user/circle/:circle/leader', (request:CircleRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
+apiServer.use('/api/user/circle/:circle/leader', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
 
 
 //******************************
 // #6 - Verify ADMIN Access
 //******************************
-apiServer.use('/api/user/admin', (request:CredentialRequest, response:Response, next:NextFunction) => authenticateAdminMiddleware(request, response, next));
+apiServer.use('/api/user/admin', (request:IdentityRequest, response:Response, next:NextFunction) => authenticateAdminMiddleware(request, response, next));
 
 apiServer.use(express.text());
 apiServer.use('/api/user/admin/log', logRoutes);

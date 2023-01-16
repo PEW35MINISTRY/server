@@ -11,6 +11,7 @@ export interface SignupRequest extends Request {
         password: string,
         phone: string,
         userRole: RoleEnum,
+        token: string,
         displayName: string,
         gender: GenderEnum,
         zipcode: string,
@@ -37,32 +38,7 @@ export interface JWTRequest extends Request {
     jwtUserRole?: RoleEnum
 }
 
-export interface CredentialRequest extends JWTRequest {
-      headers: JWTRequest['headers'] & {
-        'jwt': string, 
-        'user-id': number,
-      },
-      userId?: number,
-      userProfile?: DB_USER
-};
-
-export interface CircleRequest extends CredentialRequest {
-    params: {
-        circle:string
-    },
-    circleId?: number,
-    circleProfile?:any,
-};
-
-export interface CirclePrayerRequest extends CircleRequest {
-    params: CircleRequest['params'] & {
-        prayer:string
-    },
-    prayerRequestId?: number,
-    prayerRequestProfile?:any
-};
-
-export interface ProfileRequest extends CredentialRequest {
+export interface JWTClientRequest extends JWTRequest {
     params: {
         client:string
     },
@@ -70,8 +46,42 @@ export interface ProfileRequest extends CredentialRequest {
     clientProfile?: DB_USER,
 };
 
-export interface ProfilePrayerRequest extends ProfileRequest {
-    params: ProfileRequest['params'] & {
+export interface IdentityRequest extends JWTRequest {
+      headers: JWTRequest['headers'] & {
+        'jwt': string, 
+        'user-id': number,
+      },
+      userId?: number,
+      userRole?: RoleEnum,
+      userProfile?: DB_USER
+};
+
+export interface IdentityClientRequest extends IdentityRequest {
+    params: {
+        client:string
+    },
+    clientId?:number,
+    clientProfile?: DB_USER,
+};
+
+export interface IdentityCircleRequest extends IdentityRequest {
+    params: {
+        circle:string
+    },
+    circleId?: number,
+    circleProfile?:any,
+};
+
+export interface IdentityCirclePrayerRequest extends IdentityCircleRequest {
+    params: IdentityCircleRequest['params'] & {
+        prayer:string
+    },
+    prayerRequestId?: number,
+    prayerRequestProfile?:any
+};
+
+export interface IdentityPrayerRequest extends IdentityRequest {
+    params: IdentityRequest['params'] & {
         prayer:string
     },
     prayerRequestId?: number,
