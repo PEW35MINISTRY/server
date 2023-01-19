@@ -4,6 +4,12 @@ import dotenv from 'dotenv';
 import { Exception } from '../../api/api-types.mjs';
 dotenv.config(); 
 
+console.log('Database Details:  ', process.env.DATABASE_USER,
+process.env.DATABASE_PASSWORD,
+process.env.DATABASE_PASSWORD,
+process.env.DATABASE_PORT,
+process.env.DATABASE_NAME);
+
 const pool = new Pool({
     user: process.env.DATABASE_USER,
     password: process.env.DATABASE_PASSWORD,
