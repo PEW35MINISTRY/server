@@ -6,7 +6,7 @@ cd /home/ubuntu/server
 sudo rm -rf node_modules package-lock.json
 
 #Update source code
-git fetch --all
+git fetch origin release
 git checkout --force release
 
 # Install latest dependencies
