@@ -1,0 +1,16 @@
+{
+    "apps" : [
+       {
+          "name"          : "Encouraging Prayer Server",
+          "cwd"           : "/home/ubuntu/server/0-compiled",
+          "script"        : "node",
+          "args"          : "server.mjs",
+          "watch"         : false,
+          "out_file"      : "/home/ubuntu/server/LOGS/server-out.log",
+          "err_file"      : "/home/ubuntu/server/LOGS/server-error.log",
+          "merge_logs"    : true,
+          "instances"     : 1,
+          "exec_mode"     : "cluster"
+       }
+    ]
+  }
