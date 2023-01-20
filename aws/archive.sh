@@ -16,7 +16,8 @@ sudo cp "package-lock.json" "../${ARCHIEVE_PATH}/"
 sudo cp "tsconfig.json" "../${ARCHIEVE_PATH}/"
 
 #Update Source Code | may be new deploy.sh script
-git pull --force origin release
+git reset --hard
+git pull origin release
 git checkout --force release
 
 sudo "./aws/deploy.sh"
