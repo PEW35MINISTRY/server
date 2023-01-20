@@ -5,18 +5,18 @@ sudo pm2 kill
 cd /home/ubuntu/server
 
 # Cache Key Files
-last_release = $(date +'%F-%s')
-archive_path = "release/${last_release}"
-sudo mkdir "../${archive_path}"
+LAST_RELEASE=$(date +'%F-%s')
+ARCHIEVE_PATH="release-end/$LAST_RELEASE"
+sudo mkdir "../$ARCHIEVE_PATH"
 
-sudo cp -r "/LOGS" "../${archive_path}/LOGS"
-sudo cp -r "/aws" "../${archive_path}/aws"
-sudo cp "package.json" "../${archive_path}/"
-sudo cp "package-lock.json" "../${archive_path}/"
-sudo cp "tsconfig.json" "../${archive_path}/"
+sudo cp -r "/LOGS" "../${ARCHIEVE_PATH}/LOGS"
+sudo cp -r "/aws" "../${ARCHIEVE_PATH}/aws"
+sudo cp "package.json" "../${ARCHIEVE_PATH}/"
+sudo cp "package-lock.json" "../${ARCHIEVE_PATH}/"
+sudo cp "tsconfig.json" "../${ARCHIEVE_PATH}/"
 
 #Update Source Code | may be new deploy.sh script
-git fetch origin release
+git pull --force origin release
 git checkout --force release
 
 sudo "./aws/deploy.sh"
