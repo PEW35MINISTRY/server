@@ -9,8 +9,8 @@ LAST_RELEASE=$(date +'%F-%s')
 ARCHIEVE_PATH="release-end/$LAST_RELEASE"
 sudo mkdir -p "../$ARCHIEVE_PATH"
 
-sudo cp -r "/LOGS" "../${ARCHIEVE_PATH}/LOGS"
-sudo cp -r "/aws" "../${ARCHIEVE_PATH}/aws"
+sudo cp -r "LOGS" "../${ARCHIEVE_PATH}/LOGS"
+sudo cp -r "aws" "../${ARCHIEVE_PATH}/aws"
 sudo cp "package.json" "../${ARCHIEVE_PATH}/"
 sudo cp "package-lock.json" "../${ARCHIEVE_PATH}/"
 sudo cp "tsconfig.json" "../${ARCHIEVE_PATH}/"

@@ -18,5 +18,5 @@ sudo npm run build
 
 #start PM2
 cd 0-compiled
-sudo cp "home/ubuntu/server/aws/pm2-start.json" "."
+sudo cp "/home/ubuntu/server/aws/pm2-start.json" "."
 sudo pm2 start pm2-start.json

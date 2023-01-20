@@ -1,7 +1,7 @@
 {
     "apps" : [
        {
-          "name"          : "Encouraging Prayer Server",
+          "name"          : "Server",
           "cwd"           : "/home/ubuntu/server/0-compiled",
           "script"        : "node",
           "args"          : "server.mjs",
