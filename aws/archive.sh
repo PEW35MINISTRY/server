@@ -5,11 +5,12 @@ sudo pm2 kill
 cd /home/ubuntu/server
 
 # Cache Key Files
-last_release = release-end-$(date + '%F')-$(date + '%N')
-sudo mkdir "../${last_release}"
+date_formatted = $(date + '%F')
+last_release = $(date + '%F')
+sudo mkdir "../release-end-${last_release}"
 
-sudo cp -r "LOGS" "../${last_release}/LOGS"
-sudo cp -r "aws" "../${last_release}/aws"
+sudo cp -r "/LOGS" "../${last_release}/LOGS"
+sudo cp -r "/aws" "../${last_release}/aws"
 sudo cp "package.json" "../${last_release}/"
 sudo cp "package-lock.json" "../${last_release}/"
 sudo cp "tsconfig.json" "../${last_release}/"
