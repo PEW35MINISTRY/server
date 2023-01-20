@@ -7,7 +7,7 @@ cd /home/ubuntu/server
 # Cache Key Files
 LAST_RELEASE=$(date +'%F-%s')
 ARCHIEVE_PATH="release-end/$LAST_RELEASE"
-sudo mkdir "../$ARCHIEVE_PATH"
+sudo mkdir -p "../$ARCHIEVE_PATH"
 
 sudo cp -r "/LOGS" "../${ARCHIEVE_PATH}/LOGS"
 sudo cp -r "/aws" "../${ARCHIEVE_PATH}/aws"
@@ -20,4 +20,6 @@ git reset --hard
 git pull origin release
 git checkout --force release
 
+#Start deploy script
+chmod 777 "./aws/deploy.sh"
 sudo "./aws/deploy.sh"
