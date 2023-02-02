@@ -80,6 +80,14 @@ apiServer.get('/portal', (request: Request, response: Response) => {
     response.status(200).sendFile(path.join(__dirname, 'portal', 'index.html'));
 });
 
+apiServer.get('/login', (request: Request, response: Response) => {
+    response.status(200).sendFile(path.join(__dirname, 'portal', 'index.html'));
+});
+
+apiServer.get('/signup', (request: Request, response: Response) => {
+    response.status(200).sendFile(path.join(__dirname, 'portal', 'index.html'));
+});
+
 //Formatting Request Body
 apiServer.use(express.json());
 
@@ -188,12 +196,37 @@ apiServer.use((request: Request, response:Response, next: NextFunction) => {
 
 apiServer.use((error: Exception, request: Request, response:Response, next: NextFunction) => {
     const status = error.status || 500;
-    const message = request.method + ' -> ' + request.url + ' = ' + error.message || 'Server Error';
-    response.status(error.status || 500).send({status: status, message: message, type: request.method, url: request.originalUrl, params: request.params, query: request.query, header: request.headers, body: request.body});
+    const message = error.message || 'Server Error';
+    const action = request.method + ' -> ' + request.url + ' = ' + message;
+    const errorResponse:serverErrorResponse = {
+        status: status,
+        message: message,
+        action: action,
+        type: request.method,
+        url: request.originalUrl,
+        params: request.params,
+        query: request.query,
+        header: request.headers,
+        body: request.body
+    }
+    response.status(error.status || 500).send(errorResponse);
 
     if(status < 400) log.event('API Event:', message);
     else if(status >= 400 && status <= 403) log.auth('HTTP user verification failed:', message);
     else log.error('API Server Error:', message);
 
-    console.error("API", status, message, request.method, request.originalUrl, request.params, request.query, request.headers, request.body);
+    console.error("API", errorResponse);
 });
+
+//Must match Portal in app-types.tsx
+export type serverErrorResponse = {
+    status: number, 
+    message: string,
+    action: string,
+    type: string,
+    url: string,
+    params: any, //ParamsDictionary
+    query: any, //ParsedQs
+    header: string | object,
+    body: string | object
+};

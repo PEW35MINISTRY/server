@@ -11,12 +11,12 @@ git pull origin release
 git checkout --force release
 
 # Install latest dependencies
-sudo npm install
+npm install
 
 #Compile typescript
-sudo npm run build
+npm run build
 
 #start PM2
 cd 0-compiled
 sudo cp "/home/ubuntu/server/aws/pm2-start.json" "."
-sudo pm2 start pm2-start.json
+pm2 start pm2-start.json

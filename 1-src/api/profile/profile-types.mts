@@ -35,9 +35,7 @@ export const ALL_PROFILE_FIELDS_EDIT_LIST = [
 
 //Also required Fields for Profile Edit
 export const SIGNUP_PROFILE_FIELDS_CREATE_LIST = [
-    'userRole', 'email', 'displayName', 'password', 'phone', 'zipcode', 'dob', 'gender', 'dailyNotificationHour',
-    'stage'
-];
+    'userRole', 'email', 'displayName', 'password', 'phone', 'zipcode', 'dob', 'gender', 'dailyNotificationHour'];
 
 export const STUDENT_PROFILE_FIELDS_EDIT_LIST:string[] = ['zipcode', 'dailyNotificationHour', 'circleList', 'profileList'];
 
@@ -63,6 +61,7 @@ export const editProfileAllowed = (field:string, userRole:RoleEnum):boolean => {
         return getUserRoleProfileAccessList(userRole).includes(field);
 }
 
+//sync with Portal app-types.tsx
 export interface ProfilePublicResponse {
     userId: number, 
     userRole: string, 
@@ -79,7 +78,7 @@ export interface ProfilePublicResponse {
     }[],
 };
 
-
+//sync with Portal app-types.tsx
 export interface ProfileResponse extends ProfilePublicResponse  {
     firstName: string, 
     lastName: string, 

@@ -1,6 +1,6 @@
 echo "Archieving Encouraging Prayer Server"
 # Stop Server
-sudo pm2 kill
+pm2 kill
 
 cd /home/ubuntu/server
 
