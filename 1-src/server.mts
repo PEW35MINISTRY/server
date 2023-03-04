@@ -2,9 +2,10 @@ import dotenv from 'dotenv';
 dotenv.config(); 
 import path from 'path';
 const __dirname = path.resolve();
-import { createServer } from "http";
+import { createServer } from 'http';
+import { createServer as createSecureServer } from 'https';
 import express, { Application , Request, Response, NextFunction} from 'express';
-import { Server, Socket } from "socket.io";
+import { Server, Socket } from 'socket.io';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import {Exception} from './api/api-types.mjs'
@@ -31,17 +32,21 @@ import { verifyJWT } from './api/auth/auth-utilities.mjs';
  
 
 const SERVER_PORT = process.env.SERVER_PORT || 5000;
+const HTTPS_SERVER_PORT = process.env.HTTPS_SERVER_PORT || 5555;
+const udpServer: Application = express();
 const apiServer: Application = express();
 
 /********************
    Socket.IO Chat
  *********************/
-const httpServer = createServer(apiServer);
-const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
+const httpServer = createServer(udpServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT}`));
+
+const httpsServer = createSecureServer(apiServer);
+const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpsServer, { 
     path: '/chat',
     cors: { origin: "*"}
 });
-httpServer.listen( SERVER_PORT, () => console.log(`Back End Server listening on LOCAL port: ${SERVER_PORT}`));
+httpsServer.listen( HTTPS_SERVER_PORT, () => console.log(`Back End Server listening on HTTPS port: ${HTTPS_SERVER_PORT}`));
 
 //Socket Middleware Authenticates JWT before Connect
 chatIO.use((socket, next)=> {
@@ -60,6 +65,21 @@ CHAT(chatIO);
 // apiServer.use(bodyParser.urlencoded({ extended: true }));
 // apiServer.use(bodyParser.raw());
 apiServer.use(cors());
+
+/********************
+ HTTP Routes
+ *********************/
+ udpServer.use(cors());
+ udpServer.use(express.static(path.join(__dirname, 'website')));
+ udpServer.get('/', (request: Request, response: Response) => {
+     response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
+ });
+ 
+ //Redirect all other routes to HTTPS
+ udpServer.get('/*', (request: Request, response: Response) => {
+    log.event('Redirecting to HTTPS:', 'https://' + request.headers.host + request.url);
+     response.status(301).redirect('https://' + request.headers.host + request.url);;
+ });
 
 /********************
  Unauthenticated Routes
