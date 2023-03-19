@@ -1,3 +1,5 @@
+# Must enable permissions for npm scripts
+# sudo chmod 777 deploy.sh
 echo "Deploying Encouraging Prayer Server"
 
 cd /home/ubuntu/server
@@ -30,7 +32,7 @@ npm install
 
 npm run build 
 
-cp ./build ../server/website
+cp ./build/ ../server/website/
 
 #Update PORTAL
 cd /home/ubuntu/portal
@@ -46,7 +48,11 @@ npm install
 
 npm run build 
 
-cp ./build ../server/portal
+cp ./build/ ../server/portal/
+
+#Update SSL | chron auto updates 2023-6-17
+cp "~/etc/letsencrypt/live/encouragingprayer.org/fullchain.pem" "~/server/aws/fullchain.pem"
+cp "~/etc/letsencrypt/live/encouragingprayer.org/privkey.pem" "~/server/aws/privkey.pem"
 
 #start PM2
 cd 0-compiled

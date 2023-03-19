@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config(); 
+import fs from 'fs';
 import path from 'path';
 const __dirname = path.resolve();
 import { createServer } from 'http';
@@ -33,15 +34,18 @@ import { verifyJWT } from './api/auth/auth-utilities.mjs';
 
 const SERVER_PORT = process.env.SERVER_PORT || 5000;
 const HTTPS_SERVER_PORT = process.env.HTTPS_SERVER_PORT || 5555;
-const udpServer: Application = express();
+const publicServer: Application = express();
 const apiServer: Application = express();
 
 /********************
    Socket.IO Chat
  *********************/
-const httpServer = createServer(udpServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT}`));
+const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT}`));
 
-const httpsServer = createSecureServer(apiServer);
+const httpsServer = createSecureServer({
+    key: fs.readFileSync("../aws/privkey.pem"),
+    cert: fs.readFileSync("../aws/fullchain.pem")
+}, () => apiServer);
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpsServer, { 
     path: '/chat',
     cors: { origin: "*"}
@@ -69,17 +73,17 @@ apiServer.use(cors());
 /********************
  HTTP Routes
  *********************/
- udpServer.use(cors());
- udpServer.use(express.static(path.join(__dirname, 'website')));
- udpServer.get('/', (request: Request, response: Response) => {
+ publicServer.use(cors());
+ publicServer.use(express.static(path.join(__dirname, 'website')));
+ publicServer.get('/', (request: Request, response: Response) => {
      response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
  });
  
  //Redirect all other routes to HTTPS
- udpServer.get('/*', (request: Request, response: Response) => {
-    log.event('Redirecting to HTTPS:', 'https://' + request.headers.host + request.url);
-     response.status(301).redirect('https://' + request.headers.host + request.url);;
- });
+//  publicServer.get('/*', (request: Request, response: Response) => {
+//     log.event('Redirecting to HTTPS:', 'https://' + request.headers.host + request.url);
+//      response.status(301).redirect('https://' + request.headers.host + request.url);
+//  });
 
 /********************
  Unauthenticated Routes
