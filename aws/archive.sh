@@ -22,4 +22,3 @@ git checkout --force release
 
 #Start deploy script
 chmod 777 "./aws/deploy.sh"
-sudo "./aws/deploy.sh"

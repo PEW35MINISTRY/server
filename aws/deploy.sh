@@ -30,7 +30,7 @@ git checkout --force release
 
 npm install
 
-npm run build 
+npm run build
 
 cp ./build/ ../server/website/
 
@@ -46,17 +46,14 @@ git checkout --force release
 
 npm install
 
-npm run build 
+npm run build
 
 cp ./build/ ../server/portal/
 
 #Update SSL | chron auto updates 2023-6-17
-cp "/etc/letsencrypt/live/encouragingprayer.org/privkey.pem" "/home/ubuntu/server/aws"
-cp "/etc/letsencrypt/live/encouragingprayer.org/cert.pem" "/home/ubuntu/server/aws"
-cp "/etc/letsencrypt/live/encouragingprayer.org/chain.pem" "/home/ubuntu/server/aws"
-
+cp "~/etc/letsencrypt/live/encouragingprayer.org/fullchain.pem" "~/server/aws/fullchain.pem"
+cp "~/etc/letsencrypt/live/encouragingprayer.org/privkey.pem" "~/server/aws/privkey.pem"
 
 #start PM2
 cd 0-compiled
 sudo cp "/home/ubuntu/server/aws/pm2-start.json" "."
-pm2 start pm2-start.json
