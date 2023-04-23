@@ -42,18 +42,20 @@ const apiServer: Application = express();
  *********************/
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT}`));
 
-const privateKey = fs.readFileSync('aws/privkey.pem', 'utf8');
-const certificate = fs.readFileSync('aws/cert.pem', 'utf8');
-const ca = fs.readFileSync('aws/chain.pem', 'utf8');
-const credentials = {
-	key: privateKey,
-	cert: certificate,
-	ca: ca
-};
+//***AWS ENVIRONMENT****/ only enable for HTTPS and DNS
+// const privateKey = fs.readFileSync('aws/privkey.pem', 'utf8');
+// const certificate = fs.readFileSync('aws/cert.pem', 'utf8');
+// const ca = fs.readFileSync('aws/chain.pem', 'utf8');
+// const credentials = {
+// 	key: privateKey,
+// 	cert: certificate,
+// 	ca: ca
+// };
 
-const httpsServer = createSecureServer(credentials, apiServer);
+// const httpsServer = createSecureServer(credentials, apiServer);
 
-// const httpsServer = httpServer;
+//***LOCAL ENVIRONMENT****/ only HTTP
+const httpsServer = httpServer;
 
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpsServer, { 
     path: '/chat',
