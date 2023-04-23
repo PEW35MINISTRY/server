@@ -18,7 +18,7 @@ import { extractClientProfile, jwtAuthenticationMiddleware } from './authorizati
  export const POST_signup =  async(request: SignupRequest, response: Response, next: NextFunction) => { //TODO Signup Process & Verify Accounts
     let userList:DB_USER[] = [];
         //Verify Password & Email Exist
-    if(!request.body.email || !request.body.password || !request.body.displayName || !request.body.userRole)
+    if(!request.body.email || !request.body.password || !request.body.displayName)
         next(new Exception(400, `Signup Failed :: missing required fields.`));
 
         //Verify Email is Unique
@@ -29,7 +29,7 @@ import { extractClientProfile, jwtAuthenticationMiddleware } from './authorizati
             log.error(`Multiple Accounts Detected with same username`, request.body.displayName, ...userList.map(user => user.user_id));
 
             //Verify Username is Unique
-    } else if((userList = await queryAll("SELECT * FROM user_table WHERE displayName = $1;", [request.body.displayName])).length !== 0) {
+    } else if((userList = await queryAll("SELECT * FROM user_table WHERE display_name = $1;", [request.body.displayName])).length !== 0) {
         next(new Exception(409, `Signup Failed :: Unique username is required for a new account.`));
 
         if(userList.length > 1)

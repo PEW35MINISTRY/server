@@ -24,7 +24,7 @@ export const verifyJWT = (JWT:string):Boolean => {
 }
 
 //Create Account token required for non student accounts
-export const verifyNewAccountToken = async(token: string, email: string, userRole: string):Promise<boolean> => {
+export const verifyNewAccountToken = async(token: string, email: string, userRole: string = RoleEnum.STUDENT):Promise<boolean> => {
 
     switch(RoleEnum[userRole as string]) {
         case RoleEnum.STUDENT:

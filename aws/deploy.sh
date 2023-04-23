@@ -51,8 +51,10 @@ npm run build
 cp ./build/ ../server/portal/
 
 #Update SSL | chron auto updates 2023-6-17
-cp "~/etc/letsencrypt/live/encouragingprayer.org/fullchain.pem" "~/server/aws/fullchain.pem"
-cp "~/etc/letsencrypt/live/encouragingprayer.org/privkey.pem" "~/server/aws/privkey.pem"
+cp "/etc/letsencrypt/live/encouragingprayer.org/privkey.pem" "/home/ubuntu/server/aws"
+cp "/etc/letsencrypt/live/encouragingprayer.org/cert.pem" "/home/ubuntu/server/aws"
+cp "/etc/letsencrypt/live/encouragingprayer.org/chain.pem" "/home/ubuntu/server/aws"
+
 
 #start PM2
 cd 0-compiled

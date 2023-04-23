@@ -42,15 +42,18 @@ const apiServer: Application = express();
  *********************/
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT}`));
 
-const httpsServer = createSecureServer({
-    key: fs.readFileSync("../aws/privkey.pem"),
-    cert: fs.readFileSync("../aws/fullchain.pem")
-}, () => apiServer);
+// const httpsServer = createSecureServer({
+//     key: fs.readFileSync("../aws/privkey.pem"),
+//     cert: fs.readFileSync("../aws/fullchain.pem")
+// }, () => apiServer);
+
+const httpsServer = httpServer;
+
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpsServer, { 
     path: '/chat',
     cors: { origin: "*"}
 });
-httpsServer.listen( HTTPS_SERVER_PORT, () => console.log(`Back End Server listening on HTTPS port: ${HTTPS_SERVER_PORT}`));
+// httpsServer.listen( HTTPS_SERVER_PORT, () => console.log(`Back End Server listening on HTTPS port: ${HTTPS_SERVER_PORT}`));
 
 //Socket Middleware Authenticates JWT before Connect
 chatIO.use((socket, next)=> {

@@ -1,4 +1,4 @@
-import { editProfileAllowed, GenderEnum, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, RoleEnum, StageEnum } from "./profile-types.mjs";
+import { editProfileAllowed, GenderEnum, getDatabaseDefaultProfileFields, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, RoleEnum, StageEnum } from "./profile-types.mjs";
 import database, {formatTestResult, query, queryAll, queryTest, TestResult} from "../../services/database/database.mjs";
 import { Exception } from "../api-types.mjs";
 import * as log from '../../services/log.mjs';
@@ -107,6 +107,11 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
         let columnList:string[] = [];
         let valueList:any[] = [];
         const fields = Object.entries(httpRequest.body);
+
+        if(editType === EDIT_TYPES.CREATE) {
+            columnList=[...getDatabaseDefaultProfileFields().keys()];
+            valueList=[...getDatabaseDefaultProfileFields().values()]
+        }
     
         //Only list Fields Student can Edit
         fields.forEach((field, index) => { 
@@ -132,26 +137,26 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
                
         //Special Parsing Edits 
         if( editProfileAllowed(field[0], accessorUserRole) && (
-            addField('email', `email`, field[1], field[0], columnList, valueList)
+            addField('email', `email`, field[1], field[0], columnList, valueList, editType)
             || addField('displayName', `display_name`, field[1], field[0], columnList, valueList, editType)
-            || addField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList)
-            || (addField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList)
-                && addField('userRole', `verified`, false, field[0], columnList, valueList)) //UnVerify account on role change
-            // || addField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList)
-            || addField('firstName', `display_name`, field[1], field[0], columnList, valueList)
-            || addField('lastName', `display_name`, field[1], field[0], columnList, valueList)
-            || addField('phone', `phone`, field[1], field[0], columnList, valueList)
-            || addField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList)
-            || addField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList)                      
-            || addField('zipcode', `zipcode`, field[1], field[0], columnList, valueList)
-            || addField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || addField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList, editType)
+            || (addField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList, editType)
+                && addField('userRole', `verified`, false, field[0], columnList, valueList, editType)) //UnVerify account on role change
+            // || addField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList, editType)
+            // || addField('firstName', `display_name`, field[1], field[0], columnList, valueList, editType)
+            // || addField('lastName', `display_name`, field[1], field[0], columnList, valueList, editType)
+            || addField('phone', `phone`, field[1], field[0], columnList, valueList, editType)
+            || addField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList, editType)
+            || addField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList, editType)                      
+            || addField('zipcode', `zipcode`, field[1], field[0], columnList, valueList, editType)
+            || addField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList, editType)
 
-            || addField('partnerList', `partners`, field[1], field[0], columnList, valueList)
-            || addField('circleList', `circles`, field[1], field[0], columnList, valueList)
-            || addField('profileImage', `profile_image`, field[1], field[0], columnList, valueList)
+            || addField('partnerList', `partners`, field[1], field[0], columnList, valueList, editType)
+            || addField('circleList', `circles`, field[1], field[0], columnList, valueList, editType)
+            || addField('profileImage', `profile_image`, field[1], field[0], columnList, valueList, editType)
                         
-            || addField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList)
-            || addField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList)
+            || addField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList, editType)
+            || addField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList, editType)
 
         ))  return true;
         else
