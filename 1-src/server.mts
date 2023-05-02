@@ -17,7 +17,7 @@ import CHAT from './services/chat/chat.mjs';
 import logRoutes from './api/log/log.mjs';
 import apiRoutes from './api/api.mjs';
 
-import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup } from './api/auth/auth.mjs';
+import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup, POST_authorization_reset } from './api/auth/auth.mjs';
 import { GET_partnerProfile, GET_profileAccessUserList, GET_ProfileRoleEditList, GET_publicProfile, GET_RoleList, GET_userProfile, PATCH_userProfile, POST_EmailExists, POST_UsernameExists } from './api/profile/profile.mjs';
 import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
@@ -29,7 +29,7 @@ import { GET_userContacts } from './api/chat/chat.mjs';
 import { GET_userCircles } from './api/circle/circle.mjs';
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
 import { verifyJWT } from './api/auth/auth-utilities.mjs';
-
+import { createHash } from 'node:crypto'
  
 
 const SERVER_PORT = process.env.SERVER_PORT || 5000;
@@ -61,7 +61,7 @@ const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> =
     path: '/chat',
     cors: { origin: "*"}
 });
-httpsServer.listen( HTTPS_SERVER_PORT, () => console.log(`Back End Server listening on HTTPS port: ${HTTPS_SERVER_PORT}`));
+//httpsServer.listen( HTTPS_SERVER_PORT, () => console.log(`Back End Server listening on HTTPS port: ${HTTPS_SERVER_PORT}`));
 
 //Socket Middleware Authenticates JWT before Connect
 chatIO.use((socket, next)=> {
@@ -220,6 +220,7 @@ apiServer.use('/api/user/admin', (request:IdentityRequest, response:Response, ne
 
 apiServer.use(express.text());
 apiServer.use('/api/user/admin/log', logRoutes);
+apiServer.post('/api/user/admin/authorization-reset', POST_authorization_reset)
 
 
 //******************************

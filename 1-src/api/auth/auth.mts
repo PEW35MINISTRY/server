@@ -8,9 +8,7 @@ import { editProfile, EDIT_TYPES, formatProfile } from '../profile/profile-utili
 import { IdentityRequest, JWTClientRequest, JWTRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from './auth-types.mjs';
 import {generateJWT, getPasswordHash, getUserLogin, verifyJWT, verifyNewAccountToken} from './auth-utilities.mjs'
 import { extractClientProfile, jwtAuthenticationMiddleware } from './authorization.mjs';
-
-
-
+import { generateSecretKey } from './auth-utilities.mjs';
 
 /********************
  Unauthenticated Routes
@@ -97,4 +95,8 @@ export const GET_allUserCredentials =  async (request: Request, response: Respon
     }
 };
 
-
+export const POST_authorization_reset = async (request:IdentityRequest, response:Response, next: NextFunction) => {
+    generateSecretKey();
+    response.status(202).send(`App secret key has been reset`);
+    log.auth(`User ${request.userId} has reset the server's secret key`);
+}

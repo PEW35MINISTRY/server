@@ -5,7 +5,7 @@ import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTClien
 import { queryAll } from "../../services/database/database.mjs";
 import { DB_USER } from "../../services/database/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
-import { isRequestorAllowedProfile, verifyJWT } from "./auth-utilities.mjs";
+import { isRequestorAllowedProfile, verifyJWT, getJWTData } from "./auth-utilities.mjs";
 
 /* *******************
  Middleware Authentication
@@ -24,9 +24,11 @@ export const jwtAuthenticationMiddleware = async(request: JWTRequest, response: 
 
     //Inject jwtUserId into request object
     else {
-        request.jwt = request.headers['jwt'];
-        request.jwtUserId = 0;
-        request.jwtUserRole = RoleEnum.STUDENT;
+        const client_token = request.headers['jwt'];
+        const token_data = getJWTData(client_token);
+        request.jwt = client_token
+        request.jwtUserId = token_data['userID'];
+        request.jwtUserRole = token_data['userRole'];
 
         next();
     }
