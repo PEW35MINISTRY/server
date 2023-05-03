@@ -43,6 +43,8 @@ export const authenticateUserMiddleware = async(request: IdentityRequest, respon
 
     //Verify Client Exists
     else {
+        const client_token = request.headers['jwt'];
+        const token_data = getJWTData(client_token);
         const userId:number = request.headers['user-id'];
 
         const userProfileList:DB_USER[] = await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
@@ -50,9 +52,9 @@ export const authenticateUserMiddleware = async(request: IdentityRequest, respon
         if(userProfileList.length !== 1) 
             next(new Exception(404, `FAILED AUTHENTICATED :: IDENTITY :: User: ${userId} - DOES NOT EXIST`));
 
-        //JWT Credentials against Database //TODO Once JWT is implemented
-        // else if(userProfileList[0].user_id !== request.jwtUserId || userProfileList[0].user_role !== request.jwtUserRole) 
-        //     next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Inaccurate JWT ${request.headers['jwt']} for User: ${userId}`));
+        //JWT Credentials against Database 
+        else if(userProfileList[0].user_id !== token_data.jwtUserId || userProfileList[0].user_role !== token_data.jwtUserRole) 
+            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Inaccurate JWT ${request.headers['jwt']} for User: ${userId}`));
 
         //Inject userProfile into request object
         else {
