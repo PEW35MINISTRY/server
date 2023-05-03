@@ -22,7 +22,7 @@ export const generateSecretKey = () => {
    const time = new Date().getTime();
    APP_SECRET_KEY = createHash("sha256").update(time + process.env.SECRET_KEY).digest("base64");
 }
-
+generateSecretKey();
 
 /* *******************
  JWT Token Management
@@ -119,4 +119,3 @@ export const isRequestorAllowedProfileQuery = async(userId: number, requestorId:
 export const getPasswordHash = (password:string):string => {
     return password;
 }
-generateSecretKey();
