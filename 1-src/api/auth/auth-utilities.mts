@@ -6,21 +6,45 @@ import { query, queryAll, queryTest, TestResult } from "../../services/database/
 import { DB_USER } from "../../services/database/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
 import { formatProfile } from "../profile/profile-utilities.mjs";
+import JWT_PKG, { JwtPayload } from "jsonwebtoken";
+import { createHash } from 'node:crypto'
+import dotenv from 'dotenv';
+dotenv.config(); 
 
-  
+const {sign, verify} = JWT_PKG;
+
+/********************
+   Create secret key
+********************/
+var APP_SECRET_KEY;
+
+export const generateSecretKey = () => {
+   const time = new Date().getTime();
+   APP_SECRET_KEY = createHash("sha256").update(time + process.env.SECRET_KEY).digest("base64");
+}
+generateSecretKey();
 
 /* *******************
  JWT Token Management
 ******************* */
-export const generateJWT = async(userProfile:DB_USER):Promise<string> => {
+export const generateJWT = (userProfile:DB_USER):string => {
     //generate JWT
-    return '100.100.100';
+    return sign({userID: userProfile.user_id, userRole: userProfile.user_role}, APP_SECRET_KEY, {expiresIn: "2 days"});
 }
 
 export const verifyJWT = (JWT:string):Boolean => {
     //Verify JWT still valid
+    try {
+        verify(JWT, APP_SECRET_KEY);
+        return true;
+    } catch(err) {
+        console.log(err);
+        return false;
+    }
+}
 
-    return (JWT === "100.100.100");
+export const getJWTData = (JWT:string):string | JwtPayload => {
+    return verify(JWT, APP_SECRET_KEY);
 }
 
 //Create Account token required for non student accounts
@@ -53,7 +77,7 @@ export const getUserLogin = async(email:string = '', displayName:string = '', pa
         log.auth("Successfully logged in user: ", userProfile.user_id);
 
         return {
-            JWT: await generateJWT(userProfile),
+            JWT: generateJWT(userProfile),
             userId: userProfile.user_id,
             userProfile: formatProfile(userProfile),
             service: 'Email & Password Authenticated'
