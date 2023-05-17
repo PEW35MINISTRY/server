@@ -2,9 +2,17 @@ import { Request, Response, NextFunction} from "express";
 import { IncomingHttpHeaders } from "http";
 import { DB_USER } from "../../services/database/database-types.mjs";
 import { GenderEnum, ProfileResponse, RoleEnum, StageEnum } from "../profile/profile-types.mjs";
+import { JwtPayload } from "jsonwebtoken";
 
 
 /*    Type Declarations     */
+export interface JWTData extends JwtPayload {
+    jwtUserId: number;
+    jwtUserRole:RoleEnum;
+    token?: string;
+}
+
+
 export interface SignupRequest extends Request {
     body: {
         email: string, 

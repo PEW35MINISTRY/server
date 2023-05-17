@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
-import { IdentityRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
+import { IdentityRequest, JWTData, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
 import { query, queryAll, queryTest, TestResult } from "../../services/database/database.mjs";
 import { DB_USER } from "../../services/database/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
 import { formatProfile } from "../profile/profile-utilities.mjs";
-import JWT_PKG, { JwtPayload } from "jsonwebtoken";
+import JWT_PKG, { JwtPayload, decode } from "jsonwebtoken";
 import { createHash } from 'node:crypto'
 import dotenv from 'dotenv';
 dotenv.config(); 
@@ -33,7 +33,6 @@ export const generateJWT = (userProfile:DB_USER):string => {
 }
 
 export const verifyJWT = (JWT:string):Boolean => {
-    //Verify JWT still valid
     try {
         verify(JWT, APP_SECRET_KEY);
         return true;
@@ -43,8 +42,21 @@ export const verifyJWT = (JWT:string):Boolean => {
     }
 }
 
-export const getJWTData = (JWT:string):string | JwtPayload => {
-    return verify(JWT, APP_SECRET_KEY);
+export const getJWTData = (JWT:string):JWTData => {
+    const tokenObject:JwtPayload|string|null = decode(JWT); //Does not verify
+    
+    if('jwtUserId' in (tokenObject as JWTData)) { //Must use type predicates
+        return {
+            jwtUserId: (tokenObject as JWTData).jwtUserId,
+            jwtUserRole: RoleEnum[(tokenObject as JWTData).jwtRoleEnum as string],
+        }
+    } 
+    //Default
+    else 
+        return {
+            jwtUserId: 0,
+            jwtUserRole: RoleEnum.STUDENT,
+        };
 }
 
 //Create Account token required for non student accounts
