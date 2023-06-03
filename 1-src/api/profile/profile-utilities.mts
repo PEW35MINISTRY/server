@@ -1,4 +1,4 @@
-import { editProfileAllowed, GenderEnum, getDatabaseDefaultProfileFields, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, RoleEnum, StageEnum } from "./profile-types.mjs";
+import { editProfileFieldAllowed, GenderEnum, getDatabaseDefaultProfileFields, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, RoleEnum, signupProfileFieldAllowed, StageEnum } from "./profile-types.mjs";
 import database, {formatTestResult, query, queryAll, queryTest, TestResult} from "../../services/database/database.mjs";
 import { Exception } from "../api-types.mjs";
 import * as log from '../../services/log.mjs';
@@ -136,7 +136,9 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
     const getProfileChanges = (editId:number, field:[string, unknown], columnList:string[], valueList:any[], accessorUserRole:RoleEnum, editType:EDIT_TYPES = EDIT_TYPES.EDIT):boolean => {
                
         //Special Parsing Edits 
-        if( editProfileAllowed(field[0], accessorUserRole) && (
+        if( ((editType === EDIT_TYPES.CREATE && signupProfileFieldAllowed(field[0], accessorUserRole))
+            || (editType === EDIT_TYPES.EDIT && editProfileFieldAllowed(field[0], accessorUserRole))
+        ) && (
             addField('email', `email`, field[1], field[0], columnList, valueList, editType)
             || addField('displayName', `display_name`, field[1], field[0], columnList, valueList, editType)
             || addField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList, editType)

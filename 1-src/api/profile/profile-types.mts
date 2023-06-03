@@ -4,6 +4,7 @@ import { IncomingHttpHeaders } from 'http';
 import { IdentityClientRequest, IdentityRequest } from '../auth/auth-types.mjs';
 import { Message } from '../chat/chat-types.mjs';
 import { PrayerRequest } from '../prayer-request/prayer-request-types.mjs';
+import { EDIT_PROFILE_FIELDS, PROFILE_FIELDS_ADMIN, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from './profile-field-config.mjs';
 
 export enum StageEnum {
     LEARNING = 'LEARNING',
@@ -26,33 +27,6 @@ export enum RoleEnum {
 export const getRoleList = ():string[] => 
     ([...Object.values(RoleEnum)].filter(role => role != RoleEnum.SIGNUP));
 
-//Profile Privilege Lists
-//using UI JSON Names
-export const ALL_PROFILE_FIELDS_EDIT_LIST = [
-    'userRole', 'email', 'displayName', 'password', 'phone', 'zipcode', 'dob', 'gender', 'dailyNotificationHour',
-    'stage', 'notes'
-];
-
-//Also required Fields for Profile Edit
-export const SIGNUP_PROFILE_FIELDS_CREATE_LIST = [
-    'userRole', 'email', 'displayName', 'password', 'phone', 'zipcode', 'dob', 'gender', 'dailyNotificationHour'];
-
-export const STUDENT_PROFILE_FIELDS_EDIT_LIST:string[] = ['zipcode', 'dailyNotificationHour', 'circleList', 'profileList'];
-
-export const LEADER_PROFILE_FIELDS_EDIT_LIST:string[] = [...STUDENT_PROFILE_FIELDS_EDIT_LIST, 'phone', 'stage', 'notes'];
-
-export const getUserRoleProfileAccessList = (userRole:RoleEnum):string[] => {
-    switch (userRole) {
-        case RoleEnum.SIGNUP:
-            return SIGNUP_PROFILE_FIELDS_CREATE_LIST;
-        case RoleEnum.ADMIN:
-            return ALL_PROFILE_FIELDS_EDIT_LIST;
-        case RoleEnum.LEADER:
-            return LEADER_PROFILE_FIELDS_EDIT_LIST;
-        default:
-            return STUDENT_PROFILE_FIELDS_EDIT_LIST;        
-    }
-}
 
 //Used for Inserting new profile into to Database; provided fields then overwrite
 export const getDatabaseDefaultProfileFields = ():Map<string, any> => new Map<string, any>([
@@ -66,11 +40,20 @@ export const getDatabaseDefaultProfileFields = ():Map<string, any> => new Map<st
     ['daily_notification_hour', 9],    
 ]);
 
-export const editProfileAllowed = (field:string, userRole:RoleEnum):boolean => {
-    if(!field.length || !ALL_PROFILE_FIELDS_EDIT_LIST.includes(field))
-        return false;
+export const editProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
+    if(userRole === RoleEnum.ADMIN)
+        return PROFILE_FIELDS_ADMIN.some(inputField => inputField.field === field);
     else
-        return getUserRoleProfileAccessList(userRole).includes(field);
+        return EDIT_PROFILE_FIELDS.some(inputField => inputField.field === field);
+}
+
+export const signupProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
+    if(userRole === RoleEnum.ADMIN)
+        return PROFILE_FIELDS_ADMIN.some(inputField => inputField.field === field);
+    else if(userRole === RoleEnum.STUDENT)
+        return SIGNUP_PROFILE_FIELDS_STUDENT.some(inputField => inputField.field === field);
+    else
+        return SIGNUP_PROFILE_FIELDS.some(inputField => inputField.field === field);
 }
 
 //sync with Portal app-types.tsx

@@ -7,8 +7,9 @@ import {Exception} from '../api-types.mjs'
 import { IdentityClientRequest, IdentityRequest, JWTClientRequest, JWTRequest } from '../auth/auth-types.mjs';
 import { isRequestorAllowedProfile, verifyJWT } from '../auth/auth-utilities.mjs';
 import { extractClientProfile } from '../auth/authorization.mjs';
-import { getRoleList, getUserRoleProfileAccessList, ProfileEditRequest,  ProfileResponse, RoleEnum } from './profile-types.mjs';
+import { getRoleList, ProfileEditRequest,  ProfileResponse, RoleEnum } from './profile-types.mjs';
 import { editProfile, formatPartnerProfile, formatProfile, formatPublicProfile, getPartnerProfile, getProfile, getPublicProfile } from './profile-utilities.mjs';
+import { EDIT_PROFILE_FIELDS, PROFILE_FIELDS_ADMIN, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from './profile-field-config.mjs';
 
 //UI Helper Utility
 export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
@@ -16,16 +17,25 @@ export const GET_RoleList = (request: Request, response: Response, next: NextFun
 }
 
 //Public URL | UI Helper to get list of fields user allowed to  edit 
-export const GET_ProfileRoleEditList = async(request: JWTRequest, response: Response, next: NextFunction) => {
-    let userRole:RoleEnum = RoleEnum.SIGNUP; //default
+export const GET_SignupProfileFields = async(request: JWTRequest, response: Response, next: NextFunction) => {
 
-    if(request.headers.jwt && verifyJWT(request.headers['jwt'])) {
-        //TODo Temporary until JWT implemented
-        const userList:DB_USER[] = await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [request.headers['user-id']]);
-        userRole = RoleEnum[userList[0].user_role as string];
-    }
+    const role: string = request.params.role || 'student';
     
-    response.status(200).send(getUserRoleProfileAccessList(userRole));
+    if(role === 'admin')
+        response.status(200).send(PROFILE_FIELDS_ADMIN.map(field => field.toJSON()));
+    else if(role === 'student')
+        response.status(200).send(SIGNUP_PROFILE_FIELDS_STUDENT.map(field => field.toJSON()));
+    else
+        response.status(200).send(SIGNUP_PROFILE_FIELDS.map(field => field.toJSON()));
+}
+
+//Public URL | UI Helper to get list of fields user allowed to  edit 
+export const GET_EditProfileFields = async(request: IdentityClientRequest, response: Response, next: NextFunction) => {
+    
+    if(request.userRole === RoleEnum.ADMIN)
+        response.status(200).send(PROFILE_FIELDS_ADMIN.map(field => field.toJSON()));
+    else
+        response.status(200).send(EDIT_PROFILE_FIELDS.map(field => field.toJSON()));
 }
 
 export const POST_EmailExists =  async (request: Request, response: Response, next: NextFunction) => {
