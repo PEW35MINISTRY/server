@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
-import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTClientRequest, JWTRequest } from "./auth-types.mjs";
+import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTClientRequest, JWTData, JWTRequest } from "./auth-types.mjs";
 import { queryAll } from "../../services/database/database.mjs";
 import { DB_USER } from "../../services/database/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
@@ -44,7 +44,7 @@ export const authenticateUserMiddleware = async(request: IdentityRequest, respon
     //Verify Client Exists
     else {
         const client_token = request.headers['jwt'];
-        const token_data = getJWTData(client_token);
+        const token_data:JWTData = getJWTData(client_token);
         const userId:number = request.headers['user-id'];
 
         const userProfileList:DB_USER[] = await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
@@ -53,7 +53,7 @@ export const authenticateUserMiddleware = async(request: IdentityRequest, respon
             next(new Exception(404, `FAILED AUTHENTICATED :: IDENTITY :: User: ${userId} - DOES NOT EXIST`));
 
         //JWT Credentials against Database 
-        else if(userProfileList[0].user_id !== token_data.jwtUserId || userProfileList[0].user_role !== token_data.jwtUserRole) 
+        else if(userProfileList[0].user_id !== token_data.jwtUserId || RoleEnum[userProfileList[0].user_role as string] !== token_data.jwtUserRole) 
             next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Inaccurate JWT ${request.headers['jwt']} for User: ${userId}`));
 
         //Inject userProfile into request object

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
-import { IdentityRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
+import { IdentityRequest, JWTData, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
 import { query, queryAll, queryTest, TestResult } from "../../services/database/database.mjs";
 import { DB_USER } from "../../services/database/database-types.mjs";
 import { RoleEnum } from "../profile/profile-types.mjs";
@@ -11,7 +11,7 @@ import { createHash } from 'node:crypto'
 import dotenv from 'dotenv';
 dotenv.config(); 
 
-const {sign, verify} = JWT_PKG;
+const {sign, verify, decode} = JWT_PKG;
 
 /********************
    Create secret key
@@ -28,23 +28,35 @@ generateSecretKey();
  JWT Token Management
 ******************* */
 export const generateJWT = (userProfile:DB_USER):string => {
-    //generate JWT
-    return sign({userID: userProfile.user_id, userRole: userProfile.user_role}, APP_SECRET_KEY, {expiresIn: "2 days"});
+    //generate JWT as type JWTData
+    return sign({jwtUserId: userProfile.user_id, jwtUserRole: userProfile.user_role}, APP_SECRET_KEY, {expiresIn: "2 days"});
 }
 
 export const verifyJWT = (JWT:string):Boolean => {
-    //Verify JWT still valid
     try {
         verify(JWT, APP_SECRET_KEY);
         return true;
     } catch(err) {
-        console.log(err);
+        log.auth("Failed to verify JWT", err);
         return false;
     }
 }
 
-export const getJWTData = (JWT:string):string | JwtPayload => {
-    return verify(JWT, APP_SECRET_KEY);
+export const getJWTData = (JWT:string):JWTData => {
+    const tokenObject:JwtPayload|string|null = decode(JWT); //Does not verify
+    
+    if('jwtUserId' in (tokenObject as JWTData)) { //Must use type predicates
+        return {
+            jwtUserId: (tokenObject as JWTData).jwtUserId,
+            jwtUserRole: RoleEnum[(tokenObject as JWTData).jwtUserRole as string],
+        }
+    } 
+    //Default
+    else 
+        return {
+            jwtUserId: 0,
+            jwtUserRole: RoleEnum.STUDENT,
+        };
 }
 
 //Create Account token required for non student accounts

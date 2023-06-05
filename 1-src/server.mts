@@ -18,7 +18,7 @@ import logRoutes from './api/log/log.mjs';
 import apiRoutes from './api/api.mjs';
 
 import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup, POST_authorization_reset } from './api/auth/auth.mjs';
-import { GET_partnerProfile, GET_profileAccessUserList, GET_ProfileRoleEditList, GET_publicProfile, GET_RoleList, GET_userProfile, PATCH_userProfile, POST_EmailExists, POST_UsernameExists } from './api/profile/profile.mjs';
+import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, POST_EmailExists, POST_UsernameExists } from './api/profile/profile.mjs';
 import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
 import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTRequest } from './api/auth/auth-types.mjs';
@@ -132,7 +132,7 @@ apiServer.get('/resources/role-list', GET_RoleList);
 // apiServer.post('/resources/account-exists', POST_EmailExists);
 // apiServer.post('/resources/name-exists', POST_UsernameExists);
 
-apiServer.get('/resources/profile-edit-list', GET_ProfileRoleEditList);
+apiServer.get('/resources/signup-fields/:role', GET_SignupProfileFields);
 
 apiServer.post('/login', POST_login);
 
@@ -195,6 +195,8 @@ apiServer.get('/api/user/circle/:circle/prayer-request/:prayer', GET_profilePray
 // #4 - Verify User Profile Access
 //******************************
 apiServer.use('/api/user/profile/:client', async (request:IdentityClientRequest, response:Response, next:NextFunction) => await authenticateProfileMiddleware(request, response, next));
+
+apiServer.get('/api/user/profile/:client/edit-fields', GET_EditProfileFields);
 
 apiServer.get('/api/user/profile/:client', GET_userProfile);
 apiServer.patch('/api/user/profile/:client', PATCH_userProfile);
