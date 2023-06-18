@@ -1,32 +1,14 @@
 
-import express, {Router, Request, Response, NextFunction} from 'express';
-import { IncomingHttpHeaders } from 'http';
-import { IdentityClientRequest, IdentityRequest } from '../auth/auth-types.mjs';
+import { IdentityClientRequest } from '../auth/auth-types.mjs';
 import { Message } from '../chat/chat-types.mjs';
 import { PrayerRequest } from '../prayer-request/prayer-request-types.mjs';
-import { EDIT_PROFILE_FIELDS, PROFILE_FIELDS_ADMIN, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from './profile-field-config.mjs';
+import { GenderEnum, RoleEnum } from './Fields-Sync/profile-field-config.mjs';
 
 export enum StageEnum {
     LEARNING = 'LEARNING',
     GROWING = 'GROWING', 
     LIVING = 'LIVING'
 }
-
-export enum GenderEnum {
-    MALE = 'MALE',
-    FEMALE = 'FEMALE'
-}
-
-export enum RoleEnum {
-    STUDENT = 'STUDENT',
-    LEADER = 'LEADER',
-    ADMIN = 'ADMIN',
-    SIGNUP = 'SIGNUP' //Only Used for UI Role List
-}
-
-export const getRoleList = ():string[] => 
-    ([...Object.values(RoleEnum)].filter(role => role != RoleEnum.SIGNUP));
-
 
 //Used for Inserting new profile into to Database; provided fields then overwrite
 export const getDatabaseDefaultProfileFields = ():Map<string, any> => new Map<string, any>([
@@ -40,23 +22,7 @@ export const getDatabaseDefaultProfileFields = ():Map<string, any> => new Map<st
     ['daily_notification_hour', 9],    
 ]);
 
-export const editProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
-    if(userRole === RoleEnum.ADMIN)
-        return PROFILE_FIELDS_ADMIN.some(inputField => inputField.field === field);
-    else
-        return EDIT_PROFILE_FIELDS.some(inputField => inputField.field === field);
-}
-
-export const signupProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
-    if(userRole === RoleEnum.ADMIN)
-        return PROFILE_FIELDS_ADMIN.some(inputField => inputField.field === field);
-    else if(userRole === RoleEnum.STUDENT)
-        return SIGNUP_PROFILE_FIELDS_STUDENT.some(inputField => inputField.field === field);
-    else
-        return SIGNUP_PROFILE_FIELDS.some(inputField => inputField.field === field);
-}
-
-//sync with Portal app-types.tsx
+/* Sync between Server and Portal "profile-types" */
 export interface ProfilePublicResponse {
     userId: number, 
     userRole: string, 
@@ -73,7 +39,7 @@ export interface ProfilePublicResponse {
     }[],
 };
 
-//sync with Portal app-types.tsx
+/* Sync between Server and Portal "profile-types" */
 export interface ProfileResponse extends ProfilePublicResponse  {
     firstName: string, 
     lastName: string, 
@@ -84,6 +50,7 @@ export interface ProfileResponse extends ProfilePublicResponse  {
     dailyNotificationHour: number
 };
 
+/* Sync between Server and Portal "profile-types" */
 export interface ProfilePartnerResponse extends ProfilePublicResponse  {
     zipcode: string, 
     stage: StageEnum, 

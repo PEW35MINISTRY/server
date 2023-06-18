@@ -4,8 +4,8 @@ import * as log from '../../services/log.mjs';
 import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTClientRequest, JWTData, JWTRequest } from "./auth-types.mjs";
 import { queryAll } from "../../services/database/database.mjs";
 import { DB_USER } from "../../services/database/database-types.mjs";
-import { RoleEnum } from "../profile/profile-types.mjs";
 import { isRequestorAllowedProfile, verifyJWT, getJWTData } from "./auth-utilities.mjs";
+import { RoleEnum } from "../profile/Fields-Sync/profile-field-config.mjs";
 
 /* *******************
  Middleware Authentication
@@ -26,11 +26,19 @@ export const jwtAuthenticationMiddleware = async(request: JWTRequest, response: 
     else {
         const client_token = request.headers['jwt'];
         const token_data = getJWTData(client_token);
-        request.jwt = client_token
-        request.jwtUserId = token_data['userID'];
-        request.jwtUserRole = token_data['userRole'];
 
-        next();
+        if(!token_data || token_data['jwtUserId'] === undefined || token_data['jwtUserId'] <= 0 || token_data['jwtUserRole'] === undefined) {
+            log.auth(`Failed to parse JWT for user: ${request.headers['user-id']}`, `UserId from token: ${token_data['jwtUserId']}`, 
+                        `User Role from token: ${token_data['jwtUserRole']}`, 'JWT: ', client_token);
+            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Failed to parse JWT: ${request.headers['jwt']}`));
+
+        } else {
+            request.jwt = client_token
+            request.jwtUserId = token_data['jwtUserId'];
+            request.jwtUserRole = token_data['jwtUserRole'];
+
+            next();
+        }
     }
 }
 
@@ -47,19 +55,19 @@ export const authenticateUserMiddleware = async(request: IdentityRequest, respon
         const token_data:JWTData = getJWTData(client_token);
         const userId:number = request.headers['user-id'];
 
-        const userProfileList:DB_USER[] = await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
+        const userProfileList:DB_USER[] = await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [userId]);      
 
         if(userProfileList.length !== 1) 
             next(new Exception(404, `FAILED AUTHENTICATED :: IDENTITY :: User: ${userId} - DOES NOT EXIST`));
 
         //JWT Credentials against Database 
-        else if(userProfileList[0].user_id !== token_data.jwtUserId || RoleEnum[userProfileList[0].user_role as string] !== token_data.jwtUserRole) 
+        else if(userProfileList[0].user_id !== token_data.jwtUserId || userProfileList[0].user_role as RoleEnum !== token_data.jwtUserRole) 
             next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Inaccurate JWT ${request.headers['jwt']} for User: ${userId}`));
 
         //Inject userProfile into request object
         else {
             request.userId = userId;
-            request.userRole = RoleEnum[userProfileList[0].user_role as string],
+            request.userRole = userProfileList[0].user_role as RoleEnum,
             request.userProfile = userProfileList[0];
 
             next();
@@ -135,7 +143,7 @@ export const authenticateCircleMiddleware = async(request: IdentityCircleRequest
     if(circleException) 
         next(circleException);
 
-    else if((RoleEnum[request.userProfile.user_role as string] === RoleEnum.ADMIN)
+    else if((request.userProfile.user_role as RoleEnum === RoleEnum.ADMIN)
             || (request.userProfile.circles && request.userProfile.circles.includes(request.circleId))) {
 
         log.auth(`AUTHENTICATED :: CIRCLE :: status verified: User: ${request.userId} is a member of CIRCLE: ${request.circleId}`);
@@ -173,8 +181,8 @@ export const authenticateLeaderMiddleware = async(request: IdentityCircleRequest
     if(circleException) 
         next(circleException);
 
-    else if((RoleEnum[request.userProfile.user_role as string] === RoleEnum.ADMIN) 
-        || (RoleEnum[request.userProfile.user_role as string] === RoleEnum.LEADER
+    else if((request.userProfile.user_role as RoleEnum === RoleEnum.ADMIN) 
+        || (request.userProfile.user_role as RoleEnum === RoleEnum.CIRCLE_LEADER
             && request.userProfile.circles && request.userProfile.circles.includes(request.circleId))) {
 
         log.auth(`AUTHENTICATED :: LEADER :: status verified: User: ${request.userId} is a LEADER of circle: ${request.circleId}`);
@@ -189,7 +197,7 @@ export const authenticateLeaderMiddleware = async(request: IdentityCircleRequest
 // #6 - Verify ADMIN Access
 export const authenticateAdminMiddleware = async(request: IdentityRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    if(RoleEnum[request.userProfile.user_role as string] === RoleEnum.ADMIN) {
+    if(request.userProfile.user_role as RoleEnum === RoleEnum.ADMIN) {
 
         log.auth(`AUTHENTICATED :: ADMIN :: status verified: User: ${request.userId} is an ADMIN`);
         next();

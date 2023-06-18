@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
-import { IdentityRequest, JWTData, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
+import { IdentityRequest, JWTData, LoginRequest, LoginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
 import { query, queryAll, queryTest, TestResult } from "../../services/database/database.mjs";
 import { DB_USER } from "../../services/database/database-types.mjs";
-import { RoleEnum } from "../profile/profile-types.mjs";
 import { formatProfile } from "../profile/profile-utilities.mjs";
 import JWT_PKG, { JwtPayload } from "jsonwebtoken";
 import { createHash } from 'node:crypto'
 import dotenv from 'dotenv';
+import { RoleEnum } from "../profile/Fields-Sync/profile-field-config.mjs";
 dotenv.config(); 
 
 const {sign, verify, decode} = JWT_PKG;
@@ -27,9 +27,14 @@ generateSecretKey();
 /* *******************
  JWT Token Management
 ******************* */
-export const generateJWT = (userProfile:DB_USER):string => {
+export const generateJWT = (userId:number, userRole:RoleEnum):string => {
     //generate JWT as type JWTData
-    return sign({jwtUserId: userProfile.user_id, jwtUserRole: userProfile.user_role}, APP_SECRET_KEY, {expiresIn: "2 days"});
+    if(userId > 0 && userRole as RoleEnum !== undefined)
+        return sign({jwtUserId: userId, jwtUserRole: userRole}, APP_SECRET_KEY, {expiresIn: "2 days"});
+    else {
+        log.error(`JWT Generation Failed: INVALID userId: ${userId} or userRole: ${userRole}`);
+        return '';
+    }
 }
 
 export const verifyJWT = (JWT:string):Boolean => {
@@ -44,11 +49,10 @@ export const verifyJWT = (JWT:string):Boolean => {
 
 export const getJWTData = (JWT:string):JWTData => {
     const tokenObject:JwtPayload|string|null = decode(JWT); //Does not verify
-    
     if('jwtUserId' in (tokenObject as JWTData)) { //Must use type predicates
         return {
             jwtUserId: (tokenObject as JWTData).jwtUserId,
-            jwtUserRole: RoleEnum[(tokenObject as JWTData).jwtUserRole as string],
+            jwtUserRole: ((tokenObject as JWTData).jwtUserRole as string) as RoleEnum,
         }
     } 
     //Default
@@ -62,20 +66,24 @@ export const getJWTData = (JWT:string):JWTData => {
 //Create Account token required for non student accounts
 export const verifyNewAccountToken = async(token: string, email: string, userRole: string = RoleEnum.STUDENT):Promise<boolean> => {
 
-    switch(RoleEnum[userRole as string]) {
+    switch(userRole as RoleEnum) {
         case RoleEnum.STUDENT:
             return true;
 
         //Universal Token Codes (Save to ENV)
         case RoleEnum.ADMIN:
             return token === 'ADMIN';
-        case RoleEnum.LEADER:
+        case RoleEnum.DEVELOPER:
+            return token === "DEVELOPER";
+        case RoleEnum.CONTENT_APPROVER:
+            return token === "APPROVER";
+        case RoleEnum.CIRCLE_LEADER:
             return token === "LEADER";
 
         //Individual Codes:
-            default:
     //TODO Query Special Database
-            // return await queryAll(`SELECT ');
+        default:
+            return false;
     }
 }
 
@@ -89,8 +97,9 @@ export const getUserLogin = async(email:string = '', displayName:string = '', pa
         log.auth("Successfully logged in user: ", userProfile.user_id);
 
         return {
-            JWT: generateJWT(userProfile),
+            JWT: generateJWT(userProfile.user_id, (userProfile.user_role as string) as RoleEnum),
             userId: userProfile.user_id,
+            userRole: (userProfile.user_role as string) as RoleEnum,
             userProfile: formatProfile(userProfile),
             service: 'Email & Password Authenticated'
         }
@@ -107,11 +116,11 @@ export const getUserLogin = async(email:string = '', displayName:string = '', pa
 ******************* */
 
 export const isRequestorAllowedProfile = async(clientProfile: DB_USER, userProfile: DB_USER):Promise<boolean> => { //TODO: add column circleId to leader Table
-
-    if(clientProfile.user_id === userProfile.user_id || userProfile.user_role === RoleEnum.ADMIN) return true;
+    const userRole:RoleEnum = userProfile.user_role as RoleEnum;
+    if(clientProfile.user_id === userProfile.user_id || userRole === RoleEnum.ADMIN) return true;
 
     //Test Member of Leader's Circle
-    if(userProfile.user_role === RoleEnum.LEADER) {
+    if(userRole === RoleEnum.CIRCLE_LEADER) {
         return (userProfile.circles && userProfile.circles.find((circleId, index) => {
             return clientProfile.circles.includes(circleId);
           }))

@@ -3,12 +3,12 @@ import { DB_USER } from '../../services/database/database-types.mjs';
 import { query, queryAll, queryTest, TestResult } from "../../services/database/database.mjs";
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
-import { RoleEnum } from '../profile/profile-types.mjs';
 import { editProfile, EDIT_TYPES, formatProfile } from '../profile/profile-utilities.mjs';
-import { IdentityRequest, JWTClientRequest, JWTRequest, LoginRequest, loginResponse, LoginResponseBody, SignupRequest } from './auth-types.mjs';
+import { IdentityRequest, JWTClientRequest, JWTRequest, JWTResponse, JWTResponseBody, LoginRequest, LoginResponse, LoginResponseBody, SignupRequest } from './auth-types.mjs';
 import {generateJWT, getPasswordHash, getUserLogin, verifyJWT, verifyNewAccountToken} from './auth-utilities.mjs'
 import { extractClientProfile, jwtAuthenticationMiddleware } from './authorization.mjs';
 import { generateSecretKey } from './auth-utilities.mjs';
+import { RoleEnum } from '../profile/Fields-Sync/profile-field-config.mjs';
 
 /********************
  Unauthenticated Routes
@@ -41,7 +41,7 @@ import { generateSecretKey } from './auth-utilities.mjs';
     else {
 
         if(verifyNewAccountToken(request.body.token, request.body.email, request.body.userRole)
-           && !(await editProfile(null, request, RoleEnum.SIGNUP, EDIT_TYPES.CREATE)).success) 
+           && !(await editProfile(null, request, RoleEnum.STUDENT, EDIT_TYPES.CREATE)).success) 
             next(new Exception(500, `Signup Failed :: Failed to save new user account.`));
 
         else {
@@ -76,9 +76,13 @@ export const GET_allUserCredentials =  async (request: Request, response: Respon
 /********************
  Authenticated Routes
  *********************/
- export const GET_jwtVerify = async (request: JWTRequest, response: Response, next: NextFunction) => { //After jwtAuthenticationMiddleware; already authenticated
-
-    response.status(202).send('JWT is valid.');
+ export const GET_jwtVerify = async (request: JWTRequest, response: JWTResponse, next: NextFunction) => { //After jwtAuthenticationMiddleware; already authenticated
+    const body:JWTResponseBody = {
+        JWT: generateJWT(request.jwtUserId, request.jwtUserRole as RoleEnum), //Update Token
+        userId: request.jwtUserId,
+        userRole: request.jwtUserRole as RoleEnum,
+    }
+    response.status(202).send(body);
 };
 
 
