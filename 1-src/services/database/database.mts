@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { Exception } from '../../api/api-types.mjs';
 dotenv.config(); 
 
-console.log('Database Details:  ', process.env.DATABASE_USER,
+log.db('Database Details:  ', process.env.DATABASE_USER,
 process.env.DATABASE_PASSWORD,
 process.env.DATABASE_PASSWORD,
 process.env.DATABASE_PORT,

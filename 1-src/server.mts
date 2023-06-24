@@ -31,7 +31,6 @@ import { createHash } from 'node:crypto'
  
 
 const SERVER_PORT = process.env.SERVER_PORT || 5000;
-const HTTPS_SERVER_PORT = process.env.HTTPS_SERVER_PORT || 5555;
 const publicServer: Application = express();
 const apiServer: Application = express();
 
@@ -40,30 +39,16 @@ const apiServer: Application = express();
  *********************/
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT}`));
 
-//***AWS ENVIRONMENT****/ only enable for HTTPS and DNS
-// const privateKey = fs.readFileSync('aws/privkey.pem', 'utf8');
-// const certificate = fs.readFileSync('aws/cert.pem', 'utf8');
-// const ca = fs.readFileSync('aws/chain.pem', 'utf8');
-// const credentials = {
-// 	key: privateKey,
-// 	cert: certificate,
-// 	ca: ca
-// };
 
-// const httpsServer = createSecureServer(credentials, apiServer);
-
-//***LOCAL ENVIRONMENT****/ only HTTP
-const httpsServer = httpServer;
-
-const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpsServer, { 
+//***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
+const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
     path: '/chat',
     cors: { origin: "*"}
 });
-//httpsServer.listen( HTTPS_SERVER_PORT, () => console.log(`Back End Server listening on HTTPS port: ${HTTPS_SERVER_PORT}`));
 
 //Socket Middleware Authenticates JWT before Connect
 chatIO.use((socket, next)=> {
-    console.log('Requesting to join chat:', socket.handshake.auth);
+    log.event('Requesting to join chat:', socket.handshake.auth);
 
     if(verifyJWT(socket.handshake.auth.JWT)) next();
     else  next(new Error('Invalid JWT, Please Login Again to Chat'));
@@ -88,12 +73,6 @@ apiServer.use(cors());
      response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
  });
  
- //Redirect all other routes to HTTPS
-//  publicServer.get('/*', (request: Request, response: Response) => {
-//     log.event('Redirecting to HTTPS:', 'https://' + request.headers.host + request.url);
-//      response.status(301).redirect('https://' + request.headers.host + request.url);
-//  });
-
 /********************
  Unauthenticated Routes
  *********************/
@@ -255,8 +234,6 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     if(status < 400) log.event('API Event:', message);
     else if(status >= 400 && status <= 403) log.auth('HTTP user verification failed:', message);
     else log.error('API Server Error:', message);
-
-    console.error("API", errorResponse);
 });
 
 //Must match Portal in app-types.tsx

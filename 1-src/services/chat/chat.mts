@@ -16,10 +16,10 @@ const getUserId = (socketId: string):number => {
         return 0;
 }
 export default (chatIO: Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>) => chatIO.on("connection", async (socket:Socket) => { //https://socket.io/docs/v3/emit-cheatsheet/
-    console.log('\nChat: New Connection:', socket.handshake.auth.userId, socket.id);
+    log.event('\nChat: New Connection:', socket.handshake.auth.userId, socket.id);
     
     contactMap.set(socket.handshake.auth.userId, socket.id);
-    console.log('Direct Contacts Online: ', contactMap);
+    log.event('Direct Contacts Online: ', contactMap);
    
     //Announce Online
     socket.emit('server', 'Welcome to Chat!'); 
@@ -31,18 +31,18 @@ export default (chatIO: Server<DefaultEventsMap, DefaultEventsMap, DefaultEvents
     });
 
     socket.on('leave', (userId:number)=>{
-        console.log('Direct Chat: Leaving:', userId, socket.id);
+        log.event('Direct Chat: Leaving:', userId, socket.id);
         // chatIO.emit('server', `User ${userId} has left the chat`)
         contactMap.delete(userId);
-        console.log('Direct Contacts Online: ', contactMap);
+        log.event('Direct Contacts Online: ', contactMap);
     });
 
     socket.on('disconnect', ()=>{
-        console.log('Chat: Disconnecting:', socket.id);
+        log.event('Chat: Disconnecting:', socket.id);
     });
 
     socket.on('direct-message', async (content:SocketMessage)=> {
-        console.log('Direct Chat: ', content);
+        log.event('Direct Chat: ', content);
 
         //Note: Not authenticating Message
 
@@ -58,18 +58,18 @@ export default (chatIO: Server<DefaultEventsMap, DefaultEventsMap, DefaultEvents
     });
 
     socket.on('circle-join', async (circleId:number)=> {
-        console.log('Joining Circle: ', socket.id, circleId);
+        log.event('Joining Circle: ', socket.id, circleId);
         const roomId:string = circleId.toString();
         socket.join(roomId);
 
         socket.emit('server', `Current Members: ${(await (await fetchNames(Array.from(await chatIO.in(roomId).fetchSockets()).map(s => getUserId(s.id)))).map(user => user.name).join('\n'))}`);
-        // console.log(`Current Members: ${(await (await fetchNames(Array.from(await chatIO.in(content.recipientId.toString()).fetchSockets()).map(s => getUserId(s.id)))).map(user => user.name))}`);
+        // log.event(`Current Members: ${(await (await fetchNames(Array.from(await chatIO.in(content.recipientId.toString()).fetchSockets()).map(s => getUserId(s.id)))).map(user => user.name))}`);
 
         // TODO Send to Database
     });
 
     socket.on('circle-message', async (content:SocketMessage)=> {
-        console.log('Circle Chat: ', content);
+        log.event('Circle Chat: ', content);
         const roomId:string = content.recipientId.toString();
 
         //Note: Not authenticating Message

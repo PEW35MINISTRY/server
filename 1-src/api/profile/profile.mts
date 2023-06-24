@@ -81,9 +81,14 @@ export const GET_publicProfile =  async (request: JWTClientRequest, response: Re
     } 
 };
 
-export const GET_profileAccessUserList =  async (request: JWTClientRequest, response: Response, next: NextFunction) => { //TODO: Filter appropriately
+export const GET_profileAccessUserList =  async (request: JWTClientRequest, response: Response, next: NextFunction) => { 
+    let userList:DB_USER[] = [];
 
-    const userList:DB_USER[] = await queryAll("SELECT user_id, display_name, user_role FROM user_table");
+    if(request.jwtUserRole === RoleEnum.ADMIN)
+        userList = await queryAll("SELECT user_id, display_name, user_role FROM user_table");
+
+    else if(request.jwtUserRole === RoleEnum.CIRCLE_LEADER) //TODO: Filter appropriately
+        userList = await queryAll("SELECT user_id, display_name, user_role FROM user_table");
 
     response.status(200).send(userList);
 }

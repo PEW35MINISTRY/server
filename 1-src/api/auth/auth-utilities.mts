@@ -63,22 +63,23 @@ export const getJWTData = (JWT:string):JWTData => {
         };
 }
 
-//Create Account token required for non student accounts
-export const verifyNewAccountToken = async(token: string, email: string, userRole: string = RoleEnum.STUDENT):Promise<boolean> => {
+//Create Account token required for non student accounts (Not required for )
+export const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.STUDENT, token:string, email:string):Promise<boolean> => {
+    log.auth('New Account Authorized attempted: ', userRole, token, email);
 
     switch(userRole as RoleEnum) {
         case RoleEnum.STUDENT:
             return true;
 
-        //Universal Token Codes (Save to ENV)
+        //Universal Token Codes
         case RoleEnum.ADMIN:
-            return token === 'ADMIN';
+            return token === process.env.TOKEN_ADMIN;
         case RoleEnum.DEVELOPER:
-            return token === "DEVELOPER";
+            return token === process.env.TOKEN_DEVELOPER;
         case RoleEnum.CONTENT_APPROVER:
-            return token === "APPROVER";
+            return token === process.env.TOKEN_CONTENT_APPROVER;
         case RoleEnum.CIRCLE_LEADER:
-            return token === "LEADER";
+            return token === process.env.TOKEN_CIRCLE_LEADER;
 
         //Individual Codes:
     //TODO Query Special Database
@@ -88,10 +89,10 @@ export const verifyNewAccountToken = async(token: string, email: string, userRol
 }
 
 //Login Operation
-export const getUserLogin = async(email:string = '', displayName:string = '', password: string = ''):Promise<LoginResponseBody|undefined> => {
+export const getUserLogin = async(email:string = '', password: string = ''):Promise<LoginResponseBody|undefined> => {
     //Query Database
     const passwordHash:string = getPasswordHash(password);
-    const userProfile:DB_USER = await query("SELECT * FROM user_table WHERE ((email = $1 OR display_name = $2) AND password_hash = $3);", [email, displayName, passwordHash]);
+    const userProfile:DB_USER = await query("SELECT * FROM user_table WHERE email = $1 AND password_hash = $2;", [email, passwordHash]);
 
     if(userProfile && userProfile.user_id) {
         log.auth("Successfully logged in user: ", userProfile.user_id);

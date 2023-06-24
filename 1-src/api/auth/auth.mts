@@ -34,18 +34,18 @@ import { RoleEnum } from '../profile/Fields-Sync/profile-field-config.mjs';
             log.error(`Multiple Accounts Detected with same username`, request.body.displayName, ...userList.map(user => user.user_id));
     
         //Verify New Account Token for userRole
-    } else if(!await verifyNewAccountToken(request.body.token, request.body.email, request.body.userRole))
+    } else if(!await verifyNewAccountToken(request.body.userRole as RoleEnum, request.body.token, request.body.email))
         next(new Exception(402, `Signup Failed :: Invalid token to create a ${request.body.userRole} account.`));
 
         //Success: Create and Save New Profile to Database
     else {
 
-        if(verifyNewAccountToken(request.body.token, request.body.email, request.body.userRole)
+        if(verifyNewAccountToken(request.body.userRole as RoleEnum, request.body.token, request.body.email)
            && !(await editProfile(null, request, RoleEnum.STUDENT, EDIT_TYPES.CREATE)).success) 
             next(new Exception(500, `Signup Failed :: Failed to save new user account.`));
 
         else {
-            const loginDetails:LoginResponseBody = await getUserLogin(request.body['email'], request.body['displayName'], request.body['password']);
+            const loginDetails:LoginResponseBody = await getUserLogin(request.body['email'], request.body['password']);
 
             if(loginDetails)
                 response.status(201).send(loginDetails);
@@ -57,7 +57,7 @@ import { RoleEnum } from '../profile/Fields-Sync/profile-field-config.mjs';
 
 
 export const POST_login =  async(request: LoginRequest, response: Response, next: NextFunction) => {
-    const loginDetails:LoginResponseBody = await getUserLogin(request.body['email'], request.body['displayName'], request.body['password']);
+    const loginDetails:LoginResponseBody = await getUserLogin(request.body['email'], request.body['password']);
 
     if(loginDetails)
         response.status(202).send(loginDetails);
