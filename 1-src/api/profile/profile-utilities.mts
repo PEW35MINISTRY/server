@@ -1,10 +1,25 @@
-import { editProfileFieldAllowed, GenderEnum, getDatabaseDefaultProfileFields, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, RoleEnum, signupProfileFieldAllowed, StageEnum } from "./profile-types.mjs";
+import { getDatabaseDefaultProfileFields, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, StageEnum } from "./profile-types.mjs";
 import database, {formatTestResult, query, queryAll, queryTest, TestResult} from "../../services/database/database.mjs";
 import { Exception } from "../api-types.mjs";
 import * as log from '../../services/log.mjs';
 import { DB_USER } from "../../services/database/database-types.mjs";
 import { getPasswordHash } from "../auth/auth-utilities.mjs";
 import { SignupRequest } from "../auth/auth-types.mjs";
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, GenderEnum, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from "./Fields-Sync/profile-field-config.mjs";
+
+export const editProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
+    if(userRole === RoleEnum.ADMIN)
+        return EDIT_PROFILE_FIELDS_ADMIN.some(inputField => inputField.field === field);
+    else
+        return EDIT_PROFILE_FIELDS.some(inputField => inputField.field === field);
+}
+
+export const signupProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
+    if(userRole === RoleEnum.STUDENT)
+        return SIGNUP_PROFILE_FIELDS_STUDENT.some(inputField => inputField.field === field);
+    else
+        return SIGNUP_PROFILE_FIELDS.some(inputField => inputField.field === field);
+}
 
 export const formatPublicProfile = (user: DB_USER):ProfilePublicResponse =>  ({
         userId: user.user_id, 
@@ -92,7 +107,7 @@ export const getProfileRoles = async(...idList: number[]):Promise<roleListResult
 
     idList.forEach(async (id) => {
         const role = await query("SELECT user_role FROM user_table WHERE user_id = $1;", [id]);
-        result.push({userId: id, userRole: RoleEnum[role as string] as RoleEnum});
+        result.push({userId: id, userRole: role as RoleEnum});
     });
 
     return result;
@@ -142,23 +157,22 @@ export const editProfile = async(editId: number, httpRequest:ProfileEditRequest 
             addField('email', `email`, field[1], field[0], columnList, valueList, editType)
             || addField('displayName', `display_name`, field[1], field[0], columnList, valueList, editType)
             || addField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList, editType)
-            || (addField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList, editType)
-                && addField('userRole', `verified`, false, field[0], columnList, valueList, editType)) //UnVerify account on role change
-            // || addField('verified', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList, editType)
+            || (addField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList, editType)) 
+            || addField('isActive', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList, editType)
             // || addField('firstName', `display_name`, field[1], field[0], columnList, valueList, editType)
             // || addField('lastName', `display_name`, field[1], field[0], columnList, valueList, editType)
-            || addField('phone', `phone`, field[1], field[0], columnList, valueList, editType)
-            || addField('dob', `dob`, parseInt(field[1] as string), field[0], columnList, valueList, editType)
-            || addField('gender', `gender`, GenderEnum[field[1] as string], field[0], columnList, valueList, editType)                      
-            || addField('zipcode', `zipcode`, field[1], field[0], columnList, valueList, editType)
-            || addField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList, editType)
+            // || addField('phone', `phone`, field[1], field[0], columnList, valueList, editType)
+            || addField('dateOfBirth', `dob`, new Date(field[1] as string).getTime(), field[0], columnList, valueList, editType)
+            || addField('gender', `gender`, field[1] as GenderEnum, field[0], columnList, valueList, editType)                      
+            || addField('postalCode', `zipcode`, field[1], field[0], columnList, valueList, editType)
+            // || addField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList, editType)
 
-            || addField('partnerList', `partners`, field[1], field[0], columnList, valueList, editType)
-            || addField('circleList', `circles`, field[1], field[0], columnList, valueList, editType)
-            || addField('profileImage', `profile_image`, field[1], field[0], columnList, valueList, editType)
+            // || addField('partnerList', `partners`, field[1], field[0], columnList, valueList, editType)
+            // || addField('circleList', `circles`, field[1], field[0], columnList, valueList, editType)
+            // || addField('profileImage', `profile_image`, field[1], field[0], columnList, valueList, editType)
                         
-            || addField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList, editType)
-            || addField('notes', `notes`, parseInt(field[1] as string), field[0], columnList, valueList, editType)
+            // || addField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList, editType)
+            || addField('notes', `notes`, field[1], field[0], columnList, valueList, editType)
 
         ))  return true;
         else

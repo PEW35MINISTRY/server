@@ -18,13 +18,11 @@ import logRoutes from './api/log/log.mjs';
 import apiRoutes from './api/api.mjs';
 
 import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup, POST_authorization_reset } from './api/auth/auth.mjs';
-import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, POST_EmailExists, POST_UsernameExists } from './api/profile/profile.mjs';
+import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount } from './api/profile/profile.mjs';
 import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
 import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTRequest } from './api/auth/auth-types.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMiddleware, authenticateProfileMiddleware, authenticateLeaderMiddleware, authenticateAdminMiddleware, authenticateUserMiddleware, jwtAuthenticationMiddleware } from './api/auth/authorization.mjs';
-import { SocketContact, SocketMessage } from './services/chat/chat-types.mjs';
-import { fetchCircleMessageNames, fetchNames, formatMessageNames } from './services/chat/chat-utilities.mjs';
 import { GET_userContacts } from './api/chat/chat.mjs';
 import { GET_userCircles } from './api/circle/circle.mjs';
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
@@ -129,8 +127,7 @@ apiServer.use(express.json());
 apiServer.post('/signup', POST_signup);
 
 apiServer.get('/resources/role-list', GET_RoleList);
-// apiServer.post('/resources/account-exists', POST_EmailExists);
-// apiServer.post('/resources/name-exists', POST_UsernameExists);
+apiServer.get('/resources/available-account', GET_AvailableAccount);
 
 apiServer.get('/resources/signup-fields/:role', GET_SignupProfileFields);
 
@@ -236,14 +233,20 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     const status = error.status || 500;
     const message = error.message || 'Server Error';
     const action = request.method + ' -> ' + request.url + ' = ' + message;
-    const errorResponse:serverErrorResponse = {
+    const notification = (status == 400) ? 'Missing details'
+                            : (status == 401) ? 'Sorry not permitted'
+                            : (status == 404) ? 'Not found'
+                            : 'Unknown error has occurred';
+
+    const errorResponse:ServerErrorResponse = {
         status: status,
+        notification: notification,
         message: message,
         action: action,
         type: request.method,
         url: request.originalUrl,
-        params: request.params,
-        query: request.query,
+        params: request.params?.toString(),
+        query: request.query?.toString(),
         header: request.headers,
         body: request.body
     }
@@ -257,14 +260,15 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
 });
 
 //Must match Portal in app-types.tsx
-export type serverErrorResponse = {
+export type ServerErrorResponse = {
     status: number, 
+    notification: string,
     message: string,
     action: string,
     type: string,
     url: string,
-    params: any, //ParamsDictionary
-    query: any, //ParsedQs
+    params: string,
+    query: string,
     header: string | object,
     body: string | object
 };
