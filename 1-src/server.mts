@@ -4,34 +4,37 @@ import fs from 'fs';
 import path from 'path';
 const __dirname = path.resolve();
 import { createServer } from 'http';
-import { createServer as createSecureServer } from 'https';
 import express, { Application , Request, Response, NextFunction} from 'express';
 import { Server, Socket } from 'socket.io';
 import bodyParser from 'body-parser';
 import cors from 'cors';
+
+//Import Types
 import {Exception} from './api/api-types.mjs'
-import * as log from './services/log.mjs';
-import CHAT from './services/chat/chat.mjs';
+import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
+import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JwtRequest } from './api/auth/auth-types.mjs';
 
 //Import Routes
 import logRoutes from './api/log/log.mjs';
 import apiRoutes from './api/api.mjs';
 
 import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup, POST_authorization_reset } from './api/auth/auth.mjs';
-import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount } from './api/profile/profile.mjs';
+import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile } from './api/profile/profile.mjs';
 import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
-import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTRequest } from './api/auth/auth-types.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMiddleware, authenticateProfileMiddleware, authenticateLeaderMiddleware, authenticateAdminMiddleware, authenticateUserMiddleware, jwtAuthenticationMiddleware } from './api/auth/authorization.mjs';
 import { GET_userContacts } from './api/chat/chat.mjs';
 import { GET_userCircles } from './api/circle/circle.mjs';
-import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
-import { verifyJWT } from './api/auth/auth-utilities.mjs';
-import { createHash } from 'node:crypto'
  
+//Import Services
+import * as log from './services/log.mjs';
+import { verifyJWT } from './api/auth/auth-utilities.mjs';
+import CHAT from './services/chat/chat.mjs';
 
+/********************
+    EXPRESS SEVER
+ *********************/
 const SERVER_PORT = process.env.SERVER_PORT || 5000;
-const HTTPS_SERVER_PORT = process.env.HTTPS_SERVER_PORT || 5555;
 const publicServer: Application = express();
 const apiServer: Application = express();
 
@@ -40,30 +43,16 @@ const apiServer: Application = express();
  *********************/
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT}`));
 
-//***AWS ENVIRONMENT****/ only enable for HTTPS and DNS
-// const privateKey = fs.readFileSync('aws/privkey.pem', 'utf8');
-// const certificate = fs.readFileSync('aws/cert.pem', 'utf8');
-// const ca = fs.readFileSync('aws/chain.pem', 'utf8');
-// const credentials = {
-// 	key: privateKey,
-// 	cert: certificate,
-// 	ca: ca
-// };
 
-// const httpsServer = createSecureServer(credentials, apiServer);
-
-//***LOCAL ENVIRONMENT****/ only HTTP
-const httpsServer = httpServer;
-
-const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpsServer, { 
+//***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
+const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
     path: '/chat',
     cors: { origin: "*"}
 });
-//httpsServer.listen( HTTPS_SERVER_PORT, () => console.log(`Back End Server listening on HTTPS port: ${HTTPS_SERVER_PORT}`));
 
 //Socket Middleware Authenticates JWT before Connect
 chatIO.use((socket, next)=> {
-    console.log('Requesting to join chat:', socket.handshake.auth);
+    log.event('Requesting to join chat:', socket.handshake.auth);
 
     if(verifyJWT(socket.handshake.auth.JWT)) next();
     else  next(new Error('Invalid JWT, Please Login Again to Chat'));
@@ -88,12 +77,6 @@ apiServer.use(cors());
      response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
  });
  
- //Redirect all other routes to HTTPS
-//  publicServer.get('/*', (request: Request, response: Response) => {
-//     log.event('Redirecting to HTTPS:', 'https://' + request.headers.host + request.url);
-//      response.status(301).redirect('https://' + request.headers.host + request.url);
-//  });
-
 /********************
  Unauthenticated Routes
  *********************/
@@ -140,7 +123,7 @@ apiServer.get('/login/credentials', GET_allUserCredentials);
 //***************************************
 // #0 - Authenticate JWT Validity
 //***************************************
-apiServer.use('/api', (request:JWTRequest, response:Response, next:NextFunction) => jwtAuthenticationMiddleware(request, response, next));
+apiServer.use('/api', (request:JwtRequest, response:Response, next:NextFunction) => jwtAuthenticationMiddleware(request, response, next));
 
 //General API Routes
 apiServer.use('/api', apiRoutes);
@@ -162,7 +145,7 @@ apiServer.use('/api/user', (request:IdentityRequest, response:Response, next:Nex
 
 apiServer.get('/api/user/contacts', GET_userContacts); //Returns id and Name
 
-apiServer.get('/api/user/profile/access', GET_profileAccessUserList); //Returns id Name, role
+apiServer.get('/api/user/profile/access', GET_profileAccessUserList); //Returns userID, firstName, displayName, image
 
 apiServer.get('/api/user/circles', GET_userCircles);
 
@@ -189,7 +172,13 @@ apiServer.get('/api/user/circle/:circle/prayer-request/:prayer', GET_profilePray
 
 
 //******************************
-// #4 - Verify User Profile Access
+// #4 - Verify Leader Access
+//******************************
+apiServer.use('/api/user/circle/:circle/leader', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
+
+
+//******************************
+// #5 - Verify User Profile Access
 //******************************
 apiServer.use('/api/user/profile/:client', async (request:IdentityClientRequest, response:Response, next:NextFunction) => await authenticateProfileMiddleware(request, response, next));
 
@@ -197,20 +186,13 @@ apiServer.get('/api/user/profile/:client/edit-fields', GET_EditProfileFields);
 
 apiServer.get('/api/user/profile/:client', GET_userProfile);
 apiServer.patch('/api/user/profile/:client', PATCH_userProfile);
+apiServer.delete('/api/user/profile/:client', DELETE_userProfile);
 
 apiServer.get('/api/user/profile/:client/prayer-request', GET_prayerRequestUser);
 apiServer.get('/api/user/profile/:client/prayer-request/:prayer', GET_profilePrayerRequestSpecific);
 apiServer.post('/api/user/profile/:client/prayer-request', POST_prayerRequest);
 apiServer.patch('/api/user/profile/:client/prayer-request/:prayer/answered', PATCH_prayerRequestAnswered);
 apiServer.delete('/api/user/profile/:client/prayer-request/:prayer', DELETE_prayerRequest);
-
-
-
-//******************************
-// #5 - Verify Leader Access
-//******************************
-apiServer.use('/api/user/circle/:circle/leader', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
-
 
 //******************************
 // #6 - Verify ADMIN Access
@@ -233,7 +215,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     const status = error.status || 500;
     const message = error.message || 'Server Error';
     const action = request.method + ' -> ' + request.url + ' = ' + message;
-    const notification = (status == 400) ? 'Missing details'
+    const notification = error.notification || (status == 400) ? 'Missing details'
                             : (status == 401) ? 'Sorry not permitted'
                             : (status == 404) ? 'Not found'
                             : 'Unknown error has occurred';
@@ -255,8 +237,6 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     if(status < 400) log.event('API Event:', message);
     else if(status >= 400 && status <= 403) log.auth('HTTP user verification failed:', message);
     else log.error('API Server Error:', message);
-
-    console.error("API", errorResponse);
 });
 
 //Must match Portal in app-types.tsx

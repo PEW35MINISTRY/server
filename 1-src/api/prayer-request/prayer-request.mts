@@ -9,7 +9,6 @@ import { getPrayerRequest, getUserPrayerRequestList, getCirclePrayerRequestList 
 /* Return Individual Prayer Request */
 export const GET_profilePrayerRequestSpecific = (request: IdentityPrayerRequest, response: Response) => {
     //Query Database
-console.log('PARAMETERS', request.params, request.params.client, request.params.prayer);
     response.status(200).send(getPrayerRequest(request.params.prayer));
     log.event("Returning specific Prayer Request:", request.params.client);
 };
@@ -18,9 +17,9 @@ console.log('PARAMETERS', request.params, request.params.client, request.params.
 export const POST_prayerRequest =  (request: PrayerRequestNewRequest, response: Response) => { //POST includes sharing to circle/partners/leaders
     //Query Database
 
-    const newRequestId:string = '203';
+    const newRequestID:string = '203';
 
-    response.status(200).send(getPrayerRequest(newRequestId));
+    response.status(200).send(getPrayerRequest(newRequestID));
     log.event("New Prayer Request Created.");
 };
 

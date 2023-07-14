@@ -1,84 +1,73 @@
 
+import { Request, Response, NextFunction} from "express";
 import { IdentityClientRequest } from '../auth/auth-types.mjs';
-import { Message } from '../chat/chat-types.mjs';
-import { PrayerRequest } from '../prayer-request/prayer-request-types.mjs';
 import { GenderEnum, RoleEnum } from './Fields-Sync/profile-field-config.mjs';
+import { CircleListItem } from '../circle/circle-types.mjs';
 
-export enum StageEnum {
-    LEARNING = 'LEARNING',
-    GROWING = 'GROWING', 
-    LIVING = 'LIVING'
+
+/* [TEMPORARY] Credentials fetched for Debugging */
+export type CredentialProfile = { 
+    userID: number,
+    displayName: string,
+    userRole: string,
+    email: string,
+    passwordHash: string,
 }
-
-//Used for Inserting new profile into to Database; provided fields then overwrite
-export const getDatabaseDefaultProfileFields = ():Map<string, any> => new Map<string, any>([
-    //excludes required like email, username, password
-    ['user_role', RoleEnum.STUDENT],
-    ['verified', true],
-    ['phone', '000-000-0000'],
-    ['dob', new Date().getTime()-(15 * 31556952000)], //15 years old
-    ['gender', GenderEnum.MALE],
-    ['zipcode', 55060],
-    ['daily_notification_hour', 9],    
-]);
 
 /* Sync between Server and Portal "profile-types" */
 export interface ProfilePublicResponse {
-    userId: number, 
+    userID: number, 
     userRole: string, 
+    firstName: string,
     displayName: string, 
-    profileImage: string, 
-    gender:string,
-    dob:number,
-    proximity?:number,
-    circleList: {
-        circleId: string,
-        title: string,
-        image: string,
-        sameMembership: boolean
-    }[],
+    gender: GenderEnum,
+    image: string,
+    circleList: CircleListItem[],
 };
 
 /* Sync between Server and Portal "profile-types" */
-export interface ProfileResponse extends ProfilePublicResponse  {
-    firstName: string, 
+export interface ProfilePartnerResponse extends ProfilePublicResponse {
+    walkLevel: number,
+};
+
+/* Sync between Server and Portal "profile-types" */
+export interface ProfileResponse extends ProfilePartnerResponse  {
     lastName: string, 
     email:string,
-    phone: string, 
-    zipcode: string, 
-    stage: StageEnum, 
-    dailyNotificationHour: number
-};
-
-/* Sync between Server and Portal "profile-types" */
-export interface ProfilePartnerResponse extends ProfilePublicResponse  {
-    zipcode: string, 
-    stage: StageEnum, 
-    dailyNotificationHour: number,
-    pendingPrayerRequestList: PrayerRequest[],
-    answeredPrayerRequestList: PrayerRequest[],
-    messageList: Message[],
+    postalCode: string, 
+    dateOfBirth: Date,
+    isActive: boolean,
+    partnerList: ProfileListItem[],
 };
 
 export interface ProfileEditRequest extends IdentityClientRequest {
     body: {
-        userId: number,
-        displayName?: string, 
+        userID: number,
         firstName?: string, 
         lastName?: string, 
+        displayName?: string, 
         profileImage?: string, 
-        gender?:string,
-        dob?:number,
-        phone?: string, 
-        zipcode?: string, 
-        stage?: StageEnum, 
-        dailyNotificationHour?: number,
-        circleList?: number[],
-        userRole?: RoleEnum,
         email?: string,
         password?: string,
-        verified?: boolean,
-        partnerList?: number[],
-        notes?: string
-    }
+        passwordVerify?: string,
+        postalCode?: string, 
+        dateOfBirth?: Date, 
+        gender?: GenderEnum,
+        isActive?: boolean,
+        walkLevel?: number,
+        image?: string,
+        notes?: string,
+        userRoleTokenMap?: [{role: RoleEnum, token: string}]
+    } 
+}
+
+export interface ProfileSignupRequest extends Request  {
+    body: Request['body'] & ProfileEditRequest['body']
+}
+
+export interface ProfileListItem {
+    userID: number,
+    firstName: string,
+    displayName: string,
+    image: string,
 }

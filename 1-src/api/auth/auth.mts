@@ -1,63 +1,56 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
-import { DB_USER } from '../../services/database/database-types.mjs';
-import { query, queryAll, queryTest, TestResult } from "../../services/database/database.mjs";
+import { USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../services/database/database-types.mjs';
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
-import { editProfile, EDIT_TYPES, formatProfile } from '../profile/profile-utilities.mjs';
-import { IdentityRequest, JWTClientRequest, JWTRequest, JWTResponse, JWTResponseBody, LoginRequest, LoginResponse, LoginResponseBody, SignupRequest } from './auth-types.mjs';
-import {generateJWT, getPasswordHash, getUserLogin, verifyJWT, verifyNewAccountToken} from './auth-utilities.mjs'
-import { extractClientProfile, jwtAuthenticationMiddleware } from './authorization.mjs';
+import { createUserFromJSON } from '../profile/profile-utilities.mjs';
+import { IdentityRequest, JWTClientRequest, JwtRequest, JWTResponse, JwtResponseBody, LoginRequest, LoginResponseBody } from './auth-types.mjs';
+import {generateJWT, getUserLogin, verifyNewAccountToken} from './auth-utilities.mjs'
+import { extractClientProfile } from './authorization.mjs';
 import { generateSecretKey } from './auth-utilities.mjs';
-import { RoleEnum } from '../profile/Fields-Sync/profile-field-config.mjs';
+import { RoleEnum, SIGNUP_PROFILE_FIELDS } from '../profile/Fields-Sync/profile-field-config.mjs';
+import { CredentialProfile, ProfileSignupRequest } from '../profile/profile-types.mjs';
+import { DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CREDENTIALS } from '../../services/database/queries/user-queries.mjs';
+import USER from '../../services/models/user.mjs';
 
 /********************
  Unauthenticated Routes
  *********************/
- export const POST_signup =  async(request: SignupRequest, response: Response, next: NextFunction) => { //TODO Signup Process & Verify Accounts
-    let userList:DB_USER[] = [];
-        //Verify Password & Email Exist
-    if(!request.body.email || !request.body.password || !request.body.displayName)
-        next(new Exception(400, `Signup Failed :: missing required fields.`));
-
-        //Verify Email is Unique
-    else if((userList = await queryAll("SELECT * FROM user_table WHERE email = $1;", [request.body.email])).length !== 0) {
-        next(new Exception(403, `Signup Failed :: Unique email is required for a new account.`));
-
-        if(userList.length > 1)
-            log.error(`Multiple Accounts Detected with same username`, request.body.displayName, ...userList.map(user => user.user_id));
-
-            //Verify Username is Unique
-    } else if((userList = await queryAll("SELECT * FROM user_table WHERE display_name = $1;", [request.body.displayName])).length !== 0) {
-        next(new Exception(409, `Signup Failed :: Unique username is required for a new account.`));
-
-        if(userList.length > 1)
-            log.error(`Multiple Accounts Detected with same username`, request.body.displayName, ...userList.map(user => user.user_id));
+ export const POST_signup =  async(request: ProfileSignupRequest, response: Response, next: NextFunction) => {
     
-        //Verify New Account Token for userRole
-    } else if(!await verifyNewAccountToken(request.body.token, request.body.email, request.body.userRole))
-        next(new Exception(402, `Signup Failed :: Invalid token to create a ${request.body.userRole} account.`));
+    const newProfile:USER|undefined = createUserFromJSON({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
 
-        //Success: Create and Save New Profile to Database
-    else {
+    if(newProfile === undefined)
+        next(new Exception(500, `Signup Failed :: Failed to parse input.`, 'Sign Up Failed'));
 
-        if(verifyNewAccountToken(request.body.token, request.body.email, request.body.userRole)
-           && !(await editProfile(null, request, RoleEnum.STUDENT, EDIT_TYPES.CREATE)).success) 
-            next(new Exception(500, `Signup Failed :: Failed to save new user account.`));
+    else if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
+        next(new Exception(400, `Signup Failed :: Missing Required Fields: ${JSON.stringify(USER_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
-        else {
-            const loginDetails:LoginResponseBody = await getUserLogin(request.body['email'], request.body['displayName'], request.body['password']);
+    //Verify user roles and verify account type tokens
+    else if(!(await newProfile.userRoleList.every(async (role:RoleEnum) => (await verifyNewAccountToken(role, request.body.userRoleTokenMap?.find(({userRole, token}) => (role === RoleEnum[userRole]))?.token, newProfile.email) === true))))
+        next(new Exception(402, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
 
-            if(loginDetails)
-                response.status(201).send(loginDetails);
-            else
-                next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`));
-        }
+    else if(await !DB_INSERT_USER(newProfile.getValidProperties(USER_TABLE_COLUMNS, false))) 
+            next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Save Failed'));
+
+    //New Account Success -> Auto Login Response
+    else { 
+        //Add user roles, already verified permission above
+        const insertRoleList:RoleEnum[] = newProfile.userRoleList.filter((role) => (role !== RoleEnum.STUDENT));
+        if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
+            log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
+
+        const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password']);
+
+        if(loginDetails)
+            response.status(201).send(loginDetails);
+        else
+            next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`));
     }
 };
 
 
 export const POST_login =  async(request: LoginRequest, response: Response, next: NextFunction) => {
-    const loginDetails:LoginResponseBody = await getUserLogin(request.body['email'], request.body['displayName'], request.body['password']);
+    const loginDetails:LoginResponseBody = await getUserLogin(request.body['email'], request.body['password']);
 
     if(loginDetails)
         response.status(202).send(loginDetails);
@@ -67,8 +60,7 @@ export const POST_login =  async(request: LoginRequest, response: Response, next
 
 //Temporary for easy debugging
 export const GET_allUserCredentials =  async (request: Request, response: Response, next: NextFunction) => { 
-    const userList:DB_USER[] = await queryAll("SELECT user_id, display_name, user_role, email, password_hash FROM user_table");
-
+    const userList:CredentialProfile[] = await DB_SELECT_CREDENTIALS();
     response.status(200).send(userList);
 }
 
@@ -76,10 +68,10 @@ export const GET_allUserCredentials =  async (request: Request, response: Respon
 /********************
  Authenticated Routes
  *********************/
- export const GET_jwtVerify = async (request: JWTRequest, response: JWTResponse, next: NextFunction) => { //After jwtAuthenticationMiddleware; already authenticated
-    const body:JWTResponseBody = {
-        JWT: generateJWT(request.jwtUserId, request.jwtUserRole as RoleEnum), //Update Token
-        userId: request.jwtUserId,
+ export const GET_jwtVerify = async (request: JwtRequest, response: JWTResponse, next: NextFunction) => { //After jwtAuthenticationMiddleware; already authenticated
+    const body:JwtResponseBody = {
+        jwt: generateJWT(request.jwtUserID, request.jwtUserRole as RoleEnum), //Update Token
+        userID: request.jwtUserID,
         userRole: request.jwtUserRole as RoleEnum,
     }
     response.status(202).send(body);
@@ -93,14 +85,14 @@ export const GET_allUserCredentials =  async (request: Request, response: Respon
         next(clientException);
 
     else {
-        response.status(200).send(`User ${request.clientId} has been logged out of Encouraging Prayer.`);
+        response.status(200).send(`User ${request.clientID} has been logged out of Encouraging Prayer.`);
         
-        log.auth(`User ${request.clientId} has been logged out of Encouraging Prayer.`);
+        log.auth(`User ${request.clientID} has been logged out of Encouraging Prayer.`);
     }
 };
 
 export const POST_authorization_reset = async (request:IdentityRequest, response:Response, next: NextFunction) => {
     generateSecretKey();
     response.status(202).send(`App secret key has been reset`);
-    log.auth(`User ${request.userId} has reset the server's secret key`);
+    log.auth(`User ${request.userID} has reset the server's secret key`);
 }

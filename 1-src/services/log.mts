@@ -3,11 +3,15 @@ import path from 'path';
 const __dirname = path.resolve();
 import dateFormat from 'dateformat';
 import { parse } from 'stack-trace';
+import dotenv from 'dotenv';
+dotenv.config(); 
 
 
 /*********************************/
 /* Debug Controls */
 /*********************************/
+const ENVIRONMENT = process.env.ENVIRONMENT || 'DEVELOPMENT';
+
 const SAVE_LOGS_LOCALLY = process.env.SAVE_LOGS_LOCALLY || true;
 const SAVE_LOGS_DATABASE = process.env.SAVE_LOGS_DATABASE || false;
 const SEND_EMAILS = process.env.SEND_EMAILS || false;
@@ -32,7 +36,7 @@ const LOG_TYPE_LABEL = new Map<number, string>([
 
 export const getTypeLabel = (type: LOG_TYPE): string => LOG_TYPE_LABEL.get(type);
 
-const LOG_DIRECTORY:PathLike = path.join(__dirname, 'LOGS');
+const LOG_DIRECTORY:PathLike = path.join(__dirname, process.env.LOG_DIRECTORY || 'LOGS');
 const LOG_ERROR_FILE:PathOrFileDescriptor = path.join(LOG_DIRECTORY, process.env.LOG_ERROR_FILE || 'log-error.txt');
 const LOG_WARN_FILE:PathOrFileDescriptor =  path.join(LOG_DIRECTORY, process.env.LOG_WARN_FILE || 'log-warn.txt');
 const LOG_EVENT_FILE:PathOrFileDescriptor = path.join(LOG_DIRECTORY, process.env.LOG_EVENT_FILE || 'log-event.txt');
@@ -55,8 +59,8 @@ export const getLogFilePath = (type:LOG_TYPE):PathLike|PathOrFileDescriptor => {
 /*********************************/
 const writeFile = async (type: LOG_TYPE, text: string):Promise<Boolean> => !SAVE_LOGS_LOCALLY ? true : 
     new Promise((resolve, reject) => {
-        if (!fs.existsSync(LOG_DIRECTORY)) fs.mkdirSync(LOG_DIRECTORY, { recursive: true});   console.log(text);
-
+        if (!fs.existsSync(LOG_DIRECTORY)) fs.mkdirSync(LOG_DIRECTORY, { recursive: true});  
+        
         fs.appendFile (getLogFilePath(type), `${text}\n`, (error) => {     
             if (error) {console.error(error, text); resolve(false);}
             else resolve(true);
@@ -109,6 +113,8 @@ const formatLogEntry = (type: LOG_TYPE, ...messages: any[]):string => {
 export const alert = async(...messages: any[]):Promise<Boolean> => { //console.trace();
     const entry:string = formatLogEntry(LOG_TYPE.ALERT, ...messages);
 
+    if(ENVIRONMENT === 'DEVELOPMENT') console.error(entry);
+
     return await writeFile(LOG_TYPE.ALERT, entry)
         && await writeDatabase(LOG_TYPE.ALERT, entry)
         && await sendEmail('SERVER ALERT', entry);
@@ -116,6 +122,8 @@ export const alert = async(...messages: any[]):Promise<Boolean> => { //console.t
 
 export const error = async(...messages: any[]):Promise<Boolean> => { //console.trace('DEBUG :: Saving Error to File & Trace:');
     const entry:string = formatLogEntry(LOG_TYPE.ERROR, ...messages);
+
+    if(ENVIRONMENT === 'DEVELOPMENT') console.error(entry);
 
     return await writeFile(LOG_TYPE.ERROR, entry)
         && await writeDatabase(LOG_TYPE.ERROR, entry);
@@ -126,12 +134,16 @@ export default error;
 export const warn = async(...messages: any[]):Promise<Boolean> => { //console.trace();
     const entry:string = formatLogEntry(LOG_TYPE.WARN, ...messages);
 
+    if(ENVIRONMENT === 'DEVELOPMENT') console.warn(entry);
+
     return await writeFile(LOG_TYPE.WARN, entry)
         && await writeDatabase(LOG_TYPE.WARN, entry);
 }
 
 export const auth = async(...messages: any[]):Promise<Boolean> => { //console.trace();
     const entry:string = formatLogEntry(LOG_TYPE.AUTH, ...messages);
+
+    if(ENVIRONMENT === 'DEVELOPMENT') console.warn(entry);
 
     return await writeFile(LOG_TYPE.AUTH, entry)
         && await writeDatabase(LOG_TYPE.AUTH, entry);
@@ -140,6 +152,8 @@ export const auth = async(...messages: any[]):Promise<Boolean> => { //console.tr
 export const event = async(...messages: any[]):Promise<Boolean> => { //console.trace();
     const entry:string = formatLogEntry(LOG_TYPE.EVENT, ...messages);
 
+    if(ENVIRONMENT === 'DEVELOPMENT') console.log(entry);
+
     return await writeFile(LOG_TYPE.EVENT, entry)
         && await writeDatabase(LOG_TYPE.EVENT, entry);
 }
@@ -147,6 +161,8 @@ export const event = async(...messages: any[]):Promise<Boolean> => { //console.t
 export const db = async(...messages: any[]):Promise<Boolean> => { //console.trace();
     const entry:string = formatLogEntry(LOG_TYPE.DB, ...messages);
 
+    if(ENVIRONMENT === 'DEVELOPMENT') console.log(entry);
+    
     return await writeFile(LOG_TYPE.DB, entry)
         && await writeDatabase(LOG_TYPE.DB, entry);
 }

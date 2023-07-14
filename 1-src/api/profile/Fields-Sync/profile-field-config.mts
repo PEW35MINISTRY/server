@@ -7,6 +7,7 @@
 
 export const EMAIL_REGEX = new RegExp(/^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/);
 export const DATE_REGEX = new RegExp(/\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)/); //1970-01-01T00:00:00.013Z
+export const PASSWORD_REGEX = new RegExp(/.{5,20}/);
     
 /***************************************
 *    PROFILE TYPES AND DEPENDENCIES
@@ -32,13 +33,14 @@ export enum InputType {
     PASSWORD = 'PASSWORD',
     DATE = 'DATE',
     SELECT_LIST = 'SELECT_LIST',
+    MULTI_SELECTION_LIST = 'MULTI_SELECTION_LIST',
     PARAGRAPH = 'PARAGRAPH'
 }
 
 export type FieldInput = {
     title: string,
     field: string, 
-    value: string | undefined,
+    value: string | string [] | undefined,
     type: InputType,
     required: boolean,
     validationRegex: string,
@@ -49,7 +51,7 @@ export type FieldInput = {
 export class InputField {
     title: string;
     field: string;
-    value: string | undefined;
+    value: string | string[] | undefined;
     type: InputType;
     required: boolean;
     unique: boolean;
@@ -123,13 +125,13 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'First Name', field: 'firstName', type: InputType.TEXT, required: true, validationRegex: new RegExp(/.{1,30}/), validationMessage: 'Required, max 30 characters.' }),
     new InputField({title: 'Last Name', field: 'lastName', type: InputType.TEXT, required: true, validationRegex: new RegExp(/.{1,30}/), validationMessage: 'Required, max 30 characters.' }),
     new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, unique: true, validationRegex: new RegExp(/.{1,15}/), validationMessage: 'Must be unique, max 15 characters.' }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: new RegExp(/.{5,20}/), validationMessage: '5-20 characters.' }),
-    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: new RegExp(/.{5,20}/), validationMessage: 'Must match password field.' }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX, validationMessage: '5-20 characters.' }),
+    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX, validationMessage: 'Must match password field.' }),
     new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, validationRegex: new RegExp(/.{5,15}/), validationMessage: 'Required, 5-15 characters.' }),
 ];
 
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
-    new InputField({title: 'Account Type', field: 'userRole', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(RoleEnum)}),
+    new InputField({title: 'Account Types', field: 'userRoleList', type: InputType.MULTI_SELECTION_LIST, required: true, selectOptionList: Object.values(RoleEnum)}),
     new InputField({title: 'Active Account', field: 'isActive', required: true, type: InputType.SELECT_LIST, selectOptionList: ['TRUE', 'FALSE']}),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, unique: true,  validationRegex: EMAIL_REGEX, validationMessage: 'Required, invalid email format.' }),
     ...EDIT_PROFILE_FIELDS,
@@ -153,7 +155,7 @@ export const SIGNUP_PROFILE_FIELDS_STUDENT:InputField[] = [
 
 //SIGNUP all other roles
 export const SIGNUP_PROFILE_FIELDS:InputField[] = [    
-    new InputField({title: 'Account Type', field: 'userRole', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(RoleEnum)}),
-    new InputField({title: 'New Account Token', field: 'token', type: InputType.TEXT, required: true}),
+    new InputField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: false, selectOptionList: Object.values(RoleEnum)}),
+    new InputField({title: 'New Account Token', field: 'token', type: InputType.TEXT, required: false}),
     ...SIGNUP_PROFILE_FIELDS_STUDENT,
 ];

@@ -1,16 +1,15 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
-import { format } from 'path';
 import URL, { URLSearchParams } from 'url';
-import { DB_USER } from '../../services/database/database-types.mjs';
-import { queryAll, TestResult } from "../../services/database/database.mjs";
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
-import { IdentityClientRequest, IdentityRequest, JWTClientRequest, JWTRequest } from '../auth/auth-types.mjs';
-import { isRequestorAllowedProfile, verifyJWT } from '../auth/auth-utilities.mjs';
+import { IdentityClientRequest, IdentityRequest, JWTClientRequest, JwtRequest } from '../auth/auth-types.mjs';
+import { isRequestorAllowedProfile, verifyNewAccountToken } from '../auth/auth-utilities.mjs';
 import { extractClientProfile } from '../auth/authorization.mjs';
-import { ProfileEditRequest,  ProfileResponse } from './profile-types.mjs';
-import { editProfile, formatPartnerProfile, formatProfile, formatPublicProfile, getPartnerProfile, getProfile, getPublicProfile } from './profile-utilities.mjs';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, EMAIL_REGEX, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from './Fields-Sync/profile-field-config.mjs';
+import { ProfileEditRequest,  ProfileListItem,  ProfileResponse } from './profile-types.mjs';
+import { createUserFromJSON } from './profile-utilities.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from './Fields-Sync/profile-field-config.mjs';
+import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../services/database/queries/user-queries.mjs';
+import USER from '../../services/models/user.mjs';
 
 //UI Helper Utility
 export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
@@ -18,7 +17,7 @@ export const GET_RoleList = (request: Request, response: Response, next: NextFun
 }
 
 //Public URL | UI Helper to get list of fields user allowed to  edit 
-export const GET_SignupProfileFields = async(request: JWTRequest, response: Response, next: NextFunction) => {
+export const GET_SignupProfileFields = async(request: JwtRequest, response: Response, next: NextFunction) => {
 
     const role: string = request.params.role || 'student';
     
@@ -37,85 +36,106 @@ export const GET_EditProfileFields = async(request: IdentityClientRequest, respo
         response.status(200).send(EDIT_PROFILE_FIELDS.map(field => field.toJSON()));
 }
 
-//Verifies Unique Profile Fields for realtime validations | userId excludes profile fro editing
+//Verifies Unique Profile Fields for realtime validations | userID excludes profile for editing
 //Uses Query Parameters: GET localhost:5000/resources/available-account?email=ethan@encouragingprayer.org&displayName=ethan
-export const GET_AvailableAccount =  async (request: Request, response: Response, next: NextFunction) => {
+export const GET_AvailableAccount =  async (request: Request, response: Response, next: NextFunction) => { //(ALL fields and values are case insensitive)
     if(URL.parse(request.originalUrl).query === '')
-        new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userId- excludes profile.`);
+        new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`);
 
-    //Parse Query Fields
-    const queryValues:string[] = [];
+    const fieldMap:Map<string, string> = new Map(new URLSearchParams(URL.parse(request.originalUrl).query).entries());
+    const result:Boolean|undefined = await DB_UNIQUE_USER_EXISTS(fieldMap, true);
 
-    let queryFields:string = '( ' + [...new URLSearchParams(URL.parse(request.originalUrl).query).entries()].filter(([k,v]) => (k!=='userId'))
-                    .map(([k,v],i) => { queryValues.push(v.toLowerCase()); return `LOWER(${k}) = $${i+1}`;}).join(' OR ') + ' )';
-
-    //userId query excludes that profile for edit features
-    if(request.query.userId !== undefined && request.query.userId as unknown as number > 0)
-        queryFields += ` AND ( userId != ${request.query.userId} )`; 
-
-    //Temporary to support old database columns //TODO remove with new database implementation
-    queryFields = queryFields.replace('displayName', 'display_name');
-    queryFields = queryFields.replace('userId', 'user_id');
-
-    const userList:DB_USER[] = await queryAll(`SELECT * FROM user_table WHERE ${queryFields};`, queryValues);
-
-    if(userList.length === 0) 
-        response.status(204).send(`No Account exists for ${request.body.email}`);
+    if(result === undefined) 
+        response.status(400).send(`Invalid Field Request: ${Array.from(fieldMap.keys()).join(', ')}`);
+    if(result === false) 
+        response.status(204).send(`No Account exists for ${Array.from(fieldMap.values()).join(', ')}`);
     else
-        response.status(403).send(formatPublicProfile(userList[0]));
-
-    if(userList.length > 1)
-        log.error(`Multiple Accounts Detected with matching fields`, queryFields);
+        response.status(403).send(`Account is Available`);
 }
    
 export const GET_publicProfile =  async (request: JWTClientRequest, response: Response, next: NextFunction) => {
 
     const clientException = await extractClientProfile(request);
     if(clientException) 
-        next(clientException);
-        
+        next(clientException);        
     else {
-        response.status(200).send(await formatPublicProfile(request.clientProfile));
-        
-        log.event("Returning public profile for userId: ", request.clientId);
+        response.status(200).send(request.clientProfile.toPublicJSON());        
+        log.event("Returning public profile for userID: ", request.clientID);
     } 
 };
 
-export const GET_profileAccessUserList =  async (request: JWTClientRequest, response: Response, next: NextFunction) => { //TODO: Filter appropriately
+export const GET_profileAccessUserList =  async (request: IdentityRequest, response: Response, next: NextFunction) => { 
+    let userList:ProfileListItem[] = [];
 
-    const userList:DB_USER[] = await queryAll("SELECT user_id, display_name, user_role FROM user_table");
+    if(request.userProfile.isRole(RoleEnum.ADMIN))
+        userList = await DB_SELECT_CONTACTS(request.userID);
+
+    else if(request.userProfile.isRole(RoleEnum.CIRCLE_LEADER))
+        userList = [] //await DB_SELECT_MEMBERS_OF_ALL_CIRCLES(request.userID);
 
     response.status(200).send(userList);
 }
 
 
 export const GET_userProfile = async (request: IdentityClientRequest, response: Response) => {
-
-    response.status(200).send(await formatProfile(request.clientProfile));
-    log.event("Returning profile for userId: ", request.clientId);
+    response.status(200).send(request.clientProfile.toProfileJSON());
+    log.event("Returning profile for userID: ", request.clientID);
 };
 
 export const GET_partnerProfile = async (request: IdentityClientRequest, response: Response) => {
       
-    response.status(200).send(await formatPartnerProfile(request.clientProfile));
-    log.event("Returning profile for userId: ", request.clientId);
+    response.status(200).send(request.clientProfile.toPartnerJSON());
+    log.event("Returning profile for userID: ", request.clientID);
 };
 
 /* Update Profiles */
-//NOTE: request.userId is editor and request.clientId is profile editing
-export const PATCH_userProfile = async (request: ProfileEditRequest, response: Response) => {
+//NOTE: request.userID is editor and request.clientID is profile editing
+export const PATCH_userProfile = async (request: ProfileEditRequest, response: Response, next: NextFunction) => {
 
     if(await isRequestorAllowedProfile(request.clientProfile, request.userProfile)){
-        const queryResult:TestResult = await editProfile(request.clientId, request, request.userProfile.user_role as RoleEnum);
-        const currentProfile:ProfileResponse = queryResult.success ? await getProfile(request.clientId) : formatProfile(request.clientProfile);
+        const editProfile:USER|undefined = createUserFromJSON({currentUser: new USER(undefined, request.clientID), jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
 
-        response.status(queryResult.success ? 202 : 404).send((request.userProfile.user_role as RoleEnum === RoleEnum.ADMIN)
-             ? {profile: currentProfile, success: queryResult.success, result: queryResult.result, query: queryResult.query, parameters: queryResult.parameters, error: queryResult.error}
-             : {profile: currentProfile, success: queryResult.success}); 
+        if(editProfile === undefined)
+            next(new Exception(500, `Edit Profile Failed :: Failed to parse input.`, 'Edit Failed'));
 
-        if(queryResult.success) log.event("Updated profile for userId: ", request.userId);
+        //Verify user roles and verify account type tokens
+        else if(await !editProfile.userRoleList.every(async (role:RoleEnum) => (request.userProfile.isRole(RoleEnum.ADMIN) || request.clientProfile.isRole(role) 
+            || (await verifyNewAccountToken(role, request.body.userRoleTokenMap?.find(({role: userRole, token}) => (role === RoleEnum[userRole]))?.token, editProfile.email) === true))))
+                next(new Exception(402, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
+
+        else if(await !DB_UPDATE_USER(request.clientID, editProfile.getUniqueDatabaseProperties(request.clientProfile))) 
+            next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
+
+        else {
+            //Handle userRoleList: Add new user roles, already verified permission above
+            const insertRoleList:RoleEnum[] = editProfile.userRoleList?.filter((role) => (role !== RoleEnum.STUDENT && !request.clientProfile.userRoleList.includes(role)));
+            if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({userID:editProfile.userID, userRoleList: insertRoleList}))
+                log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${editProfile.userID}`);
+
+            const deleteRoleList:RoleEnum[] = request.clientProfile.userRoleList?.filter((role) => (role !== RoleEnum.STUDENT && !editProfile.userRoleList.includes(role)));
+            if(deleteRoleList.length > 0 && !DB_DELETE_USER_ROLE({userID:editProfile.userID, userRoleList: deleteRoleList}))
+                log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(deleteRoleList)} to ${editProfile.userID}`);
+
+            response.status(202).send(editProfile.toProfileJSON());
+        }
     } else 
-        new Exception(401, `User ${request.userId} is UNAUTHORIZED to edit the profile of Client: ${request.clientId}`)
+        new Exception(401, `User ${request.userID} is UNAUTHORIZED to edit the profile of Client: ${request.clientID}`)
 };
 
+/* Delete Profiles */
+export const DELETE_userProfile = async (request: IdentityClientRequest, response: Response, next: NextFunction) => {
 
+    // if(!await DB_DELETE_CIRCLE_MEMBER({userID: request.clientID, circleID: undefined}))
+    //     next(new Exception(500, `Failed to delete all circle membership of user ${request.clientID}`, 'Circle Membership Exists'));
+
+    // else if(!await DB_DELETE_PARTNERSHIP({userID: request.clientID, partnerUserID: undefined}))
+    //     next(new Exception(500, `Failed to delete all partnerships of user ${request.clientID}`, 'Partnerships Exists'));
+
+    if(!await DB_DELETE_USER_ROLE({userID: request.clientID, userRoleList: undefined}))
+        next(new Exception(500, `Failed to delete all user roles of user ${request.clientID}`, 'User Roles Exists'));
+
+    else if(await DB_DELETE_USER(request.clientID))
+        response.status(204).send(`User ${request.clientID} deleted successfully`);
+    else
+        next(new Exception(404, `Profile Delete Failed :: Failed to delete user ${request.clientID} account.`, 'Delete Failed'));
+};
