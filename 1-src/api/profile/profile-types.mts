@@ -14,18 +14,6 @@ export type CredentialProfile = {
     passwordHash: string,
 }
 
-//Used for Inserting new profile into to Database; provided fields then overwrite
-export const getDatabaseDefaultProfileFields = ():Map<string, any> => new Map<string, any>([
-    //excludes required like email, username, password
-    ['user_role', RoleEnum.STUDENT],
-    ['verified', true],
-    ['phone', '000-000-0000'],
-    ['dob', new Date().getTime()-(15 * 31556952000)], //15 years old
-    ['gender', GenderEnum.MALE],
-    ['zipcode', 55060],
-    ['daily_notification_hour', 9],    
-]);
-
 /* Sync between Server and Portal "profile-types" */
 export interface ProfilePublicResponse {
     userID: number, 
