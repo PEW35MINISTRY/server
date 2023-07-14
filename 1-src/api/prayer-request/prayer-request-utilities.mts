@@ -1,12 +1,12 @@
 import { PrayerRequest, PrayerRequestResponse, PrayerRequestTopicEnum } from "./prayer-request-types.mjs";
 
 
-export const getPrayerRequest = (prayerRequestId: string):PrayerRequest => {
+export const getPrayerRequest = (prayerRequestID: string):PrayerRequest => {
     //Database Query
 
     return {
-        prayerRequestId: '202',
-        userId: 100, 
+        prayerRequestID: '202',
+        userID: 100, 
         topic: PrayerRequestTopicEnum.SELF,
         description: "This is the description for the prayer request.",
         expiration: 100,
@@ -16,47 +16,47 @@ export const getPrayerRequest = (prayerRequestId: string):PrayerRequest => {
     };
 }
 
-export const answerPrayerRequest = (prayerRequestId: string):PrayerRequest => {
+export const answerPrayerRequest = (prayerRequestID: string):PrayerRequest => {
     //Database Query
 
     return {
-        ...getPrayerRequest(prayerRequestId),
+        ...getPrayerRequest(prayerRequestID),
         answered: true
     };
 }
 
-export const deletePrayerRequest = (prayerRequestId: string):Boolean => {
+export const deletePrayerRequest = (prayerRequestID: string):Boolean => {
     //Database Query
 
     return true;
 }
 
-export const getUserPrayerRequestList = (userId: string):PrayerRequestResponse => {
+export const getUserPrayerRequestList = (userID: string):PrayerRequestResponse => {
     //Database Query
 
     return {
         prayerRequestList:[
-            getPrayerRequest(userId),
-            getPrayerRequest(userId),
-            getPrayerRequest(userId),
+            getPrayerRequest(userID),
+            getPrayerRequest(userID),
+            getPrayerRequest(userID),
         ]
     };
 }
 
-export const getCirclePrayerRequestList = (circleId: string):PrayerRequestResponse => {
+export const getCirclePrayerRequestList = (circleID: string):PrayerRequestResponse => {
     //Database Query
 
     return {
         prayerRequestList:[
-            getPrayerRequest(circleId),
-            getPrayerRequest(circleId),
-            getPrayerRequest(circleId),
-            getPrayerRequest(circleId),
-            getPrayerRequest(circleId),
-            getPrayerRequest(circleId),
-            getPrayerRequest(circleId),
-            getPrayerRequest(circleId),
-            getPrayerRequest(circleId),
+            getPrayerRequest(circleID),
+            getPrayerRequest(circleID),
+            getPrayerRequest(circleID),
+            getPrayerRequest(circleID),
+            getPrayerRequest(circleID),
+            getPrayerRequest(circleID),
+            getPrayerRequest(circleID),
+            getPrayerRequest(circleID),
+            getPrayerRequest(circleID),
         ]
     };
 }

@@ -1,82 +1,94 @@
-import Pool from 'pg-pool';
+import SQL, { Pool, PoolOptions, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
+import { Exception } from '../../api/api-types.mjs';
 import * as log from './../log.mjs';
 import dotenv from 'dotenv';
-import { Exception } from '../../api/api-types.mjs';
+import { CommandResponseType } from './database-types.mjs';
 dotenv.config(); 
 
-log.db('Database Details:  ', process.env.DATABASE_USER,
-process.env.DATABASE_PASSWORD,
-process.env.DATABASE_PASSWORD,
-process.env.DATABASE_PORT,
-process.env.DATABASE_NAME);
-
-const pool = new Pool({
+const CONFIGURATIONS:PoolOptions = {
+    host: process.env.DATABASE_END_POINT,
+    database: process.env.DATABASE_NAME,
+    port: (process.env.DATABASE_PORT as unknown as number) || 3306,
     user: process.env.DATABASE_USER,
     password: process.env.DATABASE_PASSWORD,
-    host: process.env.DATABASE_END_POINT,
-    port: process.env.DATABASE_PORT,
-    database: process.env.DATABASE_NAME
-});
+    connectTimeout: (process.env.DATABASE_CONNECTION_TIMEOUT_MS as unknown as number) || 30000, 
+    waitForConnections: true,
+    connectionLimit: (process.env.DATABASE_CONNECTION_MAX as unknown as number) || 10,
+    maxIdle: (process.env.DATABASE_CONNECTION_MIN as unknown as number) || 5,
+    idleTimeout: (process.env.DATABASE_IDLE_TIME_MS as unknown as number) || 60000, 
+    timezone: 'local',
+  };
 
+const DATABASE:Pool = SQL.createPool(CONFIGURATIONS);
 
-export const query = (query:string, parameters?:any[]):any => new Promise((resolve, reject) => {
-    log.db("Executing Query: ", query, parameters);
+/* Test & Log Connection Success */
+setTimeout(async()=> await DATABASE.query('SELECT COUNT(*) FROM `user`')
+    .then(([rows, fields]) => {
+            if(rows[0] !== undefined && rows[0]['COUNT(*)'] > 0) console.info(`DATABASE CONNECTED with ${rows[0]['COUNT(*)']} Identified Users`);
+            else throw `Connected, but Query Failed: ${JSON.stringify(rows)}`;})
+    .catch((error) => log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(CONFIGURATIONS), error))
+, 5000);
 
-    pool.query(query, parameters || [], (error, result) => {
-        if (error) reject(error);
-        else if (!result) reject('No Query Results');
-        else resolve (result.rows[0]);
-});})
-.then((res) => res)
-.catch(error => {
-    log.db('ERROR :: Database Query Failed:', query, parameters, error);   
-    return error;
-});
+/* Prevent SQL Injection Protocol:
+* 1) Use Prepared Statements, auto escape input strings
+* 2) Validate Column Names
+* - Use query() for predefined Select Statements (static)
+* - Use execute() for Prepared Statements (inputs)
+* - Use command() for database operation (inputs)
+*/
 
-export const queryAll = (query:string, parameters?:any[]):any => new Promise((resolve, reject) => {
-    log.db("Executing Query All", query, parameters);
+/* DO NOT CALL DIRECTLY | Use Predefined Queries */
 
-    pool.query(query, parameters || [], (error, result) => {
-   if (error) reject(error);
-   else if (!result) reject('No Query Results');
-   else resolve (result.rows);
-});})
-.then((res) => res || [])
-.catch(error => {
-    log.db('ERROR :: Database Query ALL Failed:', query, parameters, error);   
-    new Exception(502, error);
-    return error;
-});
-
-export type TestResult = {
-    success: boolean,
-    result: string,
-    error: string,
-    query: string,
-    parameters: string
-}
-
-export const formatTestResult = (success: boolean = false, result: string = 'NONE', error: string = 'NONE', query: string = '', parameters: string = ''):TestResult => ({
-    success: success,
-    result: result,
-    error: error,
-    query: query,
-    parameters: parameters
-});
-
-export const queryTest = (query:string, parameters?:any[]):Promise<TestResult> => new Promise((resolve, reject) => {
-    log.db("Executing Test Query: ", query, parameters);
-    pool.query(query, parameters || [], (error, result) => {
-        if (error) 
-            log.db('FAILED :: Database Query Test Failed:', query, parameters, error, result); 
-        
-        resolve({
-            success: !error,
-            result: result ? result.toString() : 'NONE',
-            error: error ? error.toString() : 'NONE',
-            query: query,
-            parameters: parameters.toString()
+/**********************************************
+ *  QUERY: STATIC PREDEFINED SELECT STATEMENT
+ **********************************************/
+export const query = async(query:string):Promise<SQL.RowDataPacket[]> => 
+    await DATABASE.query(query)
+        .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
+                // log.db('DB Query Successful: ', query, JSON.stringify(rows));
+                return [...rows];
+            })
+        .catch((error) => {
+            log.db('DB Query Failed: ', query, error);
+            return [];
         });
-});}).then((res:TestResult) => res);
 
-export default pool;
+
+/***************************************
+ *  EXECUTE: PREPARED SELECT STATEMENT
+ ***************************************/
+export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPacket[]> => 
+     await DATABASE.execute(query, fields)
+        .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
+                // log.db('DB Execute Successful: ', query, JSON.stringify(rows));
+                return [...rows];
+            })
+        .catch((error) => {
+            log.db('DB Execute Failed: ', query, JSON.stringify(fields), error);
+            return [];
+        });
+
+
+/***************************************************
+ *  COMMAND: PREPARED DATABASE OPERATION STATEMENT
+ ***************************************************/
+export const command = async(query:string, fields:any[]):Promise<CommandResponseType|undefined> => 
+    await DATABASE.execute(query, fields)
+        .then((result:any[]) => {
+                if(result.length >= 1) {
+                    // log.db('DB Command Successful: ', query, JSON.stringify(result));
+                    if((result as unknown as SQL.ResultSetHeader[])[0].affectedRows !== undefined)
+                        return (result as unknown as SQL.ResultSetHeader[])[0];
+                    else
+                        return (result as unknown as SQL.RowDataPacket[])[0];
+                } else {
+                    log.error('DB Command Successful; but NO Response: ', query, JSON.stringify(result));
+                    return undefined;
+                }
+            })
+        .catch((error) => {
+            log.db('DB Command Failed: ', query, JSON.stringify(fields), error);
+            return undefined;
+        });
+
+export default DATABASE;

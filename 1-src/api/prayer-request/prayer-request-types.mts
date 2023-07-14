@@ -26,15 +26,15 @@ export enum PrayerRequestTopicEnum {
 }
 
 export interface PrayerRequest {
-    prayerRequestId: string,
-    userId: number, 
+    prayerRequestID: string,
+    userID: number, 
     topic: PrayerRequestTopicEnum, 
     description: string,
     prayerCount: number,
     expiration: number, 
     answered?:boolean,
     comments?: {
-        userId: number,
+        userID: number,
         message: string,
         likeCount: number
     }[],
@@ -42,7 +42,7 @@ export interface PrayerRequest {
 
 export interface PrayerRequestNewRequest extends IdentityRequest {
     body: {
-        userId: number, 
+        userID: number, 
         topic: PrayerRequestTopicEnum, 
         description: string,
         expiration: number, 

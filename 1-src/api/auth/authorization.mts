@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
-import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTClientRequest, JWTData, JWTRequest } from "./auth-types.mjs";
-import { queryAll } from "../../services/database/database.mjs";
-import { DB_USER } from "../../services/database/database-types.mjs";
-import { isRequestorAllowedProfile, verifyJWT, getJWTData } from "./auth-utilities.mjs";
+import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTClientRequest, JwtData, JwtRequest } from "./auth-types.mjs";
+import { isRequestorAllowedProfile, verifyJWT as verifyJwt, getJWTData as getJwtData } from "./auth-utilities.mjs";
 import { RoleEnum } from "../profile/Fields-Sync/profile-field-config.mjs";
+import { DB_SELECT_USER_PROFILE } from "../../services/database/queries/user-queries.mjs";
+import USER from "../../services/models/user.mjs";
 
 /* *******************
  Middleware Authentication
@@ -13,28 +13,28 @@ import { RoleEnum } from "../profile/Fields-Sync/profile-field-config.mjs";
 /* NOTE: DO NOT CALL DIRECTLY : next(); is for middleware and only called once (but doesn't return/exit function)*/
 
 //#0 Verify JWT is valid
-export const jwtAuthenticationMiddleware = async(request: JWTRequest, response: Response, next: NextFunction):Promise<void> => {
+export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: Response, next: NextFunction):Promise<void> => {
     //Verify Credentials Exist
     if(!request.headers['jwt']) 
         next(new Exception(400, `FAILED AUTHENTICATED :: IDENTITY :: missing JWT in request header: ${request.headers['jwt']}`));
 
     //Verify JWT
-    else if(!verifyJWT(request.headers['jwt'])) 
+    else if(!verifyJwt(request.headers['jwt'])) 
         next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Invalid JWT for User: ${request.headers['jwt']}`));
 
-    //Inject jwtUserId into request object
+    //Inject jwtUserID into request object
     else {
         const client_token = request.headers['jwt'];
-        const token_data = getJWTData(client_token);
+        const token_data = getJwtData(client_token);
 
-        if(!token_data || token_data['jwtUserId'] === undefined || token_data['jwtUserId'] <= 0 || token_data['jwtUserRole'] === undefined) {
-            log.auth(`Failed to parse JWT for user: ${request.headers['user-id']}`, `UserId from token: ${token_data['jwtUserId']}`, 
+        if(!token_data || token_data['jwtUserID'] === undefined || token_data['jwtUserID'] <= 0 || token_data['jwtUserRole'] === undefined) {
+            log.auth(`Failed to parse JWT for user: ${request.headers['user-id']}`, `UserID from token: ${token_data['jwtUserID']}`, 
                         `User Role from token: ${token_data['jwtUserRole']}`, 'JWT: ', client_token);
             next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Failed to parse JWT: ${request.headers['jwt']}`));
 
         } else {
             request.jwt = client_token
-            request.jwtUserId = token_data['jwtUserId'];
+            request.jwtUserID = token_data['jwtUserID'];
             request.jwtUserRole = token_data['jwtUserRole'];
 
             next();
@@ -52,23 +52,23 @@ export const authenticateUserMiddleware = async(request: IdentityRequest, respon
     //Verify Client Exists
     else {
         const client_token = request.headers['jwt'];
-        const token_data:JWTData = getJWTData(client_token);
-        const userId:number = request.headers['user-id'];
+        const token_data:JwtData = getJwtData(client_token);
+        const userID:number = request.headers['user-id'];
 
-        const userProfileList:DB_USER[] = await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [userId]);      
+        const userProfile:USER = await DB_SELECT_USER_PROFILE(new Map([['userID', userID]]));      
 
-        if(userProfileList.length !== 1) 
-            next(new Exception(404, `FAILED AUTHENTICATED :: IDENTITY :: User: ${userId} - DOES NOT EXIST`));
+        if(userProfile.userID < 0) 
+            next(new Exception(404, `FAILED AUTHENTICATED :: IDENTITY :: User: ${userID} - DOES NOT EXIST`));
 
         //JWT Credentials against Database 
-        else if(userProfileList[0].user_id !== token_data.jwtUserId || userProfileList[0].user_role as RoleEnum !== token_data.jwtUserRole) 
-            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Inaccurate JWT ${request.headers['jwt']} for User: ${userId}`));
+        if(userProfile.userID !== token_data.jwtUserID || !userProfile.isRole(token_data.jwtUserRole)) 
+            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Inaccurate JWT ${request.headers['jwt']} for User: ${userID}`));
 
         //Inject userProfile into request object
         else {
-            request.userId = userId;
-            request.userRole = userProfileList[0].user_role as RoleEnum,
-            request.userProfile = userProfileList[0];
+            request.userID = userID;
+            request.userRole = userProfile.getHighestRole(),
+            request.userProfile = userProfile;
 
             next();
         }
@@ -82,16 +82,16 @@ export const extractClientProfile = async(request: JWTClientRequest | IdentityCl
         return new Exception(400, `FAILED AUTHENTICATED :: CLIENT :: missing client-id parameter :: ${request.params.client}`);
 
     //Verify Client Exists
-    const clientId:number = parseInt(request.params.client);
+    const clientID:number = parseInt(request.params.client);
 
-    const clientProfileList:DB_USER[] = await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [clientId]);
+    const clientProfile:USER = await DB_SELECT_USER_PROFILE(new Map([['userID', clientID]]));
 
-    if(clientProfileList.length !== 1) 
-      return new Exception(404, `FAILED AUTHENTICATED :: CLIENT :: User: ${clientId} - DOES NOT EXIST`);
+    if(clientProfile.userID < 0) 
+      return new Exception(404, `FAILED AUTHENTICATED :: CLIENT :: User: ${clientID} - DOES NOT EXIST`);
 
     //Inject Client ID & profile into request object
-    request.clientId = clientId;
-    request.clientProfile = clientProfileList[0];
+    request.clientID = clientID;
+    request.clientProfile = clientProfile;
 
     return false;
 }
@@ -103,15 +103,14 @@ export const authenticatePartnerMiddleware = async(request: IdentityClientReques
     if(clientException) 
         next(clientException);
 
-    else if(request.userProfile.partners && request.clientProfile.partners
-            && request.userProfile.partners.includes(request.clientId) 
-            && request.clientProfile.partners.includes(request.userId)) {
+    else if(request.userProfile.getPartnerIDList().includes(request.clientID) 
+            && request.clientProfile.getPartnerIDList().includes(request.userID)) {
 
-        log.auth(`AUTHENTICATED :: PARTNER :: status verified: Requestor: ${request.userId} is a partner of User: ${request.clientId}`);
+        log.auth(`AUTHENTICATED :: PARTNER :: status verified: Requestor: ${request.userID} is a partner of User: ${request.clientID}`);
         next();
 
     } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: PARTNER :: Requestor: ${request.userId} is not a partner of User: ${request.clientId}`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: PARTNER :: Requestor: ${request.userID} is not a partner of User: ${request.clientID}`));
     }
 }
 
@@ -122,16 +121,16 @@ export const extractCircleProfile = async(request: IdentityCircleRequest):Promis
         return new Exception(400, `FAILED AUTHENTICATED :: CIRCLE :: missing circle-id parameter :: ${request.params.circle}`);
 
     //Verify Client Exists
-    const circleId:number = parseInt(request.params.circle);
+    const circleID:number = parseInt(request.params.circle);
 
-    const circleIdList:DB_USER[] = []; //await queryAll("SELECT * FROM user_table WHERE user_id = $1;", [circleId]);
+    // const circleProfile:CIRCLE = await DB_SELECT_CIRCLE(circleID);
 
-    if(circleIdList.length !== 1) 
-      return new Exception(404, `FAILED AUTHENTICATED :: CIRCLE :: Circle: ${circleId} - DOES NOT EXIST`);
+    // if(circleProfile.circleID < 0) 
+    //   return new Exception(404, `FAILED AUTHENTICATED :: CIRCLE :: Circle: ${circleID} - DOES NOT EXIST`);
 
     //Inject circle ID and Profile Into request Object
-    request.circleId = circleId;
-    request.circleProfile = circleIdList[0];
+    request.circleID = circleID;
+    // request.circleProfile = circleProfile;
 
     return false;
 }
@@ -143,14 +142,14 @@ export const authenticateCircleMiddleware = async(request: IdentityCircleRequest
     if(circleException) 
         next(circleException);
 
-    else if((request.userProfile.user_role as RoleEnum === RoleEnum.ADMIN)
-            || (request.userProfile.circles && request.userProfile.circles.includes(request.circleId))) {
+    else if((request.userProfile.isRole(RoleEnum.ADMIN))
+            || (request.userProfile.getCircleIDList().includes(request.circleID))) {
 
-        log.auth(`AUTHENTICATED :: CIRCLE :: status verified: User: ${request.userId} is a member of CIRCLE: ${request.circleId}`);
+        log.auth(`AUTHENTICATED :: CIRCLE :: status verified: User: ${request.userID} is a member of CIRCLE: ${request.circleID}`);
         next();
 
     } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE :: User: ${request.userId} denied access to circle: ${request.circleId}`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE :: User: ${request.userID} denied access to circle: ${request.circleID}`));
     }
 }
 
@@ -165,11 +164,11 @@ export const authenticateProfileMiddleware = async(request: IdentityClientReques
     //Verify Requestor Authorization
     else if(await isRequestorAllowedProfile(request.clientProfile, request.userProfile)) {
 
-        log.auth(`AUTHENTICATED :: USER :: profile status verified: User: ${request.userId} has access to Client: ${request.clientId}`);
+        log.auth(`AUTHENTICATED :: USER :: profile status verified: User: ${request.userID} has access to Client: ${request.clientID}`);
         next();
 
     } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: USER :: User: ${request.userId} denied access to Client: ${request.clientId}`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: USER :: User: ${request.userID} denied access to Client: ${request.clientID}`));
     }
 }
 
@@ -181,15 +180,12 @@ export const authenticateLeaderMiddleware = async(request: IdentityCircleRequest
     if(circleException) 
         next(circleException);
 
-    else if((request.userProfile.user_role as RoleEnum === RoleEnum.ADMIN) 
-        || (request.userProfile.user_role as RoleEnum === RoleEnum.CIRCLE_LEADER
-            && request.userProfile.circles && request.userProfile.circles.includes(request.circleId))) {
-
-        log.auth(`AUTHENTICATED :: LEADER :: status verified: User: ${request.userId} is a LEADER of circle: ${request.circleId}`);
+    else if(request.userProfile.isRole(RoleEnum.CIRCLE_LEADER) &&  request.circleProfile.leaderID === request.userProfile.userID) {
+        log.auth(`AUTHENTICATED :: LEADER :: status verified: User: ${request.userID} is a LEADER of circle: ${request.circleID}`);
         next();
 
     } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.userId} denied access to circle: ${request.circleId}`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.userID} denied access to circle: ${request.circleID}`));
     }
 }
 
@@ -197,12 +193,11 @@ export const authenticateLeaderMiddleware = async(request: IdentityCircleRequest
 // #6 - Verify ADMIN Access
 export const authenticateAdminMiddleware = async(request: IdentityRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    if(request.userProfile.user_role as RoleEnum === RoleEnum.ADMIN) {
-
-        log.auth(`AUTHENTICATED :: ADMIN :: status verified: User: ${request.userId} is an ADMIN`);
+    if(request.userProfile.isRole(RoleEnum.ADMIN)) {
+        log.auth(`AUTHENTICATED :: ADMIN :: status verified: User: ${request.userID} is an ADMIN`);
         next();
 
     } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.userId} is not an ADMIN.`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.userID} is not an ADMIN.`));
     }
 }

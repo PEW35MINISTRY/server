@@ -18,15 +18,15 @@ age: number;
 }
 
 export type SocketContact = {
-    userId: number,
+    userID: number,
     displayName: string,
-    socketId: string
+    socketID: string
 }
 
 export type SocketMessage = {
-    senderId: number,
+    senderID: number,
     senderName?: string,
-    recipientId: number,
+    recipientID: number,
     recipientName?: string,
     message: string,
     time?: number,

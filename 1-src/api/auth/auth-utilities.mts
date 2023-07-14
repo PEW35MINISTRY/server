@@ -1,14 +1,13 @@
 import { Request, Response, NextFunction } from "express";
 import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
-import { IdentityRequest, JWTData, LoginRequest, LoginResponse, LoginResponseBody, SignupRequest } from "./auth-types.mjs";
-import { query, queryAll, queryTest, TestResult } from "../../services/database/database.mjs";
-import { DB_USER } from "../../services/database/database-types.mjs";
-import { formatProfile } from "../profile/profile-utilities.mjs";
+import { JwtData, LoginResponseBody } from "./auth-types.mjs";
 import JWT_PKG, { JwtPayload } from "jsonwebtoken";
 import { createHash } from 'node:crypto'
-import dotenv from 'dotenv';
 import { RoleEnum } from "../profile/Fields-Sync/profile-field-config.mjs";
+import { DB_SELECT_USER_PROFILE } from "../../services/database/queries/user-queries.mjs";
+import USER from "../../services/models/user.mjs";
+import dotenv from 'dotenv';
 dotenv.config(); 
 
 const {sign, verify, decode} = JWT_PKG;
@@ -27,19 +26,19 @@ generateSecretKey();
 /* *******************
  JWT Token Management
 ******************* */
-export const generateJWT = (userId:number, userRole:RoleEnum):string => {
+export const generateJWT = (userID:number, userRole:RoleEnum):string => {
     //generate JWT as type JWTData
-    if(userId > 0 && userRole as RoleEnum !== undefined)
-        return sign({jwtUserId: userId, jwtUserRole: userRole}, APP_SECRET_KEY, {expiresIn: "2 days"});
+    if(userID > 0 && userRole as RoleEnum !== undefined)
+        return sign({jwtUserID: userID, jwtUserRole: userRole}, APP_SECRET_KEY, {expiresIn: "2 days"});
     else {
-        log.error(`JWT Generation Failed: INVALID userId: ${userId} or userRole: ${userRole}`);
+        log.error(`JWT Generation Failed: INVALID userID: ${userID} or userRole: ${userRole}`);
         return '';
     }
 }
 
-export const verifyJWT = (JWT:string):Boolean => {
+export const verifyJWT = (jwt:string):Boolean => {
     try {
-        verify(JWT, APP_SECRET_KEY);
+        verify(jwt, APP_SECRET_KEY);
         return true;
     } catch(err) {
         log.auth("Failed to verify JWT", err);
@@ -47,18 +46,18 @@ export const verifyJWT = (JWT:string):Boolean => {
     }
 }
 
-export const getJWTData = (JWT:string):JWTData => {
-    const tokenObject:JwtPayload|string|null = decode(JWT); //Does not verify
-    if('jwtUserId' in (tokenObject as JWTData)) { //Must use type predicates
+export const getJWTData = (jwt:string):JwtData => {
+    const tokenObject:JwtPayload|string|null = decode(jwt); //Does not verify
+    if('jwtUserID' in (tokenObject as JwtData)) { //Must use type predicates
         return {
-            jwtUserId: (tokenObject as JWTData).jwtUserId,
-            jwtUserRole: ((tokenObject as JWTData).jwtUserRole as string) as RoleEnum,
+            jwtUserID: (tokenObject as JwtData).jwtUserID,
+            jwtUserRole: ((tokenObject as JwtData).jwtUserRole as string) as RoleEnum,
         }
     } 
     //Default
     else 
         return {
-            jwtUserId: 0,
+            jwtUserID: 0,
             jwtUserRole: RoleEnum.STUDENT,
         };
 }
@@ -66,6 +65,8 @@ export const getJWTData = (JWT:string):JWTData => {
 //Create Account token required for non student accounts (Not required for )
 export const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.STUDENT, token:string, email:string):Promise<boolean> => {
     log.auth('New Account Authorized attempted: ', userRole, token, email);
+
+    if(userRole === undefined || token === undefined || email === undefined) return false;
 
     switch(userRole as RoleEnum) {
         case RoleEnum.STUDENT:
@@ -80,7 +81,7 @@ export const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.STUDENT,
             return token === process.env.TOKEN_CONTENT_APPROVER;
         case RoleEnum.CIRCLE_LEADER:
             return token === process.env.TOKEN_CIRCLE_LEADER;
-
+""
         //Individual Codes:
     //TODO Query Special Database
         default:
@@ -92,16 +93,16 @@ export const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.STUDENT,
 export const getUserLogin = async(email:string = '', password: string = ''):Promise<LoginResponseBody|undefined> => {
     //Query Database
     const passwordHash:string = getPasswordHash(password);
-    const userProfile:DB_USER = await query("SELECT * FROM user_table WHERE email = $1 AND password_hash = $2;", [email, passwordHash]);
+    const userProfile:USER = await DB_SELECT_USER_PROFILE(new Map([['email', email], ['passwordHash', passwordHash]]));
 
-    if(userProfile && userProfile.user_id) {
-        log.auth("Successfully logged in user: ", userProfile.user_id);
+    if(userProfile.userID > 0) {
+        log.auth("Successfully logged in user: ", userProfile.userID);
 
         return {
-            JWT: generateJWT(userProfile.user_id, (userProfile.user_role as string) as RoleEnum),
-            userId: userProfile.user_id,
-            userRole: (userProfile.user_role as string) as RoleEnum,
-            userProfile: formatProfile(userProfile),
+            jwt: generateJWT(userProfile.userID, userProfile.getHighestRole()),
+            userID: userProfile.userID,
+            userRole: userProfile.getHighestRole(),
+            userProfile: userProfile.toProfileJSON(),
             service: 'Email & Password Authenticated'
         }
 
@@ -116,27 +117,17 @@ export const getUserLogin = async(email:string = '', password: string = ''):Prom
  Utility Methods
 ******************* */
 
-export const isRequestorAllowedProfile = async(clientProfile: DB_USER, userProfile: DB_USER):Promise<boolean> => { //TODO: add column circleId to leader Table
-    const userRole:RoleEnum = userProfile.user_role as RoleEnum;
-    if(clientProfile.user_id === userProfile.user_id || userRole === RoleEnum.ADMIN) return true;
+export const isRequestorAllowedProfile = async(clientProfile:USER, userProfile:USER):Promise<boolean> => {
+    if(clientProfile.userID === userProfile.userID || userProfile.isRole(RoleEnum.ADMIN)) return true;
 
     //Test Member of Leader's Circle
-    if(userRole === RoleEnum.CIRCLE_LEADER) {
-        return (userProfile.circles && userProfile.circles.find((circleId, index) => {
-            return clientProfile.circles.includes(circleId);
-          }))
-          ? true : false; //Because .find returns undefine for no match
+    if(userProfile.isRole(RoleEnum.CIRCLE_LEADER)) {
+        // const clientLeaderIDList:number[] = await DB_SELECT_CIRCLE_LEADER_IDS(clientProfile.userID);
+        // return (clientLeaderIDList.includes(userProfile.userID));
     }
     return false;
 }
 
-export const isRequestorAllowedProfileQuery = async(userId: number, requestorId: number):Promise<boolean> => {
-
-    const userProfile = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
-    const requestorProfile = await query("SELECT * FROM user_table WHERE user_id = $1;", [requestorId]);
-
-    return await isRequestorAllowedProfile(userProfile, requestorProfile);
-}
 
 export const getPasswordHash = (password:string):string => {
     return password;

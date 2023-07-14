@@ -1,11 +1,9 @@
-import { getDatabaseDefaultProfileFields, ProfileEditRequest, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse, StageEnum } from "./profile-types.mjs";
-import database, {formatTestResult, query, queryAll, queryTest, TestResult} from "../../services/database/database.mjs";
+import { ProfileEditRequest } from "./profile-types.mjs";
 import { Exception } from "../api-types.mjs";
 import * as log from '../../services/log.mjs';
-import { DB_USER } from "../../services/database/database-types.mjs";
 import { getPasswordHash } from "../auth/auth-utilities.mjs";
-import { SignupRequest } from "../auth/auth-types.mjs";
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, GenderEnum, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from "./Fields-Sync/profile-field-config.mjs";
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, GenderEnum, getDOBMaxDate, getDOBMinDate, InputField, InputType, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from "./Fields-Sync/profile-field-config.mjs";
+import USER from "../../services/models/user.mjs";
 
 export const editProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
     if(userRole === RoleEnum.ADMIN)
@@ -21,196 +19,98 @@ export const signupProfileFieldAllowed = (field:string, userRole:RoleEnum):boole
         return SIGNUP_PROFILE_FIELDS.some(inputField => inputField.field === field);
 }
 
-export const formatPublicProfile = (user: DB_USER):ProfilePublicResponse =>  ({
-        userId: user.user_id, 
-        userRole: user.user_role, 
-        displayName: user.display_name, 
-        dob: user.dob,
-        gender: user.gender,
-        circleList: [],
-        proximity: 0,
-        profileImage: user.profile_image,
-    });
 
-export const getPublicProfile = async(userId: number):Promise<ProfilePublicResponse> => {
-    //Database Query    
-    const user:DB_USER = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
+/****************************************************************
+ *                 Profile Edit Utilities
+ *  parse & validate JSON response to USER | (throws Exception)
+ * **************************************************************/
+export const createUserFromJSON = ({currentUser = new USER(), jsonObj, fieldList}:{currentUser?: USER, jsonObj:ProfileEditRequest['body'], fieldList:InputField[]}):USER => {
 
-    return formatPublicProfile(user);
-}
+    fieldList.forEach((field) => {
 
-export const formatProfile = (user: DB_USER):ProfileResponse =>  ({
-        userId: user.user_id, 
-        userRole: user.user_role, 
-        displayName: user.display_name, 
-        firstName: user.display_name, 
-        lastName: user.display_name, 
-        dob: user.dob,
-        gender: user.gender,
-        circleList: [],
-        profileImage: user.profile_image,
-        email: user.email,
-        phone: user.phone,
-        zipcode: user.zipcode,
-        stage: user.stage,
-        dailyNotificationHour: user.daily_notification_hour,
-    });
+        if(field.required && currentUser[field.field] === undefined && jsonObj[field.field] === undefined ) {
+            new Exception(400, `${field.title} is Required.`);
+            return undefined;
 
-export const getProfile = async(userId: number):Promise<ProfileResponse> => {
-    //Database Query
-    const user:DB_USER = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
+        } else if(jsonObj[field.field] !== undefined && validateInput({field, value: jsonObj[field.field], highestRole: currentUser.getHighestRole()})) {
 
-    return formatProfile(user);
-}
+            //Special Handling: Password Hash
+            if(field.field === 'password' && jsonObj['password'] === jsonObj['passwordVerify'])
+                currentUser.passwordHash = getPasswordHash(jsonObj['password']);
 
-export const formatPartnerProfile = (partner:DB_USER):ProfilePartnerResponse => ({
-            userId: partner.user_id, 
-            userRole: partner.user_role, 
-            displayName: partner.display_name, 
-            dob: partner.dob,
-            gender: partner.gender,
-            circleList: [],
-            zipcode: partner.zipcode,
-            proximity: 0,
-            stage: partner.stage,
-            dailyNotificationHour: partner.daily_notification_hour,
-            pendingPrayerRequestList: [],
-            answeredPrayerRequestList: [],
-            messageList: [],
-            profileImage: partner.profile_image,
-        });
+            else if(field.field === 'userRoleTokenList')
+                currentUser.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string]);
 
-export const getPartnerProfile = async (userId: number, requestorId: number):Promise<ProfilePartnerResponse> => {
-    //Database Query
-    const partner:DB_USER = await query("SELECT * FROM user_table WHERE user_id = $1;", [userId]);
+                else if(currentUser.hasProperty(field.field) && jsonObj[field.field] !== undefined)
+                currentUser[field.field] = parseInput({field:field, value:jsonObj[field.field]});
 
-    if(partner.partners.includes(requestorId))  
-        return formatPartnerProfile(partner);
+            else
+                console.info('*Skipping extra field', field.field, jsonObj[field.field]);
 
-     else 
-        new Exception(401, `Requested User ${userId} is not a Partner of ${requestorId}.`);
-}
-
-/******************
- * Edit Profile by Authorization
- * NOTE: requestorId is user requesting edit on userId
- */
-
-export type roleListResult = 
-    {
-        userId: number,
-        userRole: RoleEnum,
-    };
-
-export const getProfileRoles = async(...idList: number[]):Promise<roleListResult[]> => {
-    let result:roleListResult[] = [];
-
-    idList.forEach(async (id) => {
-        const role = await query("SELECT user_role FROM user_table WHERE user_id = $1;", [id]);
-        result.push({userId: id, userRole: role as RoleEnum});
-    });
-
-    return result;
-}
-
-export enum EDIT_TYPES {
-    EDIT,
-    CREATE
-}
-
-export const editProfile = async(editId: number, httpRequest:ProfileEditRequest | SignupRequest, accessorUserRole:RoleEnum, editType:EDIT_TYPES = EDIT_TYPES.EDIT):Promise<TestResult> => {
-        let columnList:string[] = [];
-        let valueList:any[] = [];
-        const fields = Object.entries(httpRequest.body);
-
-        if(editType === EDIT_TYPES.CREATE) {
-            columnList=[...getDatabaseDefaultProfileFields().keys()];
-            valueList=[...getDatabaseDefaultProfileFields().values()]
+        } else {
+            new Exception(400, `${field.title} is Invalid.`);
+            return undefined;
         }
-    
-        //Only list Fields Student can Edit
-        fields.forEach((field, index) => { 
-            try {
-                if(!getProfileChanges(editId, field, columnList, valueList, accessorUserRole, editType))
-                log.warn("User Editing Profile: Unmatched Field: ", field);              
-            
-            }catch(error){log.error('User Edit Profile Error: ', editId, error);
-                return { success: false, result: {columnList, valueList}, error: error};
-            }
-        });
+    });
+    return currentUser;
+}
 
-        if(!columnList.length || !valueList.length)
-            return formatTestResult(false, null, 'Invalid Profile Edit Request', columnList.toString(), valueList.toString())
-        else if(editType === EDIT_TYPES.CREATE)
-            return await queryTest(`INSERT INTO user_table (${columnList.join(', ')}) VALUES (${valueList.map((v,i)=>`\$${i+1}`).join(', ')});`, [...valueList]);
-        else if(editType === EDIT_TYPES.EDIT)
-            return await queryTest(`UPDATE user_table SET ${columnList.join(', ')} WHERE user_id = $${valueList.length+1};`, [...valueList, editId]);
-    }
+//Private: parseInput by type
+const parseInput = ({field, value}:{field:InputField, value:any}):any => {
+    try {
+        if(value === undefined || value === null)
+            throw `${field.title} is undefined.`
 
-//Student or Relevant Leader
-    const getProfileChanges = (editId:number, field:[string, unknown], columnList:string[], valueList:any[], accessorUserRole:RoleEnum, editType:EDIT_TYPES = EDIT_TYPES.EDIT):boolean => {
-               
-        //Special Parsing Edits 
-        if( ((editType === EDIT_TYPES.CREATE && signupProfileFieldAllowed(field[0], accessorUserRole))
-            || (editType === EDIT_TYPES.EDIT && editProfileFieldAllowed(field[0], accessorUserRole))
-        ) && (
-            addField('email', `email`, field[1], field[0], columnList, valueList, editType)
-            || addField('displayName', `display_name`, field[1], field[0], columnList, valueList, editType)
-            || addField('password', `password_hash`, getPasswordHash(field[1] as string), field[0], columnList, valueList, editType)
-            || (addField('userRole', `user_role`, RoleEnum[field[1] as string], field[0], columnList, valueList, editType)) 
-            || addField('isActive', `verified`, (/true/i).test(field[1] as string), field[0], columnList, valueList, editType)
-            // || addField('firstName', `display_name`, field[1], field[0], columnList, valueList, editType)
-            // || addField('lastName', `display_name`, field[1], field[0], columnList, valueList, editType)
-            // || addField('phone', `phone`, field[1], field[0], columnList, valueList, editType)
-            || addField('dateOfBirth', `dob`, new Date(field[1] as string).getTime(), field[0], columnList, valueList, editType)
-            || addField('gender', `gender`, field[1] as GenderEnum, field[0], columnList, valueList, editType)                      
-            || addField('postalCode', `zipcode`, field[1], field[0], columnList, valueList, editType)
-            // || addField('dailyNotificationHour', `daily_notification_hour`, parseInt(field[1] as string), field[0], columnList, valueList, editType)
+        else if(field.field === 'userRoleList')
+            return Array.from(value as string[]).map(role => RoleEnum[role as string]);
 
-            // || addField('partnerList', `partners`, field[1], field[0], columnList, valueList, editType)
-            // || addField('circleList', `circles`, field[1], field[0], columnList, valueList, editType)
-            // || addField('profileImage', `profile_image`, field[1], field[0], columnList, valueList, editType)
-                        
-            // || addField('stage', `stage`, StageEnum[field[1] as string], field[0], columnList, valueList, editType)
-            || addField('notes', `notes`, field[1], field[0], columnList, valueList, editType)
+        else if(field.field === 'gender')
+            return GenderEnum[value];
 
-        ))  return true;
+        else if(field.type === InputType.DATE)
+            return new Date(value);
+
+        else if(field.type === InputType.NUMBER)
+            return value as number;
+
+        else if(field.type === InputType.MULTI_SELECTION_LIST)
+            return Array.from(value);
+
         else
+            return value;
+
+    } catch(error) {
+        log.error(`Failed to parse profile field: ${field.field} with value: ${value}`);
+        new Exception(400, `${field.title} is Required.`);
+        return undefined;
+    }
+}
+
+const validateInput = ({field, value, highestRole = RoleEnum.STUDENT}:{field:InputField, value:string, highestRole?:RoleEnum}):boolean => {
+
+    /* Field Exists */
+    if(value === undefined) {
+        return false;
+
+    /* Validate general validationRegex from config */
+    } else if(!(new RegExp(field.validationRegex).test(value))){
+        return false;
+
+    /* SELECT_LIST */
+    } else if(field.type === InputType.SELECT_LIST && !field.selectOptionList.includes(value)) {
+        return false;
+
+    /* DATES | dateOfBirth */
+    } else if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)
+        const currentDate:Date = new Date(value);
+
+        if(currentDate < getDOBMinDate(highestRole)) {
             return false;
+
+        } else if(currentDate > getDOBMaxDate(highestRole)) {
+            return false
+        }
     }
 
-    //TODO: Account Verify Email Send
-
-    const addField = (jsonProperty:string, dbColumn:string, parsedValue:any, fieldName:string, columnList:string[], valueList:any[], editType:EDIT_TYPES = EDIT_TYPES.EDIT):boolean => {
-        
-        if(fieldName == jsonProperty && parsedValue != null){
-            //Update Field
-            if(editType === EDIT_TYPES.EDIT) {
-            
-                if(columnList.includes(`${dbColumn} = \$${valueList.length}`)){ //Replaces Duplicates
-                    const index:number = columnList.indexOf(`${dbColumn} = \$${valueList.length}`);
-                    valueList[index] = parsedValue;
-                    return true;
-
-                } else { //Add New
-                    valueList.push(parsedValue);
-                    columnList.push(`${dbColumn} = \$${valueList.length}`);
-                    return true;
-                }
-
-            //Insert Field
-            } else if(editType === EDIT_TYPES.CREATE) {
-
-                if(columnList.includes(dbColumn)){ //Replaces Duplicates
-                    const index:number = columnList.indexOf(dbColumn);
-                    valueList[index] = parsedValue;
-                    return true;
-
-                } else { //Add New
-                    valueList.push(parsedValue);
-                    columnList.push(dbColumn);
-                    return true;
-                }
-            }
-        } return false;
-    }
+    return true;
+}

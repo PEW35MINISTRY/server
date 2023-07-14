@@ -11,7 +11,7 @@ export enum MessageTypeEnum {
 }
 
 export interface Message {
-    userId: number, 
+    userID: number, 
     topic: MessageTypeEnum, 
     message: string,
     time: number,
@@ -19,7 +19,7 @@ export interface Message {
 
 export interface ConversationNewRequest extends IdentityRequest {
     body: {
-        userId: number, 
+        userID: number, 
         topic: MessageTypeEnum, 
         message: string,
     }
@@ -30,7 +30,7 @@ export interface ConversationResponse {
 };
 
 export type Contact = {
-    id: number,
+    ID: number,
     name: string
 }
 

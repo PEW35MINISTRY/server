@@ -17,9 +17,9 @@ export const GET_profilePrayerRequestSpecific = (request: IdentityPrayerRequest,
 export const POST_prayerRequest =  (request: PrayerRequestNewRequest, response: Response) => { //POST includes sharing to circle/partners/leaders
     //Query Database
 
-    const newRequestId:string = '203';
+    const newRequestID:string = '203';
 
-    response.status(200).send(getPrayerRequest(newRequestId));
+    response.status(200).send(getPrayerRequest(newRequestID));
     log.event("New Prayer Request Created.");
 };
 
