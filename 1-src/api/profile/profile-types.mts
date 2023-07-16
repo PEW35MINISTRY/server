@@ -57,7 +57,7 @@ export interface ProfileEditRequest extends IdentityClientRequest {
         walkLevel?: number,
         image?: string,
         notes?: string,
-        userRoleTokenMap?: [{role: RoleEnum, token: string}]
+        userRoleTokenList?: [{role: RoleEnum, token: string}]
     } 
 }
 

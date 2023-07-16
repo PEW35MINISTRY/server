@@ -62,8 +62,31 @@ export const getJWTData = (jwt:string):JwtData => {
         };
 }
 
+export const validateNewRoleTokenList = async({newRoleList, jsonRoleTokenList, email, currentRoleList, adminOverride}
+                                        :{newRoleList:RoleEnum[], jsonRoleTokenList:{role: RoleEnum, token: string}[], email:string, currentRoleList?:RoleEnum[], adminOverride?:boolean}) => 
+    await [...newRoleList].every( async(role:RoleEnum) => {
+        if(adminOverride) 
+            return true;
+        else if(currentRoleList !== undefined && currentRoleList.includes(role)) 
+            return true;
+        else if(role === RoleEnum.STUDENT)
+            return true;
+        else {
+            try {
+                const roleTokenItem = jsonRoleTokenList.find(({role: userRole, token}) => (role === RoleEnum[userRole]));
+                const authenticationToken = roleTokenItem?.token;
+
+                return await verifyNewAccountToken(role, authenticationToken, email);
+
+            } catch(error) {
+                log.auth(`validateNewRoleTokenList | Failed to validate role: ${role} for ${email}`);
+                return false;
+            }
+        }
+    });
+
 //Create Account token required for non student accounts (Not required for )
-export const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.STUDENT, token:string, email:string):Promise<boolean> => {
+const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.STUDENT, token:string, email:string):Promise<boolean> => {
     log.auth('New Account Authorized attempted: ', userRole, token, email);
 
     if(userRole === undefined || token === undefined || email === undefined) return false;

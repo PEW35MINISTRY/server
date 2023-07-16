@@ -34,7 +34,7 @@ export default class USER {
 
   constructor(DB?:DATABASE_USER, userID?:number) {
         try {
-            this.userID = userID || DB.userID || -1;
+            this.userID = userID || DB?.userID || -1;
 
             if(DB !== undefined) {
                 this.firstName = DB.firstName;
@@ -76,6 +76,9 @@ export default class USER {
       properties.filter((p) => (includeUserID || (p !== 'userID'))).forEach((field) => {
           if(field === 'userRole') 
             map.set(field, this.getHighestRole());
+
+          else if(field === 'userRoleList' && this.userRoleList.length === 0) 
+            map.set(field, [this.getHighestRole()]);
           
           else if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
             && (!Array.isArray(this[field]) || this[field].length > 0)) 
