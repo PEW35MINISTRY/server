@@ -3,7 +3,7 @@ import URL, { URLSearchParams } from 'url';
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { IdentityClientRequest, IdentityRequest, JWTClientRequest, JwtRequest } from '../auth/auth-types.mjs';
-import { isRequestorAllowedProfile, verifyNewAccountToken } from '../auth/auth-utilities.mjs';
+import { isRequestorAllowedProfile, validateNewRoleTokenList } from '../auth/auth-utilities.mjs';
 import { extractClientProfile } from '../auth/authorization.mjs';
 import { ProfileEditRequest,  ProfileListItem,  ProfileResponse } from './profile-types.mjs';
 import { createUserFromJSON } from './profile-utilities.mjs';
@@ -50,7 +50,7 @@ export const GET_AvailableAccount =  async (request: Request, response: Response
     if(result === false) 
         response.status(204).send(`No Account exists for ${Array.from(fieldMap.values()).join(', ')}`);
     else
-        response.status(403).send(`Account is Available`);
+        response.status(403).send(`Account Exists`);
 }
    
 export const GET_publicProfile =  async (request: JWTClientRequest, response: Response, next: NextFunction) => {
@@ -93,30 +93,30 @@ export const GET_partnerProfile = async (request: IdentityClientRequest, respons
 export const PATCH_userProfile = async (request: ProfileEditRequest, response: Response, next: NextFunction) => {
 
     if(await isRequestorAllowedProfile(request.clientProfile, request.userProfile)){
-        const editProfile:USER|undefined = createUserFromJSON({currentUser: new USER(undefined, request.clientID), jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
+        const editProfile:USER|undefined = createUserFromJSON({currentUser: request.clientProfile, jsonObj:request.body, fieldList: request.userProfile.isRole(RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS, next: next});
 
-        if(editProfile === undefined)
-            next(new Exception(500, `Edit Profile Failed :: Failed to parse input.`, 'Edit Failed'));
-
-        //Verify user roles and verify account type tokens
-        else if(await !editProfile.userRoleList.every(async (role:RoleEnum) => (request.userProfile.isRole(RoleEnum.ADMIN) || request.clientProfile.isRole(role) 
-            || (await verifyNewAccountToken(role, request.body.userRoleTokenMap?.find(({role: userRole, token}) => (role === RoleEnum[userRole]))?.token, editProfile.email) === true))))
+        if(editProfile !== undefined) {
+            //Verify user roles and verify account type tokens
+            if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: request.clientProfile.userRoleList, adminOverride: request.userProfile.isRole(RoleEnum.ADMIN)}) === false)
                 next(new Exception(402, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
 
-        else if(await !DB_UPDATE_USER(request.clientID, editProfile.getUniqueDatabaseProperties(request.clientProfile))) 
-            next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
+            else if((editProfile.getUniqueDatabaseProperties(request.clientProfile).size > 0 )
+                    && await !DB_UPDATE_USER(request.clientID, editProfile.getUniqueDatabaseProperties(request.clientProfile))) 
+                next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
 
-        else {
-            //Handle userRoleList: Add new user roles, already verified permission above
-            const insertRoleList:RoleEnum[] = editProfile.userRoleList?.filter((role) => (role !== RoleEnum.STUDENT && !request.clientProfile.userRoleList.includes(role)));
-            if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({userID:editProfile.userID, userRoleList: insertRoleList}))
-                log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${editProfile.userID}`);
+            else {
+                //Handle userRoleList: Add new user roles, already verified permission above
+                const saveStudentRole:boolean = editProfile.userRoleList.length > 1; //Only save student role for multi role users
+                const insertRoleList:RoleEnum[] = editProfile.userRoleList?.filter((role) => ((role !== RoleEnum.STUDENT || saveStudentRole) && !request.clientProfile.userRoleList.includes(role)));
+                if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({userID:editProfile.userID, userRoleList: insertRoleList}))
+                    log.error(`Edit Profile Failed :: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${editProfile.userID}`);
 
-            const deleteRoleList:RoleEnum[] = request.clientProfile.userRoleList?.filter((role) => (role !== RoleEnum.STUDENT && !editProfile.userRoleList.includes(role)));
-            if(deleteRoleList.length > 0 && !DB_DELETE_USER_ROLE({userID:editProfile.userID, userRoleList: deleteRoleList}))
-                log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(deleteRoleList)} to ${editProfile.userID}`);
+                const deleteRoleList:RoleEnum[] = request.clientProfile.userRoleList?.filter((role) => ((role !== RoleEnum.STUDENT || saveStudentRole) && !editProfile.userRoleList.includes(role)));
+                if(deleteRoleList.length > 0 && !DB_DELETE_USER_ROLE({userID:editProfile.userID, userRoleList: deleteRoleList}))
+                    log.error(`Edit Profile Failed :: Error removing userRoles ${JSON.stringify(deleteRoleList)} to ${editProfile.userID}`);
 
-            response.status(202).send(editProfile.toProfileJSON());
+                response.status(202).send(editProfile.toProfileJSON());
+            }
         }
     } else 
         new Exception(401, `User ${request.userID} is UNAUTHORIZED to edit the profile of Client: ${request.clientID}`)
