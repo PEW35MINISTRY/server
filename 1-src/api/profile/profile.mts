@@ -93,7 +93,7 @@ export const GET_partnerProfile = async (request: IdentityClientRequest, respons
 export const PATCH_userProfile = async (request: ProfileEditRequest, response: Response, next: NextFunction) => {
 
     if(await isRequestorAllowedProfile(request.clientProfile, request.userProfile)){
-        const editProfile:USER|undefined = createUserFromJSON({currentUser: request.clientProfile, jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS, next: next});
+        const editProfile:USER|undefined = createUserFromJSON({currentUser: request.clientProfile, jsonObj:request.body, fieldList: request.userProfile.isRole(RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS, next: next});
 
         if(editProfile !== undefined) {
             //Verify user roles and verify account type tokens

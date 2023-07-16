@@ -34,6 +34,7 @@ const jsonToUserMapping = new Map<string, string>([
 
 export const createUserFromJSON = ({currentUser = new USER(), jsonObj, fieldList, next}:{currentUser?: USER, jsonObj:ProfileEditRequest['body'], fieldList:InputField[], next: NextFunction}):USER => {
     const user = new USER(undefined, currentUser.userID);
+    user.userRoleList = currentUser.userRoleList;
 
     for(let field of fieldList) {
         if(field.required && jsonObj[field.field] === undefined && (jsonToUserMapping.get(field.field) || currentUser[field.field]) === undefined ) {

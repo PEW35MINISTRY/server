@@ -40,7 +40,7 @@ export enum InputType {
 export type FieldInput = {
     title: string,
     field: string, 
-    value: string | string [] | undefined,
+    value: string | undefined,
     type: InputType,
     required: boolean,
     validationRegex: string,
@@ -51,7 +51,7 @@ export type FieldInput = {
 export class InputField {
     title: string;
     field: string;
-    value: string | string[] | undefined;
+    value: string | undefined;
     type: InputType;
     required: boolean;
     unique: boolean;

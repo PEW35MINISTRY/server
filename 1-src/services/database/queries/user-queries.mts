@@ -232,7 +232,7 @@ export const DB_SELECT_CREDENTIALS = async():Promise<CredentialProfile[]> => {
 
     return [...rows.map(row => ({userID: row.userID || -1, 
             displayName: row.displayName || '', 
-            userRole: row.role || RoleEnum.STUDENT,
+            userRole: row.userRole || RoleEnum.STUDENT,
             email: row.email || '',
             passwordHash: row.passwordHash || '',
         }))];

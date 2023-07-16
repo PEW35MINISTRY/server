@@ -15,6 +15,14 @@ export type CredentialProfile = {
 }
 
 /* Sync between Server and Portal "profile-types" */
+export interface ProfileListItem {
+    userID: number,
+    firstName: string,
+    displayName: string,
+    image: string,
+}
+
+/* Sync between Server and Portal "profile-types" */
 export interface ProfilePublicResponse {
     userID: number, 
     userRole: string, 
@@ -63,11 +71,4 @@ export interface ProfileEditRequest extends IdentityClientRequest {
 
 export interface ProfileSignupRequest extends Request  {
     body: Request['body'] & ProfileEditRequest['body']
-}
-
-export interface ProfileListItem {
-    userID: number,
-    firstName: string,
-    displayName: string,
-    image: string,
 }
