@@ -4,7 +4,7 @@ import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
 import { createUserFromJSON } from '../profile/profile-utilities.mjs';
 import { IdentityRequest, JWTClientRequest, JwtRequest, JWTResponse, JwtResponseBody, LoginRequest, LoginResponseBody } from './auth-types.mjs';
-import {generateJWT, getUserLogin, verifyNewAccountToken} from './auth-utilities.mjs'
+import {generateJWT, getUserLogin, validateNewRoleTokenList } from './auth-utilities.mjs'
 import { extractClientProfile } from './authorization.mjs';
 import { generateSecretKey } from './auth-utilities.mjs';
 import { RoleEnum, SIGNUP_PROFILE_FIELDS } from '../profile/Fields-Sync/profile-field-config.mjs';
@@ -17,34 +17,34 @@ import USER from '../../services/models/user.mjs';
  *********************/
  export const POST_signup =  async(request: ProfileSignupRequest, response: Response, next: NextFunction) => {
     
-    const newProfile:USER|undefined = createUserFromJSON({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
+    const newProfile:USER|undefined = createUserFromJSON({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS, next:next});
 
-    if(newProfile === undefined)
-        next(new Exception(500, `Signup Failed :: Failed to parse input.`, 'Sign Up Failed'));
+    if(newProfile !== undefined) {
+        if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
+            next(new Exception(400, `Signup Failed :: Missing Required Fields: ${JSON.stringify(USER_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
-    else if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
-        next(new Exception(400, `Signup Failed :: Missing Required Fields: ${JSON.stringify(USER_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
+        //Verify user roles and verify account type tokens
+        else if(await validateNewRoleTokenList({newRoleList:newProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: newProfile.email}) === false)
+            next(new Exception(402, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
 
-    //Verify user roles and verify account type tokens
-    else if(!(await newProfile.userRoleList.every(async (role:RoleEnum) => (await verifyNewAccountToken(role, request.body.userRoleTokenMap?.find(({userRole, token}) => (role === RoleEnum[userRole]))?.token, newProfile.email) === true))))
-        next(new Exception(402, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
+        else if(await !DB_INSERT_USER(newProfile.getValidProperties(USER_TABLE_COLUMNS, false))) 
+                next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Save Failed'));
 
-    else if(await !DB_INSERT_USER(newProfile.getValidProperties(USER_TABLE_COLUMNS, false))) 
-            next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Save Failed'));
+        //New Account Success -> Auto Login Response
+        else { 
+            //Add user roles, already verified permission above
+            const saveStudentRole:boolean = newProfile.userRoleList.length > 1; //Only save student role for multi role users
+            const insertRoleList:RoleEnum[] = newProfile.userRoleList.filter((role) => (role !== RoleEnum.STUDENT || saveStudentRole));
+            if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
+                log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
 
-    //New Account Success -> Auto Login Response
-    else { 
-        //Add user roles, already verified permission above
-        const insertRoleList:RoleEnum[] = newProfile.userRoleList.filter((role) => (role !== RoleEnum.STUDENT));
-        if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
-            log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
+            const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password']);
 
-        const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password']);
-
-        if(loginDetails)
-            response.status(201).send(loginDetails);
-        else
-            next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`));
+            if(loginDetails)
+                response.status(201).send(loginDetails);
+            else
+                next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`));
+        }
     }
 };
 

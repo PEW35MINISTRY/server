@@ -183,7 +183,7 @@ export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:
     const response:CommandResponseType = await command('INSERT INTO user_role ( userID, userRoleID ) VALUES '
     + userRoleList.map(() => `( ${(userID === undefined) ? '(SELECT user.userID FROM user WHERE user.email = ? )' : '?'} , `
     + '(SELECT user_role_defined.userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))').join(', ')
-    + ';', userRoleList.flatMap((role) => [userID, role]));
+    + ';', userRoleList.flatMap((role) => [userID || email, role]));
 
     return ((response !== undefined) && (response.affectedRows > 0));
 }
@@ -232,7 +232,7 @@ export const DB_SELECT_CREDENTIALS = async():Promise<CredentialProfile[]> => {
 
     return [...rows.map(row => ({userID: row.userID || -1, 
             displayName: row.displayName || '', 
-            userRole: row.role || RoleEnum.STUDENT,
+            userRole: row.userRole || RoleEnum.STUDENT,
             email: row.email || '',
             passwordHash: row.passwordHash || '',
         }))];
