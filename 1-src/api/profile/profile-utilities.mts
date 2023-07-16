@@ -4,6 +4,7 @@ import * as log from '../../services/log.mjs';
 import { getPasswordHash } from "../auth/auth-utilities.mjs";
 import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, GenderEnum, getDOBMaxDate, getDOBMinDate, InputField, InputType, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from "./Fields-Sync/profile-field-config.mjs";
 import USER from "../../services/models/user.mjs";
+import { NextFunction } from "express";
 
 export const editProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
     if(userRole === RoleEnum.ADMIN)
@@ -24,38 +25,48 @@ export const signupProfileFieldAllowed = (field:string, userRole:RoleEnum):boole
  *                 Profile Edit Utilities
  *  parse & validate JSON response to USER | (throws Exception)
  * **************************************************************/
-export const createUserFromJSON = ({currentUser = new USER(), jsonObj, fieldList}:{currentUser?: USER, jsonObj:ProfileEditRequest['body'], fieldList:InputField[]}):USER => {
+//Local Mapping: ONLY FOR VALIDATIONS ( json defined in profile-field-config.mts )
+const jsonToUserMapping = new Map<string, string>([
+    ['userRoleTokenList', 'userRoleList'],
+    ['password', 'passwordHash'],
+    ['passwordVerify', 'passwordHash']
+]);
 
-    fieldList.forEach((field) => {
+export const createUserFromJSON = ({currentUser = new USER(), jsonObj, fieldList, next}:{currentUser?: USER, jsonObj:ProfileEditRequest['body'], fieldList:InputField[], next: NextFunction}):USER => {
+    const user = new USER(undefined, currentUser.userID);
+    user.userRoleList = currentUser.userRoleList;
 
-        if(field.required && currentUser[field.field] === undefined && jsonObj[field.field] === undefined ) {
-            new Exception(400, `${field.title} is Required.`);
+    for(let field of fieldList) {
+        if(field.required && jsonObj[field.field] === undefined && (jsonToUserMapping.get(field.field) || currentUser[field.field]) === undefined ) {
+            next(new Exception(400, `${field.title} is Required.`));
             return undefined;
 
-        } else if(jsonObj[field.field] !== undefined && validateInput({field, value: jsonObj[field.field], highestRole: currentUser.getHighestRole()})) {
+        } else if(jsonObj[field.field] === undefined)
+            continue;
+        else if(validateInput({field, value: jsonObj[field.field], highestRole: user.getHighestRole()})) {
 
             //Special Handling: Password Hash
             if(field.field === 'password' && jsonObj['password'] === jsonObj['passwordVerify'])
-                currentUser.passwordHash = getPasswordHash(jsonObj['password']);
+                user.passwordHash = getPasswordHash(jsonObj['password']);
 
             else if(field.field === 'userRoleTokenList')
-                currentUser.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string]);
+                user.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string] || RoleEnum.STUDENT);
 
-                else if(currentUser.hasProperty(field.field) && jsonObj[field.field] !== undefined)
-                currentUser[field.field] = parseInput({field:field, value:jsonObj[field.field]});
+            else if(user.hasProperty(field.field) && jsonObj[field.field] !== undefined)
+                user[field.field] = parseInput({field:field, value:jsonObj[field.field]});
 
             else
                 console.info('*Skipping extra field', field.field, jsonObj[field.field]);
 
-        } else {
-            new Exception(400, `${field.title} is Invalid.`);
+        } else if(field.required) {
+            next(new Exception(400, `${field.title} is Invalid.`));
             return undefined;
         }
-    });
-    return currentUser;
+    }
+    return user;
 }
 
-//Private: parseInput by type
+//Private: parseInput by type ( must be direct mapping to USER property )
 const parseInput = ({field, value}:{field:InputField, value:any}):any => {
     try {
         if(value === undefined || value === null)
@@ -104,12 +115,8 @@ const validateInput = ({field, value, highestRole = RoleEnum.STUDENT}:{field:Inp
     } else if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)
         const currentDate:Date = new Date(value);
 
-        if(currentDate < getDOBMinDate(highestRole)) {
+        if(isNaN(currentDate.valueOf()) ||  currentDate < getDOBMinDate(highestRole) || currentDate > getDOBMaxDate(highestRole))
             return false;
-
-        } else if(currentDate > getDOBMaxDate(highestRole)) {
-            return false
-        }
     }
 
     return true;
