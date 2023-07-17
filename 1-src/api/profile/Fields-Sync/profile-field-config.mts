@@ -131,8 +131,8 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
 ];
 
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
-    new InputField({title: 'Account Types', field: 'userRoleList', type: InputType.MULTI_SELECTION_LIST, required: true, selectOptionList: Object.values(RoleEnum)}),
-    new InputField({title: 'Active Account', field: 'isActive', required: true, type: InputType.SELECT_LIST, selectOptionList: ['TRUE', 'FALSE']}),
+    new InputField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: false, selectOptionList: Object.values(RoleEnum)}),
+    new InputField({title: 'Active Account', field: 'isActive', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, unique: true,  validationRegex: EMAIL_REGEX, validationMessage: 'Required, invalid email format.' }),
     ...EDIT_PROFILE_FIELDS,
     new InputField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),
