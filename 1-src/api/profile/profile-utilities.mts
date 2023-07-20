@@ -38,7 +38,7 @@ export const createUserFromJSON = ({currentUser = new USER(), jsonObj, fieldList
 
     for(let field of fieldList) {
         if(field.required && jsonObj[field.field] === undefined && (jsonToUserMapping.get(field.field) || currentUser[field.field]) === undefined ) {
-            next(new Exception(400, `${field.title} is Required.`));
+            next(new Exception(400, `${field.title} is Required.`, `${field.title} is Required.`));
             return undefined;
 
         } else if(jsonObj[field.field] === undefined)
@@ -59,7 +59,7 @@ export const createUserFromJSON = ({currentUser = new USER(), jsonObj, fieldList
                 console.info('*Skipping extra field', field.field, jsonObj[field.field]);
 
         } else if(field.required) {
-            next(new Exception(400, `${field.title} is Invalid.`));
+            next(new Exception(400, `${field.title} failed validations.`, `${field.title} is invalid.`));
             return undefined;
         }
     }
@@ -72,17 +72,24 @@ const parseInput = ({field, value}:{field:InputField, value:any}):any => {
         if(value === undefined || value === null)
             throw `${field.title} is undefined.`
 
+        /* NOTE: All  */
         else if(field.field === 'userRoleList')
             return Array.from(value as string[]).map(role => RoleEnum[role as string]);
 
         else if(field.field === 'gender')
             return GenderEnum[value];
 
+        else if(field.field === 'walkLevel')
+            return parseInt(value) as number;
+
+        else if(field.field === 'isActive')
+            return (value === 'true') as boolean;
+
         else if(field.type === InputType.DATE)
             return new Date(value);
 
         else if(field.type === InputType.NUMBER)
-            return value as number;
+            return parseFloat(value) as number;
 
         else if(field.type === InputType.MULTI_SELECTION_LIST)
             return Array.from(value);
@@ -91,7 +98,7 @@ const parseInput = ({field, value}:{field:InputField, value:any}):any => {
             return value;
 
     } catch(error) {
-        log.error(`Failed to parse profile field: ${field.field} with value: ${value}`);
+        log.error(`Failed to parse profile field: ${field.field} with value: ${value}`, error);
         new Exception(400, `${field.title} is Required.`);
         return undefined;
     }
@@ -108,7 +115,7 @@ const validateInput = ({field, value, highestRole = RoleEnum.STUDENT}:{field:Inp
         return false;
 
     /* SELECT_LIST */
-    } else if(field.type === InputType.SELECT_LIST && !field.selectOptionList.includes(value)) {
+    } else if(field.type === InputType.SELECT_LIST && !field.selectOptionList.includes(`${value}`)) {
         return false;
 
     /* DATES | dateOfBirth */

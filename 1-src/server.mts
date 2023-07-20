@@ -112,7 +112,7 @@ apiServer.post('/signup', POST_signup);
 apiServer.get('/resources/role-list', GET_RoleList);
 apiServer.get('/resources/available-account', GET_AvailableAccount);
 
-apiServer.get('/resources/signup-fields/:role', GET_SignupProfileFields);
+apiServer.get('/resources/signup-fields/:role?', GET_SignupProfileFields);
 
 apiServer.post('/login', POST_login);
 

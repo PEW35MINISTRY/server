@@ -21,7 +21,7 @@ export const GET_SignupProfileFields = async(request: JwtRequest, response: Resp
 
     const role: string = request.params.role || 'student';
     
-    if(role === 'student')
+    if(role.toLowerCase() === 'student')
         response.status(200).send(SIGNUP_PROFILE_FIELDS_STUDENT.map(field => field.toJSON()));
     else
         response.status(200).send(SIGNUP_PROFILE_FIELDS.map(field => field.toJSON()));

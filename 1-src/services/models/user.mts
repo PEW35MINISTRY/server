@@ -11,7 +11,7 @@ export default class USER {
   //Private static list of class property fields | (This is display-responses; NOT edit-access -> see: profile-field-config.mts)
   #publicPropertyList = ['userID', 'firstName', 'lastName', 'displayName', 'postalCode', 'dateOfBirth', 'gender', 'image', 'circleList', 'userRole'];
   #partnerPropertyList = [...this.#publicPropertyList, 'walkLevel', 'partnerList'];
-  #propertyList = [...this.#partnerPropertyList, 'email', 'isActive', 'userRoleList'];
+  #propertyList = [...this.#partnerPropertyList, 'email', 'isActive', 'notes', 'userRoleList'];
 
   userID: number = -1;
   firstName?: string;
@@ -25,6 +25,7 @@ export default class USER {
   isActive?: boolean;
   walkLevel?: number;
   image?: string;
+  notes?: string;
 
   //Query separate Tables
   userRoleList: RoleEnum[] = [RoleEnum.STUDENT];
@@ -46,8 +47,9 @@ export default class USER {
                 this.dateOfBirth = DB.dateOfBirth;
                 this.gender = GenderEnum[DB.gender];
                 this.isActive = DB.isActive ? true : false;
-                this.walkLevel = DB.walkLevel;
+                this.walkLevel = DB.walkLevel as number;
                 this.image = DB.image;
+                this.notes = DB.notes;
                 this.userRoleList = [RoleEnum[DB.userRole] || RoleEnum.STUDENT];
             }
         } catch(error) {

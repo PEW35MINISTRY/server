@@ -10,7 +10,7 @@ export interface CommandResponseType extends SQL.ResultSetHeader {
 *           Database `user` Table Created: 6/25/2023 
 ********************************************************************/
 export const USER_TABLE_COLUMNS:string[] = [
-    'userID', 'firstName', 'lastName', 'displayName', 'email', 'passwordHash', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'createdDT', 'modifiedDT', 'image', 'notes'
+    'userID', 'firstName', 'lastName', 'displayName', 'email', 'passwordHash', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes'
 ];
 
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash'];
