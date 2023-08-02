@@ -1,13 +1,18 @@
 import * as log from '../log.mjs';
 import { DATABASE_USER, USER_TABLE_COLUMNS } from "../database/database-types.mjs";
 import { CircleListItem } from "../../api/circle/circle-types.mjs";
-import { GenderEnum, RoleEnum } from "../../api/profile/Fields-Sync/profile-field-config.mjs";
-import { ProfileListItem, ProfileResponse, ProfilePublicResponse, ProfilePartnerResponse } from "../../api/profile/profile-types.mjs";
+import { GenderEnum, InputField, InputType, RoleEnum, getDOBMaxDate, getDOBMinDate } from "./Fields-Sync/profile-field-config.mjs";
+import { ProfileListItem, ProfileResponse, ProfilePublicResponse, ProfilePartnerResponse, ProfileEditRequest } from "../../api/profile/profile-types.mjs";
+import BASE_MODEL from './baseModel.mjs';
+import { getPasswordHash } from '../../api/auth/auth-utilities.mjs';
 
 /*******************************************
 UNIVERSAl profile for DATABASE OPERATIONS 
 ********************************************/
-export default class USER {
+export default class USER implements BASE_MODEL {
+  modelType = 'USER';
+  getID = () => this.userID;
+
   //Private static list of class property fields | (This is display-responses; NOT edit-access -> see: profile-field-config.mts)
   #publicPropertyList = ['userID', 'firstName', 'lastName', 'displayName', 'postalCode', 'dateOfBirth', 'gender', 'image', 'circleList', 'userRole'];
   #partnerPropertyList = [...this.#publicPropertyList, 'walkLevel', 'partnerList'];
@@ -44,7 +49,7 @@ export default class USER {
                 this.email = DB.email;
                 this.passwordHash = DB.passwordHash;
                 this.postalCode = DB.postalCode;
-                this.dateOfBirth = DB.dateOfBirth;
+                this.dateOfBirth = DB.dateOfBirth;  //Date converted by MYSQL2
                 this.gender = GenderEnum[DB.gender];
                 this.isActive = DB.isActive ? true : false;
                 this.walkLevel = DB.walkLevel as number;
@@ -110,4 +115,37 @@ export default class USER {
   toListItem = ():ProfileListItem => ({userID: this.userID, firstName: this.firstName, displayName: this.displayName, image: this.image});
 
   toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
+
+  /** Utility methods for createModelFromJSON **/
+  validateModelSpecificField = ({field, value}:{field:InputField, value:string}):boolean|undefined => {
+    /* DATES | dateOfBirth */
+    if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)
+      const currentDate:Date = new Date(value);
+
+      if(isNaN(currentDate.valueOf()) ||  currentDate < getDOBMinDate(this.getHighestRole()) || currentDate > getDOBMaxDate(this.getHighestRole()))
+          return false;
+    }
+
+    //No Field Match
+    return true;
+  }
+
+  parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body']}):boolean|undefined => {
+    //Special Handling: Password Hash
+    if(field.field === 'password' && jsonObj['password'] === jsonObj['passwordVerify']) {
+      this.passwordHash = getPasswordHash(jsonObj['password']);
+      return true;
+
+    } else if(field.field === 'passwordVerify') { //valid Skip without error
+      return true;
+
+    } else if(field.field === 'userRoleTokenList') {
+      this.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string] || RoleEnum.STUDENT);
+      return true;
+    }
+
+    //No Field Match
+    return undefined;
+  }
+
 };

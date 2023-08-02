@@ -3,9 +3,12 @@ import {Exception} from "../api-types.mjs"
 import * as log from '../../services/log.mjs';
 import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JWTClientRequest, JwtData, JwtRequest } from "./auth-types.mjs";
 import { isRequestorAllowedProfile, verifyJWT as verifyJwt, getJWTData as getJwtData } from "./auth-utilities.mjs";
-import { RoleEnum } from "../profile/Fields-Sync/profile-field-config.mjs";
+import { RoleEnum } from "../../services/models/Fields-Sync/profile-field-config.mjs";
 import { DB_SELECT_USER_PROFILE } from "../../services/database/queries/user-queries.mjs";
-import USER from "../../services/models/user.mjs";
+import USER from "../../services/models/userModel.mjs";
+import CIRCLE from "../../services/models/circleModel.mjs";
+import { DB_IS_CIRCLE_USER_OR_LEADER, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_DETAIL } from "../../services/database/queries/circle-queries.mjs";
+import { DATABASE_CIRCLE_STATUS_ENUM } from "../../services/database/database-types.mjs";
 
 /* *******************
  Middleware Authentication
@@ -42,7 +45,7 @@ export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: 
     }
 }
 
-// #1 - Verify Identity
+// #1 - Verify Identity  and cache user Profile
 export const authenticateUserMiddleware = async(request: IdentityRequest, response: Response, next: NextFunction):Promise<void> => {
 
     //Verify Credentials Exist
@@ -66,7 +69,7 @@ export const authenticateUserMiddleware = async(request: IdentityRequest, respon
 
         //Inject userProfile into request object
         else {
-            request.userID = userID;
+            request.userID = parseInt(userID as unknown as string);
             request.userRole = userProfile.getHighestRole(),
             request.userProfile = userProfile;
 
@@ -90,13 +93,13 @@ export const extractClientProfile = async(request: JWTClientRequest | IdentityCl
       return new Exception(404, `FAILED AUTHENTICATED :: CLIENT :: User: ${clientID} - DOES NOT EXIST`);
 
     //Inject Client ID & profile into request object
-    request.clientID = clientID;
+    request.clientID = parseInt(clientID as unknown as string);
     request.clientProfile = clientProfile;
 
     return false;
 }
 
-// #2 - Verify Partner Status
+// #2 - Verify Partner Status and cache client Profile
 export const authenticatePartnerMiddleware = async(request: IdentityClientRequest, response: Response, next: NextFunction):Promise<void> => { //TODO: query patch to remove unmatched partner
 
     const clientException = await extractClientProfile(request);
@@ -116,26 +119,25 @@ export const authenticatePartnerMiddleware = async(request: IdentityClientReques
 
 //HELPER UTILITY: Identify circle ID in URL path and Inject circle profile into request object 
 export const extractCircleProfile = async(request: IdentityCircleRequest):Promise<Exception|false> => {
-    //Verify Credentials Exist
-    if(!request.params.circle) 
-        return new Exception(400, `FAILED AUTHENTICATED :: CIRCLE :: missing circle-id parameter :: ${request.params.circle}`);
+    //Verify Circle Parameter Exist
+    if(request.params.circle === undefined || isNaN(parseInt(request.params.circle))) 
+        return new Exception(400, `FAILED AUTHENTICATED :: CIRCLE :: missing circle-id parameter :: ${request.params.circle}`, 'Missing Circle');
 
-    //Verify Client Exists
     const circleID:number = parseInt(request.params.circle);
 
-    // const circleProfile:CIRCLE = await DB_SELECT_CIRCLE(circleID);
+    const circleProfile:CIRCLE = await DB_SELECT_CIRCLE_DETAIL({userID: request.userProfile.isRole(RoleEnum.ADMIN) ? -1 : request.userID, circleID});
 
-    // if(circleProfile.circleID < 0) 
-    //   return new Exception(404, `FAILED AUTHENTICATED :: CIRCLE :: Circle: ${circleID} - DOES NOT EXIST`);
+    if(circleProfile.circleID < 0) 
+      return new Exception(404, `FAILED AUTHENTICATED :: CIRCLE :: Circle: ${circleID} - DOES NOT EXIST`);
 
     //Inject circle ID and Profile Into request Object
     request.circleID = circleID;
-    // request.circleProfile = circleProfile;
+    request.circleProfile = circleProfile;
 
     return false;
 }
 
-// #3 - Verify Circle Status
+// #3 - Verify Circle Status and cache circle
 export const authenticateCircleMiddleware = async(request: IdentityCircleRequest, response: Response, next: NextFunction):Promise<void> => {
 
     const circleException = await extractCircleProfile(request);
@@ -143,7 +145,7 @@ export const authenticateCircleMiddleware = async(request: IdentityCircleRequest
         next(circleException);
 
     else if((request.userProfile.isRole(RoleEnum.ADMIN))
-            || (request.userProfile.getCircleIDList().includes(request.circleID))) {
+            || await DB_IS_CIRCLE_USER_OR_LEADER({userID: request.userID, circleID: request.circleID, status: DATABASE_CIRCLE_STATUS_ENUM.MEMBER})) {
 
         log.auth(`AUTHENTICATED :: CIRCLE :: status verified: User: ${request.userID} is a member of CIRCLE: ${request.circleID}`);
         next();
@@ -154,7 +156,7 @@ export const authenticateCircleMiddleware = async(request: IdentityCircleRequest
 }
 
 
-// #4 - Verify User Profile Access
+// #4 - Verify User Profile Access and cache client Profile
 export const authenticateProfileMiddleware = async(request: IdentityClientRequest, response: Response, next: NextFunction):Promise<void> => {
 
     const clientException = await extractClientProfile(request);
@@ -173,24 +175,39 @@ export const authenticateProfileMiddleware = async(request: IdentityClientReques
 }
 
 
-// #5 - Verify Leader Access
-export const authenticateLeaderMiddleware = async(request: IdentityCircleRequest, response: Response, next: NextFunction):Promise<void> => {
+// #5 - Verify CIRCLE_LEADER Access
+export const authenticateLeaderMiddleware = async(request: IdentityRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    const circleException = await extractCircleProfile(request);
-    if(circleException) 
-        next(circleException);
-
-    else if(request.userProfile.isRole(RoleEnum.CIRCLE_LEADER) &&  request.circleProfile.leaderID === request.userProfile.userID) {
-        log.auth(`AUTHENTICATED :: LEADER :: status verified: User: ${request.userID} is a LEADER of circle: ${request.circleID}`);
+    if(request.userProfile.isRole(RoleEnum.CIRCLE_LEADER) || request.userProfile.isRole(RoleEnum.ADMIN)) {
+        log.auth(`AUTHENTICATED :: LEADER :: status verified: User: ${request.userID} is a Circle Leader`);
         next();
 
     } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.userID} denied access to circle: ${request.circleID}`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.userID} is not a Circle Leader.`));
     }
 }
 
+// #6 - Verify CIRCLE_LEADER Access and cache circle
+export const authenticateCircleLeaderMiddleware = async(request: IdentityCircleRequest, response: Response, next: NextFunction):Promise<void> => {
 
-// #6 - Verify ADMIN Access
+    const circleException = await extractCircleProfile(request);
+
+    if(circleException) 
+        next(circleException);
+
+    else if(request.userProfile.isRole(RoleEnum.ADMIN)
+            || (request.userProfile.isRole(RoleEnum.CIRCLE_LEADER)
+                && `${request.userID}` === `${request.circleProfile.leaderID}`)) {
+
+        log.auth(`AUTHENTICATED :: CIRCLE LEADER :: status verified: User: ${request.userID} is a Circle Leader of CIRCLE: ${request.circleID}`);
+        next();
+
+    } else {
+        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE LEADER :: User: ${request.userID} denied access to circle: ${request.circleID}`));
+    }
+}
+
+// #7 - Verify ADMIN Access
 export const authenticateAdminMiddleware = async(request: IdentityRequest, response: Response, next: NextFunction):Promise<void> => {
 
     if(request.userProfile.isRole(RoleEnum.ADMIN)) {

@@ -20,11 +20,11 @@ import apiRoutes from './api/api.mjs';
 
 import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup, POST_authorization_reset } from './api/auth/auth.mjs';
 import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile } from './api/profile/profile.mjs';
+import { GET_publicCircle, GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, GET_CircleList } from './api/circle/circle.mjs';
 import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
-import { authenticatePartnerMiddleware, authenticateCircleMiddleware, authenticateProfileMiddleware, authenticateLeaderMiddleware, authenticateAdminMiddleware, authenticateUserMiddleware, jwtAuthenticationMiddleware } from './api/auth/authorization.mjs';
+import { authenticatePartnerMiddleware, authenticateCircleMiddleware, authenticateProfileMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, authenticateUserMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware } from './api/auth/authorization.mjs';
 import { GET_userContacts } from './api/chat/chat.mjs';
-import { GET_userCircles } from './api/circle/circle.mjs';
  
 //Import Services
 import * as log from './services/log.mjs';
@@ -141,14 +141,15 @@ apiServer.get('/api/public/profile/:client', GET_publicProfile);
 //***************************************
 apiServer.use('/api/user', (request:IdentityRequest, response:Response, next:NextFunction) => authenticateUserMiddleware(request, response, next));
 
-// apiServer.get('/api/public/circle/:circle', GET_publicCircle);
-
 apiServer.get('/api/user/contacts', GET_userContacts); //Returns id and Name
 
 apiServer.get('/api/user/profile/access', GET_profileAccessUserList); //Returns userID, firstName, displayName, image
 
-apiServer.get('/api/user/circles', GET_userCircles);
-
+apiServer.get('/api/user/circle-list', GET_CircleList); //optional 'search' parameter
+apiServer.get('/api/user/circle/:circle', GET_publicCircle);
+apiServer.post('/api/user/circle/:circle/request', POST_circleMemberRequest);
+apiServer.post('/api/user/circle/:circle/accept', POST_circleMemberAccept); //Existing Circle Membership Invite must exist (Student Accepts)
+apiServer.delete('/api/user/circle/:circle/leave', DELETE_circleMember);
 
 
 //******************************
@@ -162,24 +163,20 @@ apiServer.get('/api/user/partner/:client/prayer-request', GET_prayerRequestUser)
 apiServer.get('/api/user/partner/:client/prayer-request/:prayer', GET_profilePrayerRequestSpecific);
 
 
-//******************************
+//******************************************
 // #3 - Verify Circle Status & Cache Circle
-//******************************
-apiServer.use('/api/user/circle/:circle', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateCircleMiddleware(request, response, next));
+//******************************************
+apiServer.use('/api/user/circle/member/:circle', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateCircleMiddleware(request, response, next));
 
-apiServer.get('/api/user/circle/:circle/prayer-request', GET_prayerRequestCircle);
-apiServer.get('/api/user/circle/:circle/prayer-request/:prayer', GET_profilePrayerRequestSpecific);
+apiServer.get('/api/user/circle/member/:circle', GET_circle);
 
-
-//******************************
-// #4 - Verify Leader Access
-//******************************
-apiServer.use('/api/user/circle/:circle/leader', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
+apiServer.get('/api/user/circle/member/:circle/prayer-request', GET_prayerRequestCircle);
+apiServer.get('/api/user/circle/member/:circle/prayer-request/:prayer', GET_profilePrayerRequestSpecific);
 
 
-//******************************
-// #5 - Verify User Profile Access
-//******************************
+//************************************************
+// #4 - Verify User Profile Access & Cache Client
+//************************************************
 apiServer.use('/api/user/profile/:client', async (request:IdentityClientRequest, response:Response, next:NextFunction) => await authenticateProfileMiddleware(request, response, next));
 
 apiServer.get('/api/user/profile/:client/edit-fields', GET_EditProfileFields);
@@ -188,16 +185,44 @@ apiServer.get('/api/user/profile/:client', GET_userProfile);
 apiServer.patch('/api/user/profile/:client', PATCH_userProfile);
 apiServer.delete('/api/user/profile/:client', DELETE_userProfile);
 
+apiServer.delete('/api/user/profile/:client/circle/:circle/leave', DELETE_circleLeaderMember);
+
 apiServer.get('/api/user/profile/:client/prayer-request', GET_prayerRequestUser);
 apiServer.get('/api/user/profile/:client/prayer-request/:prayer', GET_profilePrayerRequestSpecific);
 apiServer.post('/api/user/profile/:client/prayer-request', POST_prayerRequest);
 apiServer.patch('/api/user/profile/:client/prayer-request/:prayer/answered', PATCH_prayerRequestAnswered);
 apiServer.delete('/api/user/profile/:client/prayer-request/:prayer', DELETE_prayerRequest);
 
+//**********************************
+// #5 - Verify Circle Leader Access
+//**********************************
+apiServer.use('/api/user/leader', (request:IdentityRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
+
+apiServer.post('/api/user/leader/circle', POST_newCircle);
+
+
+//*************************************************
+// #6 - Verify Circle Leader Access & Cache Circle
+//*************************************************
+apiServer.use('/api/user/leader/circle/:circle', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateCircleLeaderMiddleware(request, response, next));
+
+apiServer.patch('/api/user/leader/circle/:circle', PATCH_circle);
+apiServer.delete('/api/user/leader/circle/:circle', DELETE_circle);
+
+apiServer.post('/api/user/leader/circle/:circle/invite/:client', POST_circleLeaderMemberInvite);
+apiServer.post('/api/user/leader/circle/:circle/accept/:client', POST_circleLeaderAccept); //Existing Circle Membership Request must exist (Leader Accepts)
+apiServer.delete('/api/user/leader/circle/:circle/leave/:client', DELETE_circleLeaderMember);
+
+apiServer.post('/api/user/leader/circle/:circle/announcement', POST_circleAnnouncement);
+apiServer.delete('/api/user/leader/circle/:circle/announcement/:announcement', DELETE_circleAnnouncement);
+
+
 //******************************
-// #6 - Verify ADMIN Access
+// #7 - Verify ADMIN Access
 //******************************
 apiServer.use('/api/user/admin', (request:IdentityRequest, response:Response, next:NextFunction) => authenticateAdminMiddleware(request, response, next));
+
+apiServer.post('/api/user/admin/circle/:circle/join/:client', POST_circleMemberJoinAdmin);
 
 apiServer.use(express.text());
 apiServer.use('/api/user/admin/log', logRoutes);
@@ -234,9 +259,11 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     }
     response.status(error.status || 500).send(errorResponse);
 
-    if(status < 400) log.event('API Event:', message);
-    else if(status >= 400 && status <= 403) log.auth('HTTP user verification failed:', message);
-    else log.error('API Server Error:', message);
+    if(status < 400) log.event(`API | ${status} | Event:`, message);
+    else if(status === 400) log.warn('API | 400 | User Request Invalid:', message);
+    else if(status === 401) log.auth('API   401 | User Unauthorized:', message);
+    else if(status === 404) log.warn('API | 404 | Request Not Found:', message);
+    else log.error(`API | ${status} | Server Error:`, message);
 });
 
 //Must match Portal in app-types.tsx

@@ -6,10 +6,11 @@ import { IdentityClientRequest, IdentityRequest, JWTClientRequest, JwtRequest } 
 import { isRequestorAllowedProfile, validateNewRoleTokenList } from '../auth/auth-utilities.mjs';
 import { extractClientProfile } from '../auth/authorization.mjs';
 import { ProfileEditRequest,  ProfileListItem,  ProfileResponse } from './profile-types.mjs';
-import { createUserFromJSON } from './profile-utilities.mjs';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from './Fields-Sync/profile-field-config.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from '../../services/models/Fields-Sync/profile-field-config.mjs';
 import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../services/database/queries/user-queries.mjs';
-import USER from '../../services/models/user.mjs';
+import USER from '../../services/models/userModel.mjs';
+import { DB_DELETE_CIRCLE_USER_STATUS } from '../../services/database/queries/circle-queries.mjs';
+import createModelFromJSON from '../../services/models/createModelFromJson.mjs';
 
 //UI Helper Utility
 export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
@@ -93,15 +94,15 @@ export const GET_partnerProfile = async (request: IdentityClientRequest, respons
 export const PATCH_userProfile = async (request: ProfileEditRequest, response: Response, next: NextFunction) => {
 
     if(await isRequestorAllowedProfile(request.clientProfile, request.userProfile)){
-        const editProfile:USER|undefined = createUserFromJSON({currentUser: request.clientProfile, jsonObj:request.body, fieldList: request.userProfile.isRole(RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS, next: next});
+        const editProfile:USER|undefined = createModelFromJSON({currentModel: request.clientProfile, jsonObj:request.body, fieldList: request.userProfile.isRole(RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS, next: next}) as USER;
 
-        if(editProfile !== undefined) {
+        if(editProfile !== undefined) {  //undefined handles next(Exception)
             //Verify user roles and verify account type tokens
             if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: request.clientProfile.userRoleList, adminOverride: request.userProfile.isRole(RoleEnum.ADMIN)}) === false)
-                next(new Exception(402, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
+                next(new Exception(401, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
 
             else if((editProfile.getUniqueDatabaseProperties(request.clientProfile).size > 0 )
-                    && await !DB_UPDATE_USER(request.clientID, editProfile.getUniqueDatabaseProperties(request.clientProfile))) 
+                    && await DB_UPDATE_USER(request.clientID, editProfile.getUniqueDatabaseProperties(request.clientProfile)) === false) 
                 next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
 
             else {
@@ -119,19 +120,19 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
             }
         }
     } else 
-        new Exception(401, `User ${request.userID} is UNAUTHORIZED to edit the profile of Client: ${request.clientID}`)
+        new Exception(401, `User ${request.userID} is UNAUTHORIZED to edit the profile of Client: ${request.clientID}`);
 };
 
 /* Delete Profiles */
 export const DELETE_userProfile = async (request: IdentityClientRequest, response: Response, next: NextFunction) => {
 
-    // if(!await DB_DELETE_CIRCLE_MEMBER({userID: request.clientID, circleID: undefined}))
-    //     next(new Exception(500, `Failed to delete all circle membership of user ${request.clientID}`, 'Circle Membership Exists'));
+    if(await DB_DELETE_CIRCLE_USER_STATUS({userID: request.clientID, circleID: undefined}) === false) //Leader must delete circle manually
+        next(new Exception(500, `Failed to delete all circle membership of user ${request.clientID}`, 'Circle Membership Exists'));
 
-    // else if(!await DB_DELETE_PARTNERSHIP({userID: request.clientID, partnerUserID: undefined}))
+    // else if(await DB_DELETE_PARTNERSHIP({userID: request.clientID, partnerUserID: undefined}) === false)
     //     next(new Exception(500, `Failed to delete all partnerships of user ${request.clientID}`, 'Partnerships Exists'));
 
-    if(!await DB_DELETE_USER_ROLE({userID: request.clientID, userRoleList: undefined}))
+    if(await DB_DELETE_USER_ROLE({userID: request.clientID, userRoleList: undefined}) === false)
         next(new Exception(500, `Failed to delete all user roles of user ${request.clientID}`, 'User Roles Exists'));
 
     else if(await DB_DELETE_USER(request.clientID))

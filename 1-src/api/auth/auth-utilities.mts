@@ -4,9 +4,9 @@ import * as log from '../../services/log.mjs';
 import { JwtData, LoginResponseBody } from "./auth-types.mjs";
 import JWT_PKG, { JwtPayload } from "jsonwebtoken";
 import { createHash } from 'node:crypto'
-import { RoleEnum } from "../profile/Fields-Sync/profile-field-config.mjs";
+import { RoleEnum } from "../../services/models/Fields-Sync/profile-field-config.mjs";
 import { DB_SELECT_USER_PROFILE } from "../../services/database/queries/user-queries.mjs";
-import USER from "../../services/models/user.mjs";
+import USER from "../../services/models/userModel.mjs";
 import dotenv from 'dotenv';
 dotenv.config(); 
 

@@ -1,7 +1,7 @@
 import { Exception } from "../../api/api-types.mjs";
 import * as log from '../log.mjs';
 import { SocketMessage } from "./chat-types.mjs";
-import USER from "../models/user.mjs";
+import USER from "../models/userModel.mjs";
 import { DB_SELECT_CONTACTS, DB_SELECT_USER } from "../database/queries/user-queries.mjs";
 import { ProfileListItem } from "../../api/profile/profile-types.mjs";
 
