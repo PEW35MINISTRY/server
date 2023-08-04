@@ -2,32 +2,32 @@ import express, {Router, Request, Response, NextFunction} from 'express';
 import { USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../services/database/database-types.mjs';
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
-import { createUserFromJSON } from '../profile/profile-utilities.mjs';
 import { IdentityRequest, JWTClientRequest, JwtRequest, JWTResponse, JwtResponseBody, LoginRequest, LoginResponseBody } from './auth-types.mjs';
 import {generateJWT, getUserLogin, validateNewRoleTokenList } from './auth-utilities.mjs'
 import { extractClientProfile } from './authorization.mjs';
 import { generateSecretKey } from './auth-utilities.mjs';
-import { RoleEnum, SIGNUP_PROFILE_FIELDS } from '../profile/Fields-Sync/profile-field-config.mjs';
+import { RoleEnum, SIGNUP_PROFILE_FIELDS } from '../../services/models/Fields-Sync/profile-field-config.mjs';
 import { CredentialProfile, ProfileSignupRequest } from '../profile/profile-types.mjs';
 import { DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CREDENTIALS } from '../../services/database/queries/user-queries.mjs';
-import USER from '../../services/models/user.mjs';
+import USER from '../../services/models/userModel.mjs';
+import createModelFromJSON from '../../services/models/createModelFromJson.mjs';
 
 /********************
  Unauthenticated Routes
  *********************/
  export const POST_signup =  async(request: ProfileSignupRequest, response: Response, next: NextFunction) => {
     
-    const newProfile:USER|undefined = createUserFromJSON({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS, next:next});
+    const newProfile:USER|undefined = createModelFromJSON({currentModel: new USER(), jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS, next:next}) as USER;
 
-    if(newProfile !== undefined) {
+    if(newProfile !== undefined) { //undefined handles next(Exception)
         if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
             next(new Exception(400, `Signup Failed :: Missing Required Fields: ${JSON.stringify(USER_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
         //Verify user roles and verify account type tokens
         else if(await validateNewRoleTokenList({newRoleList:newProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: newProfile.email}) === false)
-            next(new Exception(402, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
+            next(new Exception(401, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
 
-        else if(await !DB_INSERT_USER(newProfile.getValidProperties(USER_TABLE_COLUMNS, false))) 
+        else if(await DB_INSERT_USER(newProfile.getValidProperties(USER_TABLE_COLUMNS, false)) === false) 
                 next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Save Failed'));
 
         //New Account Success -> Auto Login Response

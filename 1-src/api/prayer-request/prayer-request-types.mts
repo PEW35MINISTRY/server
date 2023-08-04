@@ -1,9 +1,10 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
 import { IncomingHttpHeaders } from 'http';
 import { IdentityRequest } from '../auth/auth-types.mjs';
+import { ProfileListItem } from '../profile/profile-types.mjs';
 
 export interface PrayerRequestRequest extends IdentityRequest {
-    params: {
+    params: IdentityRequest['params'] & {
         prayer:string
     },
 };
@@ -21,23 +22,39 @@ export interface PrayerRequestCircleRequest extends IdentityRequest {
 };
 
 export enum PrayerRequestTopicEnum {
-    SELF,
-    FAMILY,
+    SELF = 'SELF',
+    FAMILY = 'FAMILY',
+    SCHOOL = 'SCHOOL',
+    HEALING = 'HEALING',
+    PRAISE = 'PRAISE',
+    GLOBAL = 'GLOBAL'
+}
+
+export interface PrayerRequestListItem {
+    prayerRequestID: number,
+    sender: ProfileListItem, 
+    description: string,
+    prayerCount: number,
+    tags: PrayerRequestTopicEnum[], 
+}
+
+export interface CommentListItem {
+    commentID: number,
+    prayerRequestID?: number,
+    sender: ProfileListItem, 
+    message: string,
+    likeCount: number
 }
 
 export interface PrayerRequest {
-    prayerRequestID: string,
-    userID: number, 
-    topic: PrayerRequestTopicEnum, 
+    prayerRequestID: number,
+    sender?: ProfileListItem, 
     description: string,
     prayerCount: number,
-    expiration: number, 
+    tags: PrayerRequestTopicEnum[], 
+    expiration: Date, 
     answered?:boolean,
-    comments?: {
-        userID: number,
-        message: string,
-        likeCount: number
-    }[],
+    comments?: CommentListItem[],
 }
 
 export interface PrayerRequestNewRequest extends IdentityRequest {

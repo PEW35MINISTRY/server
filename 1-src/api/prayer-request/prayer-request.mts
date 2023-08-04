@@ -10,7 +10,7 @@ import { getPrayerRequest, getUserPrayerRequestList, getCirclePrayerRequestList 
 export const GET_profilePrayerRequestSpecific = (request: IdentityPrayerRequest, response: Response) => {
     //Query Database
     response.status(200).send(getPrayerRequest(request.params.prayer));
-    log.event("Returning specific Prayer Request:", request.params.client);
+    log.event("Returning specific Prayer Request:", request.params.prayer);
 };
 
 

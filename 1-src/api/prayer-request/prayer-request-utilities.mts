@@ -5,11 +5,11 @@ export const getPrayerRequest = (prayerRequestID: string):PrayerRequest => {
     //Database Query
 
     return {
-        prayerRequestID: '202',
-        userID: 100, 
-        topic: PrayerRequestTopicEnum.SELF,
+        prayerRequestID: 202,
+        // userID: 100, 
+        tags: [PrayerRequestTopicEnum.SELF],
         description: "This is the description for the prayer request.",
-        expiration: 100,
+        expiration: new Date(),
         prayerCount: 515,
         answered: false,
         comments: [],

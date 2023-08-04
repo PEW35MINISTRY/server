@@ -1,7 +1,7 @@
 
 import { Request, Response, NextFunction} from "express";
 import { IdentityClientRequest } from '../auth/auth-types.mjs';
-import { GenderEnum, RoleEnum } from './Fields-Sync/profile-field-config.mjs';
+import { GenderEnum, RoleEnum } from '../../services/models/Fields-Sync/profile-field-config.mjs';
 import { CircleListItem } from '../circle/circle-types.mjs';
 
 
@@ -45,6 +45,8 @@ export interface ProfileResponse extends ProfilePartnerResponse  {
     postalCode: string, 
     dateOfBirth: Date,
     isActive: boolean,
+    notes: string,
+    userRoleList: RoleEnum[],
     partnerList: ProfileListItem[],
 };
 

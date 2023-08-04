@@ -1,9 +1,9 @@
-import { RoleEnum } from "../../../api/profile/Fields-Sync/profile-field-config.mjs";
+import { RoleEnum } from "../../models/Fields-Sync/profile-field-config.mjs";
 import { CredentialProfile, ProfileListItem } from "../../../api/profile/profile-types.mjs";
 import * as log from '../../log.mjs';
 import { query as query, execute as execute, command } from "../database.mjs";
 import { DATABASE_USER, USER_TABLE_COLUMNS, CommandResponseType, USER_TABLE_COLUMNS_REQUIRED } from "../database-types.mjs";
-import USER from "../../models/user.mjs";
+import USER from "../../models/userModel.mjs";
 
 /********************************************************
 /*       DEFINING AND HANDLING ALL QUERIES HERE 
@@ -114,6 +114,7 @@ export const DB_UPDATE_USER = async(userID:number, fieldMap:Map<string, any>):Pr
 
 export const DB_DELETE_USER = async(userID:number):Promise<boolean> => { //Note: Database Reinforces Key constrains
     log.db(`DELETE USER attempted: userID:${userID}`);
+
     const response:CommandResponseType = await command('DELETE FROM user WHERE userID = ?;', [userID]);
 
     return ((response !== undefined) && (response.affectedRows === 1));

@@ -2,8 +2,9 @@ import { Request, Response, NextFunction} from "express";
 import { IncomingHttpHeaders } from "http";
 import { ProfileResponse } from "../profile/profile-types.mjs";
 import { JwtPayload } from "jsonwebtoken";
-import { GenderEnum, RoleEnum } from "../profile/Fields-Sync/profile-field-config.mjs";
-import USER from "../../services/models/user.mjs";
+import { GenderEnum, RoleEnum } from "../../services/models/Fields-Sync/profile-field-config.mjs";
+import USER from "../../services/models/userModel.mjs";
+import CIRCLE from "../../services/models/circleModel.mjs";
 
 
 /*    Type Declarations     */
@@ -58,13 +59,18 @@ export interface IdentityRequest extends JwtRequest {
         'jwt': string, 
         'user-id': number,
       },
+      params: {
+        search?: string,
+        circle?: string,
+        client?: string,
+      },
       userID?: number,
       userRole?: RoleEnum,
       userProfile?: USER
 };
 
 export interface IdentityClientRequest extends IdentityRequest {
-    params: {
+    params: IdentityRequest['params'] & {
         client:string
     },
     clientID?:number,
@@ -72,11 +78,13 @@ export interface IdentityClientRequest extends IdentityRequest {
 };
 
 export interface IdentityCircleRequest extends IdentityRequest {
-    params: {
-        circle:string
+    params: IdentityRequest['params'] & {
+        circle:string,
+        client?:string,
+        announcement?:string
     },
     circleID?: number,
-    circleProfile?:any,
+    circleProfile?: CIRCLE,
 };
 
 export interface IdentityCirclePrayerRequest extends IdentityCircleRequest {
