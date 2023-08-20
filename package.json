@@ -14,7 +14,7 @@
     "build": "tsc",
     "open": "start http://localhost:5000",
     "preserve": "npm run build",
-    "serve": "ts-node.cmd .",
+    "serve": "node ./0-compiled/server.mjs",
     "server": "npm run serve",
     "start": "npm run build & npm run open & npm run serve",
     "update": "npm run website && npm run portal && npm run start",

@@ -4,7 +4,7 @@ import USER from "./userModel.mjs";
 import { NextFunction } from "express";
 import CIRCLE from "./circleModel.mjs";
 import BASE_MODEL from "./baseModel.mjs";
-import { IdentityClientRequest } from "../../api/auth/auth-types.mjs";
+import { JwtClientRequest } from "../../api/auth/auth-types.mjs";
 import { Exception } from '../../api/api-types.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
 
@@ -56,7 +56,7 @@ const getJsonToModelFieldMapping = (model:BASE_MODEL, field:string):string => {
  * PUBLIC : createModelFromJson
  * Returns: new model or undefined with Express Exception
  **********************************************************/
-export default ({currentModel: currentModel, jsonObj, fieldList, next}:{currentModel: BASE_MODEL, jsonObj:IdentityClientRequest['body'], fieldList:InputField[], next?: NextFunction}):ModelTypes|undefined => {
+export default ({currentModel: currentModel, jsonObj, fieldList, next}:{currentModel: BASE_MODEL, jsonObj:JwtClientRequest['body'], fieldList:InputField[], next?: NextFunction}):ModelTypes|undefined => {
     const model:BASE_MODEL = getNewModel(currentModel);
 
     if(model === undefined) {
@@ -71,13 +71,14 @@ export default ({currentModel: currentModel, jsonObj, fieldList, next}:{currentM
                 next(new Exception(400, `${field.title} is Required.`, `${field.title} is Required.`));
             return undefined;
 
-        } else if(jsonObj[field.field] === undefined) {
+        } else if(jsonObj[field.field] === undefined)
             continue;
 
-        } else if(model.validateModelSpecificField({field, value: jsonObj[field.field]}) === false) {
+        const modelValidateResult:boolean|undefined = model.validateModelSpecificField({field, value: jsonObj[field.field]});
+        if(modelValidateResult === false) {
             log.warn(`${field.title} failed model specific validations for ${model.modelType}.`);
 
-        } else if(validateInput({field, value: jsonObj[field.field], jsonObj}) === false) {
+        } else if(modelValidateResult === undefined && validateInput({field, value: jsonObj[field.field], jsonObj}) === false) {
             log.warn(`${field.title} failed field-config validations.`);
 
         } else {
@@ -106,13 +107,14 @@ export default ({currentModel: currentModel, jsonObj, fieldList, next}:{currentM
             }
             continue;
         } 
-        
+
         if(field.required) {
             if(next !== undefined)
                 next(new Exception(400, `${field.title} input failed to validate.`, `${field.title} is invalid and required.`));
             return undefined;
         }
     }
+    model.isValid = true;
     return model;
 }
 
@@ -194,6 +196,16 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
         log.warn(`Validating input for ${field}; failed not included in select option list`, value, JSON.stringify(field.selectOptionList));
         return false;
 
+    /* MULTI_SELECTION_LIST */
+    } else if(field.type === InputType.MULTI_SELECTION_LIST && ( !Array.isArray(value)
+        || !Array.from(value).every((item:any)=>{
+            if(!field.selectOptionList.includes(`${item}`)) {
+                log.warn(`Validating input for ${field}; multi selection; missing value in select option list`, item, JSON.stringify(field.selectOptionList));
+                return false;
+            } else return true;
+        }))) {
+            log.warn(`Validating input for ${field};  multi selection; mismatched multiple select option list`, JSON.stringify(value), JSON.stringify(field.selectOptionList));
+        return false;
     }
 
     return true;

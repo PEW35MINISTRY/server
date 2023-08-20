@@ -125,7 +125,7 @@ export const getUserLogin = async(email:string = '', password: string = ''):Prom
             jwt: generateJWT(userProfile.userID, userProfile.getHighestRole()),
             userID: userProfile.userID,
             userRole: userProfile.getHighestRole(),
-            userProfile: userProfile.toProfileJSON(),
+            userProfile: userProfile.toJSON(),
             service: 'Email & Password Authenticated'
         }
 
@@ -140,17 +140,9 @@ export const getUserLogin = async(email:string = '', password: string = ''):Prom
  Utility Methods
 ******************* */
 
-export const isRequestorAllowedProfile = async(clientProfile:USER, userProfile:USER):Promise<boolean> => {
-    if(clientProfile.userID === userProfile.userID || userProfile.isRole(RoleEnum.ADMIN)) return true;
-
-    //Test Member of Leader's Circle
-    if(userProfile.isRole(RoleEnum.CIRCLE_LEADER)) {
-        // const clientLeaderIDList:number[] = await DB_SELECT_CIRCLE_LEADER_IDS(clientProfile.userID);
-        // return (clientLeaderIDList.includes(userProfile.userID));
-    }
-    return false;
-}
-
+//Since request.jwtUserRole is max role; this utility tests if userRole is possible
+export const isMaxRoleGreaterThan = ({testUserRole, currentMaxUserRole}:{testUserRole:RoleEnum, currentMaxUserRole:RoleEnum}):boolean => 
+    Object.values(RoleEnum).indexOf(testUserRole) <= Object.values(RoleEnum).indexOf(currentMaxUserRole);
 
 export const getPasswordHash = (password:string):string => {
     return password;

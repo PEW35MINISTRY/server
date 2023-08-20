@@ -1,8 +1,8 @@
 import * as log from '../../log.mjs';
 import { CircleListItem } from "../../../api/circle/circle-types.mjs";
 import { ProfileListItem } from "../../../api/profile/profile-types.mjs";
-import { query, execute, command } from "../database.mjs";
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM } from "../database-types.mjs";
+import { query, execute, command, validateColumns } from "../database.mjs";
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from "../database-types.mjs";
 import CIRCLE from '../../models/circleModel.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../models/circleAnnouncementModel.mjs';
 import { CircleStatus } from '../../models/Fields-Sync/circle-field-config.mjs';
@@ -27,13 +27,6 @@ const validateCircleColumns = (inputMap:Map<string, any>, includesRequired:boole
 const validateCircleAnnouncementColumns = (inputMap:Map<string, any>):boolean => 
     validateColumns(inputMap, true, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED);
 
-const validateColumns = (inputMap:Map<string, any>, includesRequired:boolean, columnList:string[], requiredColumnList:string[]):boolean => 
-    Array.from(inputMap.entries()).every(([column, value]) => {
-        return (columnList.includes(column)
-            && (!requiredColumnList.includes(column) 
-                || value !== undefined && value !== null && (value.toString().length > 0)));
-    }) 
-    && (!includesRequired || requiredColumnList.every((c)=>inputMap.has(c)));
 
 /********************
  *  CIRCLE QUERIES
@@ -97,7 +90,6 @@ export const DB_SELECT_ALL_CIRCLES = async():Promise<CircleListItem[]> => {
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
 
-//Insert New Profile
 export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
     if(!validateCircleColumns(fieldMap)) {
@@ -113,7 +105,6 @@ export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<boolean
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
-//Update Existing Profile
 export const DB_UPDATE_CIRCLE = async(circleID:number, fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
     if(!validateCircleColumns(fieldMap)) {
@@ -124,7 +115,7 @@ export const DB_UPDATE_CIRCLE = async(circleID:number, fieldMap:Map<string, any>
     const preparedColumns:string = Array.from(fieldMap.keys()).map((key, field)=> `${key} = ?`).join(', ');
 
     const response:CommandResponseType = await command(`UPDATE circle SET ${preparedColumns} WHERE circleID = ?;`, [...Array.from(fieldMap.values()), circleID]); 
-    
+
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
@@ -207,11 +198,24 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
 }
 
 export const DB_SELECT_CIRCLE_LEADER_IDS = async(userID:number):Promise<number[]> => {
-    const rows = await execute('SELECT circle.leaderID ' + 'FROM circle, circle_user '
+    const rows = await execute('SELECT DISTINCT circle.leaderID ' + 'FROM circle, circle_user '
         + 'WHERE circle.circleID = circle_user.circleID AND circle_user.userID = ? AND circle_user.status = ? '
         + 'ORDER BY circle_user.modifiedDT DESC;', [userID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER]);
 
     return [...rows.reverse().map(row => row.leaderID)];
+}
+
+//Searches if userID is a current member of any of leaderID circles and verifies leaderID is a CIRCLE_LEADER' role
+export const DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES = async({leaderID, userID}:{leaderID:number, userID:number}):Promise<boolean> => {
+    //undefined status ignores field
+    const rows = await execute('SELECT circle_user.circleID ' + 'FROM circle_user '
+    + 'LEFT JOIN circle ON circle.circleID = circle_user.circleID '
+    + 'LEFT JOIN user_role ON user_role.userID = circle.leaderID '
+    + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
+    + 'WHERE user_role_defined.userRole = ? AND circle.leaderID = ? AND circle_user.userID = ? AND circle_user.STATUS = ?;', 
+    [DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER, leaderID, userID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER]);
+
+    return (rows.length > 0);
 }
 
 export const DB_SELECT_MEMBERS_OF_ALL_CIRCLES = async(leaderID:number):Promise<ProfileListItem[]> => {
@@ -261,6 +265,17 @@ export const DB_IS_CIRCLE_USER_OR_LEADER = async({userID, circleID, status}:{use
         + 'WHERE userID = ? AND circleID = ? AND status = ?;', [userID, circleID, status])
 
     return (rows.length > 0);
+}
+
+//Verify Circle Leader and still hold Leader Role
+export const DB_IS_CIRCLE_LEADER = async({leaderID, circleID}:{leaderID:number, circleID:number}):Promise<boolean> => {
+    //undefined status ignores field
+    const rows = await execute('SELECT leaderID ' + 'FROM circle '
+    + 'LEFT JOIN user_role ON user_role.userID = leaderID '
+    + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
+    + 'WHERE leaderID = ? AND circleID = ? AND user_role_defined.userRole = ? ;', [leaderID, circleID, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER]);
+
+    return (rows.length === 1);
 }
 
 //Create New request or invite; should fail if either exists

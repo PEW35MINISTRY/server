@@ -1,6 +1,6 @@
 
 import { Request, Response, NextFunction} from "express";
-import { IdentityClientRequest } from '../auth/auth-types.mjs';
+import { JwtClientRequest } from '../auth/auth-types.mjs';
 import { GenderEnum, RoleEnum } from '../../services/models/Fields-Sync/profile-field-config.mjs';
 import { CircleListItem } from '../circle/circle-types.mjs';
 
@@ -50,7 +50,7 @@ export interface ProfileResponse extends ProfilePartnerResponse  {
     partnerList: ProfileListItem[],
 };
 
-export interface ProfileEditRequest extends IdentityClientRequest {
+export interface ProfileEditRequest extends JwtClientRequest {
     body: {
         userID: number,
         firstName?: string, 

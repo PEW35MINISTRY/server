@@ -12,7 +12,7 @@ import cors from 'cors';
 //Import Types
 import {Exception} from './api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
-import { IdentityCircleRequest, IdentityClientRequest, IdentityRequest, JwtRequest } from './api/auth/auth-types.mjs';
+import { JwtAdminRequest, JwtCircleClientRequest, JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from './api/auth/auth-types.mjs';
 
 //Import Routes
 import logRoutes from './api/log/log.mjs';
@@ -21,9 +21,8 @@ import apiRoutes from './api/api.mjs';
 import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup, POST_authorization_reset } from './api/auth/auth.mjs';
 import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile } from './api/profile/profile.mjs';
 import { GET_publicCircle, GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, GET_CircleList } from './api/circle/circle.mjs';
-import { DELETE_prayerRequest, GET_prayerRequestCircle, GET_profilePrayerRequestSpecific, GET_prayerRequestUser, PATCH_prayerRequestAnswered, POST_prayerRequest } from './api/prayer-request/prayer-request.mjs';
 
-import { authenticatePartnerMiddleware, authenticateCircleMiddleware, authenticateProfileMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, authenticateUserMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware } from './api/auth/authorization.mjs';
+import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, extractCircleMiddleware, extractClientMiddleware } from './api/auth/authorization.mjs';
 import { GET_userContacts } from './api/chat/chat.mjs';
  
 //Import Services
@@ -87,11 +86,19 @@ apiServer.get('/', (request: Request, response: Response) => {
     response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
 });
 
+apiServer.get('/website/*', (request: Request, response: Response) => {
+    response.status(301).redirect('/website');
+});
+
 apiServer.get('/website', (request: Request, response: Response) => {
     response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
 });
 
 apiServer.use(express.static(path.join(__dirname, 'portal')));
+apiServer.get('/portal/*', (request: Request, response: Response) => {
+    response.status(301).redirect('/portal');
+});
+
 apiServer.get('/portal', (request: Request, response: Response) => {
     response.status(200).sendFile(path.join(__dirname, 'portal', 'index.html'));
 });
@@ -120,9 +127,10 @@ apiServer.post('/login', POST_login);
 apiServer.get('/login/credentials', GET_allUserCredentials);
 
 
-//***************************************
-// #0 - Authenticate JWT Validity
-//***************************************
+/************************************************************/
+/*            Authenticate JWT Validity                     */
+/* cache: request.jwtUserID, request.jwtUserRole (max role) */
+/************************************************************/
 apiServer.use('/api', (request:JwtRequest, response:Response, next:NextFunction) => jwtAuthenticationMiddleware(request, response, next));
 
 //General API Routes
@@ -130,108 +138,112 @@ apiServer.use('/api', apiRoutes);
 
 apiServer.get('/api/authenticate', GET_jwtVerify);
 
-apiServer.post('/api/logout/:client', POST_logout);
+apiServer.post('/api/logout', POST_logout);
 
-apiServer.get('/api/public/profile/:client', GET_publicProfile);
+apiServer.get('/api/contacts', GET_userContacts); //Returns id and Name
 
+apiServer.get('/api/user/profile/edit-fields', GET_EditProfileFields);
 
-
-//***************************************
-// #1 - Verify Identity & Cache Profiles
-//***************************************
-apiServer.use('/api/user', (request:IdentityRequest, response:Response, next:NextFunction) => authenticateUserMiddleware(request, response, next));
-
-apiServer.get('/api/user/contacts', GET_userContacts); //Returns id and Name
-
-apiServer.get('/api/user/profile/access', GET_profileAccessUserList); //Returns userID, firstName, displayName, image
-
-apiServer.get('/api/user/circle-list', GET_CircleList); //optional 'search' parameter
-apiServer.get('/api/user/circle/:circle', GET_publicCircle);
-apiServer.post('/api/user/circle/:circle/request', POST_circleMemberRequest);
-apiServer.post('/api/user/circle/:circle/accept', POST_circleMemberAccept); //Existing Circle Membership Invite must exist (Student Accepts)
-apiServer.delete('/api/user/circle/:circle/leave', DELETE_circleMember);
+apiServer.get('/api/circle-list', GET_CircleList); //optional 'search' parameter
 
 
-//******************************
-// #2 - Verify Partner Status & Cache Client
-//******************************
-apiServer.use('/api/user/partner/:client', (request:IdentityClientRequest, response:Response, next:NextFunction) => authenticatePartnerMiddleware(request, response, next));
 
-apiServer.get('/api/user/partner/:client', GET_partnerProfile);
+/*********************************************************/
+/* Authenticate Partner Status | cache: request.clientID */
+/*********************************************************/
+apiServer.use('/api/partner/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
+apiServer.use('/api/partner/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => authenticatePartnerMiddleware(request, response, next));
 
-apiServer.get('/api/user/partner/:client/prayer-request', GET_prayerRequestUser);
-apiServer.get('/api/user/partner/:client/prayer-request/:prayer', GET_profilePrayerRequestSpecific);
-
-
-//******************************************
-// #3 - Verify Circle Status & Cache Circle
-//******************************************
-apiServer.use('/api/user/circle/member/:circle', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateCircleMiddleware(request, response, next));
-
-apiServer.get('/api/user/circle/member/:circle', GET_circle);
-
-apiServer.get('/api/user/circle/member/:circle/prayer-request', GET_prayerRequestCircle);
-apiServer.get('/api/user/circle/member/:circle/prayer-request/:prayer', GET_profilePrayerRequestSpecific);
+apiServer.get('/api/partner/:client', GET_partnerProfile);
 
 
-//************************************************
-// #4 - Verify User Profile Access & Cache Client
-//************************************************
-apiServer.use('/api/user/profile/:client', async (request:IdentityClientRequest, response:Response, next:NextFunction) => await authenticateProfileMiddleware(request, response, next));
+/******************************************************/
+/* Extract Circle Parameter | cache: request.clientID */
+/******************************************************/
+apiServer.use('/api/user/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 
-apiServer.get('/api/user/profile/:client/edit-fields', GET_EditProfileFields);
-
-apiServer.get('/api/user/profile/:client', GET_userProfile);
-apiServer.patch('/api/user/profile/:client', PATCH_userProfile);
-apiServer.delete('/api/user/profile/:client', DELETE_userProfile);
-
-apiServer.delete('/api/user/profile/:client/circle/:circle/leave', DELETE_circleLeaderMember);
-
-apiServer.get('/api/user/profile/:client/prayer-request', GET_prayerRequestUser);
-apiServer.get('/api/user/profile/:client/prayer-request/:prayer', GET_profilePrayerRequestSpecific);
-apiServer.post('/api/user/profile/:client/prayer-request', POST_prayerRequest);
-apiServer.patch('/api/user/profile/:client/prayer-request/:prayer/answered', PATCH_prayerRequestAnswered);
-apiServer.delete('/api/user/profile/:client/prayer-request/:prayer', DELETE_prayerRequest);
-
-//**********************************
-// #5 - Verify Circle Leader Access
-//**********************************
-apiServer.use('/api/user/leader', (request:IdentityRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
-
-apiServer.post('/api/user/leader/circle', POST_newCircle);
+apiServer.get('/api/user/:client/public', GET_publicProfile);
 
 
-//*************************************************
-// #6 - Verify Circle Leader Access & Cache Circle
-//*************************************************
-apiServer.use('/api/user/leader/circle/:circle', (request:IdentityCircleRequest, response:Response, next:NextFunction) => authenticateCircleLeaderMiddleware(request, response, next));
+/**********************************************/
+/* Authenticate User access to Client profile */
+/**********************************************/
+apiServer.use('/api/user/:client', async (request:JwtClientRequest, response:Response, next:NextFunction) => await authenticateClientAccessMiddleware(request, response, next));
 
-apiServer.patch('/api/user/leader/circle/:circle', PATCH_circle);
-apiServer.delete('/api/user/leader/circle/:circle', DELETE_circle);
+apiServer.post('/api/user/:client/logout', POST_logout);
 
-apiServer.post('/api/user/leader/circle/:circle/invite/:client', POST_circleLeaderMemberInvite);
-apiServer.post('/api/user/leader/circle/:circle/accept/:client', POST_circleLeaderAccept); //Existing Circle Membership Request must exist (Leader Accepts)
-apiServer.delete('/api/user/leader/circle/:circle/leave/:client', DELETE_circleLeaderMember);
-
-apiServer.post('/api/user/leader/circle/:circle/announcement', POST_circleAnnouncement);
-apiServer.delete('/api/user/leader/circle/:circle/announcement/:announcement', DELETE_circleAnnouncement);
+apiServer.get('/api/user/:client', GET_userProfile);
+apiServer.patch('/api/user/:client', PATCH_userProfile);
+apiServer.delete('/api/user/:client', DELETE_userProfile);
 
 
-//******************************
-// #7 - Verify ADMIN Access
-//******************************
-apiServer.use('/api/user/admin', (request:IdentityRequest, response:Response, next:NextFunction) => authenticateAdminMiddleware(request, response, next));
+/******************************************************/
+/* Extract Circle Parameter | cache: request.circleID */
+/******************************************************/
+apiServer.use('/api/circle/:circle', (request:JwtCircleRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 
-apiServer.post('/api/user/admin/circle/:circle/join/:client', POST_circleMemberJoinAdmin);
+apiServer.get('/api/circle/:circle/public', GET_publicCircle);
+
+apiServer.post('/api/circle/:circle/request', POST_circleMemberRequest);
+apiServer.post('/api/circle/:circle/accept', POST_circleMemberAccept); //Existing Circle Membership Invite must exist (Student Accepts)
+apiServer.delete('/api/circle/:circle/leave', DELETE_circleMember);
+
+
+/**********************************/
+/* Authenticate Circle Membership */
+/**********************************/
+apiServer.use('/api/circle/:circle', (request:JwtCircleRequest, response:Response, next:NextFunction) => authenticateCircleMembershipMiddleware(request, response, next));
+
+apiServer.get('/api/circle/:circle', GET_circle);
+
+
+/*******************************************/
+/* Authenticate leader of specified circle */
+/*******************************************/
+apiServer.use('/api/leader/circle/:circle', (request:JwtCircleRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
+apiServer.use('/api/leader/circle/:circle', (request:JwtCircleRequest, response:Response, next:NextFunction) => authenticateCircleLeaderMiddleware(request, response, next));
+
+apiServer.get('/api/leader/circle/:circle', GET_circle);
+apiServer.patch('/api/leader/circle/:circle', PATCH_circle);
+apiServer.delete('/api/leader/circle/:circle', DELETE_circle);
+
+apiServer.post('/api/leader/circle/:circle/announcement', POST_circleAnnouncement);
+apiServer.delete('/api/leader/circle/:circle/announcement/:announcement', DELETE_circleAnnouncement);
+
+apiServer.use('/api/leader/circle/:circle/client/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
+apiServer.post('/api/leader/circle/:circle/client/:client/invite', POST_circleLeaderMemberInvite);
+apiServer.post('/api/leader/circle/:circle/client/:client/accept', POST_circleLeaderAccept); //Existing Circle Membership Request must exist (Leader Accepts)
+apiServer.delete('/api/leader/circle/:circle/client/:client/leave', DELETE_circleLeaderMember);
+
+
+/******************************************************************/
+/* Authenticate Current CIRCLE_LEADER role (Circle not specified) */
+/******************************************************************/
+apiServer.use('/api/leader', (request:JwtRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
+
+apiServer.get('/api/leader/profile-access', GET_profileAccessUserList);
+
+apiServer.post('/api/leader/circle', POST_newCircle);
+
+
+/***********************************/
+/* Authenticate Current ADMIN Role */
+/***********************************/
+apiServer.use('/api/admin', (request:JwtAdminRequest, response:Response, next:NextFunction) => authenticateAdminMiddleware(request, response, next));
+
 
 apiServer.use(express.text());
-apiServer.use('/api/user/admin/log', logRoutes);
-apiServer.post('/api/user/admin/authorization-reset', POST_authorization_reset)
+apiServer.use('/api/admin/log', logRoutes);
+apiServer.post('/api/admin/authorization-reset', POST_authorization_reset)
+
+apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
+apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
+apiServer.post('/api/admin/circle/:circle/join/:client', POST_circleMemberJoinAdmin);
 
 
-//******************************
+//******************/
 /* Error Handling  */
-//******************************
+/*******************/
 apiServer.use((request: Request, response:Response, next: NextFunction) => {
     next(new Exception(404, "Invalid Request"));
 });
@@ -240,10 +252,10 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     const status = error.status || 500;
     const message = error.message || 'Server Error';
     const action = request.method + ' -> ' + request.url + ' = ' + message;
-    const notification = error.notification || (status == 400) ? 'Missing details'
+    const notification = error.notification || ((status == 400) ? 'Missing details'
                             : (status == 401) ? 'Sorry not permitted'
                             : (status == 404) ? 'Not found'
-                            : 'Unknown error has occurred';
+                            : 'Unknown error has occurred');
 
     const errorResponse:ServerErrorResponse = {
         status: status,

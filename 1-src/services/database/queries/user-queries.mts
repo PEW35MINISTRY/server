@@ -1,9 +1,10 @@
 import { RoleEnum } from "../../models/Fields-Sync/profile-field-config.mjs";
 import { CredentialProfile, ProfileListItem } from "../../../api/profile/profile-types.mjs";
 import * as log from '../../log.mjs';
-import { query as query, execute as execute, command } from "../database.mjs";
-import { DATABASE_USER, USER_TABLE_COLUMNS, CommandResponseType, USER_TABLE_COLUMNS_REQUIRED } from "../database-types.mjs";
+import { query as query, execute as execute, command, validateColumns } from "../database.mjs";
+import { DATABASE_USER, USER_TABLE_COLUMNS, CommandResponseType, USER_TABLE_COLUMNS_REQUIRED, DATABASE_USER_ROLE_ENUM } from "../database-types.mjs";
 import USER from "../../models/userModel.mjs";
+import { DB_SELECT_USER_CIRCLES } from "./circle-queries.mjs";
 
 /********************************************************
 /*       DEFINING AND HANDLING ALL QUERIES HERE 
@@ -16,18 +17,14 @@ import USER from "../../models/userModel.mjs";
 * - Use execute() for Prepared Statements (inputs)
 * - Use query() for predefined Select Statements (static)
 * - Use command() for database operation (inputs)
+* - Use batch() for multiple prepared operations (input)
 */
 
 /* REQUIRED VALIDATION ONLY WHEN COLUMNS ARE INPUTS */
 const validateUserColumns = (inputMap:Map<string, any>, includesRequired:boolean = false):boolean => 
-    Array.from(inputMap.entries()).every(([column, value]) => {
-        return (USER_TABLE_COLUMNS.includes(column)
-            && (!USER_TABLE_COLUMNS_REQUIRED.includes(column) 
-                || value !== undefined && value !== null && (value.toString().length > 0)));
-    }) 
-    && (!includesRequired || USER_TABLE_COLUMNS_REQUIRED.every((c)=>inputMap.has(c)));
+    validateColumns(inputMap, includesRequired, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED);
 
-
+    
 /*************************
  *  USER PROFILE QUERIES
  *************************/
@@ -42,7 +39,7 @@ export const DB_SELECT_USER = async(filterMap:Map<string, any>):Promise<USER> =>
     const preparedColumns:string = Array.from(filterMap.keys()).map((key, field)=> `user.${key} = ?`).join(' AND ');
 
     //Query User and max userRole
-    const rows = await execute('SELECT user.*, user_role_defined.role ' + 'FROM user '
+    const rows = await execute('SELECT user.*, user_role_defined.userRole ' + 'FROM user '
         + 'LEFT JOIN user_role ON user_role.userID = user.userID '
         + 'AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
         + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
@@ -75,7 +72,7 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     //Append Full Profile 
     const user = new USER(rows[0] as DATABASE_USER);
     user.userRoleList = await DB_SELECT_USER_ROLES(user.userID);
-    // user.circleList = await DB_SELECT_USER_CIRCLES(user.userID);
+    user.circleList = await DB_SELECT_USER_CIRCLES(user.userID);
     user.partnerList = await DB_SELECT_USER_PARTNERS(user.userID);
 
     return user;
@@ -156,13 +153,27 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
 /**********************
  *  USER ROLE QUERIES
  **********************/
-export const DB_IS_USER_ROLE = async({userID, userRole}:{userID:number, userRole:RoleEnum}):Promise<Boolean> => {   
+export const DB_IS_USER_ROLE = async({userID, userRole}:{userID:number, userRole:DATABASE_USER_ROLE_ENUM}):Promise<Boolean> => {   
     const rows = await execute('SELECT * ' + 'FROM user '
     + 'LEFT JOIN user_role ON user_role.userID = user.userID '
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
     + `WHERE user.userID = ? AND user_role_defined.userRole = ?;`, [userID, userRole]); 
 
     return (rows.length === 1);
+}
+
+export const DB_IS_ANY_USER_ROLE = async({userID, userRoleList}:{userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<Boolean> => {   
+
+    if(userRoleList === undefined || userRoleList.length === 0) return false;
+
+    const preparedColumns:string = '( ' + userRoleList.map((key)=> `user_role_defined.userRole = ?`).join(' OR ') + ' )';
+
+    const rows = await execute('SELECT * ' + 'FROM user '
+    + 'LEFT JOIN user_role ON user_role.userID = user.userID '
+    + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
+    + `WHERE user.userID = ? AND ${preparedColumns}`, [userID, ...userRoleList]); 
+
+    return (rows.length >= 1);
 }
 
 export const DB_SELECT_USER_ROLES = async(userID:number):Promise<RoleEnum[]> => {
@@ -180,7 +191,7 @@ export const DB_SELECT_USER_ROLES = async(userID:number):Promise<RoleEnum[]> => 
     return validRoles;
 }
 
-export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:number, email?:string, userRoleList:RoleEnum[]}):Promise<boolean> => {
+export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:number, email?:string, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {
     const response:CommandResponseType = await command('INSERT INTO user_role ( userID, userRoleID ) VALUES '
     + userRoleList.map(() => `( ${(userID === undefined) ? '(SELECT user.userID FROM user WHERE user.email = ? )' : '?'} , `
     + '(SELECT user_role_defined.userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))').join(', ')
@@ -189,7 +200,7 @@ export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:
     return ((response !== undefined) && (response.affectedRows > 0));
 }
 
-export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, userRoleList:RoleEnum[]}):Promise<boolean> => {    
+export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {    
     log.db(`DELETE USER ROLE attempted: userID:${userID}, userRoleList:${userRoleList}`);
 
     const response:CommandResponseType = (userRoleList === undefined) ? //Delete All Roles
