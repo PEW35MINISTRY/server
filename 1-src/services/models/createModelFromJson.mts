@@ -7,12 +7,13 @@ import BASE_MODEL from "./baseModel.mjs";
 import { JwtClientRequest } from "../../api/auth/auth-types.mjs";
 import { Exception } from '../../api/api-types.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
+import PRAYER_REQUEST from './prayerRequestModel.mjs';
 
 
 /**********************************************************
  * PRIVATE : Local Model Types and constructor
  **********************************************************/
-type ModelTypes = BASE_MODEL | USER | CIRCLE | CIRCLE_ANNOUNCEMENT;
+type ModelTypes = BASE_MODEL | USER | CIRCLE | CIRCLE_ANNOUNCEMENT | PRAYER_REQUEST;
 
 const getNewModel = (existingModel:BASE_MODEL):ModelTypes|undefined => {
     if(existingModel !== undefined)
@@ -27,6 +28,9 @@ const getNewModel = (existingModel:BASE_MODEL):ModelTypes|undefined => {
 
             case 'CIRCLE_ANNOUNCEMENT':
                 return new CIRCLE_ANNOUNCEMENT(undefined);
+
+            case 'PRAYER_REQUEST':
+                return new PRAYER_REQUEST(undefined, (existingModel as PRAYER_REQUEST).prayerRequestID);
 
             default:
                 log.error('createModelFromJson.getNewModel | modelType not defined', existingModel.modelType);

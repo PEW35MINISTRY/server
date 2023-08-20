@@ -2,6 +2,7 @@ import * as log from '../../services/log.mjs';
 import { CircleStatus } from '../../services/models/Fields-Sync/circle-field-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../services/models/circleAnnouncementModel.mjs';
 import { JwtCircleRequest } from '../auth/auth-types.mjs';
+import { PrayerRequestListItem } from '../prayer-request/prayer-request-types.mjs';
 import { ProfileListItem } from '../profile/profile-types.mjs';
 
 /* Sync between Server and Portal "circle-types" */
@@ -42,6 +43,7 @@ export interface CircleResponse {
     memberList: ProfileListItem[],
     eventList: CircleEventListItem[],
     announcementList: CIRCLE_ANNOUNCEMENT[],
+    prayerRequestList: PrayerRequestListItem[]
 };
 
 /* Sync between Server and Portal "circle-types" */

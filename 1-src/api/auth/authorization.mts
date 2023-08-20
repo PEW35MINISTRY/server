@@ -7,6 +7,7 @@ import { RoleEnum } from "../../services/models/Fields-Sync/profile-field-config
 import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from "../../services/database/queries/user-queries.mjs";
 import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_DETAIL } from "../../services/database/queries/circle-queries.mjs";
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from "../../services/database/database-types.mjs";
+import { DB_IS_RECIPIENT_PRAYER_REQUEST, DB_IS_PRAYER_REQUEST_REQUESTOR } from "../../services/database/queries/prayer-request-queries.mjs";
 import { DB_IS_USER_PARTNER } from "../../services/database/queries/partner-queries.mjs";
 
 
@@ -45,6 +46,51 @@ export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: 
     }
 }
 
+
+/* Authenticate Recipient to Prayer Request | cache: request.prayerRequestID */
+export const authenticatePrayerRequestRecipientMiddleware = async(request: JwtPrayerRequest, response: Response, next: NextFunction):Promise<void> => {
+    //Verify Prayer Parameter Exist
+    if(request.params.prayer === undefined || isNaN(parseInt(request.params.prayer))) 
+        next(new Exception(400, `FAILED AUTHENTICATED :: PRAYER REQUEST RECIPIENT :: missing prayer-id parameter :: ${request.params.prayer}`, 'Missing Prayer Request'));
+
+    else {
+        const prayerRequestID:number = parseInt(request.params.prayer);
+
+        if((request.jwtUserRole === RoleEnum.ADMIN) 
+            || await DB_IS_RECIPIENT_PRAYER_REQUEST({prayerRequestID: prayerRequestID, userID: request.jwtUserID})) {
+
+            request.prayerRequestID = prayerRequestID;
+            log.auth(`AUTHENTICATED :: PRAYER REQUEST RECIPIENT :: status verified: User: ${request.jwtUserID} is a recipient of prayer request: ${prayerRequestID}`);
+            next();
+
+        } else {
+            next(new Exception(401, `FAILED AUTHENTICATED :: PRAYER REQUEST RECIPIENT :: User: ${request.jwtUserID} is not a recipient of prayer request: ${prayerRequestID}`));
+        }
+    }
+}
+
+
+/* Authenticate Requestor to Prayer Request | cache: request.prayerRequestID */
+export const authenticatePrayerRequestRequestorMiddleware = async(request: JwtPrayerRequest, response: Response, next: NextFunction):Promise<void> => {
+    //Verify Prayer Parameter Exist
+    if(request.params.prayer === undefined || isNaN(parseInt(request.params.prayer))) 
+        next(new Exception(400, `FAILED AUTHENTICATED :: PRAYER REQUEST REQUESTOR :: missing prayer-id parameter :: ${request.params.prayer}`, 'Missing Prayer Request'));
+
+    else {
+        const prayerRequestID:number = parseInt(request.params.prayer);
+
+        if((request.jwtUserRole === RoleEnum.ADMIN)
+            || await DB_IS_PRAYER_REQUEST_REQUESTOR({prayerRequestID: prayerRequestID, userID: request.jwtUserID})) {
+
+            request.prayerRequestID = prayerRequestID;
+            log.auth(`AUTHENTICATED :: PRAYER REQUEST REQUESTOR :: status verified: User: ${request.jwtUserID} is the requestor of prayer request: ${prayerRequestID}`);
+            next();
+
+        } else {
+            next(new Exception(401, `FAILED AUTHENTICATED :: PRAYER REQUEST REQUESTOR :: User: ${request.jwtUserID} is not the requestor of prayer request: ${prayerRequestID}`));
+        }
+    }
+}
 
 /* Extract Client Parameter | cache: request.clientID */
 export const extractClientMiddleware = async(request: JwtClientRequest, response: Response, next: NextFunction):Promise<void> => {

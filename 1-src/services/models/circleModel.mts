@@ -5,6 +5,7 @@ import { CircleEditRequest, CircleEventListItem, CircleListItem } from "../../ap
 import { ProfileListItem } from "../../api/profile/profile-types.mjs";
 import { DATABASE_CIRCLE, CIRCLE_TABLE_COLUMNS } from "../database/database-types.mjs";
 import CIRCLE_ANNOUNCEMENT from "./circleAnnouncementModel.mjs";
+import { PrayerRequestListItem } from "../../api/prayer-request/prayer-request-types.mjs";
 
 /*******************************************
   UNIVERSAl circle for DATABASE OPERATIONS 
@@ -37,6 +38,7 @@ export default class CIRCLE implements BASE_MODEL  {
     leaderProfile?: ProfileListItem;
     announcementList: CIRCLE_ANNOUNCEMENT[] = [];
     eventList: CircleEventListItem[] = [];
+    prayerRequestList: PrayerRequestListItem[] = [];
     memberList: ProfileListItem[] = [];
     pendingRequestList: ProfileListItem[] = [];
     pendingInviteList: ProfileListItem[] = [];
