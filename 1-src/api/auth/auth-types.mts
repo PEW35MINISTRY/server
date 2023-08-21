@@ -2,9 +2,7 @@ import { Request, Response, NextFunction} from "express";
 import { IncomingHttpHeaders } from "http";
 import { ProfileResponse } from "../profile/profile-types.mjs";
 import { JwtPayload } from "jsonwebtoken";
-import { GenderEnum, RoleEnum } from "../../services/models/Fields-Sync/profile-field-config.mjs";
-import USER from "../../services/models/userModel.mjs";
-import CIRCLE from "../../services/models/circleModel.mjs";
+import { RoleEnum } from "../../services/models/Fields-Sync/profile-field-config.mjs";
 
 
 /*    Type Declarations     */
@@ -18,10 +16,13 @@ export interface JwtRequest extends Request {
     headers: IncomingHttpHeaders & {
       'jwt': string
     },
-
-    jwt?: string,
-    jwtUserID?: number,
-    jwtUserRole?: RoleEnum
+    params: {
+        search: string,
+        role: string
+    },
+    jwt: string,
+    jwtUserID: number,
+    jwtUserRole: RoleEnum
 }
 
 export interface JwtResponseBody {
@@ -46,59 +47,36 @@ export interface LoginResponseBody extends JwtResponseBody {
 
 export interface LoginResponse extends Response, LoginResponseBody {};
 
-export interface JWTClientRequest extends JwtRequest {
-    params: {
+export interface JwtPrayerRequest extends JwtRequest {
+    params: JwtRequest['params'] & {
+        prayer: string,
+        comment?: string
+    },
+    prayerRequestID: number,
+};
+
+export interface JwtClientRequest extends JwtRequest {
+    params: JwtRequest['params'] & {
         client:string
     },
-    clientID?:number,
-    clientProfile?: USER,
+    clientID:number,
 };
 
-export interface IdentityRequest extends JwtRequest {
-      headers: JwtRequest['headers'] & {
-        'jwt': string, 
-        'user-id': number,
-      },
-      params: {
-        search?: string,
-        circle?: string,
-        client?: string,
-      },
-      userID?: number,
-      userRole?: RoleEnum,
-      userProfile?: USER
-};
-
-export interface IdentityClientRequest extends IdentityRequest {
-    params: IdentityRequest['params'] & {
-        client:string
-    },
-    clientID?:number,
-    clientProfile?: USER,
-};
-
-export interface IdentityCircleRequest extends IdentityRequest {
-    params: IdentityRequest['params'] & {
+export interface JwtCircleRequest extends JwtRequest {
+    params: JwtRequest['params'] & {
         circle:string,
-        client?:string,
         announcement?:string
     },
-    circleID?: number,
-    circleProfile?: CIRCLE,
+    circleID: number,
 };
 
-export interface IdentityCirclePrayerRequest extends IdentityCircleRequest {
-    params: IdentityCircleRequest['params'] & {
-        prayer:string
+export interface JwtCircleClientRequest extends JwtClientRequest {
+    params: JwtClientRequest['params'] & {
+        circle:string,
     },
-    prayerRequestID?: number,
-    prayerRequestProfile?:any
+    circleID: number,
 };
 
-export interface IdentityPrayerRequest extends IdentityRequest {
-    params: IdentityRequest['params'] & {
-        prayer:string
-    },
-    prayerRequestID?: number,
-    prayerRequestProfile?:any
+export interface JwtAdminRequest extends JwtRequest {
+
 };

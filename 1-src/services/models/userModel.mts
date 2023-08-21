@@ -12,6 +12,8 @@ UNIVERSAl profile for DATABASE OPERATIONS
 export default class USER implements BASE_MODEL {
   modelType = 'USER';
   getID = () => this.userID;
+  setID = (id:number) => this.userID = id;
+  isValid: boolean = false;
 
   //Private static list of class property fields | (This is display-responses; NOT edit-access -> see: profile-field-config.mts)
   #publicPropertyList = ['userID', 'firstName', 'lastName', 'displayName', 'postalCode', 'dateOfBirth', 'gender', 'image', 'circleList', 'userRole'];
@@ -56,6 +58,8 @@ export default class USER implements BASE_MODEL {
                 this.image = DB.image;
                 this.notes = DB.notes;
                 this.userRoleList = [RoleEnum[DB.userRole] || RoleEnum.STUDENT];
+
+                this.isValid = true;
             }
         } catch(error) {
             log.db('INVALID Database Object; failed to parse USER', JSON.stringify(DB), error);
@@ -106,7 +110,9 @@ export default class USER implements BASE_MODEL {
     return map;
   }
 
-  toProfileJSON = ():ProfileResponse => Object.fromEntries(this.getValidProperties()) as unknown as ProfileResponse;
+  getDatabaseProperties = ():Map<string, any> => this.getUniqueDatabaseProperties(new USER());
+
+  toJSON = ():ProfileResponse => Object.fromEntries(this.getValidProperties(this.#propertyList)) as unknown as ProfileResponse;
 
   toPublicJSON = ():ProfilePublicResponse => Object.fromEntries(this.getValidProperties(this.#publicPropertyList)) as unknown as ProfilePublicResponse;
 
@@ -124,10 +130,25 @@ export default class USER implements BASE_MODEL {
 
       if(isNaN(currentDate.valueOf()) ||  currentDate < getDOBMinDate(this.getHighestRole()) || currentDate > getDOBMaxDate(this.getHighestRole()))
           return false;
+      else return true;
+
+    } else if(field.field === 'userRoleTokenList') {
+        return (Array.isArray(value)
+                && Array.from(value).every((roleTokenObj:{role:string, token:string}) => {
+
+                    if(roleTokenObj.role === undefined 
+                      || (roleTokenObj.role.length === 0) 
+                      || !Object.values(RoleEnum).includes(roleTokenObj.role as RoleEnum) 
+                      || roleTokenObj.token === undefined) { //token allowed to be empty string for STUDENT
+
+                          log.warn(`Validating error for userRoleTokenList:`, JSON.stringify(roleTokenObj), JSON.stringify(field.selectOptionList));
+                          return false;
+                      } else return true;
+                  }));
     }
 
     //No Field Match
-    return true;
+    return undefined;
   }
 
   parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body']}):boolean|undefined => {

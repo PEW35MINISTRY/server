@@ -1,10 +1,9 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
-import { USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../services/database/database-types.mjs';
+import { DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../services/database/database-types.mjs';
 import * as log from '../../services/log.mjs';
 import {Exception} from '../api-types.mjs'
-import { IdentityRequest, JWTClientRequest, JwtRequest, JWTResponse, JwtResponseBody, LoginRequest, LoginResponseBody } from './auth-types.mjs';
+import { JwtClientRequest, JwtRequest, JWTResponse, JwtResponseBody, LoginRequest, LoginResponseBody } from './auth-types.mjs';
 import {generateJWT, getUserLogin, validateNewRoleTokenList } from './auth-utilities.mjs'
-import { extractClientProfile } from './authorization.mjs';
 import { generateSecretKey } from './auth-utilities.mjs';
 import { RoleEnum, SIGNUP_PROFILE_FIELDS } from '../../services/models/Fields-Sync/profile-field-config.mjs';
 import { CredentialProfile, ProfileSignupRequest } from '../profile/profile-types.mjs';
@@ -34,7 +33,7 @@ import createModelFromJSON from '../../services/models/createModelFromJson.mjs';
         else { 
             //Add user roles, already verified permission above
             const saveStudentRole:boolean = newProfile.userRoleList.length > 1; //Only save student role for multi role users
-            const insertRoleList:RoleEnum[] = newProfile.userRoleList.filter((role) => (role !== RoleEnum.STUDENT || saveStudentRole));
+            const insertRoleList:DATABASE_USER_ROLE_ENUM[] = newProfile.userRoleList.filter((role) => (role !== RoleEnum.STUDENT || saveStudentRole)).map((role) => DATABASE_USER_ROLE_ENUM[role]);
             if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
                 log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
 
@@ -78,21 +77,17 @@ export const GET_allUserCredentials =  async (request: Request, response: Respon
 };
 
 
- export const POST_logout =  async (request: JWTClientRequest, response: Response, next: NextFunction) => {
+ export const POST_logout =  async (request: JwtRequest | JwtClientRequest, response: Response, next: NextFunction) => {
     
-    const clientException = await extractClientProfile(request); 
-    if(clientException) 
-        next(clientException);
+    const userID = (request as JwtClientRequest).clientID || request.jwtUserID; 
 
-    else {
-        response.status(200).send(`User ${request.clientID} has been logged out of Encouraging Prayer.`);
-        
-        log.auth(`User ${request.clientID} has been logged out of Encouraging Prayer.`);
-    }
+    response.status(200).send(`User ${userID} has been logged out of Encouraging Prayer.`);
+    
+    log.auth(`User ${userID} has been logged out of Encouraging Prayer.`);
 };
 
-export const POST_authorization_reset = async (request:IdentityRequest, response:Response, next: NextFunction) => {
+export const POST_authorization_reset = async (request:JwtRequest, response:Response, next: NextFunction) => {
     generateSecretKey();
     response.status(202).send(`App secret key has been reset`);
-    log.auth(`User ${request.userID} has reset the server's secret key`);
+    log.auth(`User ${request.jwtUserID} has reset the server's secret key`);
 }

@@ -1,8 +1,7 @@
 import * as log from '../../services/log.mjs';
 import { CircleStatus } from '../../services/models/Fields-Sync/circle-field-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../services/models/circleAnnouncementModel.mjs';
-import { IdentityCircleRequest, IdentityRequest } from '../auth/auth-types.mjs';
-import { PrayerRequestListItem } from '../prayer-request/prayer-request-types.mjs';
+import { JwtCircleRequest } from '../auth/auth-types.mjs';
 import { ProfileListItem } from '../profile/profile-types.mjs';
 
 /* Sync between Server and Portal "circle-types" */
@@ -13,7 +12,7 @@ export interface CircleListItem {
     status?: CircleStatus
 }
 
-export interface CircleAnnouncementCreateRequest extends IdentityCircleRequest {
+export interface CircleAnnouncementCreateRequest extends JwtCircleRequest {
     body: {
         message: string,
         startDate: Date,
@@ -43,7 +42,6 @@ export interface CircleResponse {
     memberList: ProfileListItem[],
     eventList: CircleEventListItem[],
     announcementList: CIRCLE_ANNOUNCEMENT[],
-    prayerRequestList: PrayerRequestListItem[]
 };
 
 /* Sync between Server and Portal "circle-types" */
@@ -53,7 +51,7 @@ export interface CircleLeaderResponse extends CircleResponse  {
     pendingInviteList: ProfileListItem[],
 };
 
-export interface CircleEditRequest extends IdentityRequest {
+export interface CircleEditRequest extends JwtCircleRequest {
     body: {
         circleID: number, 
         leaderID: number, 
@@ -65,7 +63,7 @@ export interface CircleEditRequest extends IdentityRequest {
     } 
 }
 
-export interface CircleAnnouncementCreateRequest extends IdentityCircleRequest {
+export interface CircleAnnouncementCreateRequest extends JwtCircleRequest {
     body: {
         message: string,
         startDate: Date,

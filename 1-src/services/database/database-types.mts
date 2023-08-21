@@ -37,6 +37,14 @@ export enum DATABASE_GENDER_ENUM {
     FEMALE = 'FEMALE'
 }
 
+export enum DATABASE_USER_ROLE_ENUM {
+    STUDENT = 'STUDENT',                       //General user only access to mobile app.
+    CIRCLE_LEADER = 'CIRCLE_LEADER',           //Allowed to create and manage small groups of students.
+    CONTENT_APPROVER = 'CONTENT_APPROVER',     //Special access to content overview.
+    DEVELOPER = 'DEVELOPER',                   //Full access to features; but not user data.
+    ADMIN = 'ADMIN',                           //All access and privileges.
+}
+
 /******************************************************************* 
 *           Database `circle` Table Created: 6/25/2023 
 ********************************************************************/
@@ -67,7 +75,7 @@ export enum DATABASE_CIRCLE_STATUS_ENUM {
 /******************************************************************** 
 *      Database `circle_announcement` Table Created: 7/30/2023 
 *********************************************************************/
-export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS:string[] = [ //
+export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS:string[] = [ 
     'announcementID', 'circleID', 'message', 'startDate', 'endDate'
 ];
 
@@ -81,5 +89,29 @@ export type DATABASE_CIRCLE_ANNOUNCEMENT = {
     message?: string,
     startDate?: Date,
     endDate?: Date, 
+};
+
+
+/******************************************************************** 
+*      Database `prayer_request` Table Created: 8/9/2023 
+*********************************************************************/
+export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [
+    'prayerRequestID', 'requestorID', 'topic', 'description', 'isOnGoing', 'isResolved', 'tagsStringified', 'expirationDate'
+];
+
+export const PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED:string[] = [
+    'requestorID', 'topic', 'description', 'expirationDate'
+];
+
+export type DATABASE_PRAYER_REQUEST = {
+    prayerRequestID: number, 
+    requestorID: number, 
+    topic: string,
+    description: string,
+    prayerCount: number,
+    isOnGoing: boolean,
+    isResolved: boolean,
+    tagsStringified: string,
+    expirationDate: Date
 };
 

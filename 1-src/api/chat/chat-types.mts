@@ -1,9 +1,9 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
-import { IdentityRequest } from '../auth/auth-types.mjs';
+import { JwtRequest } from '../auth/auth-types.mjs';
 
-export interface ConversationUserRequest extends IdentityRequest {};
+export interface ConversationUserRequest extends JwtRequest {};
 
-export interface ConversationCircleRequest extends IdentityRequest {};
+export interface ConversationCircleRequest extends JwtRequest {};
 
 export enum MessageTypeEnum {
     DIRECT,
@@ -17,7 +17,7 @@ export interface Message {
     time: number,
 }
 
-export interface ConversationNewRequest extends IdentityRequest {
+export interface ConversationNewRequest extends JwtRequest {
     body: {
         userID: number, 
         topic: MessageTypeEnum, 

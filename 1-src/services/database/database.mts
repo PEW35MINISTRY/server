@@ -1,5 +1,4 @@
 import SQL, { Pool, PoolOptions, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
-import { Exception } from '../../api/api-types.mjs';
 import * as log from './../log.mjs';
 import dotenv from 'dotenv';
 import { CommandResponseType } from './database-types.mjs';
@@ -35,6 +34,7 @@ setTimeout(async()=> await DATABASE.query('SELECT COUNT(*) FROM `user`')
 * - Use query() for predefined Select Statements (static)
 * - Use execute() for Prepared Statements (inputs)
 * - Use command() for database operation (inputs)
+* - Use batch() for multiple prepared operations (input)
 */
 
 /* DO NOT CALL DIRECTLY | Use Predefined Queries */
@@ -91,4 +91,50 @@ export const command = async(query:string, fields:any[]):Promise<CommandResponse
             return undefined;
         });
 
+        
+/************************************************************
+ *  BATCH: PREPARED STATEMENT FOR MULTIPLE ROW OPERATIONS [Single Operations Only: INSERT & UPDATE]
+ * https://stackoverflow.com/questions/67672322/bulk-insert-with-mysql2-and-nodejs-throws-500
+ * https://stackoverflow.com/questions/8899802/how-do-i-do-a-bulk-insert-in-mysql-using-node-js
+ ************************************************************/
+export const batch = async(query:string, fieldSets:any[][]):Promise<boolean|undefined> => {
+    //validate all sets are equal length
+    if(fieldSets.length === 0 || !fieldSets.every(set => (set.length === fieldSets[0].length))) {
+        log.error('DB Batch Rejected for uneven field sets: ', query, fieldSets.length, JSON.stringify(fieldSets));
+        return undefined;
+
+    } else {
+        try { //Note: All queries must be valid for a success
+            return await DATABASE.query(query, [fieldSets])
+                .then((result:any[]) => {
+                    if(result.length >= 1) {
+                        // log.db('DB Batch Successful: ', query, fieldSets.length, JSON.stringify(result));
+                        if((result as unknown as SQL.ResultSetHeader[])[0].affectedRows !== undefined)
+                            return ((result as unknown as SQL.ResultSetHeader[])[0].affectedRows as number === fieldSets.length);
+                    } else {
+                        log.error('DB Batch Successful; but NO Response: ', query, fieldSets.length, JSON.stringify(result));
+                        return undefined;
+                    }
+                    })
+                .catch((err) => {
+                    log.db('DB Batch Failed: ', query, fieldSets.length, JSON.stringify(fieldSets), err);
+                    return undefined;
+                });
+            } catch (error) {
+                log.error('DB Batch ERROR: ', query, fieldSets.length, error);
+                return undefined;
+            }
+        }
+    }
+
 export default DATABASE;
+
+/*** UTILITIES ***/
+export const validateColumns = (inputMap:Map<string, any>, includesRequired:boolean, columnList:string[], requiredColumnList:string[]):boolean => 
+    Array.from(inputMap.entries()).every(([column, value]) => {
+        return (columnList.includes(column)
+            && (!requiredColumnList.includes(column) 
+                || value !== undefined && value !== null && (value.toString().length > 0)));
+    }) 
+    && (!includesRequired || requiredColumnList.every((c)=>inputMap.has(c)));
+

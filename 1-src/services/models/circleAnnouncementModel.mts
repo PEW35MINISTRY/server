@@ -10,6 +10,8 @@ import { DATABASE_CIRCLE_ANNOUNCEMENT, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRE
 export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
     modelType = 'CIRCLE_ANNOUNCEMENT';
     getID = () => this.announcementID;
+    setID = (id:number) => this.announcementID = id;
+    isValid: boolean = false;
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     #propertyList = [ 'message', 'startDate', 'endDate']; //used for json parsing
@@ -29,6 +31,8 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
                 this.message = DB.message;
                 this.startDate = DB.startDate;
                 this.endDate = DB.endDate;
+
+                this.isValid = true;
             }
         } catch(error) {
             log.db('INVALID Database Object; failed to parse CIRCLE ANNOUNCEMENT', JSON.stringify(DB), error);
@@ -62,6 +66,8 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
         return map;
       }
 
+    getDatabaseProperties = ():Map<string, any> => this.getUniqueDatabaseProperties();
+
     toJSON = ():DATABASE_CIRCLE_ANNOUNCEMENT => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_CIRCLE_ANNOUNCEMENT;
 
     toListItem = ():DATABASE_CIRCLE_ANNOUNCEMENT => this.toJSON();
@@ -75,6 +81,7 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
             const endDate = new Date(value);
             if(isNaN(endDate.valueOf()) || currentDate > endDate)
                 return false;
+            else return true;
         }
         //No Field Match
         return undefined;
