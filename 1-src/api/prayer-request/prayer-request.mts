@@ -18,10 +18,12 @@ import { CREATE_REQUEST_FIELDS, EDIT_PRAYER_REQUEST_FIELDS, PRAYER_REQUEST_COMME
 //List of prayer requests for which user is a recipient
 export const GET_PrayerRequestUserList = async (request: JwtRequest, response: Response) => {
     response.status(200).send(await DB_SELECT_PRAYER_REQUEST_USER_LIST(request.jwtUserID));
+    log.event(`Returning prayer request list for user ${request.jwtUserID}`);
 };
 
 export const GET_PrayerRequestCircleList = async (request: JwtCircleRequest, response: Response) => {
     response.status(200).send(await DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST(request.circleID));
+    log.event(`Returning prayer request list for circle ${request.circleID}`);
 };
 
 //List of prayer requests for which the user or client is the requestor
@@ -82,13 +84,16 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
                 if(!savedPrayerRequest.isValid) 
                     next(new Exception(500, 'Create Prayer Request Failed :: Failed to save new prayer request to database.', 'Save Failed'));
                 
-                else if(await DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH({prayerRequestID: savedPrayerRequest.prayerRequestID, userRecipientIDList: request.body['addUserRecipientIDList'], circleRecipientIDList: request.body['addCircleRecipientIDList']}) === false)
+                else if(await DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH({prayerRequestID: savedPrayerRequest.prayerRequestID, userRecipientIDList: newPrayerRequest.addUserRecipientIDList, circleRecipientIDList: newPrayerRequest.addCircleRecipientIDList}) === false)
                     next(new Exception(500, 'Create Prayer Request Failed :: Failed to save batch recipient list.', 'Send Failed'));
                 
-                else
+                else {
                     response.status(201).send(savedPrayerRequest.toJSON());
+                    log.event('Created New Prayer Request:', savedPrayerRequest.prayerRequestID);
+                }
         }
-    }
+    } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
+        next(new Exception(500, `POST_prayerRequest - Failed to parse new prayer request and is invalid`));
 };
 
 export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, response: Response, next: NextFunction) => {
@@ -107,16 +112,12 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
 
         else { //Handle changes in user recipient lists
             const userRecipientCurrentList:number[] = currentPrayerRequest.userRecipientList.map((profile) => profile.userID);
-            const userRecipientToDeleteList:number[] = (request.body.removeUserRecipientIDList === undefined || !Array.isArray(request.body.removeUserRecipientIDList) || request.body.removeUserRecipientIDList.length === 0)
-                ? [] : Array.from(request.body.removeUserRecipientIDList).filter((id) => userRecipientCurrentList.includes(id));
-            const userRecipientToInsertList:number[] = (request.body.addUserRecipientIDList === undefined || !Array.isArray(request.body.addUserRecipientIDList) || request.body.addUserRecipientIDList.length === 0)
-                ? [] : Array.from(request.body.addUserRecipientIDList).filter((id) => !userRecipientCurrentList.includes(id) && !userRecipientToDeleteList.includes(id));
+            const userRecipientToDeleteList:number[] = editPrayerRequest.removeUserRecipientIDList.filter((id) => userRecipientCurrentList.includes(id));
+            const userRecipientToInsertList:number[] = editPrayerRequest.addUserRecipientIDList.filter((id) => !userRecipientCurrentList.includes(id) && !userRecipientToDeleteList.includes(id));
             //Handle changes in circle recipient lists
             const circleRecipientCurrentList:number[] = currentPrayerRequest.circleRecipientList.map((circle) => circle.circleID);
-            const circleRecipientToDeleteList:number[] = (request.body.removeCircleRecipientIDList === undefined || !Array.isArray(request.body.removeCircleRecipientIDList) || request.body.removeCircleRecipientIDList.length === 0)
-                ? [] : Array.from(request.body.removeCircleRecipientIDList).filter((id) => circleRecipientCurrentList.includes(id));
-            const circleRecipientToInsertList:number[] = (request.body.addCircleRecipientIDList === undefined || !Array.isArray(request.body.addCircleRecipientIDList) || request.body.addCircleRecipientIDList.length === 0)
-                ? [] : Array.from(request.body.addCircleRecipientIDList).filter((id) => !circleRecipientCurrentList.includes(id) && !circleRecipientToDeleteList.includes(id));
+            const circleRecipientToDeleteList:number[] = editPrayerRequest.removeCircleRecipientIDList.filter((id) => circleRecipientCurrentList.includes(id));
+            const circleRecipientToInsertList:number[] = editPrayerRequest.addCircleRecipientIDList.filter((id) => !circleRecipientCurrentList.includes(id) && !circleRecipientToDeleteList.includes(id));
                 
             if((userRecipientToDeleteList.length > 0 || circleRecipientToDeleteList.length > 0) 
                 && await DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH({prayerRequestID: request.prayerRequestID, userRecipientIDList: userRecipientToDeleteList, circleRecipientIDList: circleRecipientToDeleteList}) === false)
@@ -131,6 +132,7 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
                 editPrayerRequest.circleRecipientList = await DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST(request.prayerRequestID);
                 editPrayerRequest.commentList = currentPrayerRequest.commentList;
                 response.status(202).send(editPrayerRequest.toJSON());
+                log.event('Edit Prayer Request successfully saved:', editPrayerRequest.prayerRequestID);
             }
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
@@ -142,8 +144,11 @@ export const POST_prayerRequestIncrementPrayerCount = async (request: JwtPrayerR
     
     if(await DB_UPDATE_INCREMENT_PRAYER_COUNT(request.prayerRequestID) === false)
         next(new Exception(500, `Failed to Incremented Prayer Count for prayer request ${request.prayerRequestID}`));
-    else
+
+    else {
         response.status(200).send(`Prayer Count Incremented for prayer request ${request.prayerRequestID}`);
+        log.event(`Incremented prayer count for prayer request ${request.prayerRequestID}`);
+    }
 };
 
 
@@ -156,8 +161,10 @@ export const POST_prayerRequestResolved = async (request: JwtPrayerRequest, resp
     else if(await DB_DELETE_RECIPIENT_PRAYER_REQUEST({prayerRequestID: request.prayerRequestID}) === false)
         next(new Exception(500, `Failed to Delete Recipients for prayer request ${request.prayerRequestID}`));
 
-    else
+    else {
         response.status(200).send(`Prayer Request ${request.prayerRequestID} resolved.`);
+        log.event(`Resolved prayer request ${request.prayerRequestID}`);
+    }
 };
 
 export const DELETE_prayerRequest = async (request: JwtPrayerRequest, response: Response, next: NextFunction) => {
@@ -191,8 +198,10 @@ export const POST_prayerRequestComment = async (request: PrayerRequestCommentReq
         &&  await DB_INSERT_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID,
                 commenterID: request.jwtUserID, message: request.body.comment}))
         response.status(200).send(`Comment saved for prayer request ${request.prayerRequestID}`);
-    else
+    else {
         next(new Exception(500, `Failed to Save comment for prayer request ${request.prayerRequestID}`));
+        log.event(`New comment for Prayer Request ${request.prayerRequestID} successfully saved.`);
+    }
 };
 
 
@@ -204,8 +213,10 @@ export const POST_prayerRequestCommentIncrementLikeCount = async (request: JwtPr
     else if(await DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT(parseInt(request.params.comment)) === false)
         next(new Exception(500, `Failed to Incremented Like Count for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`));
 
-    else
+    else {
         response.status(200).send(`Like Count Incremented for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`);
+        log.event(`Incremented like count for comment ${request.params.comment} of prayer request ${request.prayerRequestID}`);
+    }
 };
 
 export const DELETE_prayerRequestComment = async (request: JwtPrayerRequest, response: Response, next: NextFunction) => {
@@ -216,7 +227,9 @@ export const DELETE_prayerRequestComment = async (request: JwtPrayerRequest, res
     else if(await DB_DELETE_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID, commentID: parseInt(request.params.comment)}) === false)
         next(new Exception(500, `Failed to Delete comment for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`));
 
-    else
+    else {
         response.status(200).send(`Comment ${request.params.comment} deleted for prayer request ${request.prayerRequestID}.`);
+        log.event(`Deleted comment ${request.params.comment} of prayer request ${request.prayerRequestID}`);
+    }
 };
 
