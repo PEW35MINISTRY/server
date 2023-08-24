@@ -1,10 +1,12 @@
 import * as log from "../log.mjs";
 import BASE_MODEL from "./baseModel.mjs";
-import { CircleStatus, InputField } from "./Fields-Sync/circle-field-config.mjs";
+import InputField from "./Fields-Sync/inputField.mjs";
+import { CircleStatus } from "./Fields-Sync/circle-field-config.mjs";
 import { CircleEditRequest, CircleEventListItem, CircleListItem } from "../../api/circle/circle-types.mjs";
 import { ProfileListItem } from "../../api/profile/profile-types.mjs";
 import { DATABASE_CIRCLE, CIRCLE_TABLE_COLUMNS } from "../database/database-types.mjs";
 import CIRCLE_ANNOUNCEMENT from "./circleAnnouncementModel.mjs";
+import { PrayerRequestListItem } from "../../api/prayer-request/prayer-request-types.mjs";
 
 /*******************************************
   UNIVERSAl circle for DATABASE OPERATIONS 
@@ -37,6 +39,7 @@ export default class CIRCLE implements BASE_MODEL  {
     leaderProfile?: ProfileListItem;
     announcementList: CIRCLE_ANNOUNCEMENT[] = [];
     eventList: CircleEventListItem[] = [];
+    prayerRequestList: PrayerRequestListItem[] = [];
     memberList: ProfileListItem[] = [];
     pendingRequestList: ProfileListItem[] = [];
     pendingInviteList: ProfileListItem[] = [];

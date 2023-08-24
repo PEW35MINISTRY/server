@@ -11,6 +11,7 @@ import USER from '../../services/models/userModel.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../services/database/queries/circle-queries.mjs';
 import createModelFromJSON from '../../services/models/createModelFromJson.mjs';
 import { DATABASE_USER_ROLE_ENUM } from '../../services/database/database-types.mjs';
+import { DB_DELETE_ALL_USER_PRAYER_REQUEST, DB_DELETE_PRAYER_REQUEST } from '../../services/database/queries/prayer-request-queries.mjs';
 
 //UI Helper Utility
 export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
@@ -138,6 +139,9 @@ export const DELETE_userProfile = async (request: JwtClientRequest, response: Re
 
     // else if(await DB_DELETE_PARTNERSHIP({userID: request.clientID, partnerUserID: undefined}) === false)
     //     next(new Exception(500, `Failed to delete all partnerships of user ${request.clientID}`, 'Partnerships Exists'));
+
+    else if(await DB_DELETE_ALL_USER_PRAYER_REQUEST(request.clientID) === false)
+        next(new Exception(500, `Failed to delete all prayer requests of user ${request.clientID}`, 'Prayer Requests Exists'));
 
     else if(await DB_DELETE_USER_ROLE({userID: request.clientID, userRoleList: undefined}) === false)
         next(new Exception(500, `Failed to delete all user roles of user ${request.clientID}`, 'User Roles Exists'));

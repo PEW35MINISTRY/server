@@ -1,5 +1,5 @@
 import { JwtRequest } from "../../api/auth/auth-types.mjs";
-import { InputField } from "./Fields-Sync/profile-field-config.mjs";
+import InputField from "./Fields-Sync/inputField.mjs";
 
 /**********************************
    Base Model for Data Structure 

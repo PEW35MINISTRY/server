@@ -21,8 +21,9 @@ import apiRoutes from './api/api.mjs';
 import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup, POST_authorization_reset } from './api/auth/auth.mjs';
 import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile } from './api/profile/profile.mjs';
 import { GET_publicCircle, GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, GET_CircleList } from './api/circle/circle.mjs';
+import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestRequestorDetails, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './api/prayer-request/prayer-request.mjs';
 
-import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, extractCircleMiddleware, extractClientMiddleware } from './api/auth/authorization.mjs';
+import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware } from './api/auth/authorization.mjs';
 import { GET_userContacts } from './api/chat/chat.mjs';
  
 //Import Services
@@ -146,6 +147,31 @@ apiServer.get('/api/user/profile/edit-fields', GET_EditProfileFields);
 
 apiServer.get('/api/circle-list', GET_CircleList); //optional 'search' parameter
 
+apiServer.get('/api/prayer-request/user-list', GET_PrayerRequestUserList);
+apiServer.post('/api/prayer-request', POST_prayerRequest);
+
+
+/*****************************************************************************/
+/* Authenticate Recipient to Prayer Request | cache: request.prayerRequestID */
+/*****************************************************************************/
+apiServer.use('/api/prayer-request/:prayer', (request:JwtPrayerRequest, response:Response, next:NextFunction) => authenticatePrayerRequestRecipientMiddleware(request, response, next));
+
+apiServer.get('/api/prayer-request/:prayer', GET_PrayerRequest);
+apiServer.post('/api/prayer-request/:prayer/like', POST_prayerRequestIncrementPrayerCount);
+apiServer.post('/api/prayer-request/:prayer/comment/:comment/like', POST_prayerRequestCommentIncrementLikeCount);
+apiServer.post('/api/prayer-request/:prayer/comment', POST_prayerRequestComment);
+apiServer.delete('/api/prayer-request/:prayer/comment/:comment', DELETE_prayerRequestComment);
+
+
+/*****************************************************************************/
+/* Authenticate Requestor to Prayer Request | cache: request.prayerRequestID */
+/*****************************************************************************/
+apiServer.use('/api/prayer-request-edit/:prayer', (request:JwtPrayerRequest, response:Response, next:NextFunction) => authenticatePrayerRequestRequestorMiddleware(request, response, next));
+
+apiServer.get('/api/prayer-request-edit/:prayer', GET_PrayerRequestRequestorDetails);
+apiServer.patch('/api/prayer-request-edit/:prayer', PATCH_prayerRequest);
+apiServer.post('/api/prayer-request-edit/:prayer/resolved', POST_prayerRequestResolved);
+apiServer.delete('/api/prayer-request-edit/:prayer', DELETE_prayerRequest);
 
 
 /*********************************************************/
@@ -155,6 +181,8 @@ apiServer.use('/api/partner/:client', (request:JwtClientRequest, response:Respon
 apiServer.use('/api/partner/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => authenticatePartnerMiddleware(request, response, next));
 
 apiServer.get('/api/partner/:client', GET_partnerProfile);
+
+apiServer.get('/api/partner/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 
 
 /******************************************************/
@@ -176,6 +204,9 @@ apiServer.get('/api/user/:client', GET_userProfile);
 apiServer.patch('/api/user/:client', PATCH_userProfile);
 apiServer.delete('/api/user/:client', DELETE_userProfile);
 
+apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
+apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
+
 
 /******************************************************/
 /* Extract Circle Parameter | cache: request.circleID */
@@ -195,6 +226,8 @@ apiServer.delete('/api/circle/:circle/leave', DELETE_circleMember);
 apiServer.use('/api/circle/:circle', (request:JwtCircleRequest, response:Response, next:NextFunction) => authenticateCircleMembershipMiddleware(request, response, next));
 
 apiServer.get('/api/circle/:circle', GET_circle);
+
+apiServer.get('/api/circle/:circle/prayer-request-list', GET_PrayerRequestCircleList);
 
 
 /*******************************************/

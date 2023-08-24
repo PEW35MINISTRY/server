@@ -1,7 +1,8 @@
 import * as log from '../log.mjs';
 import { DATABASE_USER, USER_TABLE_COLUMNS } from "../database/database-types.mjs";
 import { CircleListItem } from "../../api/circle/circle-types.mjs";
-import { GenderEnum, InputField, InputType, RoleEnum, getDOBMaxDate, getDOBMinDate } from "./Fields-Sync/profile-field-config.mjs";
+import InputField, { InputType } from "./Fields-Sync/inputField.mjs";
+import { GenderEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from "./Fields-Sync/profile-field-config.mjs";
 import { ProfileListItem, ProfileResponse, ProfilePublicResponse, ProfilePartnerResponse, ProfileEditRequest } from "../../api/profile/profile-types.mjs";
 import BASE_MODEL from './baseModel.mjs';
 import { getPasswordHash } from '../../api/auth/auth-utilities.mjs';

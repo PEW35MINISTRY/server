@@ -9,11 +9,11 @@ export interface CommandResponseType extends SQL.ResultSetHeader {
 /******************************************************************* 
 *           Database `user` Table Created: 6/25/2023 
 ********************************************************************/
-export const USER_TABLE_COLUMNS:string[] = [
-    'userID', 'firstName', 'lastName', 'displayName', 'email', 'passwordHash', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes'
-];
+export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
-export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash'];
+export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
+    'userID', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes'
+];
 
 export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
     userID: number, 
@@ -48,11 +48,11 @@ export enum DATABASE_USER_ROLE_ENUM {
 /******************************************************************* 
 *           Database `circle` Table Created: 6/25/2023 
 ********************************************************************/
-export const CIRCLE_TABLE_COLUMNS:string[] = [
-    'circleID', 'leaderID', 'name', 'description', 'postalCode', 'isActive', 'inviteToken', 'image', 'notes'
-];
+export const CIRCLE_TABLE_COLUMNS_REQUIRED:string[] = [ 'leaderID', 'name' ];
 
-export const CIRCLE_TABLE_COLUMNS_REQUIRED:string[] = [ 'leaderID', 'name'];
+export const CIRCLE_TABLE_COLUMNS:string[] = [ ...CIRCLE_TABLE_COLUMNS_REQUIRED,
+    'circleID', 'description', 'postalCode', 'isActive', 'inviteToken', 'image', 'notes'
+];
 
 export type DATABASE_CIRCLE = {  //Optional Fields for PATCH/UPDATE
     circleID: number, 
@@ -75,12 +75,10 @@ export enum DATABASE_CIRCLE_STATUS_ENUM {
 /******************************************************************** 
 *      Database `circle_announcement` Table Created: 7/30/2023 
 *********************************************************************/
-export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS:string[] = [ 
-    'announcementID', 'circleID', 'message', 'startDate', 'endDate'
-];
+export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED:string[] = [ 'circleID', 'message', 'endDate' ];
 
-export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED:string[] = [ //
-    'circleID', 'message', 'endDate'
+export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS:string[] = [ ...CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED,
+    'announcementID', 'startDate'
 ];
 
 export type DATABASE_CIRCLE_ANNOUNCEMENT = {
@@ -95,12 +93,10 @@ export type DATABASE_CIRCLE_ANNOUNCEMENT = {
 /******************************************************************** 
 *      Database `prayer_request` Table Created: 8/9/2023 
 *********************************************************************/
-export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [
-    'prayerRequestID', 'requestorID', 'topic', 'description', 'isOnGoing', 'isResolved', 'tagsStringified', 'expirationDate'
-];
+export const PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED:string[] = [ 'requestorID', 'topic', 'description', 'expirationDate' ];
 
-export const PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED:string[] = [
-    'requestorID', 'topic', 'description', 'expirationDate'
+export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED,
+    'prayerRequestID', 'prayerCount', 'isOnGoing', 'isResolved', 'tagsStringified'
 ];
 
 export type DATABASE_PRAYER_REQUEST = {

@@ -8,10 +8,12 @@ import { RoleEnum } from '../../services/models/Fields-Sync/profile-field-config
 import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../services/database/database-types.mjs';
 import createModelFromJSON from '../../services/models/createModelFromJson.mjs';
 import { DB_IS_USER_ROLE } from '../../services/database/queries/user-queries.mjs';
-import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleStatus, InputField } from '../../services/models/Fields-Sync/circle-field-config.mjs';
+import InputField from '../../services/models/Fields-Sync/inputField.mjs';
+import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleStatus } from '../../services/models/Fields-Sync/circle-field-config.mjs';
 import { CircleAnnouncementCreateRequest } from './circle-types.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../services/models/circleAnnouncementModel.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
+import { DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST } from '../../services/database/queries/prayer-request-queries.mjs';
 
 /******************
  *  CIRCLE ROUTES
@@ -31,7 +33,7 @@ export const GET_circle =  async(request: JwtCircleRequest, response: Response, 
     const circle:CIRCLE = await DB_SELECT_CIRCLE_DETAIL({circleID: request.circleID, userID: request.jwtUserID});
     circle.announcementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT(request.circleID);
     circle.eventList = getCircleEventSampleList(request.circleID); //TODO Define Circle Event once Implemented
-    // circle.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST( circle.circleID);
+    circle.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST( circle.circleID);
     circle.memberList = await DB_SELECT_CIRCLE_USER_LIST(circle.circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER);
 
     if(request.jwtUserID === circle.leaderID || request.jwtUserRole === RoleEnum.ADMIN) {
@@ -120,6 +122,9 @@ export const DELETE_circle =  async(request: JwtCircleRequest, response: Respons
     if(await DB_DELETE_CIRCLE_ANNOUNCEMENT({announcementID: undefined, circleID: request.circleID}) === false)
         next(new Exception(500, `Failed to delete all announcements for circle ${request.circleID}`, 'Deleting Announcements Failed'));
 
+    else if(await DB_DELETE_RECIPIENT_PRAYER_REQUEST({circleID: request.circleID}) === false)
+        next(new Exception(500, `Failed to delete all prayer request recipient records for circle ${request.circleID}`, 'Deleting Circle Prayer Requests Failed'));
+    
     else if(await DB_DELETE_CIRCLE_USER_STATUS({userID: undefined, circleID: request.circleID}) === false)
         next(new Exception(500, `Failed to delete all user members for circle ${request.circleID}`, 'Removing Members Failed'));
 
