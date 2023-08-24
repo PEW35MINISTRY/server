@@ -8,7 +8,8 @@ import { RoleEnum } from '../../services/models/Fields-Sync/profile-field-config
 import PRAYER_REQUEST from '../../services/models/prayerRequestModel.mjs';
 import createModelFromJSON from '../../services/models/createModelFromJson.mjs';
 import { PrayerRequestCommentRequest, PrayerRequestPatchRequest, PrayerRequestPostRequest } from './prayer-request-types.mjs';
-import { CREATE_REQUEST_FIELDS, EDIT_PRAYER_REQUEST_FIELDS, InputField, PRAYER_REQUEST_COMMENT_FIELDS, PRAYER_REQUEST_FIELDS_ADMIN } from '../../services/models/Fields-Sync/prayer-request-field-config.mjs';
+import InputField from '../../services/models/Fields-Sync/inputField.mjs';
+import { CREATE_REQUEST_FIELDS, EDIT_PRAYER_REQUEST_FIELDS, PRAYER_REQUEST_COMMENT_FIELDS, PRAYER_REQUEST_FIELDS_ADMIN } from '../../services/models/Fields-Sync/prayer-request-field-config.mjs';
 
 
 /*************************************

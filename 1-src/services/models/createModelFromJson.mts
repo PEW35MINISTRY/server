@@ -1,5 +1,5 @@
 import * as log from '../../services/log.mjs';
-import { GenderEnum, InputField, InputType, RoleEnum } from "./Fields-Sync/profile-field-config.mjs";
+import { GenderEnum, RoleEnum } from "./Fields-Sync/profile-field-config.mjs";
 import USER from "./userModel.mjs";
 import { NextFunction } from "express";
 import CIRCLE from "./circleModel.mjs";
@@ -8,6 +8,7 @@ import { JwtClientRequest } from "../../api/auth/auth-types.mjs";
 import { Exception } from '../../api/api-types.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
 import PRAYER_REQUEST from './prayerRequestModel.mjs';
+import InputField, { InputType, isListType } from './Fields-Sync/inputField.mjs';
 
 
 /**********************************************************
@@ -75,8 +76,13 @@ export default ({currentModel: currentModel, jsonObj, fieldList, next}:{currentM
                 next(new Exception(400, `${field.title} is Required.`, `${field.title} is Required.`));
             return undefined;
 
-        } else if(jsonObj[field.field] === undefined)
+        } else if(jsonObj[field.field] === undefined) {
             continue;
+
+        } else if(!model.hasProperty(field.field)) {
+            log.warn('*Skipping non model recognized field', model.modelType, field.field, JSON.stringify(jsonObj[field.field]));
+            continue;
+        }
 
         const modelValidateResult:boolean|undefined = model.validateModelSpecificField({field, value: jsonObj[field.field]});
         if(modelValidateResult === false) {
@@ -94,14 +100,11 @@ export default ({currentModel: currentModel, jsonObj, fieldList, next}:{currentM
                 else if(modelParseResult === false)
                     throw `${model.modelType} | ${model.getID} | Failed parseModelSpecificField`;
 
-                else if(model.hasProperty(field.field) && jsonObj[field.field] !== undefined)
+                else
                     model[field.field] = parseInput({field:field, value:jsonObj[field.field]});
 
-                else
-                    console.info('*Skipping extra field', field.field, jsonObj[field.field]);
-
             } catch(error) {
-                log.error(`Failed to parse profile field: ${field.field} with value: ${jsonObj[field.field]}`, error);
+                log.error(`Failed to parse profile field: ${field.field} with value:`, JSON.stringify(jsonObj[field.field]), error);
                 model[field.field] = undefined;
 
                 if(field.required && next !== undefined) {
@@ -150,7 +153,7 @@ const parseInput = ({field, value}:{field:InputField, value:any}):any => {
         else if(field.type === InputType.NUMBER)
             return parseFloat(value) as number;
 
-        else if(field.type === InputType.MULTI_SELECTION_LIST)
+        else if(isListType(field.type))
             return Array.from(value);
 
         else if(['displayName', 'email', 'inviteToken'].includes(field.field)) //Lowercase
@@ -174,9 +177,14 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
     if(value === undefined) {
         return false;
 
+    /* List Validate each element against general validationRegex from config */
+    } else if(isListType(field.type) && Array.isArray(field.value) && Array.from(field.value).some((element) => !(new RegExp(field.validationRegex).test(value)))){
+        log.warn(`Validating input for ${field.field}; failed list validation Regex: ${field.validationRegex}`, JSON.stringify(value));
+        return false;
+
     /* Validate general validationRegex from config */
-    } else if(!(new RegExp(field.validationRegex).test(value))){
-        log.warn(`Validating input for ${field}; failed validation Regex: ${field.validationRegex}`, value);
+    } else if(!isListType(field.type) && !(new RegExp(field.validationRegex).test(value))){
+        log.warn(`Validating input for ${field.field}; failed validation Regex: ${field.validationRegex}`, value);
         return false;
 
     } else if(field.type === InputType.DATE) {
@@ -190,25 +198,25 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
             const endDate = new Date(jsonObj['endDate']);
 
             if(isNaN(endDate.valueOf()) || startDate > endDate) {
-                log.warn(`Validating input for ${field}; failed: endDate is not greater than startDate`, value, jsonObj['endDate']);
+                log.warn(`Validating input for ${field.field}; failed: endDate is not greater than startDate`, value, jsonObj['endDate']);
                 return false;
             }
         }
         
     /* SELECT_LIST */
     } else if(field.type === InputType.SELECT_LIST && !field.selectOptionList.includes(`${value}`)) {
-        log.warn(`Validating input for ${field}; failed not included in select option list`, value, JSON.stringify(field.selectOptionList));
+        log.warn(`Validating input for ${field.field}; failed not included in select option list`, value, JSON.stringify(field.selectOptionList));
         return false;
 
     /* MULTI_SELECTION_LIST */
     } else if(field.type === InputType.MULTI_SELECTION_LIST && ( !Array.isArray(value)
         || !Array.from(value).every((item:any)=>{
             if(!field.selectOptionList.includes(`${item}`)) {
-                log.warn(`Validating input for ${field}; multi selection; missing value in select option list`, item, JSON.stringify(field.selectOptionList));
+                log.warn(`Validating input for ${field.field}; multi selection; missing value in select option list`, item, JSON.stringify(field.selectOptionList));
                 return false;
             } else return true;
         }))) {
-            log.warn(`Validating input for ${field};  multi selection; mismatched multiple select option list`, JSON.stringify(value), JSON.stringify(field.selectOptionList));
+            log.warn(`Validating input for ${field.field};  multi selection; mismatched multiple select option list`, JSON.stringify(value), JSON.stringify(field.selectOptionList));
         return false;
     }
 

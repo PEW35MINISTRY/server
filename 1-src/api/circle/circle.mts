@@ -8,7 +8,8 @@ import { RoleEnum } from '../../services/models/Fields-Sync/profile-field-config
 import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../services/database/database-types.mjs';
 import createModelFromJSON from '../../services/models/createModelFromJson.mjs';
 import { DB_IS_USER_ROLE } from '../../services/database/queries/user-queries.mjs';
-import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleStatus, InputField } from '../../services/models/Fields-Sync/circle-field-config.mjs';
+import InputField from '../../services/models/Fields-Sync/inputField.mjs';
+import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleStatus } from '../../services/models/Fields-Sync/circle-field-config.mjs';
 import { CircleAnnouncementCreateRequest } from './circle-types.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../services/models/circleAnnouncementModel.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';

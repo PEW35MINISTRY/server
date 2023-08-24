@@ -2,7 +2,8 @@ import * as log from "../log.mjs";
 import BASE_MODEL from "./baseModel.mjs";
 import { ProfileListItem } from "../../api/profile/profile-types.mjs";
 import { DATABASE_PRAYER_REQUEST, PRAYER_REQUEST_TABLE_COLUMNS } from "../database/database-types.mjs";
-import { InputField, PrayerRequestTagEnum } from "./Fields-Sync/prayer-request-field-config.mjs";
+import InputField from "./Fields-Sync/inputField.mjs";
+import { PrayerRequestTagEnum } from "./Fields-Sync/prayer-request-field-config.mjs";
 import { PrayerRequestCommentListItem, PrayerRequestListItem, PrayerRequestPostRequest } from "../../api/prayer-request/prayer-request-types.mjs";
 import { CircleListItem } from "../../api/circle/circle-types.mjs";
 
@@ -16,7 +17,8 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     isValid: boolean = false;
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
-    #propertyList = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'commentList', 'userRecipientList', 'circleRecipientList'];
+    #displayPropertyList = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'commentList', 'userRecipientList', 'circleRecipientList' ];
+    #propertyList = [ ...this.#displayPropertyList, 'addUserRecipientIDList', 'removeUserRecipientIDList', 'addCircleRecipientIDList', 'removeCircleRecipientIDList' ];
 
     prayerRequestID: number = -1;
     requestorID: number;
@@ -33,6 +35,12 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     userRecipientList: ProfileListItem[] = [];
     circleRecipientList: CircleListItem[] = [];
     commentList: PrayerRequestCommentListItem[] = [];
+
+    //Temporary for JSON Patch Request
+    addUserRecipientIDList: number[];
+    removeUserRecipientIDList: number[];
+    addCircleRecipientIDList: number[];
+    removeCircleRecipientIDList: number[];
 
     constructor(DB?:DATABASE_PRAYER_REQUEST, prayerRequestID?:number) {
         try {
@@ -59,7 +67,7 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     /* PROPERTY FIELD UTILITIES */
     hasProperty = (field:string) => this.#propertyList.includes(field);
 
-    getValidProperties = (properties:string[] = this.#propertyList, includePrayerRequestID:boolean = true):Map<string, any> => {
+    getValidProperties = (properties:string[] = this.#displayPropertyList, includePrayerRequestID:boolean = true):Map<string, any> => {
         const map = new Map<string, any>();
         properties.filter((p) => (includePrayerRequestID || (p !== 'prayerRequestID'))).forEach((field) => {
             if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null

@@ -1,6 +1,7 @@
 import * as log from "../log.mjs";
 import BASE_MODEL from "./baseModel.mjs";
-import { CircleStatus, InputField } from "./Fields-Sync/circle-field-config.mjs";
+import InputField from "./Fields-Sync/inputField.mjs";
+import { CircleStatus } from "./Fields-Sync/circle-field-config.mjs";
 import { CircleEditRequest, CircleEventListItem, CircleListItem } from "../../api/circle/circle-types.mjs";
 import { ProfileListItem } from "../../api/profile/profile-types.mjs";
 import { DATABASE_CIRCLE, CIRCLE_TABLE_COLUMNS } from "../database/database-types.mjs";

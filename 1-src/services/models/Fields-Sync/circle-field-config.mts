@@ -1,4 +1,5 @@
-/***** NO DEPENDENCIES - Define all types locally *****/
+/***** ONLY DEPENDENCIES - Define all types locally *****/
+import InputField, { InputType } from "./inputField.mjs";
 
 /*******************************************************
 *        CIRCLE FIELD CONFIGURATION FILE
@@ -16,79 +17,6 @@ export enum CircleStatus {
     INVITE = 'INVITE',
     REQUEST = 'REQUEST'
 }
-
-export enum InputType {
-    TEXT = 'TEXT',
-    NUMBER = 'NUMBER',
-    EMAIL = 'EMAIL',
-    PASSWORD = 'PASSWORD',
-    DATE = 'DATE',
-    SELECT_LIST = 'SELECT_LIST',
-    MULTI_SELECTION_LIST = 'MULTI_SELECTION_LIST',
-    PARAGRAPH = 'PARAGRAPH'
-}
-
-export type FieldInput = {
-    title: string,
-    field: string, 
-    value: string | undefined,
-    type: InputType,
-    required: boolean,
-    validationRegex: string,
-    validationMessage: string,
-    selectOptionList: string[] | number[]
-}
-
-export class InputField {
-    title: string;
-    field: string;
-    value: string | undefined;
-    type: InputType;
-    required: boolean;
-    unique: boolean;
-    validationRegex: RegExp;
-    validationMessage: string;
-    selectOptionList: string[];
-    displayOptionList: string[];
-
-    constructor({title, field, value, type=InputType.TEXT, required=false, unique=false, validationRegex=new RegExp(/.+/), validationMessage='Invalid Input', selectOptionList=[]} :
-        {title:string, field:string, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, validationRegex?: RegExp, validationMessage?: string, selectOptionList?: string[]}) {
-        this.title = title;
-        this.field = field;
-        this.value = value;
-        this.type = type;
-        this.unique = unique;
-        this.required = unique || required;
-        this.validationRegex = validationRegex;
-        this.validationMessage = validationMessage;
-        this.selectOptionList = selectOptionList;
-        this.displayOptionList = makeDisplayList(selectOptionList);
-
-        //Default Handle List Validations
-        if(type == InputType.SELECT_LIST && validationRegex.source === '.+') {
-            this.validationRegex = new RegExp(selectOptionList.join("|"));
-            this.validationMessage = 'Please Select'
-        }
-    };
-
-    setValue(value: string): void {this.value = value; }
-
-    toJSON():FieldInput {
-        return {
-            title: this.title,
-            field: this.field,
-            value: this.value || '',
-            type: this.type,
-            required: this.required,
-            validationRegex: this.validationRegex.source,
-            validationMessage: this.validationMessage,
-            selectOptionList: this.selectOptionList
-        };
-    }
-}
-
-//Converts underscores to spaces and capitalizes each word
-export const makeDisplayList = (list:string[]):string[] => list.map(value => value.toLowerCase().split('_'||' ').map((s) => s.charAt(0).toUpperCase() + s.substring(1)).join(' '));
 
 export const getDateDaysFuture = (days: number = 14):Date => {
     let date = new Date();

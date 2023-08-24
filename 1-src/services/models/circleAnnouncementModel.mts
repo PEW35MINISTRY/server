@@ -1,6 +1,6 @@
 import * as log from "../log.mjs";
 import BASE_MODEL from "./baseModel.mjs";
-import { InputField, InputType } from "./Fields-Sync/circle-field-config.mjs";
+import InputField, { InputType } from "./Fields-Sync/inputField.mjs";
 import { CircleAnnouncementCreateRequest } from "../../api/circle/circle-types.mjs";
 import { DATABASE_CIRCLE_ANNOUNCEMENT, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED } from "../database/database-types.mjs";
 
