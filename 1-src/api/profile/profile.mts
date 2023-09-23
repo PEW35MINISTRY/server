@@ -168,12 +168,24 @@ export const GET_profileImage = async(request: JwtClientRequest, response: Respo
 /* Headers: Content-Type: 'image/jpg' or 'image/png' & Content-Length: (calculated) | Body: binary: Blob */
 export const POST_profileImage = async(request: ProfileImageRequest, response: Response, next: NextFunction) => {
     const fileName:string = request.params.file || 'invalid';
-    const filePath:string|undefined = await uploadImage({id:request.clientID, fileName, imageBlob: request.body, imageType: ImageTypeEnum.USER_PROFILE});
-    
-    if(filePath !== undefined && await DB_UPDATE_USER(request.clientID, new Map([['image', filePath]])))
-        response.status(202).send(`Successfully saved profile image: ${filePath}`);
+    const fileExtension:string = fileName.split('.').pop();
+    let filePath:string|undefined = undefined;
+
+    const existingFilePath:string|undefined = (await DB_SELECT_USER(new Map([['userID', request.clientID]]))).image || undefined;
+    const existingFileName:string = (existingFilePath || '').split('/').pop();
+    const existingFileExtension:string = (existingFilePath || '').split('.').pop();
+
+    if(fileExtension !== existingFileExtension && existingFilePath !== undefined && await clearImage(existingFileName) === false)
+        next(new Exception(500, `Profile image deletion failed for ${request.clientID} : ${existingFilePath}`, 'Existing Image'));
+
+    else if((filePath = await uploadImage({id:request.clientID, fileName, imageBlob: request.body, imageType: ImageTypeEnum.USER_PROFILE})) === undefined)
+        next(new Exception(500, `Profile image upload failed for fileName: ${fileName}`, 'Upload Failed'));
+
+    else if(await DB_UPDATE_USER(request.clientID, new Map([['image', filePath]])) === false)
+        next(new Exception(500, `Profile image upload failed to save: ${filePath}`, 'Save Failed'));
+
     else
-        next(new Exception(500, `Profile image upload failed: ${filePath}`, 'Upload Failed'));
+        response.status(202).send(`Successfully saved profile image: ${filePath}`);
 }
 
 export const DELETE_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {

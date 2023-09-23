@@ -66,6 +66,7 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
     new InputField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),
     new InputField({title: 'Date of Birth', field: 'dateOfBirth', type: InputType.DATE, value: getDateYearsAgo().toISOString(), required: true, validationRegex: DATE_REGEX, validationMessage: 'Required, must be valid age.' }),
     new InputField({title: 'Walk Level', field: 'walkLevel', required: true, type: InputType.SELECT_LIST, selectOptionList: ['1','2','3','4','5','6','7','8','9','10']}),
+    new InputField({title: 'Profile Image', field: 'image', type: InputType.TEXT, validationRegex: new RegExp(/.{5,2000}/), validationMessage: 'Invalid URI, Max 2000 characters'}),
     new InputField({title: 'Profile Notes', field: 'notes', type: InputType.PARAGRAPH, validationRegex: new RegExp(/.{0,3000}/), validationMessage: 'Max 3000 characters.'}),
 ];
 
