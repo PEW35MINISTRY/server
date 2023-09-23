@@ -147,6 +147,9 @@ export const DELETE_userProfile = async (request: JwtClientRequest, response: Re
     else if(await DB_DELETE_USER_ROLE({userID: request.clientID, userRoleList: undefined}) === false)
         next(new Exception(500, `Failed to delete all user roles of user ${request.clientID}`, 'User Roles Exists'));
 
+    else if(await clearImageCombinations({id: request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) === false)
+        next(new Exception(500, `Failed to delete profile image for user ${request.clientID}`, 'Profile Image Exists'));
+
     else if(await DB_DELETE_USER(request.clientID))
         response.status(204).send(`User ${request.clientID} deleted successfully`);
     else

@@ -128,6 +128,9 @@ export const DELETE_circle =  async(request: JwtCircleRequest, response: Respons
     
     else if(await DB_DELETE_CIRCLE_USER_STATUS({userID: undefined, circleID: request.circleID}) === false)
         next(new Exception(500, `Failed to delete all user members for circle ${request.circleID}`, 'Removing Members Failed'));
+        
+    else if(await clearImageCombinations({id: request.circleID, imageType: ImageTypeEnum.CIRCLE_PROFILE}) === false)
+        next(new Exception(500, `Failed to delete circle profile image for circle ${request.circleID}`, 'Profile Image Exists'));
 
     else if(await DB_DELETE_CIRCLE(request.circleID))
         response.status(204).send(`User ${request.circleID} deleted successfully`);
