@@ -74,3 +74,10 @@ export interface ProfileEditRequest extends JwtClientRequest {
 export interface ProfileSignupRequest extends Request  {
     body: Request['body'] & ProfileEditRequest['body']
 }
+
+export interface ProfileImageRequest extends JwtClientRequest {
+    params: JwtClientRequest['params'] & {
+        file:string
+    }
+    body: Blob
+}

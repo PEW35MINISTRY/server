@@ -72,3 +72,10 @@ export interface CircleAnnouncementCreateRequest extends JwtCircleRequest {
         EndDate: Date,
     } 
 }
+
+export interface CircleImageRequest extends JwtCircleRequest {
+    params: JwtCircleRequest['params'] & {
+        file:string
+    },
+    body: Blob
+}

@@ -19,8 +19,8 @@ import logRoutes from './api/log/log.mjs';
 import apiRoutes from './api/api.mjs';
 
 import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup, POST_authorization_reset } from './api/auth/auth.mjs';
-import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile } from './api/profile/profile.mjs';
-import { GET_publicCircle, GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, GET_CircleList } from './api/circle/circle.mjs';
+import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage } from './api/profile/profile.mjs';
+import { GET_publicCircle, GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, GET_CircleList, POST_circleImage, DELETE_circleImage, GET_circleImage } from './api/circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestRequestorDetails, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './api/prayer-request/prayer-request.mjs';
 
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware } from './api/auth/authorization.mjs';
@@ -191,6 +191,7 @@ apiServer.get('/api/partner/:client/prayer-request-list', GET_PrayerRequestReque
 apiServer.use('/api/user/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 
 apiServer.get('/api/user/:client/public', GET_publicProfile);
+apiServer.get('/api/user/:client/image', GET_profileImage);
 
 
 /**********************************************/
@@ -203,9 +204,13 @@ apiServer.post('/api/user/:client/logout', POST_logout);
 apiServer.get('/api/user/:client', GET_userProfile);
 apiServer.patch('/api/user/:client', PATCH_userProfile);
 apiServer.delete('/api/user/:client', DELETE_userProfile);
+apiServer.delete('/api/user/:client/image', DELETE_profileImage);
 
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
+
+apiServer.use(bodyParser.raw({type: ['image/png', 'image/jpg', 'image/jpeg'], limit: process.env.IMAGE_UPLOAD_SIZE || '5mb'}));
+apiServer.post('/api/user/:client/image/:file', POST_profileImage);
 
 
 /******************************************************/
@@ -214,6 +219,7 @@ apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerReques
 apiServer.use('/api/circle/:circle', (request:JwtCircleRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 
 apiServer.get('/api/circle/:circle/public', GET_publicCircle);
+apiServer.get('/api/circle/:circle/image', GET_circleImage);
 
 apiServer.post('/api/circle/:circle/request', POST_circleMemberRequest);
 apiServer.post('/api/circle/:circle/accept', POST_circleMemberAccept); //Existing Circle Membership Invite must exist (Student Accepts)
@@ -239,6 +245,7 @@ apiServer.use('/api/leader/circle/:circle', (request:JwtCircleRequest, response:
 apiServer.get('/api/leader/circle/:circle', GET_circle);
 apiServer.patch('/api/leader/circle/:circle', PATCH_circle);
 apiServer.delete('/api/leader/circle/:circle', DELETE_circle);
+apiServer.delete('/api/leader/circle/:circle/image', DELETE_circleImage);
 
 apiServer.post('/api/leader/circle/:circle/announcement', POST_circleAnnouncement);
 apiServer.delete('/api/leader/circle/:circle/announcement/:announcement', DELETE_circleAnnouncement);
@@ -247,6 +254,9 @@ apiServer.use('/api/leader/circle/:circle/client/:client', (request:JwtCircleCli
 apiServer.post('/api/leader/circle/:circle/client/:client/invite', POST_circleLeaderMemberInvite);
 apiServer.post('/api/leader/circle/:circle/client/:client/accept', POST_circleLeaderAccept); //Existing Circle Membership Request must exist (Leader Accepts)
 apiServer.delete('/api/leader/circle/:circle/client/:client/leave', DELETE_circleLeaderMember);
+
+apiServer.use(bodyParser.raw({type: ['image/png', 'image/jpg', 'image/jpeg'], limit: process.env.IMAGE_UPLOAD_SIZE || '5mb'}));
+apiServer.post('/api/leader/circle/:circle/image/:file', POST_circleImage);
 
 
 /******************************************************************/

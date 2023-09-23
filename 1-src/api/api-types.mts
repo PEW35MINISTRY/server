@@ -1,6 +1,8 @@
 
 /*    Type Declarations     */
 
+import { JwtClientRequest } from "./auth/auth-types.mjs";
+
 export class Exception extends Error {
     status: number;
     message: string;
@@ -14,4 +16,8 @@ export class Exception extends Error {
     }
   }
 
-
+  export enum ImageTypeEnum {
+    USER_PROFILE = 'USER_PROFILE',
+    CIRCLE_PROFILE = 'CIRCLE_PROFILE',
+    CIRCLE_EVENT = 'CIRCLE_EVENT'
+  }

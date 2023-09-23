@@ -5,6 +5,8 @@
 * Sync across all repositories: server, portal, mobile *
 ********************************************************/
 
+export const SUPPORTED_IMAGE_EXTENSION_LIST = ['png', 'jpg', 'jpeg'];  //Sync with AWS settings
+
 export enum InputType {
     TEXT = 'TEXT',
     NUMBER = 'NUMBER',
