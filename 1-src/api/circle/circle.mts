@@ -149,11 +149,24 @@ export const GET_circleImage = async(request: JwtCircleRequest, response: Respon
 
 export const POST_circleImage = async(request: CircleImageRequest, response: Response, next: NextFunction) => {
     const fileName:string = request.params.file || 'invalid';
-    const savedFileName:string|undefined = await uploadImage({id:request.circleID, fileName, imageBlob: request.body, imageType: ImageTypeEnum.USER_PROFILE});
-    if(savedFileName !== undefined && await DB_UPDATE_CIRCLE(request.circleID, new Map([['image', savedFileName]])))
-        response.status(202).send(`Successfully saved profile image: ${savedFileName}`);
+    const fileExtension:string = fileName.split('.').pop();
+    let filePath:string|undefined = undefined;
+
+    const existingFilePath:string|undefined = (await DB_SELECT_CIRCLE(request.circleID)).image || undefined;
+    const existingFileName:string = (existingFilePath || '').split('/').pop();
+    const existingFileExtension:string = (existingFilePath || '').split('.').pop();
+
+    if(fileExtension !== existingFileExtension && existingFilePath !== undefined && await clearImage(existingFileName) === false)
+        next(new Exception(500, `Circle Profile image deletion failed for ${request.circleID} : ${existingFilePath}`, 'Existing Image'));
+
+    else if((filePath = await uploadImage({id:request.circleID, fileName, imageBlob: request.body, imageType: ImageTypeEnum.CIRCLE_PROFILE})) === undefined)
+        next(new Exception(500, `Circle Profile image upload failed for fileName: ${fileName}`, 'Upload Failed'));
+
+    else if(await DB_UPDATE_CIRCLE(request.circleID, new Map([['image', filePath]])) === false)
+        next(new Exception(500, `Circle Profile image upload failed to save: ${filePath}`, 'Save Failed'));
+
     else
-        next(new Exception(500, `Profile image upload failed: ${savedFileName}`, 'Upload Failed'));
+        response.status(202).send(`Successfully saved circle profile image: ${filePath}`);
 }
 
 export const DELETE_circleImage = async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
