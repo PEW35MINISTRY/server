@@ -1,10 +1,10 @@
 import express, {Router, Request, Response, NextFunction} from 'express';
 import URL, { URLSearchParams } from 'url';
 import * as log from '../../services/log.mjs';
-import {Exception} from '../api-types.mjs'
+import {Exception, ImageTypeEnum} from '../api-types.mjs'
 import { JwtClientRequest, JwtRequest } from '../auth/auth-types.mjs';
 import { isMaxRoleGreaterThan, validateNewRoleTokenList } from '../auth/auth-utilities.mjs';
-import { ProfileEditRequest } from './profile-types.mjs';
+import { ProfileEditRequest, ProfileImageRequest } from './profile-types.mjs';
 import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from '../../services/models/Fields-Sync/profile-field-config.mjs';
 import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../services/database/queries/user-queries.mjs';
 import USER from '../../services/models/userModel.mjs';
@@ -12,6 +12,7 @@ import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELE
 import createModelFromJSON from '../../services/models/createModelFromJson.mjs';
 import { DATABASE_USER_ROLE_ENUM } from '../../services/database/database-types.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST, DB_DELETE_PRAYER_REQUEST } from '../../services/database/queries/prayer-request-queries.mjs';
+import { clearImage, clearImageCombinations, uploadImage } from '../api-utilities.mjs';
 
 //UI Helper Utility
 export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
@@ -146,8 +147,39 @@ export const DELETE_userProfile = async (request: JwtClientRequest, response: Re
     else if(await DB_DELETE_USER_ROLE({userID: request.clientID, userRoleList: undefined}) === false)
         next(new Exception(500, `Failed to delete all user roles of user ${request.clientID}`, 'User Roles Exists'));
 
+    else if(await clearImageCombinations({id: request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) === false)
+        next(new Exception(500, `Failed to delete profile image for user ${request.clientID}`, 'Profile Image Exists'));
+
     else if(await DB_DELETE_USER(request.clientID))
         response.status(204).send(`User ${request.clientID} deleted successfully`);
     else
         next(new Exception(404, `Profile Delete Failed :: Failed to delete user ${request.clientID} account.`, 'Delete Failed'));
 };
+
+/* Profile Images */
+export const GET_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
+    const filePath:string|undefined = (await DB_SELECT_USER(new Map([['userID', request.clientID]]))).image || undefined;
+    if(filePath !== undefined)
+        response.status(200).redirect(filePath);
+    else
+        next(new Exception(404, `User ${request.clientID} doesn't have a saved profile image`, 'No Image'));
+}
+
+/* Headers: Content-Type: 'image/jpg' or 'image/png' & Content-Length: (calculated) | Body: binary: Blob */
+export const POST_profileImage = async(request: ProfileImageRequest, response: Response, next: NextFunction) => {
+    const fileName:string = request.params.file || 'invalid';
+    const filePath:string|undefined = await uploadImage({id:request.clientID, fileName, imageBlob: request.body, imageType: ImageTypeEnum.USER_PROFILE});
+    
+    if(filePath !== undefined && await DB_UPDATE_USER(request.clientID, new Map([['image', filePath]])))
+        response.status(202).send(`Successfully saved profile image: ${filePath}`);
+    else
+        next(new Exception(500, `Profile image upload failed: ${filePath}`, 'Upload Failed'));
+}
+
+export const DELETE_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
+
+    if(await clearImageCombinations({id:request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) && await DB_UPDATE_USER(request.clientID, new Map([['image', null]])))
+        response.status(202).send(`Successfully deleted profile image for ${request.clientID}`);
+    else
+        next(new Exception(500, `Profile image deletion failed for ${request.clientID}`, 'Delete Failed'));
+}
