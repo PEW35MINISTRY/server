@@ -6,7 +6,7 @@ import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-fi
 import CIRCLE_ANNOUNCEMENT from '../../2-services/1-models/circleAnnouncementModel.mjs';
 import CIRCLE from '../../2-services/1-models/circleModel.mjs';
 import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
-import { DB_DELETE_CIRCLE, DB_DELETE_CIRCLE_ANNOUNCEMENT, DB_DELETE_CIRCLE_USER_STATUS, DB_INSERT_CIRCLE, DB_INSERT_CIRCLE_ANNOUNCEMENT, DB_INSERT_CIRCLE_USER_STATUS, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_CIRCLE_DETAIL, DB_SELECT_CIRCLE_DETAIL_BY_NAME, DB_SELECT_CIRCLE_USER_LIST, DB_SELECT_USER_CIRCLES, DB_UPDATE_CIRCLE, DB_UPDATE_CIRCLE_USER_STATUS } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { DB_DELETE_CIRCLE, DB_DELETE_CIRCLE_ANNOUNCEMENT, DB_DELETE_CIRCLE_USER_STATUS, DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_INSERT_CIRCLE, DB_INSERT_CIRCLE_ANNOUNCEMENT, DB_INSERT_CIRCLE_USER_STATUS, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_CIRCLE_DETAIL, DB_SELECT_CIRCLE_DETAIL_BY_NAME, DB_SELECT_CIRCLE_USER_LIST, DB_SELECT_USER_CIRCLES, DB_UPDATE_CIRCLE, DB_UPDATE_CIRCLE_USER_STATUS } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
 import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
@@ -14,7 +14,8 @@ import * as log from '../../2-services/log.mjs';
 import { JwtCircleRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../api-utilities.mjs';
-import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest } from './circle-types.mjs';
+import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest, JwtCircleSearchRequest } from './circle-types.mjs';
+import { filterListByCircleStatus, searchCircleList, searchCircleListFromCache } from './circle-utilities.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
 
 
@@ -82,6 +83,7 @@ export const POST_newCircle =  async(request: JwtRequest, response: Response, ne
 
             if(circle !== undefined) {
                 response.status(201).send(circle.toLeaderJSON());
+                DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN();
             } else
                 next(new Exception(404, 'Create Circle  Failed: Circle successfully created; but failed to retrieve circle.', 'Circle Saved'));
         }
@@ -130,6 +132,7 @@ export const DELETE_circle =  async(request: JwtCircleRequest, response: Respons
 
     else if(await DB_DELETE_CIRCLE(request.circleID)) {
         response.status(204).send(`User ${request.circleID} deleted successfully`);
+        DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN();
     } else
         next(new Exception(404, `Circle Delete Failed :: Failed to delete circle ${request.circleID}.`, 'Delete Failed'));
 };
@@ -172,6 +175,41 @@ export const DELETE_circleImage = async(request: JwtCircleRequest, response: Res
         next(new Exception(500, `Circle image deletion failed for ${request.circleID}`, 'Delete Failed'));
 }
 
+
+/***********************
+ *  CIRCLE SEARCH
+ ***********************/
+
+//Default List and Circle Search | (All parameters are optional)
+export const GET_SearchCircleList = async(request: JwtCircleSearchRequest, response: Response, next: NextFunction) => {
+    const searchTerm:string = request.query.search || '';
+    const searchFilter:CircleSearchFilterEnum = CircleSearchFilterEnum[request.query.filter] || CircleSearchFilterEnum.ALL;
+    const circleStatus:CircleStatusEnum = CircleStatusEnum[request.query.status] || CircleStatusEnum.NONE;
+    const ignoreCache:boolean = (request.query.ignoreCache === 'true');
+
+    let circleList:CircleListItem[] = [];
+    if((searchTerm.length < 3) && (searchFilter !== CircleSearchFilterEnum.ID)) {
+        circleList = await searchCircleListFromCache('default', CircleSearchFilterEnum.NAME);
+
+    } else if(ignoreCache)
+        circleList = await searchCircleList(searchTerm, searchFilter);
+
+    else //Cache Search
+        circleList = await searchCircleListFromCache(searchTerm, searchFilter);
+
+    response.status(200).send((request.jwtUserRole === RoleEnum.ADMIN) ? circleList : await filterListByCircleStatus({userID: request.jwtUserID, circleList, circleStatus}));
+    log.event(request.jwtUserRole, 'Circle List search & filter', searchTerm, searchFilter, circleStatus, ignoreCache, circleList.length);
+};
+
+export const DELETE_flushCircleSearchCache = async (request:JwtRequest, response:Response, next: NextFunction) => {
+
+    if(await DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN()) {
+        response.status(202).send(`Successfully flushed circle search cache`);
+        log.auth(`User ${request.jwtUserID} has reset the server's circle search cache`);
+
+    } else
+        next(new Exception(500, 'Failed to flush circle search cache.', 'Flush failed'));
+}
 
 /***********************
  *  CIRCLE ANNOUNCEMENT

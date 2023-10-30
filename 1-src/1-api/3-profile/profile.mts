@@ -6,15 +6,15 @@ import USER from '../../2-services/1-models/userModel.mjs';
 import { DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtClientRequest, JwtRequest, LoginResponseBody } from '../2-auth/auth-types.mjs';
 import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../api-utilities.mjs';
-import { ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
-
+import { JwtClientSearchRequest, ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
+import { searchUserList, searchUserListFromCache } from './profile-utilities.mjs';
 
 //UI Helper Utility
 export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
@@ -128,6 +128,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
 
             if(loginDetails) {
                 response.status(201).send(loginDetails);
+                await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();
             } else
                 next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`));
         }
@@ -233,3 +234,42 @@ export const DELETE_profileImage = async(request: JwtClientRequest, response: Re
         next(new Exception(500, `Profile image deletion failed for ${request.clientID}`, 'Delete Failed'));
 }
 
+
+
+/***********************
+ *  CLIENT SEARCH
+ ***********************/
+
+//Default List and Client Search | (All parameters are optional)
+export const GET_SearchUserList = async(request: JwtClientSearchRequest, response: Response, next: NextFunction) => {
+    const searchTerm:string = request.query.search || '';
+    const searchFilter:UserSearchFilterEnum = UserSearchFilterEnum[request.query.filter] || UserSearchFilterEnum.ALL;
+    const excludeStudent:boolean = (request.query.excludeStudent === 'true');
+    const searchInactive:boolean = (request.query.searchInactive === 'true');
+    const ignoreCache:boolean = (request.query.ignoreCache === 'true');
+
+    let userList:ProfileListItem[] = [];
+    let statusCode:number = 200;
+    if((searchTerm.length < 3) && (searchFilter !== UserSearchFilterEnum.ID)) {
+        userList = await searchUserListFromCache({requestingUserID: request.jwtUserID, searchTerm: 'default', searchFilter, excludeStudent, searchInactive});
+        statusCode = 205;
+
+    } else if(ignoreCache)
+        userList = await searchUserList({requestingUserID: request.jwtUserID, searchTerm, searchFilter, excludeStudent, searchInactive});
+
+    else //Cache Search
+        userList = await searchUserListFromCache({requestingUserID: request.jwtUserID, searchTerm, searchFilter, excludeStudent, searchInactive});
+
+    response.status(statusCode).send(userList);
+    log.event('User List search & filter', searchTerm, searchFilter, ignoreCache, userList.length);
+};
+
+export const DELETE_flushClientSearchCache = async (request:JwtRequest, response:Response, next: NextFunction) => {
+
+    if(await DB_FLUSH_USER_SEARCH_CACHE_ADMIN()) {
+        response.status(202).send(`Successfully flushed user search cache`);
+        log.auth(`User ${request.jwtUserID} has reset the server's user search cache`);
+
+    } else
+        next(new Exception(500, 'Failed to flush user search cache.', 'Flush failed'));
+}
