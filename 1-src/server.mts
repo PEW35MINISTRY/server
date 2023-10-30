@@ -10,26 +10,25 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 
 //Import Types
-import {Exception} from './api/api-types.mjs'
+import {Exception} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
-import { JwtAdminRequest, JwtCircleClientRequest, JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from './api/auth/auth-types.mjs';
+import { JwtAdminRequest, JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from './1-api/2-auth/auth-types.mjs';
+import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 
 //Import Routes
-import logRoutes from './api/log/log.mjs';
-import apiRoutes from './api/api.mjs';
+import logRoutes from './1-api/1-log/log.mjs';
+import apiRoutes from './1-api/api.mjs';
+import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware } from './1-api/2-auth/authorization.mjs';
+import { GET_userContacts } from './1-api/7-chat/chat.mjs';
+import { GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_authorization_reset } from './1-api/2-auth/auth.mjs';
+import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, POST_signup } from './1-api/3-profile/profile.mjs';
+import { GET_publicCircle, GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage } from './1-api/4-circle/circle.mjs';
+import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestRequestorDetails, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 
-import {GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_signup, POST_authorization_reset } from './api/auth/auth.mjs';
-import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage } from './api/profile/profile.mjs';
-import { GET_publicCircle, GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, GET_CircleList, POST_circleImage, DELETE_circleImage, GET_circleImage } from './api/circle/circle.mjs';
-import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestRequestorDetails, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './api/prayer-request/prayer-request.mjs';
-
-import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware } from './api/auth/authorization.mjs';
-import { GET_userContacts } from './api/chat/chat.mjs';
- 
 //Import Services
-import * as log from './services/log.mjs';
-import { verifyJWT } from './api/auth/auth-utilities.mjs';
-import CHAT from './services/chat/chat.mjs';
+import * as log from './2-services/log.mjs';
+import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
+import CHAT from './2-services/3-chat/chat.mjs';
 
 /********************
     EXPRESS SEVER
@@ -62,7 +61,7 @@ chatIO.use((socket, next)=> {
 CHAT(chatIO);
 
 /* Middleware  */
-// apiServer.use(express.static(path.join(__dirname, 'build')));
+// apiServer.use(express.static(path.join(process.env.SERVER_PATH || __dirname, 'build')));
 // apiServer.use(bodyParser.json());
 // apiServer.use(bodyParser.urlencoded({ extended: true }));
 // apiServer.use(bodyParser.raw());
@@ -72,9 +71,9 @@ apiServer.use(cors());
  HTTP Routes
  *********************/
  publicServer.use(cors());
- publicServer.use(express.static(path.join(__dirname, 'website')));
+ publicServer.use(express.static(path.join(process.env.SERVER_PATH || __dirname, 'website')));
  publicServer.get('/', (request: Request, response: Response) => {
-     response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
+     response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html'));
  });
  
 /********************
@@ -82,9 +81,9 @@ apiServer.use(cors());
  *********************/
 
 /* Routes  */ //Order Matters: First Matches
-apiServer.use(express.static(path.join(__dirname, 'website')));
+apiServer.use(express.static(path.join(process.env.SERVER_PATH || __dirname, 'website')));
 apiServer.get('/', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
+    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html'));
 });
 
 apiServer.get('/website/*', (request: Request, response: Response) => {
@@ -92,24 +91,24 @@ apiServer.get('/website/*', (request: Request, response: Response) => {
 });
 
 apiServer.get('/website', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(__dirname, 'website', 'index.html'));
+    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html'));
 });
 
-apiServer.use(express.static(path.join(__dirname, 'portal')));
+apiServer.use(express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
 apiServer.get('/portal/*', (request: Request, response: Response) => {
     response.status(301).redirect('/portal');
 });
 
 apiServer.get('/portal', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(__dirname, 'portal', 'index.html'));
+    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
 apiServer.get('/login', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(__dirname, 'portal', 'index.html'));
+    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
 apiServer.get('/signup', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(__dirname, 'portal', 'index.html'));
+    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
 //Formatting Request Body
@@ -144,8 +143,6 @@ apiServer.post('/api/logout', POST_logout);
 apiServer.get('/api/contacts', GET_userContacts); //Returns id and Name
 
 apiServer.get('/api/user/profile/edit-fields', GET_EditProfileFields);
-
-apiServer.get('/api/circle-list', GET_CircleList); //optional 'search' parameter
 
 apiServer.get('/api/prayer-request/user-list', GET_PrayerRequestUserList);
 apiServer.post('/api/prayer-request', POST_prayerRequest);
@@ -277,7 +274,7 @@ apiServer.use('/api/admin', (request:JwtAdminRequest, response:Response, next:Ne
 
 apiServer.use(express.text());
 apiServer.use('/api/admin/log', logRoutes);
-apiServer.post('/api/admin/authorization-reset', POST_authorization_reset)
+apiServer.post('/api/admin/authorization-reset', POST_authorization_reset);
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));

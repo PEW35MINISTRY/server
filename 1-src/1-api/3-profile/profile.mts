@@ -1,0 +1,235 @@
+import express, { NextFunction, Request, Response, Router } from 'express';
+import URL, { URLSearchParams } from 'url';
+import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT, UserSearchFilterEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import USER from '../../2-services/1-models/userModel.mjs';
+import { DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
+import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
+import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
+import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
+import * as log from '../../2-services/log.mjs';
+import { JwtClientRequest, JwtRequest, LoginResponseBody } from '../2-auth/auth-types.mjs';
+import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
+import { Exception, ImageTypeEnum } from '../api-types.mjs';
+import { clearImage, clearImageCombinations, uploadImage } from '../api-utilities.mjs';
+import { ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
+
+
+//UI Helper Utility
+export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
+    response.status(200).send([...Object.keys(RoleEnum)]);
+}
+
+//Public URL | UI Helper to get list of fields user allowed to  edit 
+export const GET_SignupProfileFields = async(request: JwtRequest, response: Response, next: NextFunction) => {
+
+    const role: string = request.params.role || 'student';
+    
+    if(role.toLowerCase() === 'student')
+        response.status(200).send(SIGNUP_PROFILE_FIELDS_STUDENT.map(field => field.toJSON()));
+    else
+        response.status(200).send(SIGNUP_PROFILE_FIELDS.map(field => field.toJSON()));
+}
+
+//Public URL | UI Helper to get list of fields user allowed to  edit 
+export const GET_EditProfileFields = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
+    
+    if(request.jwtUserRole === RoleEnum.ADMIN)
+        response.status(200).send(EDIT_PROFILE_FIELDS_ADMIN.map(field => field.toJSON()));
+    else
+        response.status(200).send(EDIT_PROFILE_FIELDS.map(field => field.toJSON()));
+}
+
+//Verifies Unique Profile Fields for realtime validations | userID excludes profile for editing
+//Uses Query Parameters: GET localhost:5000/resources/available-account?email=ethan@encouragingprayer.org&displayName=ethan
+export const GET_AvailableAccount =  async (request: Request, response: Response, next: NextFunction) => { //(ALL fields and values are case insensitive)
+    if(URL.parse(request.originalUrl).query === '')
+        new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`);
+
+    const fieldMap:Map<string, string> = new Map(new URLSearchParams(URL.parse(request.originalUrl).query).entries());
+    const result:Boolean|undefined = await DB_UNIQUE_USER_EXISTS(fieldMap, true);
+
+    if(result === undefined) 
+        response.status(400).send(`Invalid Field Request: ${Array.from(fieldMap.keys()).join(', ')}`);
+    else if(result === false) 
+        response.status(204).send(`No Account exists for ${Array.from(fieldMap.values()).join(', ')}`);
+    else
+        response.status(403).send(`Account Exists`);
+}
+   
+export const GET_publicProfile =  async (request: JwtClientRequest, response: Response, next: NextFunction) => {
+    const profile:USER = await DB_SELECT_USER(new Map([['userID', request.clientID]]));
+
+    if(profile.isValid) {
+        profile.circleList = await DB_SELECT_USER_CIRCLES(profile.userID);   
+        response.status(200).send(profile.toPublicJSON())   
+        log.event('Returning public profile for userID: ', request.clientID);
+    } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
+        next(new Exception(404, `GET_publicProfile - user  ${request.clientID} failed to parse from database and is invalid.`)); 
+};
+
+export const GET_profileAccessUserList =  async (request: JwtRequest, response: Response, next: NextFunction) => { 
+
+    if(request.jwtUserRole === RoleEnum.ADMIN)
+        response.status(200).send(await DB_SELECT_CONTACTS(request.jwtUserID));
+
+    else if(isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole:request.jwtUserRole}))
+        response.status(200).send(await DB_SELECT_MEMBERS_OF_ALL_CIRCLES(request.jwtUserID));
+}
+
+
+export const GET_userProfile = async (request: JwtClientRequest, response: Response, next: NextFunction) => {
+    const profile:USER = await DB_SELECT_USER_PROFILE(new Map([['userID', request.clientID]]));
+
+    if(profile.isValid) {
+        response.status(200).send(profile.toJSON())   
+        log.event('Returning profile for userID: ', request.clientID);
+    } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
+        next(new Exception(404, `GET_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`)); 
+};
+
+export const GET_partnerProfile = async (request: JwtClientRequest, response: Response, next: NextFunction) => {     
+    const profile:USER = await DB_SELECT_USER_PROFILE(new Map([['userID', request.clientID]]));
+
+    if(profile.isValid) {
+        response.status(200).send(profile.toPartnerJSON())   
+        log.event('Returning partner profile for userID: ', request.clientID);
+    } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
+        next(new Exception(500, `GET_partnerProfile - user  ${request.clientID} failed to parse from database and is invalid.`)); 
+};
+
+
+ /* Unauthenticated Route */
+ export const POST_signup =  async(request: ProfileSignupRequest, response: Response, next: NextFunction) => {
+    
+    const newProfile:USER|undefined = createModelFromJSON({currentModel: new USER(), jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS, next:next}) as USER;
+
+    if(newProfile !== undefined) { //undefined handles next(Exception)
+        if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
+            next(new Exception(400, `Signup Failed :: Missing Required Fields: ${JSON.stringify(USER_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
+
+        //Verify user roles and verify account type tokens
+        else if(await validateNewRoleTokenList({newRoleList:newProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: newProfile.email}) === false)
+            next(new Exception(401, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
+
+        else if(await DB_INSERT_USER(newProfile.getValidProperties(USER_TABLE_COLUMNS, false)) === false) 
+                next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Save Failed'));
+
+        //New Account Success -> Auto Login Response
+        else { 
+            //Add user roles, already verified permission above
+            const saveStudentRole:boolean = newProfile.userRoleList.length > 1; //Only save student role for multi role users
+            const insertRoleList:DATABASE_USER_ROLE_ENUM[] = newProfile.userRoleList.filter((role) => (role !== RoleEnum.STUDENT || saveStudentRole)).map((role) => DATABASE_USER_ROLE_ENUM[role]);
+            if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
+                log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
+
+            const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password']);
+
+            if(loginDetails) {
+                response.status(201).send(loginDetails);
+            } else
+                next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`));
+        }
+    }
+};
+
+/* Update Profiles */
+//NOTE: request.userID is editor and request.clientID is profile editing
+export const PATCH_userProfile = async (request: ProfileEditRequest, response: Response, next: NextFunction) => {
+
+    const currentProfile:USER = await DB_SELECT_USER(new Map([['userID', request.clientID]]));
+
+    const editProfile:USER|undefined = createModelFromJSON({currentModel: currentProfile, jsonObj:request.body, fieldList: (request.jwtUserRole === RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS, next: next}) as USER;
+
+    if(currentProfile.isValid && editProfile !== undefined && editProfile.isValid) {  //undefined handles next(Exception)
+        //Verify user roles and verify account type tokens
+        const currentRoleList:RoleEnum[] = await DB_SELECT_USER_ROLES(request.clientID);
+        if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: currentRoleList, adminOverride: (request.jwtUserRole === RoleEnum.ADMIN)}) === false)
+            next(new Exception(401, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
+
+        else if((editProfile.getUniqueDatabaseProperties(currentProfile).size > 0 )
+                && await DB_UPDATE_USER(request.clientID, editProfile.getUniqueDatabaseProperties(currentProfile)) === false) 
+            next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
+
+        else {
+            //Handle userRoleList: Add new user roles, already verified permission above
+            const deleteRoleList:DATABASE_USER_ROLE_ENUM[] = currentRoleList.filter((role) => (!editProfile.userRoleList.includes(role))).map((role) => DATABASE_USER_ROLE_ENUM[role]);
+            if(deleteRoleList.length > 0 && !DB_DELETE_USER_ROLE({userID:editProfile.userID, userRoleList: deleteRoleList}))
+                log.error(`Edit Profile Failed :: Error removing userRoles ${JSON.stringify(deleteRoleList)} to ${editProfile.userID}`);
+
+            const saveStudentRole:boolean = editProfile.userRoleList.length > 1; //Only save student role for multi role users
+            const insertRoleList:DATABASE_USER_ROLE_ENUM[] = editProfile.userRoleList?.filter((role) => ((role !== RoleEnum.STUDENT || saveStudentRole) && !currentRoleList.includes(role))).map((role) => DATABASE_USER_ROLE_ENUM[role]);
+            if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({userID:editProfile.userID, userRoleList: insertRoleList}))
+                log.error(`Edit Profile Failed :: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${editProfile.userID}`);
+
+            response.status(202).send(editProfile.toJSON());
+        }
+    } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
+        next(new Exception(500, `PATCH_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`));
+};
+
+/* Delete Profiles */
+export const DELETE_userProfile = async (request: JwtClientRequest, response: Response, next: NextFunction) => {
+
+    if(await DB_DELETE_CIRCLE_USER_STATUS({userID: request.clientID, circleID: undefined}) === false) //Leader must delete circle manually
+        next(new Exception(500, `Failed to delete all circle membership of user ${request.clientID}`, 'Circle Membership Exists'));
+
+    // else if(await DB_DELETE_PARTNERSHIP({userID: request.clientID, partnerUserID: undefined}) === false)
+    //     next(new Exception(500, `Failed to delete all partnerships of user ${request.clientID}`, 'Partnerships Exists'));
+
+    else if(await DB_DELETE_ALL_USER_PRAYER_REQUEST(request.clientID) === false)
+        next(new Exception(500, `Failed to delete all prayer requests of user ${request.clientID}`, 'Prayer Requests Exists'));
+
+    else if(await DB_DELETE_USER_ROLE({userID: request.clientID, userRoleList: undefined}) === false)
+        next(new Exception(500, `Failed to delete all user roles of user ${request.clientID}`, 'User Roles Exists'));
+
+    else if(await clearImageCombinations({id: request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) === false)
+        next(new Exception(500, `Failed to delete profile image for user ${request.clientID}`, 'Profile Image Exists'));
+
+    else if(await DB_DELETE_USER(request.clientID))
+        response.status(204).send(`User ${request.clientID} deleted successfully`);
+    else
+        next(new Exception(404, `Profile Delete Failed :: Failed to delete user ${request.clientID} account.`, 'Delete Failed'));
+};
+
+/* Profile Images */
+export const GET_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
+    const filePath:string|undefined = (await DB_SELECT_USER(new Map([['userID', request.clientID]]))).image || undefined;
+    if(filePath !== undefined)
+        response.status(200).redirect(filePath);
+    else
+        next(new Exception(404, `User ${request.clientID} doesn't have a saved profile image`, 'No Image'));
+}
+
+/* Headers: Content-Type: 'image/jpg' or 'image/png' & Content-Length: (calculated) | Body: binary: Blob */
+export const POST_profileImage = async(request: ProfileImageRequest, response: Response, next: NextFunction) => {
+    const fileName:string = request.params.file || 'invalid';
+    const fileExtension:string = fileName.split('.').pop();
+    let filePath:string|undefined = undefined;
+
+    const existingFilePath:string|undefined = (await DB_SELECT_USER(new Map([['userID', request.clientID]]))).image || undefined;
+    const existingFileName:string = (existingFilePath || '').split('/').pop();
+    const existingFileExtension:string = (existingFilePath || '').split('.').pop();
+
+    if(fileExtension !== existingFileExtension && existingFilePath !== undefined && await clearImage(existingFileName) === false)
+        next(new Exception(500, `Profile image deletion failed for ${request.clientID} : ${existingFilePath}`, 'Existing Image'));
+
+    else if((filePath = await uploadImage({id:request.clientID, fileName, imageBlob: request.body, imageType: ImageTypeEnum.USER_PROFILE})) === undefined)
+        next(new Exception(500, `Profile image upload failed for fileName: ${fileName}`, 'Upload Failed'));
+
+    else if(await DB_UPDATE_USER(request.clientID, new Map([['image', filePath]])) === false)
+        next(new Exception(500, `Profile image upload failed to save: ${filePath}`, 'Save Failed'));
+
+    else
+        response.status(202).send(`Successfully saved profile image: ${filePath}`);
+}
+
+export const DELETE_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
+
+    if(await clearImageCombinations({id:request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) && await DB_UPDATE_USER(request.clientID, new Map([['image', null]])))
+        response.status(202).send(`Successfully deleted profile image for ${request.clientID}`);
+    else
+        next(new Exception(500, `Profile image deletion failed for ${request.clientID}`, 'Delete Failed'));
+}
+
