@@ -11,7 +11,7 @@ import { DB_SELECT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST } fro
 
 /**************************************************************************
 /*       DEFINING AND HANDLING ALL QUERIES HERE 
-/* TABLES: user, user_role, user_role_defined, partner
+/* TABLES: user, user_role, user_role_defined, partner, user_search_cache
 ***************************************************************************/
 
 /* Prevent SQL Injection Protocol:
@@ -262,3 +262,76 @@ export const DB_SELECT_CREDENTIALS = async():Promise<CredentialProfile[]> => {
         }))];
 }
 
+
+
+/**********************************
+ *  USER SEARCH & CACHE QUERIES
+ **********************************/
+//https://code-boxx.com/mysql-search-exact-like-fuzzy/
+export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeStudent = false, searchInactive = false}:{searchTerm:string, columnList:string[], excludeStudent?:boolean, searchInactive?:boolean}):Promise<ProfileListItem[]> => {
+    const rows = excludeStudent ?
+        await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
+            + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
+            + `WHERE ${searchInactive ? 'userInfo.isActive = false AND' : ''} `
+            + `user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'STUDENT' ) AND `
+            + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
+            + 'LIMIT 30;', [`%${searchTerm}%`])
+            
+        : await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
+            + `WHERE ${searchInactive ? 'userInfo.isActive = false AND' : ''} `
+            + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
+            + 'LIMIT 30;', [`%${searchTerm}%`]);
+ 
+    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
+}
+
+export const DB_SELECT_USER_SEARCH_CACHE = async(searchTerm:string, searchFilter:UserSearchFilterEnum):Promise<ProfileListItem[]> => {
+
+    const rows = await execute('SELECT stringifiedProfileItemList ' + 'FROM user_search_cache '
+        + 'WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+
+    try {
+        const stringifiedList:string = rows[0].stringifiedProfileItemList;    
+        return JSON.parse(stringifiedList);
+        
+    } catch(error) {
+        log.db('DB_SELECT_USER_SEARCH_CACHE :: Failed to Parse JSON List', rows[0]);
+        return [];
+    }
+}
+
+//Updates on Duplicate | Only caches searches including students
+export const DB_INSERT_USER_SEARCH_CACHE = async({searchTerm, searchFilter, userList}:{searchTerm:string, searchFilter:UserSearchFilterEnum, userList:ProfileListItem[]}):Promise<boolean> => {
+
+    const response:CommandResponseType = await command(`INSERT INTO user_search_cache ( searchTerm, searchFilter, stringifiedProfileItemList ) `
+    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchFilter=VALUES(searchFilter), stringifiedProfileItemList=VALUES(stringifiedProfileItemList);`,
+     [searchTerm, searchFilter, JSON.stringify(userList)]); 
+    
+    return ((response !== undefined) && (response.affectedRows === 1));
+}
+
+export const DB_DELETE_USER_SEARCH_CACHE = async(searchTerm:string, searchFilter:UserSearchFilterEnum):Promise<boolean> => {
+
+    const response:CommandResponseType = await command('DELETE FROM user_search_cache WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+
+    return ((response !== undefined) && (response.affectedRows === 1));
+}
+
+export const DB_FLUSH_USER_SEARCH_CACHE_ADMIN = async():Promise<boolean> => {
+    log.db('Flushing user_search_cache Table');
+
+    const response:CommandResponseType = await command('DELETE FROM user_search_cache;', []);
+
+    return ((response !== undefined) && (response.affectedRows > 0));
+}
+
+//TODO reverse search ???
+export const DB_DELETE_USER_SEARCH_REVERSE_CACHE = async(filterList:UserSearchFilterEnum[], valueList:string[]):Promise<boolean> => {
+
+
+    const response:CommandResponseType = await command('DELETE FROM user_search_cache '
+    + 'WHERE ' + `${`CONCAT_WS( ${valueList.join(`, ' ', `)} )`} LIKE ? `, 
+    []);
+ 
+    return ((response !== undefined) && (response.affectedRows > 0));
+}

@@ -10,7 +10,7 @@ import { command, execute, query, validateColumns } from '../database.mjs';
 
 /***********************************************
 /*    DEFINING AND HANDLING ALL QUERIES HERE 
-/* TABLES: circle, circle_announcement, user_circle
+/* TABLES: circle, circle_announcement, user_circle, circle_search_cache
 ************************************************/
 
 /* Prevent SQL Injection Protocol:
@@ -141,6 +141,71 @@ export const DB_DELETE_CIRCLE = async(circleID:number):Promise<boolean> => { //N
     const response:CommandResponseType = await command('DELETE FROM circle WHERE circleID = ?;', [circleID]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
+}
+
+
+/**********************************
+ *  CIRCLE SEARCH & CACHE QUERIES
+ **********************************/
+//https://code-boxx.com/mysql-search-exact-like-fuzzy/
+export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[]):Promise<CircleListItem[]> => {
+    const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
+    + `${(columnList.includes('firstName')) ? 'LEFT JOIN user ON user.userID = circle.leaderID ' : ''}`
+    + `WHERE ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
+    + 'LIMIT 30;', [`%${searchTerm}%`]);
+ 
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
+}
+
+export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchFilter:CircleSearchFilterEnum):Promise<CircleListItem[]> => {
+
+    const rows = await execute('SELECT stringifiedCircleItemList ' + 'FROM circle_search_cache '
+        + 'WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+
+    try {
+        const stringifiedList:string = rows[0].stringifiedCircleItemList;    
+        return JSON.parse(stringifiedList);
+        
+    } catch(error) {
+        log.db('DB_SELECT_CIRCLE_SEARCH_CACHE :: Failed to Parse JSON List', rows[0]);
+        return [];
+    }
+}
+
+//Updates on Duplicate
+export const DB_INSERT_CIRCLE_SEARCH_CACHE = async({searchTerm, searchFilter, circleList}:{searchTerm:string, searchFilter:CircleSearchFilterEnum, circleList:CircleListItem[]}):Promise<boolean> => {
+
+    const response:CommandResponseType = await command(`INSERT INTO circle_search_cache ( searchTerm, searchFilter, stringifiedCircleItemList ) `
+    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchFilter=VALUES(searchFilter), stringifiedCircleItemList=VALUES(stringifiedCircleItemList);`,
+     [searchTerm, searchFilter, JSON.stringify(circleList)]); 
+    
+    return ((response !== undefined) && (response.affectedRows === 1));
+}
+
+export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchFilter:CircleSearchFilterEnum):Promise<boolean> => {
+
+    const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+
+    return ((response !== undefined) && (response.affectedRows === 1));
+}
+
+export const DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN = async():Promise<boolean> => {
+    log.db('Flushing circle_search_cache Table');
+
+    const response:CommandResponseType = await command('DELETE FROM circle_search_cache;', []);
+
+    return ((response !== undefined) && (response.affectedRows > 0));
+}
+
+//TODO reverse search ???
+export const DB_DELETE_CIRCLE_SEARCH_REVERSE_CACHE = async(filterList:CircleSearchFilterEnum[], valueList:string[]):Promise<boolean> => {
+
+
+    const response:CommandResponseType = await command('DELETE FROM circle_search_cache '
+    + 'WHERE ' + `${`CONCAT_WS( ${valueList.join(`, ' ', `)} )`} LIKE ? `, 
+    []);
+ 
+    return ((response !== undefined) && (response.affectedRows > 0));
 }
 
 

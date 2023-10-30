@@ -9,6 +9,16 @@ import { JwtCircleRequest, JwtClientRequest, JwtRequest } from '../2-auth/auth-t
 *******************************************************************************************/
 
 
+export interface JwtCircleSearchRequest extends JwtRequest {
+    query: {
+        search:string,
+        filter:string,
+        status:string,
+        ignoreCache:string
+    },
+    circleID: number,
+};
+
 export interface JwtCircleClientRequest extends JwtClientRequest {
     params: JwtClientRequest['params'] & {
         circle:string,
