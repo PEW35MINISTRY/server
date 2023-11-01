@@ -35,6 +35,7 @@ export const GET_circle =  async(request: JwtCircleRequest, response: Response, 
         circle.requestorStatus = CircleStatusEnum.NON_MEMBER;  //Note: applies to ADMIN too
 
     //Additional Details for all circle statuses
+    circle.memberList = await DB_SELECT_CIRCLE_USER_LIST(circle.circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER);
     circle.eventList = getCircleEventSampleList(request.circleID); //TODO Define Circle Event once Implemented
 
     //Public Circle Details only
@@ -47,7 +48,6 @@ export const GET_circle =  async(request: JwtCircleRequest, response: Response, 
     } else if([CircleStatusEnum.MEMBER, CircleStatusEnum.LEADER].includes(circle.requestorStatus) || (request.jwtUserRole === RoleEnum.ADMIN)) { 
         circle.announcementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT(request.circleID);
         circle.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST( circle.circleID);
-        circle.memberList = await DB_SELECT_CIRCLE_USER_LIST(circle.circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER);
     }
         
     if(circle.requestorStatus === CircleStatusEnum.MEMBER && (request.jwtUserRole !== RoleEnum.ADMIN)) {

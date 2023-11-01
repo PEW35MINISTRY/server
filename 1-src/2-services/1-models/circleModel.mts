@@ -19,8 +19,8 @@ export default class CIRCLE implements BASE_MODEL  {
     isValid: boolean = false;
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
-    #publicPropertyList = ['circleID', 'leaderID', 'name', 'description', 'postalCode', 'image', 'requestorID', 'requestorStatus', 'leaderProfile', 'eventList'];
-    #memberPropertyList = [...this.#publicPropertyList, 'announcementList', 'prayerRequestList', 'memberList', 'pendingRequestList', 'pendingInviteList'];
+    #publicPropertyList = ['circleID', 'leaderID', 'name', 'description', 'postalCode', 'image', 'requestorID', 'requestorStatus', 'leaderProfile', 'memberList', 'eventList'];
+    #memberPropertyList = [...this.#publicPropertyList, 'announcementList', 'prayerRequestList', 'pendingRequestList', 'pendingInviteList'];
     #leaderPropertyList = [...this.#memberPropertyList, 'inviteToken'];
     #propertyList = [...this.#leaderPropertyList, 'notes'];
 
