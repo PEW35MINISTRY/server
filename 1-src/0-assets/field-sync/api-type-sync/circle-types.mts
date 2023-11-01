@@ -56,7 +56,7 @@ export interface CircleResponse {
     announcementList?: CircleAnnouncementListItem[],
     prayerRequestList?: PrayerRequestListItem[],
     requestorID: number,
-    requestorStatus?: CircleStatusEnum
+    requestorStatus: CircleStatusEnum
     image?: string,
 };
 

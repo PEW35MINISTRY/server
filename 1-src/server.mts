@@ -22,7 +22,7 @@ import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, 
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_authorization_reset } from './1-api/2-auth/auth.mjs';
 import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, GET_SearchUserList, DELETE_flushClientSearchCache, POST_signup } from './1-api/3-profile/profile.mjs';
-import { GET_publicCircle, GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, GET_SearchCircleList, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
+import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, GET_SearchCircleList, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestRequestorDetails, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 
 //Import Services
@@ -219,7 +219,7 @@ apiServer.post('/api/user/:client/image/:file', POST_profileImage);
 /******************************************************/
 apiServer.use('/api/circle/:circle', (request:JwtCircleRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 
-apiServer.get('/api/circle/:circle/public', GET_publicCircle);
+apiServer.get('/api/circle/:circle', GET_circle);  //Handles relevant circle status
 apiServer.get('/api/circle/:circle/image', GET_circleImage);
 
 apiServer.post('/api/circle/:circle/request', POST_circleMemberRequest);
@@ -231,8 +231,6 @@ apiServer.delete('/api/circle/:circle/leave', DELETE_circleMember);
 /* Authenticate Circle Membership */
 /**********************************/
 apiServer.use('/api/circle/:circle', (request:JwtCircleRequest, response:Response, next:NextFunction) => authenticateCircleMembershipMiddleware(request, response, next));
-
-apiServer.get('/api/circle/:circle', GET_circle);
 
 apiServer.get('/api/circle/:circle/prayer-request-list', GET_PrayerRequestCircleList);
 
@@ -310,8 +308,8 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
         action: action,
         type: request.method,
         url: request.originalUrl,
-        params: request.params?.toString(),
-        query: request.query?.toString(),
+        params: JSON.stringify(request.params),
+        query: JSON.stringify(request.query),
         header: request.headers,
         body: request.body
     }

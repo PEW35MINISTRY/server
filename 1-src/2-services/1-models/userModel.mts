@@ -41,7 +41,7 @@ export default class USER implements BASE_MODEL {
 
   //Query separate Tables
   userRoleList: RoleEnum[] = [RoleEnum.STUDENT];
-  circleList: CircleListItem[] = [];
+  circleList: CircleListItem[] = [];               //Includes all status: MEMBER|INVITE|REQUEST|LEADER
   partnerList: ProfileListItem[] = [];
   prayerRequestList: PrayerRequestListItem[] = [];
   contactList: ProfileListItem[] = [];
