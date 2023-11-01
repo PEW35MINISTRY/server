@@ -22,36 +22,56 @@ import getCircleEventSampleList from './circle-event-samples.mjs';
 /******************
  *  CIRCLE ROUTES
  ******************/
-export const GET_publicCircle =  async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
-    const circle:CIRCLE = await DB_SELECT_CIRCLE_DETAIL({circleID: request.circleID, userID: request.jwtUserID});
-
-    if(circle.isValid) {
-        circle.eventList = getCircleEventSampleList(request.circleID); //TODO Define Circle Event once Implemented
-        response.status(200).send(circle.toPublicJSON());        
-        log.event('Returning public circle for circleID: ', request.circleID);
-    } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(404, `GET_publicCircle - circle ${request.circleID} Failed to parse from database and is invalid`));
-};
-
+//Auto determines whether user circle status; returning only relevant details
 export const GET_circle =  async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
     const circle:CIRCLE = await DB_SELECT_CIRCLE_DETAIL({circleID: request.circleID, userID: request.jwtUserID});
-    circle.announcementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT(request.circleID);
-    circle.eventList = getCircleEventSampleList(request.circleID); //TODO Define Circle Event once Implemented
-    circle.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST( circle.circleID);
-    circle.memberList = await DB_SELECT_CIRCLE_USER_LIST(circle.circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER);
 
-    if(request.jwtUserID === circle.leaderID || request.jwtUserRole === RoleEnum.ADMIN) {
+    if(!circle.isValid) { //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
+        next(new Exception(404, `GET_circle - circle ${request.circleID} Failed to parse from database and is invalid`));
+        return;
+    } 
+
+    if(circle.requestorStatus === undefined)
+        circle.requestorStatus = CircleStatusEnum.NON_MEMBER;  //Note: applies to ADMIN too
+
+    //Additional Details for all circle statuses
+    circle.memberList = await DB_SELECT_CIRCLE_USER_LIST(circle.circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER);
+    circle.eventList = getCircleEventSampleList(request.circleID); //TODO Define Circle Event once Implemented
+
+    //Public Circle Details only
+    if([CircleStatusEnum.NON_MEMBER, CircleStatusEnum.INVITE, CircleStatusEnum.REQUEST].includes(circle.requestorStatus) && (request.jwtUserRole !== RoleEnum.ADMIN)) { 
+        response.status(200).send(circle.toPublicJSON());        
+        log.event('Returning circle public details for circleID: ', request.circleID);
+        return;
+
+    //Additional MEMBER Detail Queries
+    } else if([CircleStatusEnum.MEMBER, CircleStatusEnum.LEADER].includes(circle.requestorStatus) || (request.jwtUserRole === RoleEnum.ADMIN)) { 
+        circle.announcementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT(request.circleID);
+        circle.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST( circle.circleID);
+    }
+        
+    if(circle.requestorStatus === CircleStatusEnum.MEMBER && (request.jwtUserRole !== RoleEnum.ADMIN)) {
+        response.status(200).send(circle.toMemberJSON());        
+        log.event('Returning circle member details for circleID: ', request.circleID);
+        return;
+    }
+
+    //Additional LEADER Detail Queries
+    else if((request.jwtUserID === circle.leaderID ) || (request.jwtUserRole === RoleEnum.ADMIN)) {
         circle.pendingInviteList = await DB_SELECT_CIRCLE_USER_LIST(circle.circleID, DATABASE_CIRCLE_STATUS_ENUM.INVITE);
         circle.pendingRequestList = await DB_SELECT_CIRCLE_USER_LIST(circle.circleID, DATABASE_CIRCLE_STATUS_ENUM.REQUEST);
     }
+
     if(request.jwtUserRole === RoleEnum.ADMIN)
         response.status(200).send(circle.toJSON()); 
+
     else if(request.jwtUserID === circle.leaderID)
-        response.status(200).send(circle.toLeaderJSON()); 
-    else
-        response.status(200).send(circle.toMemberJSON());        
-    log.event('Returning circle for circleID: ', request.circleID);
+        response.status(200).send(circle.toLeaderJSON());
+
+    else //Never should reach
+        next(new Exception(500, `GET_circle - circle ${request.circleID} Failed to identify requestor: ${circle.requestorID} with circle requestorStatus: ${circle.requestorStatus}`));
 };
+
 
 //List of all circles user is member, invited, requested (not sorted)
 export const GET_userCircleList = async(request: JwtRequest, response: Response, next: NextFunction) => {

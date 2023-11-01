@@ -3,7 +3,7 @@ import URL, { URLSearchParams } from 'url';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT, UserSearchFilterEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
+import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
@@ -62,7 +62,7 @@ export const GET_publicProfile =  async (request: JwtClientRequest, response: Re
     const profile:USER = await DB_SELECT_USER(new Map([['userID', request.clientID]]));
 
     if(profile.isValid) {
-        profile.circleList = await DB_SELECT_USER_CIRCLES(profile.userID);   
+        profile.circleList = await DB_SELECT_USER_CIRCLES(profile.userID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER);   
         response.status(200).send(profile.toPublicJSON())   
         log.event('Returning public profile for userID: ', request.clientID);
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
