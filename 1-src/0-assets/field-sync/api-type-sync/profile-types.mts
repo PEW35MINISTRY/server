@@ -1,6 +1,6 @@
 /************* ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ *************/
 
-import { GenderEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
+import { GenderEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
 import { CircleListItem } from './circle-types.mjs'
 import { PrayerRequestListItem } from './prayer-request-types.mjs'
 
@@ -27,6 +27,13 @@ export interface ProfileListItem {
     firstName: string,
     displayName: string,
     image?: string,
+}
+
+export interface PartnerListItem extends ProfileListItem {
+    status: PartnerStatusEnum,
+    userContractDT?: string,
+    partnerContractDT?: string,
+    partnershipDT?: string,
 }
 
 export interface ProfilePublicResponse {

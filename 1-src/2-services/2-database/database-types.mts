@@ -46,6 +46,35 @@ export enum DATABASE_USER_ROLE_ENUM {
     ADMIN = 'ADMIN',                           //All access and privileges.
 }
 
+
+/******************************************************************* 
+*           Database `partner` Table Created: 11/11/2023 
+********************************************************************/
+export const PARTNER_TABLE_COLUMNS_REQUIRED:string[] = [ 'userID', 'partnerID' ];
+
+export const PARTNER_TABLE_COLUMNS:string[] = [ ...PARTNER_TABLE_COLUMNS_REQUIRED,
+    'status', 'userContractDT', 'partnerContractDT', 'partnershipDT'
+];
+
+export type DATABASE_PARTNER = {
+    userID: number, 
+    partnerID: number,
+    status: DATABASE_PARTNER_STATUS_ENUM,
+    userContractDT?: string,
+    partnerContractDT?: string, 
+    partnershipDT?: boolean,
+};
+
+export enum DATABASE_PARTNER_STATUS_ENUM {
+    PARTNER = 'PARTNER',
+    PENDING_CONTRACT_BOTH = 'PENDING_CONTRACT_BOTH',
+    PENDING_CONTRACT_USER = 'PENDING_CONTRACT_USER',
+    PENDING_CONTRACT_PARTNER = 'PENDING_CONTRACT_PARTNER',
+    LOCKED = 'LOCKED',
+    FAILED = 'FAILED'
+}
+
+
 /******************************************************************* 
 *           Database `circle` Table Created: 6/25/2023 
 ********************************************************************/

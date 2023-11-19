@@ -36,6 +36,16 @@ export enum UserSearchFilterEnum {
     ALL = 'ALL'                      //default search all fields
 }
 
+//Sync with DATABASE_PARTNER_STATUS_ENUM
+export enum PartnerStatusEnum {
+    PARTNER = 'PARTNER',
+    PENDING_CONTRACT_BOTH = 'PENDING_CONTRACT_BOTH',
+    PENDING_CONTRACT_USER = 'PENDING_CONTRACT_USER',
+    PENDING_CONTRACT_PARTNER = 'PENDING_CONTRACT_PARTNER',
+    LOCKED = 'LOCKED',
+    FAILED = 'FAILED'
+}
+
 export const getDateYearsAgo = (years: number = 13):Date => {
     let date = new Date();
     date.setFullYear(date.getFullYear() - years);
@@ -95,4 +105,14 @@ export const SIGNUP_PROFILE_FIELDS_STUDENT:InputField[] = [
 export const SIGNUP_PROFILE_FIELDS:InputField[] = [    
     new InputField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: false, selectOptionList: Object.values(RoleEnum), validationMessage: 'Authorization token is required.'}),
     ...SIGNUP_PROFILE_FIELDS_STUDENT,
+];
+
+//Note: userID is always less than partnerID and relevant contractDT
+export const EDIT_PARTNERSHIP_FIELDS_ADMIN:InputField[] = [    
+    new InputField({title: 'User Id', field: 'userID', type: InputType.NUMBER, required: true, selectOptionList: Object.values(RoleEnum), validationMessage: 'User ID is required.'}),
+    new InputField({title: 'Partner User Id', field: 'partnerID', type: InputType.NUMBER, required: true, selectOptionList: Object.values(RoleEnum), validationMessage: 'Partner user ID is required.'}),
+    new InputField({title: 'Partnership Status', field: 'status', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(PartnerStatusEnum)}),
+    new InputField({title: 'User Contract Accepted', field: 'userContractDT', type: InputType.DATE, validationRegex: DATE_REGEX, validationMessage: 'Required, must be valid age.' }),
+    new InputField({title: 'Partner Contract Accepted', field: 'partnerContractDT', type: InputType.DATE, validationRegex: DATE_REGEX, validationMessage: 'Required, must be valid age.' }),
+    new InputField({title: 'Partnership Started', field: 'partnershipDT', type: InputType.DATE, validationRegex: DATE_REGEX, validationMessage: 'Required, must be valid age.' }),
 ];

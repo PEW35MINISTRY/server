@@ -221,17 +221,6 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
 }
 
 
-/********************
- *  PARTNER QUERIES
- ********************/
-
-export const DB_SELECT_USER_PARTNERS = async(userID:number):Promise<ProfileListItem[]> => { //TODO Query partner table
-    const rows = await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user ORDER BY modifiedDT DESC LIMIT 3;', []);
-
-    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
-}
-
-
 /* SELECT ALL USERS */
 export const DB_SELECT_CONTACTS = async(userID:number):Promise<ProfileListItem[]> => { //TODO Query: Filter accordingly to include: Partners, members of circles, circle leader of circles, all admin
     const rows = await execute('SELECT DISTINCT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user ORDER BY userID < 10 DESC, modifiedDT DESC LIMIT 15;', []);
