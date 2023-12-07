@@ -20,18 +20,16 @@ const getNewModel = (existingModel:BASE_MODEL):ModelTypes|undefined => {
     if(existingModel !== undefined)
         switch (existingModel.modelType) {
             case 'USER':
-                const user = new USER(undefined, (existingModel as USER).userID);
-                user.userRoleList = (existingModel as USER).userRoleList;
-                return user;
+                return USER.constructByClone(existingModel as USER);
 
             case 'CIRCLE':
-                return new CIRCLE(undefined, (existingModel as CIRCLE).circleID);
+                return CIRCLE.constructByClone(existingModel as CIRCLE);
 
             case 'CIRCLE_ANNOUNCEMENT':
                 return new CIRCLE_ANNOUNCEMENT(undefined);
 
             case 'PRAYER_REQUEST':
-                return new PRAYER_REQUEST(undefined, (existingModel as PRAYER_REQUEST).prayerRequestID);
+                return PRAYER_REQUEST.constructByClone(existingModel as PRAYER_REQUEST);
 
             default:
                 log.error('createModelFromJson.getNewModel | modelType not defined', existingModel.modelType);

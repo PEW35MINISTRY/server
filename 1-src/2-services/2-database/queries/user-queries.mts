@@ -48,7 +48,7 @@ export const DB_SELECT_USER = async(filterMap:Map<string, any>):Promise<USER> =>
         + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
         + `WHERE ${preparedColumns};`, Array.from(filterMap.values()));
     
-    if(rows.length === 1) return new USER(rows[0] as DATABASE_USER);
+    if(rows.length === 1) return USER.constructByDatabase(rows[0] as DATABASE_USER);
     else {
         log.error(`DB_SELECT_USER ${rows.length ? 'MULTIPLE' : 'NONE'} USERS IDENTIFIED`, JSON.stringify(filterMap), JSON.stringify(rows));
         return new USER();
@@ -73,7 +73,7 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     }
     
     //Append Full Profile 
-    const user = new USER(rows[0] as DATABASE_USER);
+    const user = USER.constructByDatabase(rows[0] as DATABASE_USER);
     user.userRoleList = await DB_SELECT_USER_ROLES(user.userID);
     user.circleList = await DB_SELECT_USER_CIRCLES(user.userID);  //Includes all statuses
     user.partnerList = await DB_SELECT_USER_PARTNERS(user.userID);

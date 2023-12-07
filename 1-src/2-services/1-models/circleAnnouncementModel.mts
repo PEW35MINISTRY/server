@@ -1,6 +1,6 @@
 import InputField, { InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { CircleAnnouncementCreateRequest } from '../../1-api/4-circle/circle-types.mjs';
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_ANNOUNCEMENT } from '../2-database/database-types.mjs';
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_ANNOUNCEMENT } from '../2-database/database-types.mjs';
 import * as log from '../log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 
@@ -15,8 +15,9 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
     isValid: boolean = false;
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
-    #propertyList = [ 'message', 'startDate', 'endDate']; //used for json parsing
-    #displayList = [ 'announcementID', 'circleID', 'message', 'startDate', 'endDate'];
+    static #databaseIdentifyingPropertyList = ['circleID', 'message']; //exclude: announcementID, complex types, and lists
+    static #propertyList = [ 'message', 'startDate', 'endDate']; //used for json parsing
+    static #displayList = [ 'announcementID', 'circleID', 'message', 'startDate', 'endDate'];
 
     announcementID: number = -1;
     circleID: number = -1;
@@ -24,19 +25,27 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
     startDate: Date;
     endDate: Date;
 
-    constructor(DB?:DATABASE_CIRCLE_ANNOUNCEMENT) {
-        try {
-            if(DB !== undefined) {
-                this.announcementID = DB?.announcementID || -1;
-                this.circleID = DB?.circleID || -1;
-                this.message = DB.message;
-                this.startDate = DB.startDate;
-                this.endDate = DB.endDate;
+    //Used as error case or blank
+    constructor(id:number = -1) {
+        this.circleID = id;
+        this.isValid = false;
+      }
 
-                this.isValid = true;
-            }
+    static constructByDatabase = (DB:DATABASE_CIRCLE_ANNOUNCEMENT):CIRCLE_ANNOUNCEMENT => {
+        try {
+            const newCircleAnnouncement:CIRCLE_ANNOUNCEMENT = new CIRCLE_ANNOUNCEMENT(DB.announcementID || -1);
+
+            newCircleAnnouncement.circleID = DB?.circleID || -1;
+            newCircleAnnouncement.message = DB.message;
+            newCircleAnnouncement.startDate = DB.startDate;
+            newCircleAnnouncement.endDate = DB.endDate;
+            newCircleAnnouncement.isValid = true;
+
+            return newCircleAnnouncement;
+
         } catch(error) {
-            log.db('INVALID Database Object; failed to parse CIRCLE ANNOUNCEMENT', JSON.stringify(DB), error);
+            log.db('INVALID Database Object; failed to parse CIRCLE_ANNOUNCEMENT', JSON.stringify(DB), error);
+            return new CIRCLE_ANNOUNCEMENT();
         }
     }
 
@@ -47,11 +56,12 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
     }
 
     /* PROPERTY FIELD UTILITIES */
-    hasProperty = (field:string) => this.#propertyList.includes(field);
+    static hasProperty = (field: string) => CIRCLE_ANNOUNCEMENT.#propertyList.includes(field);
+    hasProperty = (field:string) => CIRCLE_ANNOUNCEMENT.#propertyList.includes(field); //Defined in BASE_MODEL; used for JSON parsing
 
-    getValidProperties = (properties:string[] = this.#displayList):Map<string, any> => {
+    getValidProperties = (properties:string[] = CIRCLE_ANNOUNCEMENT.#displayList, includeAnnouncementID:boolean = true):Map<string, any> => {
         const map = new Map<string, any>();
-        properties.forEach((field) => {
+        properties.filter((p) => (includeAnnouncementID || (p !== 'announcementID'))).forEach((field) => {
             if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null) {
                 if(field === 'startDate' || field === 'endDate' )
                     map.set(field, (this[field] as Date).toISOString());
@@ -62,16 +72,9 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
         return map;
     }
   
-    getUniqueDatabaseProperties = ():Map<string, any> => {
-        const map = new Map<string, any>();
-        CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED.filter((c) => ((c !== 'announcementID' ))).forEach((field) => {
-            if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null) 
-                  map.set(field, this[field]);
-        });
-        return map;
-      }
+    getDatabaseProperties = (): Map<string, any> => this.getValidProperties(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, false);
 
-    getDatabaseProperties = ():Map<string, any> => this.getUniqueDatabaseProperties();
+    getDatabaseIdentifyingProperties = (): Map<string, any> => this.getValidProperties(CIRCLE_ANNOUNCEMENT.#databaseIdentifyingPropertyList, false);
 
     toJSON = ():DATABASE_CIRCLE_ANNOUNCEMENT => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_CIRCLE_ANNOUNCEMENT;
 

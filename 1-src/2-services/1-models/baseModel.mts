@@ -20,9 +20,9 @@ export default interface BASE_MODEL {
 
   getValidProperties: (properties:string[], includeID:boolean) => Map<string, any>;
 
-  getUniqueDatabaseProperties: (model:any) => Map<string, any>;
+  getDatabaseProperties: () => Map<string, any>;
 
-  getDatabaseProperties: (model:any) => Map<string, any>;
+  getDatabaseIdentifyingProperties: (model:any) => Map<string, any>;
 
   toListItem: () => {};
 
