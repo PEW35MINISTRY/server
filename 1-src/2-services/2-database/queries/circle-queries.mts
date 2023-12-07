@@ -40,7 +40,7 @@ export const DB_SELECT_CIRCLE = async(circleID:number):Promise<CIRCLE> => {
         return new CIRCLE(undefined);
     }
     
-    return new CIRCLE(rows[0] as DATABASE_CIRCLE); 
+    return CIRCLE.constructByDatabase(rows[0] as DATABASE_CIRCLE); 
 }
 
 //Includes circle, leader profile, and requestor status
@@ -57,7 +57,7 @@ export const DB_SELECT_CIRCLE_DETAIL = async({userID, circleID}:{userID?:number,
         return new CIRCLE(undefined);
     }
     
-    const circle = new CIRCLE(rows[0] as DATABASE_CIRCLE); 
+    const circle = CIRCLE.constructByDatabase(rows[0] as DATABASE_CIRCLE); 
     circle.requestorID = userID;
     circle.requestorStatus = (userID === circle.leaderID) ? CircleStatusEnum.LEADER : CircleStatusEnum[rows[0].status];
     circle.leaderProfile = {userID: rows[0].leaderID, firstName: rows[0].leaderFirstName, displayName: rows[0].leaderDisplayName, image: rows[0].leaderImage};
@@ -78,7 +78,7 @@ export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(circleName:string):Promise<
         return new CIRCLE(undefined);
     }
     
-    const circle = new CIRCLE(rows[0] as DATABASE_CIRCLE); 
+    const circle = CIRCLE.constructByDatabase(rows[0] as DATABASE_CIRCLE); 
     circle.leaderProfile = {userID: rows[0].leaderID, firstName: rows[0].leaderFirstName, displayName: rows[0].leaderDisplayName, image: rows[0].leaderImage};
 
     return circle;
@@ -218,7 +218,7 @@ export const DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT = async(circleID:number):Prom
         + 'WHERE circleID = ? '                                              //TODO: Filter for current: ' AND startDate < ? AND endDate > ? '
         + 'ORDER BY startDate ASC;', [circleID]);
 
-    return [...rows.map(row => (new CIRCLE_ANNOUNCEMENT(row as DATABASE_CIRCLE_ANNOUNCEMENT)))];
+    return [...rows.map(row => (CIRCLE_ANNOUNCEMENT.constructByDatabase(row as DATABASE_CIRCLE_ANNOUNCEMENT)))];
 }
 
 export const DB_INSERT_CIRCLE_ANNOUNCEMENT = async(fieldMap:Map<string, any>):Promise<boolean> => {

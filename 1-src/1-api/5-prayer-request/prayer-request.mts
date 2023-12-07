@@ -79,7 +79,7 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
             next(new Exception(400, `Create Prayer Request Failed :: Missing Required Fields: ${JSON.stringify(PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
         else { 
-                const savedPrayerRequest:PRAYER_REQUEST = await DB_INSERT_AND_SELECT_PRAYER_REQUEST(newPrayerRequest.getDatabaseProperties());
+                const savedPrayerRequest:PRAYER_REQUEST = await DB_INSERT_AND_SELECT_PRAYER_REQUEST(newPrayerRequest.getDatabaseIdentifyingProperties());
 
                 if(!savedPrayerRequest.isValid) 
                     next(new Exception(500, 'Create Prayer Request Failed :: Failed to save new prayer request to database.', 'Save Failed'));
@@ -106,8 +106,8 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
 
     if(currentPrayerRequest.isValid && editPrayerRequest !== undefined && editPrayerRequest.isValid) {  //undefined handles next(Exception)
         
-        if((editPrayerRequest.getUniqueDatabaseProperties(currentPrayerRequest).size > 0 )
-                && await DB_UPDATE_PRAYER_REQUEST(request.prayerRequestID, editPrayerRequest.getUniqueDatabaseProperties(currentPrayerRequest)) === false) 
+        if((PRAYER_REQUEST.getUniqueDatabaseProperties(editPrayerRequest, currentPrayerRequest).size > 0 )
+                && await DB_UPDATE_PRAYER_REQUEST(request.prayerRequestID, PRAYER_REQUEST.getUniqueDatabaseProperties(editPrayerRequest, currentPrayerRequest)) === false) 
             next(new Exception(500, `Edit Prayer Request Failed :: Failed to update prayer request ${request.prayerRequestID}.`, 'Save Failed'));
 
         else { //Handle changes in user recipient lists
