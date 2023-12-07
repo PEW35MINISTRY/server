@@ -16,7 +16,7 @@ UNIVERSAl profile for DATABASE OPERATIONS
 export default class USER implements BASE_MODEL {
   modelType = 'USER';
   getID = () => this.userID;
-  setID = (id: number) => this.userID = id;
+  setID = (id:number) => this.userID = id;
   isValid: boolean = false;
 
   //Private static list of class property fields | (This is display-responses; NOT edit-access -> see: profile-field-config.mts)
@@ -54,7 +54,7 @@ export default class USER implements BASE_MODEL {
     this.isValid = false;
   }
 
-  static constructByDatabase = (DB: DATABASE_USER): USER => {
+  static constructByDatabase = (DB:DATABASE_USER): USER => {
     try {
       const newUSER: USER = new USER(DB.userID || -1);
 
@@ -152,7 +152,7 @@ export default class USER implements BASE_MODEL {
     return map;
   }
 
-  static getUniqueDatabaseProperties = (editProfile:USER, currentProfile:USER): Map<string, any> => {
+  static getUniqueDatabaseProperties = (editProfile:USER, currentProfile:USER):Map<string, any> => {
     const map = new Map<string, any>();
     USER_TABLE_COLUMNS.filter((c) => ((c !== 'userID'))).forEach((field) => {
       if (field === 'dateOfBirth') { //Must compare dates as numbers
@@ -178,25 +178,25 @@ export default class USER implements BASE_MODEL {
 
   toPartnerJSON = ():ProfilePartnerResponse => Object.fromEntries(this.getValidProperties(USER.#partnerPropertyList)) as unknown as ProfilePartnerResponse;
 
-  toListItem = (): ProfileListItem => ({ userID: this.userID, firstName: this.firstName, displayName: this.displayName, image: this.image });
+  toListItem = ():ProfileListItem => ({userID: this.userID, firstName: this.firstName, displayName: this.displayName, image: this.image});
 
-  toString = (): string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
+  toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
 
   /** Utility methods for createModelFromJSON **/
-  validateModelSpecificField = ({ field, value }: { field: InputField, value: string }): boolean | undefined => {
+  validateModelSpecificField = ({field, value}:{field:InputField, value:string}):boolean|undefined => {
     /* DATES | dateOfBirth */
-    if (field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)
-      const currentDate: Date = new Date(value);
+    if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)
+      const currentDate:Date = new Date(value);
 
-      if (isNaN(currentDate.valueOf()) || currentDate < getDOBMinDate(this.getHighestRole()) || currentDate > getDOBMaxDate(this.getHighestRole()))
+      if(isNaN(currentDate.valueOf()) || currentDate < getDOBMinDate(this.getHighestRole()) || currentDate > getDOBMaxDate(this.getHighestRole()))
         return false;
       else return true;
 
     } else if (field.field === 'userRoleTokenList') {
       return (Array.isArray(value)
-        && Array.from(value).every((roleTokenObj: { role: string, token: string }) => {
+        && Array.from(value).every((roleTokenObj:{role:string, token:string}) => {
 
-          if (roleTokenObj.role === undefined
+          if(roleTokenObj.role === undefined
             || (roleTokenObj.role.length === 0)
             || !Object.values(RoleEnum).includes(roleTokenObj.role as RoleEnum)
             || roleTokenObj.token === undefined) { //token allowed to be empty string for STUDENT
@@ -211,17 +211,17 @@ export default class USER implements BASE_MODEL {
     return undefined;
   }
 
-  parseModelSpecificField = ({ field, jsonObj }: { field: InputField, jsonObj: ProfileEditRequest['body'] }): boolean | undefined => {
+  parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body'] }):boolean|undefined => {
     //Special Handling: Password Hash
-    if (field.field === 'password' && jsonObj['password'] === jsonObj['passwordVerify']) {
+    if(field.field === 'password' && jsonObj['password'] === jsonObj['passwordVerify']) {
       this.passwordHash = getPasswordHash(jsonObj['password']);
       return true;
 
-    } else if (field.field === 'passwordVerify') { //valid Skip without error
+    } else if(field.field === 'passwordVerify') { //valid Skip without error
       return true;
 
-    } else if (field.field === 'userRoleTokenList') {
-      this.userRoleList = Array.from(jsonObj[field.field] as { role: string, token: string }[]).map(({ role, token }) => RoleEnum[role as string] || RoleEnum.STUDENT);
+    } else if(field.field === 'userRoleTokenList') {
+      this.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string] || RoleEnum.STUDENT);
       return true;
     }
 

@@ -72,9 +72,9 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
         return map;
     }
   
-    getDatabaseProperties = (): Map<string, any> => this.getValidProperties(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, false);
+    getDatabaseProperties = ():Map<string, any> => this.getValidProperties(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, false);
 
-    getDatabaseIdentifyingProperties = (): Map<string, any> => this.getValidProperties(CIRCLE_ANNOUNCEMENT.#databaseIdentifyingPropertyList, false);
+    getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(CIRCLE_ANNOUNCEMENT.#databaseIdentifyingPropertyList, false);
 
     toJSON = ():DATABASE_CIRCLE_ANNOUNCEMENT => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_CIRCLE_ANNOUNCEMENT;
 

@@ -154,9 +154,9 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
         return map;
       }
 
-    getDatabaseProperties = (): Map<string, any> => this.getValidProperties(PRAYER_REQUEST_TABLE_COLUMNS, false);
+    getDatabaseProperties = ():Map<string, any> => this.getValidProperties(PRAYER_REQUEST_TABLE_COLUMNS, false);
 
-    getDatabaseIdentifyingProperties = (): Map<string, any> => this.getValidProperties(PRAYER_REQUEST.#databaseIdentifyingPropertyList, false);
+    getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(PRAYER_REQUEST.#databaseIdentifyingPropertyList, false);
 
     toJSON = ():DATABASE_PRAYER_REQUEST => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_PRAYER_REQUEST;
 

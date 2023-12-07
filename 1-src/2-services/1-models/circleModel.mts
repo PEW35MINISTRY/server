@@ -129,9 +129,9 @@ export default class CIRCLE implements BASE_MODEL  {
         return map;
       }
 
-    getDatabaseProperties = (): Map<string, any> => this.getValidProperties(CIRCLE_TABLE_COLUMNS, false);
+    getDatabaseProperties = ():Map<string, any> => this.getValidProperties(CIRCLE_TABLE_COLUMNS, false);
 
-    getDatabaseIdentifyingProperties = (): Map<string, any> => this.getValidProperties(CIRCLE.#databaseIdentifyingPropertyList, false);
+    getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(CIRCLE.#databaseIdentifyingPropertyList, false);
 
     toJSON = ():DATABASE_CIRCLE => Object.fromEntries(this.getValidProperties(CIRCLE.#propertyList)) as unknown as DATABASE_CIRCLE;
 
