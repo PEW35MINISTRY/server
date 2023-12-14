@@ -19,8 +19,9 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     isValid: boolean = false;
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
-    #displayPropertyList = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
-    #propertyList = [ ...this.#displayPropertyList, 'addUserRecipientIDList', 'removeUserRecipientIDList', 'addCircleRecipientIDList', 'removeCircleRecipientIDList' ];
+    static #databaseIdentifyingPropertyList = ['requestorID', 'topic', 'description']; //exclude: prayerRequestID, complex types, and lists
+    static #displayPropertyList = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
+    static #propertyList = [ ...PRAYER_REQUEST.#displayPropertyList, 'addUserRecipientIDList', 'removeUserRecipientIDList', 'addCircleRecipientIDList', 'removeCircleRecipientIDList' ];
 
     prayerRequestID: number = -1;
     requestorID: number;
@@ -44,32 +45,81 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     addCircleRecipientIDList: number[];
     removeCircleRecipientIDList: number[];
 
-    constructor(DB?:DATABASE_PRAYER_REQUEST, prayerRequestID?:number) {
+    //Used as error case or blank
+    constructor(id:number = -1) {
+        this.prayerRequestID = id;
+        this.isValid = false;
+      }
+
+    static constructByDatabase = (DB:DATABASE_PRAYER_REQUEST):PRAYER_REQUEST => {
         try {
-            this.prayerRequestID = prayerRequestID || DB?.prayerRequestID || -1;
+            const newPrayerRequest:PRAYER_REQUEST = new PRAYER_REQUEST(DB.prayerRequestID || -1);
 
-            if(DB !== undefined) {
-                this.requestorID = DB.requestorID;
-                this.topic = DB.topic;
-                this.description = DB.description;
-                this.prayerCount = DB.prayerCount;
-                this.isOnGoing = DB.isOnGoing ? true : false;
-                this.isResolved = DB.isResolved ? true : false;
-                this.expirationDate = DB.expirationDate;
+            newPrayerRequest.requestorID = DB.requestorID;
+            newPrayerRequest.topic = DB.topic;
+            newPrayerRequest.description = DB.description;
+            newPrayerRequest.prayerCount = DB.prayerCount;
+            newPrayerRequest.isOnGoing = DB.isOnGoing ? true : false;
+            newPrayerRequest.isResolved = DB.isResolved ? true : false;
+            newPrayerRequest.expirationDate = DB.expirationDate;
+            newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(DB.tagsStringified);
+            newPrayerRequest.isValid = true;
 
-                this.tagList = prayerRequestParseTags(DB.tagsStringified);
-                
-                this.isValid = true;
-            }
+            return newPrayerRequest;
+
         } catch(error) {
             log.db('INVALID Database Object; failed to parse PRAYER_REQUEST', JSON.stringify(DB), error);
+            return new PRAYER_REQUEST();
         }
     }
 
-    /* PROPERTY FIELD UTILITIES */
-    hasProperty = (field:string) => this.#propertyList.includes(field);
+      //Clone database model values only (not copying references for ListItems)
+    static constructByClone = (prayerRequest:PRAYER_REQUEST):PRAYER_REQUEST => {
+        try { //MUST copy primitives properties directly and create new complex types to avoid reference linking
+            const newPrayerRequest:PRAYER_REQUEST = new PRAYER_REQUEST(prayerRequest.prayerRequestID); 
 
-    getValidProperties = (properties:string[] = this.#displayPropertyList, includePrayerRequestID:boolean = true):Map<string, any> => {
+            if(newPrayerRequest.prayerRequestID > 0) {
+                newPrayerRequest.requestorID = prayerRequest.requestorID;
+                newPrayerRequest.topic = prayerRequest.topic;
+                newPrayerRequest.description = prayerRequest.description;
+                newPrayerRequest.prayerCount = prayerRequest.prayerCount;
+                newPrayerRequest.isOnGoing = prayerRequest.isOnGoing;
+                newPrayerRequest.isResolved = prayerRequest.isResolved;
+                newPrayerRequest.expirationDate = new Date(prayerRequest.expirationDate?.getTime());
+                newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(JSON.stringify(prayerRequest.tagList));
+                newPrayerRequest.isValid = true;
+            }
+
+            return newPrayerRequest;
+
+        } catch(error) {
+            log.error('INVALID Object; failed to clone PRAYER_REQUEST', JSON.stringify(prayerRequest), error);
+            return new PRAYER_REQUEST();
+        }
+    }
+
+    /* ADDITIONAL UTILITIES */
+    static prayerRequestParseTags = (tagsStringified:string):PrayerRequestTagEnum[] => {
+        const tagList = [];
+        if(tagsStringified !== undefined && tagsStringified !== null && tagsStringified.length > 0) {        
+            try {
+                const list:string[] = JSON.parse(tagsStringified);
+                list.forEach((item:string) => {
+                    if(Object.values(PrayerRequestTagEnum).includes(PrayerRequestTagEnum[item])) 
+                        tagList.push(PrayerRequestTagEnum[item]);
+                });
+            } catch(error) {
+                log.error('Failed to parse prayer request tags', tagsStringified, error);
+            }
+        }
+        return tagList;
+    }
+
+    /* PROPERTY FIELD UTILITIES */
+    static hasProperty = (field: string) => PRAYER_REQUEST.#propertyList.includes(field);
+    hasProperty = (field:string) => PRAYER_REQUEST.#propertyList.includes(field); //Defined in BASE_MODEL; used for JSON parsing
+
+    getValidProperties = (properties:string[] = PRAYER_REQUEST.#displayPropertyList, includePrayerRequestID:boolean = true):Map<string, any> => {
         const map = new Map<string, any>();
         properties.filter((p) => (includePrayerRequestID || (p !== 'prayerRequestID'))).forEach((field) => {
             if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
@@ -84,23 +134,29 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     }
 
  
-    getUniqueDatabaseProperties = (prayerRequest:PRAYER_REQUEST):Map<string, any> => {
+    static getUniqueDatabaseProperties = (editPrayerRequest:PRAYER_REQUEST, currentPrayerRequest:PRAYER_REQUEST):Map<string, any> => {
         const map = new Map<string, any>();
         PRAYER_REQUEST_TABLE_COLUMNS.filter((c) => ((c !== 'prayerRequestID'))).forEach((field) => {
 
-            if(field === 'tagsStringified' && (JSON.stringify(Array.from(this['tagList']).sort()) !== JSON.stringify(Array.from(prayerRequest['tagList']).sort())))
-                map.set('tagsStringified', JSON.stringify(this['tagList']));
+            if(field === 'tagsStringified' && (JSON.stringify(Array.from(editPrayerRequest.tagList).sort()) !== JSON.stringify(Array.from(currentPrayerRequest.tagList).sort())))
+                map.set('tagsStringified', JSON.stringify(editPrayerRequest.tagList));
             
-            else if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
-                && ((Array.isArray(this[field]) 
-                    && (JSON.stringify(Array.from(this[field]).sort()) !== JSON.stringify(Array.from(prayerRequest[field]).sort()))) 
-                || (this[field] !== prayerRequest[field])))
-                    map.set(field, this[field]);
+            else if (field === 'expirationDate') { //Must compare dates as numbers
+                    if (editPrayerRequest.expirationDate.getTime() !== currentPrayerRequest.expirationDate.getTime())
+                      map.set(field, editPrayerRequest[field]);
+               
+            } else if(editPrayerRequest.hasOwnProperty(field) && editPrayerRequest[field] !== undefined && editPrayerRequest[field] !== null
+                && ((Array.isArray(editPrayerRequest[field]) 
+                    && (JSON.stringify(Array.from(editPrayerRequest[field]).sort()) !== JSON.stringify(Array.from(currentPrayerRequest[field]).sort()))) 
+                || (editPrayerRequest[field] !== currentPrayerRequest[field])))
+                    map.set(field, editPrayerRequest[field]);
         });
         return map;
       }
 
-    getDatabaseProperties = ():Map<string, any> => this.getUniqueDatabaseProperties(new PRAYER_REQUEST());
+    getDatabaseProperties = ():Map<string, any> => this.getValidProperties(PRAYER_REQUEST_TABLE_COLUMNS, false);
+
+    getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(PRAYER_REQUEST.#databaseIdentifyingPropertyList, false);
 
     toJSON = ():DATABASE_PRAYER_REQUEST => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_PRAYER_REQUEST;
 
@@ -127,20 +183,3 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
         return undefined;
     }
 };
-
-/* ADDITIONAL UTILITIES */
-export const prayerRequestParseTags = (tagsStringified:string):PrayerRequestTagEnum[] => {
-    const tagList = [];
-    if(tagsStringified !== undefined && tagsStringified !== null && tagsStringified.length > 0) {        
-        try {
-            const list:string[] = JSON.parse(tagsStringified);
-            list.forEach((item:string) => {
-                if(Object.values(PrayerRequestTagEnum).includes(PrayerRequestTagEnum[item])) 
-                    tagList.push(PrayerRequestTagEnum[item]);
-            });
-        } catch(error) {
-            log.error('Failed to parse prayer request tags', tagsStringified, error);
-        }
-    }
-    return tagList;
-}

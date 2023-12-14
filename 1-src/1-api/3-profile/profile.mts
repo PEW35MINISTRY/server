@@ -113,7 +113,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
         else if(await validateNewRoleTokenList({newRoleList:newProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: newProfile.email}) === false)
             next(new Exception(401, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
 
-        else if(await DB_INSERT_USER(newProfile.getValidProperties(USER_TABLE_COLUMNS, false)) === false) 
+        else if(await DB_INSERT_USER(newProfile.getDatabaseProperties()) === false) 
                 next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Save Failed'));
 
         //New Account Success -> Auto Login Response
@@ -149,8 +149,8 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
         if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: currentRoleList, adminOverride: (request.jwtUserRole === RoleEnum.ADMIN)}) === false)
             next(new Exception(401, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
 
-        else if((editProfile.getUniqueDatabaseProperties(currentProfile).size > 0 )
-                && await DB_UPDATE_USER(request.clientID, editProfile.getUniqueDatabaseProperties(currentProfile)) === false) 
+        else if((USER.getUniqueDatabaseProperties(editProfile, currentProfile).size > 0 )
+                && await DB_UPDATE_USER(request.clientID, USER.getUniqueDatabaseProperties(editProfile, currentProfile)) === false) 
             next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
 
         else {
