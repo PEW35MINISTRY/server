@@ -54,6 +54,8 @@ export default class CIRCLE implements BASE_MODEL  {
 
     static constructByDatabase = (DB:DATABASE_CIRCLE):CIRCLE => {
         try {
+            if(DB === undefined) throw new Error('Undefined Database Object');
+
             const newCircle:CIRCLE = new CIRCLE(DB.circleID || -1);
 
             newCircle.leaderID = DB.leaderID;
@@ -77,6 +79,8 @@ export default class CIRCLE implements BASE_MODEL  {
     //Clone database model values only (not copying references for ListItems)
     static constructByClone = (circle:CIRCLE):CIRCLE => {
         try { //MUST copy primitives properties directly and create new complex types to avoid reference linking
+            if(circle === undefined) throw new Error('Undefined Model Object');
+
             const newCircle:CIRCLE = new CIRCLE(circle.circleID); 
 
             if(newCircle.circleID > 0) {
@@ -146,7 +150,7 @@ export default class CIRCLE implements BASE_MODEL  {
     toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
 
     /** Utility methods for createModelFromJSON **/
-    validateModelSpecificField = ({field, value}:{field:InputField, value:string}):boolean|undefined => {
+    validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:CircleEditRequestBody}):boolean|undefined => {
         //No Field Match
         return undefined;
     }

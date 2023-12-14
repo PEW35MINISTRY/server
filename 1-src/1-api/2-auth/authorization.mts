@@ -6,7 +6,7 @@ import { DB_IS_PRAYER_REQUEST_REQUESTOR, DB_IS_RECIPIENT_PRAYER_REQUEST } from '
 import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
-import { JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
+import { JwtCircleRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
 import { getJWTData as getJwtData, isMaxRoleGreaterThan, verifyJWT as verifyJwt } from './auth-utilities.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
@@ -197,6 +197,30 @@ export const authenticateLeaderMiddleware = async(request: JwtRequest, response:
 
     } else {
         next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.jwtUserID} is not a Leader Role.`));
+    }
+}
+
+/* Extract Content Parameter | cache: request.contentID */
+export const extractContentMiddleware = async(request: JwtContentRequest, response: Response, next: NextFunction):Promise<void> => {
+    //Verify Content Parameter Exist
+    if(request.params.content === undefined || isNaN(parseInt(request.params.content))) 
+        next(new Exception(400, `FAILED AUTHENTICATED :: CONTENT :: missing content-id parameter :: ${request.params.content}`, 'Missing Content'));
+
+    else {
+        const contentID:number = parseInt(request.params.content);
+        request.contentID = contentID;
+        next();
+    }
+}
+
+export const authenticateContentApproverMiddleware = async(request: JwtRequest, response: Response, next: NextFunction):Promise<void> => {
+
+    if(isMaxRoleGreaterThan({testUserRole: RoleEnum.CONTENT_APPROVER, currentMaxUserRole: request.jwtUserRole})) {
+        log.auth(`AUTHENTICATED :: CONTENT_APPROVER :: status verified: User: ${request.jwtUserID} is an CONTENT_APPROVER`);
+        next();
+
+    } else {
+        next(new Exception(401, `FAILED AUTHENTICATED :: CONTENT_APPROVER :: User: ${request.jwtUserID} is not an CONTENT_APPROVER.`));
     }
 }
 

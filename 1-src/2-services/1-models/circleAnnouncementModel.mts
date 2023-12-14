@@ -33,6 +33,8 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
 
     static constructByDatabase = (DB:DATABASE_CIRCLE_ANNOUNCEMENT):CIRCLE_ANNOUNCEMENT => {
         try {
+            if(DB === undefined) throw new Error('Undefined Database Object');
+
             const newCircleAnnouncement:CIRCLE_ANNOUNCEMENT = new CIRCLE_ANNOUNCEMENT(DB.announcementID || -1);
 
             newCircleAnnouncement.circleID = DB?.circleID || -1;
@@ -83,7 +85,7 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
     toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
 
     /** Utility methods for createModelFromJSON **/
-    validateModelSpecificField = ({field, value}:{field:InputField, value:string}):boolean|undefined => {
+    validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:CircleAnnouncementCreateRequest['body']}):boolean|undefined => {
         if(field.type === InputType.DATE && field.field === 'endDate') {
             const currentDate = new Date();
             const endDate = new Date(value);

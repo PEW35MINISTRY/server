@@ -52,7 +52,7 @@ export const CIRCLE_FIELDS:InputField[] = [
 ];
 
 export const CIRCLE_FIELDS_ADMIN:InputField[] = [
-    new InputField({title: 'Leader ID', field: 'leaderID', type: InputType.NUMBER, validationMessage: 'Leader is Required.' }),
+    new InputField({title: 'Leader ID', field: 'leaderID', type: InputType.NUMBER, required: true, validationMessage: 'Leader is Required.' }),
     new InputField({title: 'Active Account', field: 'isActive', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     ...CIRCLE_FIELDS,
     new InputField({title: 'Circle Image', field: 'image', type: InputType.TEXT, validationRegex: new RegExp(/.{5,2000}/), validationMessage: 'Invalid URI, Max 2000 characters'}),

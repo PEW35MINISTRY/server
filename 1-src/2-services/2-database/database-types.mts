@@ -25,12 +25,12 @@ export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
     passwordHash?: string,
     postalCode?: string, 
     dateOfBirth?: Date, 
-    gender?: GenderEnum,
+    gender?: DATABASE_GENDER_ENUM,
     isActive?: boolean,
     walkLevel?: number,
     image?: string,
     notes?: string,
-    userRole?: RoleEnum, //Top role from table user_role_defined
+    userRole?: DATABASE_USER_ROLE_ENUM, //Top role from table user_role_defined
 };
 
 export enum DATABASE_GENDER_ENUM {
@@ -110,5 +110,37 @@ export type DATABASE_PRAYER_REQUEST = {
     isResolved: boolean,
     tagsStringified: string,
     expirationDate: Date
+};
+
+
+/******************************************************************** 
+*      Database `content` Table Created: 12/9/2023 
+*********************************************************************/
+export const CONTENT_TABLE_COLUMNS_REQUIRED:string[] = [ 'recorderID', 'type', 'source', 'url' ];
+
+export const CONTENT_TABLE_COLUMNS:string[] = [ ...CONTENT_TABLE_COLUMNS_REQUIRED,
+    'contentID', 'keywordListStringified', 'description', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes'
+];
+
+export enum DATABASE_GENDER_SELECTION_ENUM {
+    MALE = 'MALE',
+    FEMALE = 'FEMALE',
+    BOTH = 'BOTH'
+}
+
+export type DATABASE_CONTENT = {
+    contentID: number, 
+    recorderID: number, 
+    type: string,
+    source: string,
+    url: string,
+    keywordListStringified?: string,
+    description?: string, 
+    gender: DATABASE_GENDER_SELECTION_ENUM, 
+    minimumAge: number, 
+    maximumAge: number, 
+    minimumWalkLevel: number, 
+    maximumWalkLevel: number, 
+    notes?: string
 };
 

@@ -57,39 +57,71 @@ export const query = async(query:string):Promise<SQL.RowDataPacket[]> =>
 /***************************************
  *  EXECUTE: PREPARED SELECT STATEMENT
  ***************************************/
-export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPacket[]> => 
-     await DATABASE.execute(query, fields)
-        .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
-                // log.db('DB Execute Successful: ', query, JSON.stringify(rows));
-                return [...rows];
-            })
-        .catch((error) => {
-            log.db('DB Execute Failed: ', query, JSON.stringify(fields), error);
-            return [];
-        });
+export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPacket[]> => {
+    //validate fields supplied
+    if((query.split('?').length - 1) !== fields.length) {
+        log.error('DB execute Rejected for incorrect number of fields provided: ', query, (query.split('?').length - 1), fields.length, JSON.stringify(fields));
+        return [];
+
+    } else if(fields.some(field => (field === undefined))) { //use null to clear
+        log.error('DB execute Rejected for undefined field: ', query, fields.length, JSON.stringify(fields));
+        return [];
+
+    } else if(fields.some(field => (field.length === 0))) {
+        log.error('DB execute Rejected for empty string field: ', query, fields.length, JSON.stringify(fields));
+        return [];
+
+    } else {
+        return await DATABASE.execute(query, fields)
+            .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
+                    // log.db('DB Execute Successful: ', query, JSON.stringify(rows));
+                    return [...rows];
+                })
+            .catch((error) => {
+                log.db('DB Execute Failed: ', query, JSON.stringify(fields), error);
+                return [];
+            });
+    }
+}
 
 
 /***************************************************
  *  COMMAND: PREPARED DATABASE OPERATION STATEMENT
  ***************************************************/
-export const command = async(query:string, fields:any[]):Promise<CommandResponseType|undefined> => 
-    await DATABASE.execute(query, fields)
-        .then((result:any[]) => {
-                if(result.length >= 1) {
-                    // log.db('DB Command Successful: ', query, JSON.stringify(result));
-                    if((result as unknown as SQL.ResultSetHeader[])[0].affectedRows !== undefined)
-                        return (result as unknown as SQL.ResultSetHeader[])[0];
-                    else
-                        return (result as unknown as SQL.RowDataPacket[])[0];
-                } else {
-                    log.error('DB Command Successful; but NO Response: ', query, JSON.stringify(result));
-                    return undefined;
-                }
-            })
-        .catch((error) => {
-            log.db('DB Command Failed: ', query, JSON.stringify(fields), error);
-            return undefined;
-        });
+export const command = async(query:string, fields:any[]):Promise<CommandResponseType|undefined> => {
+    //validate fields supplied
+    if((query.split('?').length - 1) !== fields.length) {
+        log.error('DB command Rejected for incorrect number of fields provided: ', query, (query.split('?').length - 1), fields.length, JSON.stringify(fields));
+        return undefined;
+
+    } else if(fields.some(field => (field === undefined))) { //use null to clear
+        log.error('DB command Rejected for undefined field: ', query, fields.length, JSON.stringify(fields));
+        return undefined;
+
+    } else if(fields.some(field => (field.length === 0))) {
+        log.error('DB command Rejected for empty string field: ', query, fields.length, JSON.stringify(fields));
+        return undefined;
+
+    } else {
+        return await DATABASE.execute(query, fields)
+            .then((result:any[]) => {
+                    if(result.length >= 1) {
+                        // log.db('DB Command Successful: ', query, JSON.stringify(result));
+                        if((result as unknown as SQL.ResultSetHeader[])[0].affectedRows !== undefined)
+                            return (result as unknown as SQL.ResultSetHeader[])[0];
+                        else
+                            return (result as unknown as SQL.RowDataPacket[])[0];
+                    } else {
+                        log.error('DB Command Successful; but NO Response: ', query, JSON.stringify(result));
+                        return undefined;
+                    }
+                })
+            .catch((error) => {
+                log.db('DB Command Failed: ', query, JSON.stringify(fields), error);
+                return undefined;
+            });
+    }
+}
 
         
 /************************************************************

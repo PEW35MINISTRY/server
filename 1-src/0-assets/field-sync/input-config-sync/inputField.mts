@@ -18,11 +18,13 @@ export enum InputType {
     PARAGRAPH = 'PARAGRAPH',
     USER_ID_LIST = 'USER_ID_LIST',        //Indicate fetch & display user contact list
     CIRCLE_ID_LIST = 'CIRCLE_ID_LIST',    //Indicate fetch & display circle membership list
+    CUSTOM_STRING_LIST = 'CUSTOM_STRING_LIST',
+    NUMBER_SLIDER = 'NUMBER_SLIDER',
 }
 
-export const isListType = (type:InputType):boolean => ((type === InputType.MULTI_SELECTION_LIST) || (type === InputType.USER_ID_LIST) || (type === InputType.CIRCLE_ID_LIST));
+export const isListType = (type:InputType):boolean => ((type === InputType.MULTI_SELECTION_LIST) || (type === InputType.USER_ID_LIST) || (type === InputType.CIRCLE_ID_LIST) || (type === InputType.CUSTOM_STRING_LIST));
 
-export type FieldInput = {
+export type FieldInput = { //For toJSON() response
     title: string,
     field: string, 
     value: string | undefined,

@@ -53,6 +53,8 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
 
     static constructByDatabase = (DB:DATABASE_PRAYER_REQUEST):PRAYER_REQUEST => {
         try {
+            if(DB === undefined) throw new Error('Undefined Database Object');
+
             const newPrayerRequest:PRAYER_REQUEST = new PRAYER_REQUEST(DB.prayerRequestID || -1);
 
             newPrayerRequest.requestorID = DB.requestorID;
@@ -76,6 +78,8 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
       //Clone database model values only (not copying references for ListItems)
     static constructByClone = (prayerRequest:PRAYER_REQUEST):PRAYER_REQUEST => {
         try { //MUST copy primitives properties directly and create new complex types to avoid reference linking
+            if(prayerRequest === undefined) throw new Error('Undefined Model Object');
+
             const newPrayerRequest:PRAYER_REQUEST = new PRAYER_REQUEST(prayerRequest.prayerRequestID); 
 
             if(newPrayerRequest.prayerRequestID > 0) {
@@ -165,13 +169,12 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
 
     /** Utility methods for createModelFromJSON **/
-    validateModelSpecificField = ({field, value}:{field:InputField, value:string}):boolean|undefined => {
+    validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:PrayerRequestPostRequest['body']}):boolean|undefined => {
         //No Field Match
         return undefined;
     }
 
     parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:PrayerRequestPostRequest['body']}):boolean|undefined => {
-        //Handle inviteToken for security
         if(field.field === 'tagList') {
             Array.from(jsonObj[field.field]).forEach((item:string) => {
                 if(Object.values(PrayerRequestTagEnum).includes(PrayerRequestTagEnum[item])) 

@@ -56,6 +56,8 @@ export default class USER implements BASE_MODEL {
 
   static constructByDatabase = (DB:DATABASE_USER): USER => {
     try {
+      if(DB === undefined) throw new Error('Undefined Database Object');
+
       const newUSER: USER = new USER(DB.userID || -1);
 
       newUSER.firstName = DB.firstName;
@@ -84,6 +86,8 @@ export default class USER implements BASE_MODEL {
   //Clone database model values only (not copying references for ListItems)
   static constructByClone = (profile: USER): USER => {
     try { //MUST copy primitives properties directly and create new complex types to avoid reference linking
+      if(profile === undefined) throw new Error('Undefined Model Object');
+      
       const newUSER: USER = new USER(profile.userID);
 
       if(newUSER.userID > 0) {
@@ -183,7 +187,7 @@ export default class USER implements BASE_MODEL {
   toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
 
   /** Utility methods for createModelFromJSON **/
-  validateModelSpecificField = ({field, value}:{field:InputField, value:string}):boolean|undefined => {
+  validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ProfileEditRequest['body']}):boolean|undefined => {
     /* DATES | dateOfBirth */
     if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)
       const currentDate:Date = new Date(value);
