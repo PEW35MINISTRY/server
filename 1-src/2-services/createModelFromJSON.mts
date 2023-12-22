@@ -208,15 +208,8 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
         
     /* SELECT_LIST */
     } else if(field.type === InputType.SELECT_LIST && !field.selectOptionList.includes(`${value}`)) {
-        /* CUSTOM field alternative */
-        if(field.selectOptionList.includes('CUSTOM')) {
-            log.event(`Validating input for ${field.field}; custom field override SELECT_LIST`, field.field, value);
-            return true;
-
-        } else {
-            log.warn(`Validating input for ${field.field}; failed not included in select option list`, value, JSON.stringify(field.selectOptionList));
-            return false;
-        }
+        log.warn(`Validating input for ${field.field}; failed not included in select option list`, value, JSON.stringify(field.selectOptionList));
+        return false;
 
     /* MULTI_SELECTION_LIST */
     } else if(field.type === InputType.MULTI_SELECTION_LIST && ( !Array.isArray(value)

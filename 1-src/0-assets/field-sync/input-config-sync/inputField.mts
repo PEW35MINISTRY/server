@@ -38,6 +38,7 @@ export type FieldInput = { //For toJSON() response
 export default class InputField {
     title: string;
     field: string;
+    customField: string|undefined; //Handle Parsing in Model.parseModelSpecificField
     value: string | undefined;
     type: InputType;
     required: boolean;
@@ -48,10 +49,11 @@ export default class InputField {
     selectOptionList: string[];
     displayOptionList: string[];
 
-    constructor({title, field, value, type=InputType.TEXT, required=false, unique=false, hide=false, validationRegex=new RegExp(/.+/), validationMessage='Invalid Input', selectOptionList=[]} :
-        {title:string, field:string, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, selectOptionList?: string[]}) {
+    constructor({title, field, customField, value, type=InputType.TEXT, required=false, unique=false, hide=false, validationRegex=new RegExp(/.+/), validationMessage='Invalid Input', selectOptionList=[]} :
+        {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, selectOptionList?: string[]}) {
         this.title = title;
         this.field = field;
+        this.customField = customField;
         this.value = value;
         this.type = type;
         this.unique = unique;

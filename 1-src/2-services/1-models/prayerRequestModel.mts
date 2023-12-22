@@ -1,5 +1,5 @@
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
-import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
+import { PrayerRequestCommentListItem, PrayerRequestListItem, PrayerRequestResponseBody } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { PrayerRequestTagEnum } from '../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
@@ -162,7 +162,7 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
 
     getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(PRAYER_REQUEST.#databaseIdentifyingPropertyList, false);
 
-    toJSON = ():DATABASE_PRAYER_REQUEST => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_PRAYER_REQUEST;
+    toJSON = ():PrayerRequestResponseBody => Object.fromEntries(this.getValidProperties()) as PrayerRequestResponseBody;
 
     toListItem = ():PrayerRequestListItem => ({prayerRequestID: this.prayerRequestID, requestorProfile: this.requestorProfile, topic: this.topic, prayerCount: this.prayerCount, tagList: this.tagList});
 

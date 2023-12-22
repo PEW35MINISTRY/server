@@ -1,3 +1,4 @@
+import { CircleAnnouncementListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import InputField, { InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { CircleAnnouncementCreateRequest } from '../../1-api/4-circle/circle-types.mjs';
 import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_ANNOUNCEMENT } from '../2-database/database-types.mjs';
@@ -78,9 +79,9 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
 
     getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(CIRCLE_ANNOUNCEMENT.#databaseIdentifyingPropertyList, false);
 
-    toJSON = ():DATABASE_CIRCLE_ANNOUNCEMENT => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_CIRCLE_ANNOUNCEMENT;
+    toJSON = ():CircleAnnouncementListItem => Object.fromEntries(this.getValidProperties()) as CircleAnnouncementListItem;
 
-    toListItem = ():DATABASE_CIRCLE_ANNOUNCEMENT => this.toJSON();
+    toListItem = ():CircleAnnouncementListItem => this.toJSON();
 
     toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
 

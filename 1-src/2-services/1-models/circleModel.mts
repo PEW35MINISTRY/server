@@ -1,4 +1,4 @@
-import { CircleEditRequestBody, CircleEventListItem, CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
+import { CircleEditRequestBody, CircleEventListItem, CircleLeaderResponse, CircleListItem, CircleResponse } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
@@ -137,13 +137,13 @@ export default class CIRCLE implements BASE_MODEL  {
 
     getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(CIRCLE.#databaseIdentifyingPropertyList, false);
 
-    toJSON = ():DATABASE_CIRCLE => Object.fromEntries(this.getValidProperties(CIRCLE.#propertyList)) as unknown as DATABASE_CIRCLE;
+    toJSON = ():CircleResponse => Object.fromEntries(this.getValidProperties(CIRCLE.#propertyList)) as CircleResponse;
 
-    toPublicJSON = ():DATABASE_CIRCLE => Object.fromEntries(this.getValidProperties(CIRCLE.#publicPropertyList)) as unknown as DATABASE_CIRCLE;
+    toPublicJSON = ():CircleResponse => Object.fromEntries(this.getValidProperties(CIRCLE.#publicPropertyList)) as CircleResponse;
 
-    toMemberJSON = ():DATABASE_CIRCLE => Object.fromEntries(this.getValidProperties(CIRCLE.#memberPropertyList)) as unknown as DATABASE_CIRCLE;
+    toMemberJSON = ():CircleResponse => Object.fromEntries(this.getValidProperties(CIRCLE.#memberPropertyList)) as CircleResponse;
 
-    toLeaderJSON = ():DATABASE_CIRCLE => Object.fromEntries(this.getValidProperties(CIRCLE.#leaderPropertyList)) as unknown as DATABASE_CIRCLE;
+    toLeaderJSON = ():CircleLeaderResponse => Object.fromEntries(this.getValidProperties(CIRCLE.#leaderPropertyList)) as CircleLeaderResponse;
 
     toListItem = ():CircleListItem => ({circleID: this.circleID, name: this.name, image: this.image});
 

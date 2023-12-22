@@ -1,6 +1,6 @@
 import { ContentListItem, ContentResponseBody } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { GenderSelectionEnum } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
+import { ContentSourceEnum, ContentTypeEnum, GenderSelectionEnum } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import {  CONTENT_TABLE_COLUMNS, DATABASE_CONTENT } from '../2-database/database-types.mjs';
 import * as log from '../log.mjs';
@@ -18,12 +18,14 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static #databaseIdentifyingPropertyList = [ 'recorderID', 'type', 'source', 'url' ]; //exclude: contentID, complex types, and lists
-    static #propertyList = [ 'contentID', 'recorderID', 'type', 'source', 'url', 'keywordList', 'description', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes' ];
+    static #propertyList = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'description', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes' ];
 
     contentID: number = -1;
     recorderID: number; //user that recorded
-    type: string;       //Note: Input has enum options, but not enforced in model or database
-    source: string;
+    type: ContentTypeEnum;       //Note: Model has enum options, but not enforced in database
+    customType: string|undefined;
+    source: ContentSourceEnum;
+    customSource: string|undefined;
     url: string;
     keywordList: string[];
     description?: string;
@@ -50,8 +52,10 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
             const newContent:CONTENT_ARCHIVE = new CONTENT_ARCHIVE(DB.contentID || -1);
 
             newContent.recorderID = DB.recorderID;
-            newContent.type = DB.type;
-            newContent.source = DB.source;
+            newContent.type = ContentTypeEnum[DB.type];
+            newContent.customType = DB.customType;
+            newContent.source = ContentSourceEnum[DB.source];
+            newContent.customSource = DB.customSource;
             newContent.url = DB.url;
             newContent.keywordList = CONTENT_ARCHIVE.contentParseKeywordList(DB.keywordListStringified);
             newContent.description = DB.description;
@@ -80,8 +84,10 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
 
             if(newContent.contentID > 0) {
                 newContent.recorderID = content.recorderID;
-                newContent.type = content.type;
-                newContent.source = content.source;
+                newContent.type = ContentTypeEnum[content.type];
+                newContent.customType = content.customType;
+                newContent.source = ContentSourceEnum[content.source];
+                newContent.customSource = content.customSource;
                 newContent.url = content.url;
                 newContent.keywordList = CONTENT_ARCHIVE.contentParseKeywordList(JSON.stringify(content.keywordList));
                 newContent.description = content.description;
@@ -146,9 +152,12 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
 
     getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(CONTENT_ARCHIVE.#databaseIdentifyingPropertyList, false);
 
-    toJSON = ():DATABASE_CONTENT => Object.fromEntries(this.getValidProperties(CONTENT_ARCHIVE.#propertyList)) as unknown as DATABASE_CONTENT;
+    toJSON = ():ContentResponseBody => Object.fromEntries(this.getValidProperties(CONTENT_ARCHIVE.#propertyList)) as ContentResponseBody;
 
-    toListItem = ():ContentListItem => ({contentID: this.contentID, type: this.type, source: this.source, url: this.url, keywordList: this.keywordList, description: this.description});
+    toListItem = ():ContentListItem => ({contentID: this.contentID, 
+        type: this.type === ContentTypeEnum.CUSTOM ? this.customType : this.type, 
+        source: this.source === ContentSourceEnum.CUSTOM ? this.customSource : this.source,  
+        url: this.url, keywordList: this.keywordList, description: this.description});
 
     toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
 
@@ -159,12 +168,28 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
 
         } else if(field.field === 'minimumWalkLevel' || field.field === 'maximumWalkLevel') {
             return (parseInt(jsonObj['minimumWalkLevel'] as unknown as string) <= parseInt(jsonObj['maximumWalkLevel'] as unknown as string));
-        } 
+        
+        } else if(field.field === 'type' && value === 'CUSTOM' && field.customField !== undefined) {
+            return (jsonObj['customType'] !== undefined) && (jsonObj['customType'].length > 0);
+        
+        } else if(field.field === 'source' && value === 'CUSTOM' && field.customField !== undefined) {
+            return (jsonObj['customSource'] !== undefined) && (jsonObj['customSource'].length > 0);
+        }
         //No Field Match
         return undefined;
     }
 
     parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ContentResponseBody}):boolean|undefined => {
+        if(field.field === 'type' && jsonObj['type'] === 'CUSTOM' && field.customField !== undefined) {
+            this.type = ContentTypeEnum.CUSTOM;
+            this.customType = (jsonObj['customType'] || '').toUpperCase();
+            return true;
+        
+        } else if(field.field === 'source' && jsonObj['source'] === 'CUSTOM' && field.customField !== undefined) {
+            this.source = ContentSourceEnum.CUSTOM;
+            this.customSource = (jsonObj['customSource'] || '').toUpperCase();
+            return true;
+        }
         //No Field Match
         return undefined;
     }

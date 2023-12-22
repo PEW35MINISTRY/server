@@ -45,22 +45,28 @@ export const DB_SELECT_CONTENT = async(contentID:number):Promise<CONTENT_ARCHIVE
 //Priority sort by recorderID (created) then latest modified
 export const DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES = async(recorderID:number = -1, onlyOwned:boolean = false):Promise<ContentListItem[]> => {
     const rows = onlyOwned ?
-        await execute('SELECT contentID, type, source, url, description, keywordListStringified ' + 'FROM content '
+        await execute('SELECT contentID, type, customType, source, customSource, url, description, keywordListStringified ' + 'FROM content '
             + 'WHERE recorderID = ? '
             + 'ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT 50;', [recorderID, recorderID])
     
         : await execute('SELECT contentID, type, source, url, description, keywordListStringified ' + 'FROM content '
             + 'ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT 50;', [recorderID]);
  
-    return [...rows.map(row => ({contentID: row.contentID || -1, type: row.type || '', source: row.source || '', url: row.url || '', description: row.description || '', keywordList: CONTENT_ARCHIVE.contentParseKeywordList(row.keywordListStringified)}))];
+    return [...rows.map(row => ({contentID: row.contentID || -1, 
+        type: (row.type === 'CUSTOM' ? row.customType : row.type) || '', 
+        source: (row.source === 'CUSTOM' ? row.customSource : row.source) || '', 
+        url: row.url || '', description: row.description || '', keywordList: CONTENT_ARCHIVE.contentParseKeywordList(row.keywordListStringified)}))];
 }
 
 
 export const DB_SELECT_OWNED_CONTENT_ARCHIVES = async():Promise<ContentListItem[]> => {
-    const rows = await query('SELECT contentID, type, source, url, description, keywordListStringified ' + 'FROM content '
+    const rows = await query('SELECT contentID, type, customType, source, customSource, url, description, keywordListStringified ' + 'FROM content '
     + 'ORDER BY content.modifiedDT DESC LIMIT 30;');
  
-    return [...rows.map(row => ({contentID: row.contentID || -1, type: row.type || '', source: row.source || '', url: row.url || '', description: row.description || '', keywordList: CONTENT_ARCHIVE.contentParseKeywordList(row.keywordListStringified)}))];
+    return [...rows.map(row => ({contentID: row.contentID || -1,
+        type: (row.type === 'CUSTOM' ? row.customType : row.type) || '', 
+        source: (row.source === 'CUSTOM' ? row.customSource : row.source) || '', 
+        url: row.url || '', description: row.description || '', keywordList: CONTENT_ARCHIVE.contentParseKeywordList(row.keywordListStringified)}))];
 }
 
 
@@ -111,11 +117,14 @@ export const DB_DELETE_CONTENT = async(contentID:number):Promise<boolean> => { /
  ***************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:string[]):Promise<ContentListItem[]> => {
-    const rows = await execute('SELECT contentID, type, source, url, description, keywordListStringified ' + 'FROM content '
+    const rows = await execute('SELECT contentID, type, customType, source, customSource, url, description, keywordListStringified ' + 'FROM content '
     + `WHERE ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
     + 'LIMIT 30;', [`%${searchTerm}%`]);
  
-    return [...rows.map(row => ({contentID: row.contentID || -1, type: row.type || '', source: row.source || '', url: row.url || '', description: row.description || '', keywordList: CONTENT_ARCHIVE.contentParseKeywordList(row.keywordListStringified)}))];
+    return [...rows.map(row => ({contentID: row.contentID || -1, 
+        type: (row.type === 'CUSTOM' ? row.customType : row.type) || '', 
+        source: (row.source === 'CUSTOM' ? row.customSource : row.source) || '', 
+        url: row.url || '', description: row.description || '', keywordList: CONTENT_ARCHIVE.contentParseKeywordList(row.keywordListStringified)}))];
 }
 
 

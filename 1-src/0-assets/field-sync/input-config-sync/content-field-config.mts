@@ -58,8 +58,8 @@ export enum ContentSearchFilterEnum {
 
 export const EDIT_CONTENT_FIELDS:InputField[] = [
     new InputField({title: 'Embed URL', field: 'url', type: InputType.TEXT, required: true, unique: true, validationRegex: new RegExp(/.{1,30}/), validationMessage: 'Required, max 30 characters.' }),
-    new InputField({title: 'Type', field: 'type', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(ContentTypeEnum)}),
-    new InputField({title: 'Source', field: 'source', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(ContentSourceEnum)}),
+    new InputField({title: 'Type', field: 'type', customField: 'customType', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(ContentTypeEnum)}),
+    new InputField({title: 'Source', field: 'source', customField: 'customSource', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(ContentSourceEnum)}),
     new InputField({title: 'Topic / Keywords', field: 'keywordList', type: InputType.CUSTOM_STRING_LIST}),
     new InputField({title: 'Description', field: 'description',  type: InputType.PARAGRAPH, validationRegex: new RegExp(/.{0,200}/), validationMessage: 'Max 300 characters.'}),
     new InputField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderSelectionEnum)}),
