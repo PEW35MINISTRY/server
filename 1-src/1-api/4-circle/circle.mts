@@ -173,7 +173,7 @@ export const GET_circleImage = async(request: JwtCircleRequest, response: Respon
 }
 
 export const POST_circleImage = async(request: CircleImageRequest, response: Response, next: NextFunction) => {
-    const fileName:string = request.params.file || 'invalid';
+    const fileName:string = request.params.file || 'invalid'; //Necessary to parse file extension
     const fileExtension:string = fileName.split('.').pop();
     let filePath:string|undefined = undefined;
 
@@ -191,7 +191,7 @@ export const POST_circleImage = async(request: CircleImageRequest, response: Res
         next(new Exception(500, `Circle Profile image upload failed to save: ${filePath}`, 'Save Failed'));
 
     else
-        response.status(202).send(`Successfully saved circle profile image: ${filePath}`);
+        response.status(202).send(filePath);
 }
 
 export const DELETE_circleImage = async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
