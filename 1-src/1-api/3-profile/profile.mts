@@ -205,7 +205,7 @@ export const GET_profileImage = async(request: JwtClientRequest, response: Respo
 
 /* Headers: Content-Type: 'image/jpg' or 'image/png' & Content-Length: (calculated) | Body: binary: Blob */
 export const POST_profileImage = async(request: ProfileImageRequest, response: Response, next: NextFunction) => {
-    const fileName:string = request.params.file || 'invalid';
+    const fileName:string = request.params.file || 'invalid'; //Necessary to parse file extension
     const fileExtension:string = fileName.split('.').pop();
     let filePath:string|undefined = undefined;
 
@@ -223,7 +223,7 @@ export const POST_profileImage = async(request: ProfileImageRequest, response: R
         next(new Exception(500, `Profile image upload failed to save: ${filePath}`, 'Save Failed'));
 
     else
-        response.status(202).send(`Successfully saved profile image: ${filePath}`);
+        response.status(202).send(filePath);
 }
 
 export const DELETE_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
