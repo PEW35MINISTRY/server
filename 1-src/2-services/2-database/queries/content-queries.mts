@@ -1,5 +1,5 @@
 import { ContentListItem } from '../../../0-assets/field-sync/api-type-sync/content-types.mjs';
-import CONTENT_ARCHIVE from '../../1-models/contentModel.mjs';
+import CONTENT_ARCHIVE from '../../1-models/contentArchiveModel.mjs';
 import * as log from '../../log.mjs';
 import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT } from '../database-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';

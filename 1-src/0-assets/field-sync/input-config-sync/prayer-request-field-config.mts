@@ -33,8 +33,8 @@ export const getDateDaysFuture = (days: number = 14):Date => {
 **********************************************************************************/
 
 export const CREATE_PRAYER_REQUEST_FIELDS:InputField[] = [
-    new InputField({title: 'Topic', field: 'topic', required: true, type: InputType.TEXT, validationRegex: new RegExp(/.{1,30}/), validationMessage: 'Required, max 30 characters.' }),
-    new InputField({title: 'Description', field: 'description', required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/.{0,200}/), validationMessage: 'Max 200 characters.'}),
+    new InputField({title: 'Topic', field: 'topic', required: true, type: InputType.TEXT, validationRegex: new RegExp(/^.{1,30}$/), validationMessage: 'Required, max 30 characters.' }),
+    new InputField({title: 'Description', field: 'description', required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{0,200}$/), validationMessage: 'Max 200 characters.'}),
     new InputField({title: 'Long Term', field: 'isOnGoing', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     new InputField({title: 'Category', field: 'tagList', type: InputType.MULTI_SELECTION_LIST, selectOptionList: Object.values(PrayerRequestTagEnum)}),
     new InputField({title: 'Relevance', field: 'expirationDate', required: true, type: InputType.DATE, value: getDateDaysFuture().toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Required, must be future date.' }),
@@ -53,9 +53,9 @@ export const EDIT_PRAYER_REQUEST_FIELDS:InputField[] = [
 
 export const PRAYER_REQUEST_FIELDS_ADMIN:InputField[] = [
     ...EDIT_PRAYER_REQUEST_FIELDS,
-    new InputField({title: 'Prayer Count', field: 'prayerCount', type: InputType.NUMBER, validationRegex: new RegExp(/[0-9]+/)})
+    new InputField({title: 'Prayer Count', field: 'prayerCount', type: InputType.NUMBER, validationRegex: new RegExp(/^[0-9]+$/)})
 ];
 
 export const PRAYER_REQUEST_COMMENT_FIELDS:InputField[] = [
-    new InputField({title: 'Comment', field: 'message',  required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/.{10,200}/), validationMessage: 'Required, 10-200 characters.' }),
+    new InputField({title: 'Comment', field: 'message',  required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{10,200}$/), validationMessage: 'Required, 10-200 characters.' }),
 ];

@@ -1,7 +1,7 @@
 /*********** ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ ***********/
 
-import { GenderSelectionEnum } from "../input-config-sync/content-field-config.mjs";
-import { ProfileListItem } from "./profile-types.mjs";
+import { GenderSelectionEnum } from '../input-config-sync/content-field-config.mjs';
+import { ProfileListItem } from './profile-types.mjs';
 
 
 /***********************************************************************

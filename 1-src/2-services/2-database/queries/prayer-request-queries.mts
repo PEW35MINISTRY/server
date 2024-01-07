@@ -343,7 +343,7 @@ export const DB_SELECT_PRAYER_REQUEST_COMMENT_LIST = async(prayerRequestID:numbe
     + 'FROM prayer_request_comment '
     + 'LEFT JOIN user ON user.userID = prayer_request_comment.commenterID '
     + 'WHERE prayerRequestID = ? '
-    + 'ORDER BY createdDT ASC;', [prayerRequestID]); 
+    + 'ORDER BY createdDT DESC;', [prayerRequestID]); 
  
     return [...rows.map(row => ({commentID: row.commentID || -1, prayerRequestID: row.prayerRequestID || -1, message: row.message || '', likeCount: row.likeCount || 0,
             commenterProfile: {userID: row.commenterID, firstName: row.commenterFirstName, displayName: row.commenterDisplayName, image: row.commenterImage}}))];

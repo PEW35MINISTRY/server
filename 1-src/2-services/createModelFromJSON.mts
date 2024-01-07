@@ -9,7 +9,7 @@ import CIRCLE_ANNOUNCEMENT from './1-models/circleAnnouncementModel.mjs';
 import CIRCLE from './1-models/circleModel.mjs';
 import PRAYER_REQUEST from './1-models/prayerRequestModel.mjs';
 import USER from './1-models/userModel.mjs';
-import CONTENT_ARCHIVE from './1-models/contentModel.mjs';
+import CONTENT_ARCHIVE from './1-models/contentArchiveModel.mjs';
 
 
 /**********************************************************

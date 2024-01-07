@@ -1,6 +1,6 @@
 import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import { ContentSearchFilterEnum } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
-import CONTENT_ARCHIVE from '../../2-services/1-models/contentModel.mjs';
+import CONTENT_ARCHIVE from '../../2-services/1-models/contentArchiveModel.mjs';
 import { DB_SELECT_CONTENT, DB_SELECT_CONTENT_SEARCH, DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES } from '../../2-services/2-database/queries/content-queries.mjs';
 import * as log from '../../2-services/log.mjs';
 

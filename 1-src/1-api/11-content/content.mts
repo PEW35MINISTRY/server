@@ -6,7 +6,7 @@ import { DB_DELETE_CONTENT, DB_INSERT_CONTENT, DB_SELECT_CONTENT, DB_SELECT_OWNE
 import { JwtContentSearchRequest } from './content-types.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import CONTENT_ARCHIVE from '../../2-services/1-models/contentModel.mjs';
+import CONTENT_ARCHIVE from '../../2-services/1-models/contentArchiveModel.mjs';
 import { CONTENT_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
 import { ContentSearchFilterEnum, EDIT_CONTENT_FIELDS, EDIT_CONTENT_FIELDS_ADMIN } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';

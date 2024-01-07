@@ -273,16 +273,16 @@ apiServer.post('/api/leader/circle', POST_newCircle);
 /**************************************/
 /* Authenticate CONTENT_APPROVER Role */
 /**************************************/
-apiServer.use('/api/content-approver', (request:JwtContentRequest, response:Response, next:NextFunction) => authenticateContentApproverMiddleware(request, response, next));
+apiServer.use('/api/content-archive', (request:JwtContentRequest, response:Response, next:NextFunction) => authenticateContentApproverMiddleware(request, response, next));
 
-apiServer.get('/api/content-approver/content-list', GET_SearchContentList);
+apiServer.get('/api/content-archive/content-list', GET_SearchContentList);
 
-apiServer.post('/api/content-approver/', POST_newContentArchive);
+apiServer.post('/api/content-archive/', POST_newContentArchive);
 
-apiServer.use('/api/content-approver/:content', (request:JwtContentRequest, response:Response, next:NextFunction) => extractContentMiddleware(request, response, next));
-apiServer.get('/api/content-approver/:content', GET_ContentRequest);
-apiServer.patch('/api/content-approver/:content', PATCH_contentArchive);
-apiServer.delete('/api/content-approver/:content', DELETE_contentArchive);
+apiServer.use('/api/content-archive/:content', (request:JwtContentRequest, response:Response, next:NextFunction) => extractContentMiddleware(request, response, next));
+apiServer.get('/api/content-archive/:content', GET_ContentRequest);
+apiServer.patch('/api/content-archive/:content', PATCH_contentArchive);
+apiServer.delete('/api/content-archive/:content', DELETE_contentArchive);
 
 
 
