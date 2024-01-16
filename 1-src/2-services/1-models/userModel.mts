@@ -1,7 +1,7 @@
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ProfileListItem, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import InputField, { InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import InputField, { InputSelectionField, InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { GenderEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { getPasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
 import { ProfileEditRequest } from '../../1-api/3-profile/profile-types.mjs';
@@ -196,7 +196,7 @@ export default class USER implements BASE_MODEL {
         return false;
       else return true;
 
-    } else if (field.field === 'userRoleTokenList') {
+    } else if ((field.field === 'userRoleTokenList') && (field instanceof InputSelectionField)) {
       return (Array.isArray(value)
         && Array.from(value).every((roleTokenObj:{role:string, token:string}) => {
 

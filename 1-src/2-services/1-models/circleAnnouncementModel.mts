@@ -65,7 +65,7 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
     getValidProperties = (properties:string[] = CIRCLE_ANNOUNCEMENT.#displayList, includeAnnouncementID:boolean = true):Map<string, any> => {
         const map = new Map<string, any>();
         properties.filter((p) => (includeAnnouncementID || (p !== 'announcementID'))).forEach((field) => {
-            if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null) {
+            if(this.hasOwnProperty(field) && this[field] !== undefined) {
                 if(field === 'startDate' || field === 'endDate' )
                     map.set(field, (this[field] as Date).toISOString());
                 else

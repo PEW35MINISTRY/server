@@ -1,5 +1,5 @@
 import { NextFunction } from 'express';
-import InputField, { InputType, isListType } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
+import InputField, { InputSelectionField, InputType, isListType } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { GenderEnum, RoleEnum } from '../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { JwtClientRequest } from '../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../1-api/api-types.mjs';
@@ -134,8 +134,11 @@ export default ({currentModel: currentModel, jsonObj, fieldList, next}:{currentM
  **********************************************************/
 const parseInput = ({field, value}:{field:InputField, value:any}):any => {
     try {
-        if(value === undefined || value === null)
-            throw `${field.title} is undefined.`
+        if(value === undefined)
+            throw `${field.title} is undefined.`;
+
+        else if(value === null) //Valid for clearing fields in database
+            return null;
 
         /* NOTE: All  */
         else if(field.field === 'userRoleList')
@@ -177,11 +180,14 @@ const parseInput = ({field, value}:{field:InputField, value:any}):any => {
 const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:Object}):boolean => {
 
     /* Field Exists */
-    if(value === undefined) {
+    if(value === undefined)
         return false;
 
+    if(value === null) //Valid for clearing fields in database
+        return true;
+
     /* List Validate each element against general validationRegex from config */
-    } else if(isListType(field.type) && Array.isArray(field.value) && Array.from(field.value).some((element) => !(new RegExp(field.validationRegex).test(value)))){
+    else if(isListType(field.type) && Array.isArray(field.value) && Array.from(field.value).some((element) => !(new RegExp(field.validationRegex).test(value)))){
         log.warn(`Validating input for ${field.field}; failed list validation Regex: ${field.validationRegex}`, JSON.stringify(value));
         return false;
 
@@ -207,12 +213,12 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
         }
         
     /* SELECT_LIST */
-    } else if(field.type === InputType.SELECT_LIST && !field.selectOptionList.includes(`${value}`)) {
+    } else if((field instanceof InputSelectionField) && (field.type === InputType.SELECT_LIST) && !field.selectOptionList.includes(`${value}`)) {
         log.warn(`Validating input for ${field.field}; failed not included in select option list`, value, JSON.stringify(field.selectOptionList));
         return false;
 
     /* MULTI_SELECTION_LIST */
-    } else if(field.type === InputType.MULTI_SELECTION_LIST && ( !Array.isArray(value)
+    } else if((field instanceof InputSelectionField) && (field.type === InputType.MULTI_SELECTION_LIST) && ( !Array.isArray(value)
         || !Array.from(value).every((item:any)=>{
             if(!field.selectOptionList.includes(`${item}`)) {
                 log.warn(`Validating input for ${field.field}; multi selection; missing value in select option list`, item, JSON.stringify(field.selectOptionList));
@@ -222,6 +228,11 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
             log.warn(`Validating input for ${field.field};  multi selection; mismatched multiple select option list`, JSON.stringify(value), JSON.stringify(field.selectOptionList));
         return false;
     }
+
+    /* CUSTOM FIELD */
+    if(field.customField !== undefined && value === 'CUSTOM' 
+        && ((jsonObj[field.customField] === undefined) || !(new RegExp(field.validationRegex).test(jsonObj['customType']))))
+            return false;
 
     return true;
 }

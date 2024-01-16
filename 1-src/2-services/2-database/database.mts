@@ -67,7 +67,7 @@ export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPack
         log.error('DB execute Rejected for undefined field: ', query, fields.length, JSON.stringify(fields));
         return [];
 
-    } else if(fields.some(field => (field.length === 0))) {
+    } else if(fields.some(field => (field !== null && field.length === 0))) {
         log.error('DB execute Rejected for empty string field: ', query, fields.length, JSON.stringify(fields));
         return [];
 
@@ -98,7 +98,7 @@ export const command = async(query:string, fields:any[]):Promise<CommandResponse
         log.error('DB command Rejected for undefined field: ', query, fields.length, JSON.stringify(fields));
         return undefined;
 
-    } else if(fields.some(field => (field.length === 0))) {
+    } else if(fields.some(field => (field !== null && field.length === 0))) {
         log.error('DB command Rejected for empty string field: ', query, fields.length, JSON.stringify(fields));
         return undefined;
 

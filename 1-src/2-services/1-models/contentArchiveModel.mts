@@ -168,12 +168,6 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
 
         } else if(field.field === 'minimumWalkLevel' || field.field === 'maximumWalkLevel') {
             return (parseInt(jsonObj['minimumWalkLevel'] as unknown as string) <= parseInt(jsonObj['maximumWalkLevel'] as unknown as string));
-        
-        } else if(field.field === 'type' && value === 'CUSTOM' && field.customField !== undefined) {
-            return (jsonObj['customType'] !== undefined) && (jsonObj['customType'].length > 0);
-        
-        } else if(field.field === 'source' && value === 'CUSTOM' && field.customField !== undefined) {
-            return (jsonObj['customSource'] !== undefined) && (jsonObj['customSource'].length > 0);
         }
         //No Field Match
         return undefined;
@@ -182,12 +176,12 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
     parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ContentResponseBody}):boolean|undefined => {
         if(field.field === 'type' && jsonObj['type'] === 'CUSTOM' && field.customField !== undefined) {
             this.type = ContentTypeEnum.CUSTOM;
-            this.customType = (jsonObj['customType'] || '').toUpperCase();
+            this.customType = (jsonObj['customType'] || '').replace(/^[a-zA-Z0-9_ ]$/g, '').replace(/ /g, '_').toUpperCase();
             return true;
         
         } else if(field.field === 'source' && jsonObj['source'] === 'CUSTOM' && field.customField !== undefined) {
             this.source = ContentSourceEnum.CUSTOM;
-            this.customSource = (jsonObj['customSource'] || '').toUpperCase();
+            this.customSource = (jsonObj['customSource'] || '').replace(/^[a-zA-Z0-9_ ]$/g, '').replace(/ /g, '_').toUpperCase();
             return true;
         }
         //No Field Match
