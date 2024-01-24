@@ -1,5 +1,5 @@
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
-import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
+import { PrayerRequestCommentListItem, PrayerRequestListItem, PrayerRequestResponseBody } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { PrayerRequestTagEnum } from '../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
@@ -53,6 +53,8 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
 
     static constructByDatabase = (DB:DATABASE_PRAYER_REQUEST):PRAYER_REQUEST => {
         try {
+            if(DB === undefined) throw new Error('Undefined Database Object');
+
             const newPrayerRequest:PRAYER_REQUEST = new PRAYER_REQUEST(DB.prayerRequestID || -1);
 
             newPrayerRequest.requestorID = DB.requestorID;
@@ -76,6 +78,8 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
       //Clone database model values only (not copying references for ListItems)
     static constructByClone = (prayerRequest:PRAYER_REQUEST):PRAYER_REQUEST => {
         try { //MUST copy primitives properties directly and create new complex types to avoid reference linking
+            if(prayerRequest === undefined) throw new Error('Undefined Model Object');
+
             const newPrayerRequest:PRAYER_REQUEST = new PRAYER_REQUEST(prayerRequest.prayerRequestID); 
 
             if(newPrayerRequest.prayerRequestID > 0) {
@@ -158,20 +162,19 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
 
     getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(PRAYER_REQUEST.#databaseIdentifyingPropertyList, false);
 
-    toJSON = ():DATABASE_PRAYER_REQUEST => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_PRAYER_REQUEST;
+    toJSON = ():PrayerRequestResponseBody => Object.fromEntries(this.getValidProperties()) as PrayerRequestResponseBody;
 
     toListItem = ():PrayerRequestListItem => ({prayerRequestID: this.prayerRequestID, requestorProfile: this.requestorProfile, topic: this.topic, prayerCount: this.prayerCount, tagList: this.tagList});
 
     toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
 
     /** Utility methods for createModelFromJSON **/
-    validateModelSpecificField = ({field, value}:{field:InputField, value:string}):boolean|undefined => {
+    validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:PrayerRequestPostRequest['body']}):boolean|undefined => {
         //No Field Match
         return undefined;
     }
 
     parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:PrayerRequestPostRequest['body']}):boolean|undefined => {
-        //Handle inviteToken for security
         if(field.field === 'tagList') {
             Array.from(jsonObj[field.field]).forEach((item:string) => {
                 if(Object.values(PrayerRequestTagEnum).includes(PrayerRequestTagEnum[item])) 

@@ -1,5 +1,5 @@
 import { NextFunction } from 'express';
-import InputField, { InputType, isListType } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
+import InputField, { InputSelectionField, InputType, isListType } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { GenderEnum, RoleEnum } from '../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { JwtClientRequest } from '../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../1-api/api-types.mjs';
@@ -9,12 +9,13 @@ import CIRCLE_ANNOUNCEMENT from './1-models/circleAnnouncementModel.mjs';
 import CIRCLE from './1-models/circleModel.mjs';
 import PRAYER_REQUEST from './1-models/prayerRequestModel.mjs';
 import USER from './1-models/userModel.mjs';
+import CONTENT_ARCHIVE from './1-models/contentArchiveModel.mjs';
 
 
 /**********************************************************
  * PRIVATE : Local Model Types and constructor
  **********************************************************/
-type ModelTypes = BASE_MODEL | USER | CIRCLE | CIRCLE_ANNOUNCEMENT | PRAYER_REQUEST;
+type ModelTypes = BASE_MODEL | USER | CIRCLE | CIRCLE_ANNOUNCEMENT | PRAYER_REQUEST | CONTENT_ARCHIVE;
 
 const getNewModel = (existingModel:BASE_MODEL):ModelTypes|undefined => {
     if(existingModel !== undefined)
@@ -30,6 +31,9 @@ const getNewModel = (existingModel:BASE_MODEL):ModelTypes|undefined => {
 
             case 'PRAYER_REQUEST':
                 return PRAYER_REQUEST.constructByClone(existingModel as PRAYER_REQUEST);
+
+            case 'CONTENT_ARCHIVE':
+                return CONTENT_ARCHIVE.constructByClone(existingModel as CONTENT_ARCHIVE);
 
             default:
                 log.error('createModelFromJson.getNewModel | modelType not defined', existingModel.modelType);
@@ -79,7 +83,7 @@ export default ({currentModel: currentModel, jsonObj, fieldList, next}:{currentM
 
         }
 
-        const modelValidateResult:boolean|undefined = model.validateModelSpecificField({field, value: jsonObj[field.field]});
+        const modelValidateResult:boolean|undefined = model.validateModelSpecificField({field, value: jsonObj[field.field], jsonObj});
         if(modelValidateResult === false) {
             log.warn(`${model.modelType} | ${field.field} failed model specific validations.`);
 
@@ -130,8 +134,11 @@ export default ({currentModel: currentModel, jsonObj, fieldList, next}:{currentM
  **********************************************************/
 const parseInput = ({field, value}:{field:InputField, value:any}):any => {
     try {
-        if(value === undefined || value === null)
-            throw `${field.title} is undefined.`
+        if(value === undefined)
+            throw `${field.title} is undefined.`;
+
+        else if(value === null) //Valid for clearing fields in database
+            return null;
 
         /* NOTE: All  */
         else if(field.field === 'userRoleList')
@@ -173,11 +180,14 @@ const parseInput = ({field, value}:{field:InputField, value:any}):any => {
 const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:Object}):boolean => {
 
     /* Field Exists */
-    if(value === undefined) {
+    if(value === undefined)
         return false;
 
+    if(value === null) //Valid for clearing fields in database
+        return true;
+
     /* List Validate each element against general validationRegex from config */
-    } else if(isListType(field.type) && Array.isArray(field.value) && Array.from(field.value).some((element) => !(new RegExp(field.validationRegex).test(value)))){
+    else if(isListType(field.type) && Array.isArray(field.value) && Array.from(field.value).some((element) => !(new RegExp(field.validationRegex).test(value)))){
         log.warn(`Validating input for ${field.field}; failed list validation Regex: ${field.validationRegex}`, JSON.stringify(value));
         return false;
 
@@ -203,12 +213,12 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
         }
         
     /* SELECT_LIST */
-    } else if(field.type === InputType.SELECT_LIST && !field.selectOptionList.includes(`${value}`)) {
+    } else if((field instanceof InputSelectionField) && (field.type === InputType.SELECT_LIST) && !field.selectOptionList.includes(`${value}`)) {
         log.warn(`Validating input for ${field.field}; failed not included in select option list`, value, JSON.stringify(field.selectOptionList));
         return false;
 
     /* MULTI_SELECTION_LIST */
-    } else if(field.type === InputType.MULTI_SELECTION_LIST && ( !Array.isArray(value)
+    } else if((field instanceof InputSelectionField) && (field.type === InputType.MULTI_SELECTION_LIST) && ( !Array.isArray(value)
         || !Array.from(value).every((item:any)=>{
             if(!field.selectOptionList.includes(`${item}`)) {
                 log.warn(`Validating input for ${field.field}; multi selection; missing value in select option list`, item, JSON.stringify(field.selectOptionList));
@@ -218,6 +228,11 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
             log.warn(`Validating input for ${field.field};  multi selection; mismatched multiple select option list`, JSON.stringify(value), JSON.stringify(field.selectOptionList));
         return false;
     }
+
+    /* CUSTOM FIELD */
+    if(field.customField !== undefined && value === 'CUSTOM' 
+        && ((jsonObj[field.customField] === undefined) || !(new RegExp(field.validationRegex).test(jsonObj['customType']))))
+            return false;
 
     return true;
 }

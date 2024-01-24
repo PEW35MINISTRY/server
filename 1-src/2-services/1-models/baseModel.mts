@@ -30,7 +30,7 @@ export default interface BASE_MODEL {
 
   /** Utility methods for createModelFromJSON **/
   //Returns true/false for matching validation and undefined to continue to general validation
-  validateModelSpecificField: ({field, value}:{field:InputField, value:string}) => boolean|undefined;
+  validateModelSpecificField: ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:JwtRequest['body']}) => boolean|undefined;
 
   //Returns undefined for no-match; indicator to parseInput traditionally | Returns false for error
   parseModelSpecificField: ({field, jsonObj}:{field:InputField, jsonObj:JwtRequest['body']}) => boolean|undefined;

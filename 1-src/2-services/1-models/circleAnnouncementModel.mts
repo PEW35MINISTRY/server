@@ -1,3 +1,4 @@
+import { CircleAnnouncementListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import InputField, { InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { CircleAnnouncementCreateRequest } from '../../1-api/4-circle/circle-types.mjs';
 import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_ANNOUNCEMENT } from '../2-database/database-types.mjs';
@@ -33,6 +34,8 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
 
     static constructByDatabase = (DB:DATABASE_CIRCLE_ANNOUNCEMENT):CIRCLE_ANNOUNCEMENT => {
         try {
+            if(DB === undefined) throw new Error('Undefined Database Object');
+
             const newCircleAnnouncement:CIRCLE_ANNOUNCEMENT = new CIRCLE_ANNOUNCEMENT(DB.announcementID || -1);
 
             newCircleAnnouncement.circleID = DB?.circleID || -1;
@@ -62,7 +65,7 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
     getValidProperties = (properties:string[] = CIRCLE_ANNOUNCEMENT.#displayList, includeAnnouncementID:boolean = true):Map<string, any> => {
         const map = new Map<string, any>();
         properties.filter((p) => (includeAnnouncementID || (p !== 'announcementID'))).forEach((field) => {
-            if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null) {
+            if(this.hasOwnProperty(field) && this[field] !== undefined) {
                 if(field === 'startDate' || field === 'endDate' )
                     map.set(field, (this[field] as Date).toISOString());
                 else
@@ -76,14 +79,14 @@ export default class CIRCLE_ANNOUNCEMENT implements BASE_MODEL  {
 
     getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(CIRCLE_ANNOUNCEMENT.#databaseIdentifyingPropertyList, false);
 
-    toJSON = ():DATABASE_CIRCLE_ANNOUNCEMENT => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_CIRCLE_ANNOUNCEMENT;
+    toJSON = ():CircleAnnouncementListItem => Object.fromEntries(this.getValidProperties()) as CircleAnnouncementListItem;
 
-    toListItem = ():DATABASE_CIRCLE_ANNOUNCEMENT => this.toJSON();
+    toListItem = ():CircleAnnouncementListItem => this.toJSON();
 
     toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
 
     /** Utility methods for createModelFromJSON **/
-    validateModelSpecificField = ({field, value}:{field:InputField, value:string}):boolean|undefined => {
+    validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:CircleAnnouncementCreateRequest['body']}):boolean|undefined => {
         if(field.type === InputType.DATE && field.field === 'endDate') {
             const currentDate = new Date();
             const endDate = new Date(value);
