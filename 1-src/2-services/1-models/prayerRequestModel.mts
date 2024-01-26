@@ -176,13 +176,6 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     }
 
     parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:PrayerRequestPostRequest['body']}):boolean|undefined => {
-        // if(field.field === 'tagList') {
-        //     Array.from(jsonObj[field.field]).forEach((item:string) => {
-        //         if(Object.values(PrayerRequestTagEnum).includes(PrayerRequestTagEnum[item])) 
-        //             this.tagList.push(PrayerRequestTagEnum[item]);
-        //     });
-        //     return true;
-        // }
         //No Field Match
         return undefined;
     }
