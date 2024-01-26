@@ -97,7 +97,7 @@ export type DATABASE_CIRCLE_ANNOUNCEMENT = {
 export const PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED:string[] = [ 'requestorID', 'topic', 'description', 'expirationDate' ];
 
 export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED,
-    'prayerRequestID', 'prayerCount', 'isOnGoing', 'isResolved', 'tagsStringified'
+    'prayerRequestID', 'prayerCount', 'isOnGoing', 'isResolved', 'tagListStringified'
 ];
 
 export type DATABASE_PRAYER_REQUEST = {
@@ -108,7 +108,7 @@ export type DATABASE_PRAYER_REQUEST = {
     prayerCount: number,
     isOnGoing: boolean,
     isResolved: boolean,
-    tagsStringified: string,
+    tagListStringified: string,
     expirationDate: Date
 };
 

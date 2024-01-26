@@ -57,7 +57,7 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
             newContent.source = ContentSourceEnum[DB.source];
             newContent.customSource = DB.customSource;
             newContent.url = DB.url;
-            newContent.keywordList = CONTENT_ARCHIVE.contentParseKeywordList(DB.keywordListStringified);
+            newContent.keywordList = CONTENT_ARCHIVE.contentArchiveParseKeywordList(DB.keywordListStringified);
             newContent.description = DB.description;
             newContent.gender = GenderSelectionEnum[DB.gender];
             newContent.minimumAge = DB.minimumAge;
@@ -89,7 +89,7 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
                 newContent.source = ContentSourceEnum[content.source];
                 newContent.customSource = content.customSource;
                 newContent.url = content.url;
-                newContent.keywordList = CONTENT_ARCHIVE.contentParseKeywordList(JSON.stringify(content.keywordList));
+                newContent.keywordList = CONTENT_ARCHIVE.contentArchiveParseKeywordList(JSON.stringify(content.keywordList));
                 newContent.description = content.description;
                 newContent.gender = GenderSelectionEnum[content.gender];
                 newContent.minimumAge = content.minimumAge;
@@ -109,16 +109,16 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
     }
 
     /* ADDITIONAL UTILITIES */
-    static contentParseKeywordList = (keywordsStringified:string):string[] => {
-        const tagList = [];
-        if(keywordsStringified !== undefined && keywordsStringified !== null && keywordsStringified.length > 0) {        
+    static contentArchiveParseKeywordList = (keywordListStringified:string):string[] => {
+        const keywordList = [];
+        if(keywordListStringified !== undefined && keywordListStringified !== null && keywordListStringified.length > 0) {        
             try {
-                tagList.push(...Array.from(JSON.parse(keywordsStringified)));
+                keywordList.push(...Array.from(JSON.parse(keywordListStringified)));
             } catch(error) {
-                log.error('Failed to parse prayer request tags', keywordsStringified, error);
+                log.error('Failed to parse CONTENT_ARCHIVE.keywordListStringified', keywordListStringified, error);
             }
         }
-        return tagList;
+        return keywordList;
     }
 
     /* PROPERTY FIELD UTILITIES */
@@ -131,6 +131,10 @@ export default class CONTENT_ARCHIVE implements BASE_MODEL  {
             if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
               && (!Array.isArray(this[field]) || this[field].length > 0)) {
                     map.set(field, this[field]);
+
+              /* Database unique naming for custom formatting */
+              } else if(field === 'keywordListStringified') {
+                map.set(field, JSON.stringify(this.keywordList));
               }
         });
         return map;

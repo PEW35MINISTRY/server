@@ -12,7 +12,7 @@ export const DATE_REGEX = new RegExp(/^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5
 *****************************************/
 //Note: enums must have matching values to cast (string as Enum) or define (Enum[string]) equally
 
-//List doesn't sync with database; stored as list of strings stringified as `tagsStringified`
+//List doesn't sync with database; stored as list of strings stringified as `tagListStringified`
 export enum PrayerRequestTagEnum { 
     SELF = 'SELF',
     FAMILY = 'FAMILY',

@@ -35,7 +35,7 @@ export interface PrayerRequestResponseBody {
     prayerCount: number,
     isOnGoing: boolean,
     isResolved: boolean,
-    tagList?: string[],
+    tagList?: PrayerRequestTagEnum[],
     expirationDate: string,
     commentList?: PrayerRequestCommentListItem[],
     userRecipientList?: number[],
