@@ -21,7 +21,7 @@ export interface PrayerRequestListItem {
 
 export interface PrayerRequestCommentListItem {
     commentID: number,
-    prayerRequestID?: number,
+    prayerRequestID: number,
     commenterProfile: ProfileListItem, 
     message: string,
     likeCount: number
@@ -32,12 +32,12 @@ export interface PrayerRequestResponseBody {
     requestorID: number,
     topic: string,
     description: string,
-    prayerCount?: number,
-    isOnGoing?: boolean,
-    isResolved?: boolean,
-    tagList?: string[],
+    prayerCount: number,
+    isOnGoing: boolean,
+    isResolved: boolean,
+    tagList?: PrayerRequestTagEnum[],
     expirationDate: string,
-    commentList?: PrayerRequestCommentListItem,
+    commentList?: PrayerRequestCommentListItem[],
     userRecipientList?: number[],
     circleRecipientList?: number[],
     addCircleRecipientIDList?: number[],

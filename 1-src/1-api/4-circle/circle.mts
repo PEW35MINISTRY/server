@@ -251,7 +251,7 @@ export const POST_circleAnnouncement =  async(request: CircleAnnouncementCreateR
         if(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED.every((column) => newCircleAnnouncement[column] !== undefined) === false) 
             next(new Exception(400, `Create Circle Announcement Failed :: Missing Required Fields: ${JSON.stringify(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
-        else if(await DB_INSERT_CIRCLE_ANNOUNCEMENT(newCircleAnnouncement.getDatabaseIdentifyingProperties()) === false) 
+        else if(await DB_INSERT_CIRCLE_ANNOUNCEMENT(newCircleAnnouncement.getDatabaseProperties()) === false) 
                 next(new Exception(500, 'Create Circle Announcement Failed :: Failed to save new user account.', 'Save Failed'));
 
         else

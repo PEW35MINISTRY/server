@@ -79,7 +79,7 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
             next(new Exception(400, `Create Prayer Request Failed :: Missing Required Fields: ${JSON.stringify(PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
         else { 
-                const savedPrayerRequest:PRAYER_REQUEST = await DB_INSERT_AND_SELECT_PRAYER_REQUEST(newPrayerRequest.getDatabaseIdentifyingProperties());
+                const savedPrayerRequest:PRAYER_REQUEST = await DB_INSERT_AND_SELECT_PRAYER_REQUEST(newPrayerRequest.getDatabaseProperties());
 
                 if(!savedPrayerRequest.isValid) 
                     next(new Exception(500, 'Create Prayer Request Failed :: Failed to save new prayer request to database.', 'Save Failed'));

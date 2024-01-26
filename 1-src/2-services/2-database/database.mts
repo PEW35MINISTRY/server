@@ -15,7 +15,7 @@ const CONFIGURATIONS:PoolOptions = {
     connectionLimit: (process.env.DATABASE_CONNECTION_MAX as unknown as number) || 10,
     maxIdle: (process.env.DATABASE_CONNECTION_MIN as unknown as number) || 5,
     idleTimeout: (process.env.DATABASE_IDLE_TIME_MS as unknown as number) || 60000, 
-    timezone: 'local',
+    timezone: 'Z',
   };
 
 const DATABASE:Pool = SQL.createPool(CONFIGURATIONS);
@@ -72,7 +72,7 @@ export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPack
         return [];
 
     } else {
-        return await DATABASE.execute(query, fields)
+        return await DATABASE.execute(query, preSanitizeInput(fields))
             .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
                     // log.db('DB Execute Successful: ', query, JSON.stringify(rows));
                     return [...rows];
@@ -103,7 +103,7 @@ export const command = async(query:string, fields:any[]):Promise<CommandResponse
         return undefined;
 
     } else {
-        return await DATABASE.execute(query, fields)
+        return await DATABASE.execute(query, preSanitizeInput(fields))
             .then((result:any[]) => {
                     if(result.length >= 1) {
                         // log.db('DB Command Successful: ', query, JSON.stringify(result));
@@ -137,7 +137,7 @@ export const batch = async(query:string, fieldSets:any[][]):Promise<boolean|unde
 
     } else {
         try { //Note: All queries must be valid for a success
-            return await DATABASE.query(query, [fieldSets])
+            return await DATABASE.query(query, [fieldSets.map(fieldList => preSanitizeInput(fieldList))])
                 .then((result:any[]) => {
                     if(result.length >= 1) {
                         // log.db('DB Batch Successful: ', query, fieldSets.length, JSON.stringify(result));
@@ -169,4 +169,25 @@ export const validateColumns = (inputMap:Map<string, any>, includesRequired:bool
                 || value !== undefined && value !== null && (value.toString().length > 0)));
     }) 
     && (!includesRequired || requiredColumnList.every((c)=>inputMap.has(c)));
+
+
+/********************************************************************
+ *       ADDITIONAL SANITIZATION OF DATABASE VALUES                 *
+ * Occurs before SQL (mysql2) prepares statement and escapes values *
+ ********************************************************************/
+const TIMEZONE_REGEX = new RegExp(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})$/); //Matches timezone: 1970-01-01T00:00:00.013Z or 1970-01-01T00:00:00.013+06:00
+
+const preSanitizeInput = (valueList:any[]):any[] =>
+    valueList.map(value => {    
+        /* null is allowed to clear fields */
+        if(value == null) return value;
+        
+        /* Remove Timezone Suffix from Date.toISOString | Server & Database are in UTC, client may convert timezone locally */ 
+        if (TIMEZONE_REGEX.test(value)) {
+            const timezoneMatch:string[] = value.match(TIMEZONE_REGEX);
+            if (timezoneMatch && timezoneMatch.length > 1) return value.replace(timezoneMatch[1], ''); // Remove timezone 'Z' or '+06:00'
+        }
+
+        return value;
+    });
 

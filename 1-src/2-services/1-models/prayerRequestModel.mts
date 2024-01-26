@@ -64,7 +64,7 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
             newPrayerRequest.isOnGoing = DB.isOnGoing ? true : false;
             newPrayerRequest.isResolved = DB.isResolved ? true : false;
             newPrayerRequest.expirationDate = DB.expirationDate;
-            newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(DB.tagsStringified);
+            newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(DB.tagListStringified);
             newPrayerRequest.isValid = true;
 
             return newPrayerRequest;
@@ -103,17 +103,13 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     }
 
     /* ADDITIONAL UTILITIES */
-    static prayerRequestParseTags = (tagsStringified:string):PrayerRequestTagEnum[] => {
+    static prayerRequestParseTags = (tagListStringified:string):PrayerRequestTagEnum[] => {
         const tagList = [];
-        if(tagsStringified !== undefined && tagsStringified !== null && tagsStringified.length > 0) {        
+        if(tagListStringified !== undefined && tagListStringified !== null && tagListStringified.length > 0) {        
             try {
-                const list:string[] = JSON.parse(tagsStringified);
-                list.forEach((item:string) => {
-                    if(Object.values(PrayerRequestTagEnum).includes(PrayerRequestTagEnum[item])) 
-                        tagList.push(PrayerRequestTagEnum[item]);
-                });
+                tagList.push(...Array.from(JSON.parse(tagListStringified)));
             } catch(error) {
-                log.error('Failed to parse prayer request tags', tagsStringified, error);
+                log.error('Failed to parse PRAYER_REQUEST.tagListStringified', tagListStringified, error);
             }
         }
         return tagList;
@@ -128,10 +124,15 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
         properties.filter((p) => (includePrayerRequestID || (p !== 'prayerRequestID'))).forEach((field) => {
             if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
               && (!Array.isArray(this[field]) || this[field].length > 0)) {
+
                 if(field === 'expirationDate')
                     map.set(field, this.expirationDate.toISOString());
                 else
                     map.set(field, this[field]);
+
+             /* Database unique naming for custom formatting */
+              } else if(field === 'tagListStringified') {
+                map.set(field, JSON.stringify(this.tagList));
               }
         });
         return map;
@@ -142,8 +143,8 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
         const map = new Map<string, any>();
         PRAYER_REQUEST_TABLE_COLUMNS.filter((c) => ((c !== 'prayerRequestID'))).forEach((field) => {
 
-            if(field === 'tagsStringified' && (JSON.stringify(Array.from(editPrayerRequest.tagList).sort()) !== JSON.stringify(Array.from(currentPrayerRequest.tagList).sort())))
-                map.set('tagsStringified', JSON.stringify(editPrayerRequest.tagList));
+            if(field === 'tagListStringified' && (JSON.stringify(Array.from(editPrayerRequest.tagList).sort()) !== JSON.stringify(Array.from(currentPrayerRequest.tagList).sort())))
+                map.set('tagListStringified', JSON.stringify(editPrayerRequest.tagList));
             
             else if (field === 'expirationDate') { //Must compare dates as numbers
                     if (editPrayerRequest.expirationDate.getTime() !== currentPrayerRequest.expirationDate.getTime())
@@ -175,13 +176,6 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     }
 
     parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:PrayerRequestPostRequest['body']}):boolean|undefined => {
-        if(field.field === 'tagList') {
-            Array.from(jsonObj[field.field]).forEach((item:string) => {
-                if(Object.values(PrayerRequestTagEnum).includes(PrayerRequestTagEnum[item])) 
-                    this.tagList.push(PrayerRequestTagEnum[item]);
-            });
-            return true;
-        }
         //No Field Match
         return undefined;
     }
