@@ -3,28 +3,29 @@ import { PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/p
 import { ProfileListItem, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import InputField, { InputSelectionField, InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { GenderEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import BiDirectionalMap from '../../0-assets/modules/BiDirectionalMap.mjs';
 import { getPasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
 import { ProfileEditRequest } from '../../1-api/3-profile/profile-types.mjs';
 import { DATABASE_USER, USER_TABLE_COLUMNS } from '../2-database/database-types.mjs';
 import * as log from '../log.mjs';
+import CORE_MODEL from './coreModel.mjs';
 import BASE_MODEL from './baseModel.mjs';
 
 
 /*******************************************
 UNIVERSAl profile for DATABASE OPERATIONS 
 ********************************************/
-export default class USER implements BASE_MODEL {
-  modelType = 'USER';
+export default class USER extends CORE_MODEL implements BASE_MODEL {
+  static modelType:string = 'USER';
   getID = () => this.userID;
   setID = (id:number) => this.userID = id;
-  isValid: boolean = false;
 
-  //Private static list of class property fields | (This is display-responses; NOT edit-access -> see: profile-field-config.mts)
-  static #databaseIdentifyingPropertyList = ['firstName', 'lastName', 'displayName', 'email']; //exclude: usedID, complex types, and lists
-  static #publicPropertyList = ['userID', 'firstName', 'lastName', 'displayName', 'postalCode', 'dateOfBirth', 'gender', 'image', 'circleList', 'userRole'];
-  static #partnerPropertyList = [...USER.#publicPropertyList, 'walkLevel'];
-  static #userPropertyList = [...USER.#partnerPropertyList, 'email', 'isActive', 'notes', 'userRoleList', 'partnerList', 'prayerRequestList', 'contactList', 'profileAccessList'];
-  static #propertyList = USER.#userPropertyList.filter(property => !['circleList', 'partnerList', 'prayerRequestList', 'contactList'].includes(property)); //Not Edited through Model
+  //Static list of class property fields | (This is display-responses; NOT edit-access -> see: profile-field-config.mts)
+  static DATABASE_IDENTIFYING_PROPERTY_LIST = ['firstName', 'lastName', 'displayName', 'email']; //exclude: usedID, complex types, and lists
+  static PUBLIC_PROPERTY_LIST = ['userID', 'firstName', 'lastName', 'displayName', 'postalCode', 'dateOfBirth', 'gender', 'image', 'circleList', 'userRole'];
+  static PARTNER_PROPERTY_LIST = [...USER.PUBLIC_PROPERTY_LIST, 'walkLevel'];
+  static USER_PROPERTY_LIST = [...USER.PARTNER_PROPERTY_LIST, 'email', 'isActive', 'notes', 'userRoleList', 'partnerList', 'prayerRequestList', 'contactList', 'profileAccessList'];
+  static PROPERTY_LIST = USER.USER_PROPERTY_LIST.filter(property => !['circleList', 'partnerList', 'prayerRequestList', 'contactList', 'profileAccessList'].includes(property)); //Not Edited through Model
 
   userID: number = -1;
   firstName?: string;
@@ -49,71 +50,42 @@ export default class USER implements BASE_MODEL {
   profileAccessList: ProfileListItem[] = []; //Leaders
 
   //Used as error case or blank
-  constructor(id: number = -1) {
-    this.userID = id;
-    this.isValid = false;
+  constructor(id:number = -1) {
+    super();
+    this.setID(id);
   }
 
-  static constructByDatabase = (DB:DATABASE_USER): USER => {
-    try {
-      if(DB === undefined) throw new Error('Undefined Database Object');
+  override get modelType():string { return USER.modelType; }
+  override get ID():number { return this.userID; }
+  override set ID(id:number) { this.userID = id; }
 
-      const newUSER: USER = new USER(DB.userID || -1);
+  override get databaseTableColumnList():string[] { return USER_TABLE_COLUMNS; }
+  override get databaseIdentifyingPropertyList():string[] { return USER.DATABASE_IDENTIFYING_PROPERTY_LIST; }
+  override get propertyList():string[] { return USER.PROPERTY_LIST; }
 
-      newUSER.firstName = DB.firstName;
-      newUSER.lastName = DB.lastName;
-      newUSER.displayName = DB.displayName;
-      newUSER.email = DB.email;
-      newUSER.passwordHash = DB.passwordHash;
-      newUSER.postalCode = DB.postalCode;
-      newUSER.dateOfBirth = DB.dateOfBirth;  //Date converted by MYSQL2
-      newUSER.gender = GenderEnum[DB.gender];
-      newUSER.isActive = DB.isActive ? true : false;
-      newUSER.walkLevel = DB.walkLevel as number;
-      newUSER.image = DB.image;
-      newUSER.notes = DB.notes;
-      newUSER.userRoleList = [RoleEnum[DB.userRole] || RoleEnum.STUDENT];
-      newUSER.isValid = true;
+  override get jsonToModelMapping():BiDirectionalMap<string> { return new BiDirectionalMap([
+          ['userRoleTokenList', 'userRoleList'],
+          ['password', 'passwordHash']
+        ]);}
 
-      return newUSER;
+  override get priorityInputList():string[] { return ['userID', 'userRole', 'userRoleList', 'dateOfBirth', 'password', 'passwordVerify', 'passwordHash']; }
 
-    } catch (error) {
-      log.db('INVALID Database Object; failed to parse USER', JSON.stringify(DB), error);
-      return new USER();
-    }
-  }
+  //override
+  static constructByDatabase = (DB:DATABASE_USER):USER => 
+    CORE_MODEL.constructByDatabaseUtility<USER>({DB, newModel: new USER(DB.userID || -1), defaultModel: new USER(),
+      complexColumnMap: new Map([
+        ['gender', (DB:DATABASE_USER, newUser:USER) => {newUser.gender = GenderEnum[DB.gender]}],
+        ['userRoleList', (DB:DATABASE_USER, newUser:USER) => {newUser.userRoleList = [RoleEnum[DB.userRole] || RoleEnum.STUDENT];}],
+        ['passwordHash', (DB:DATABASE_USER, newUser:USER) => {newUser.passwordHash = DB.passwordHash;}],
+      ])});
 
-  //Clone database model values only (not copying references for ListItems)
-  static constructByClone = (profile: USER): USER => {
-    try { //MUST copy primitives properties directly and create new complex types to avoid reference linking
-      if(profile === undefined) throw new Error('Undefined Model Object');
-      
-      const newUSER: USER = new USER(profile.userID);
-
-      if(newUSER.userID > 0) {
-        newUSER.firstName = profile.firstName;
-        newUSER.lastName = profile.lastName;
-        newUSER.displayName = profile.displayName;
-        newUSER.email = profile.email;
-        newUSER.passwordHash = profile.passwordHash;
-        newUSER.postalCode = profile.postalCode;
-        newUSER.dateOfBirth = new Date(profile.dateOfBirth?.getTime());
-        newUSER.gender = GenderEnum[profile.gender];
-        newUSER.isActive = profile.isActive;
-        newUSER.walkLevel = profile.walkLevel;
-        newUSER.image = profile.image;
-        newUSER.notes = profile.notes;
-        newUSER.userRoleList = [...profile.userRoleList];
-        newUSER.isValid = true;
-      }
-
-      return newUSER;
-
-    } catch (error) {
-      log.error('INVALID Object; failed to clone USER', JSON.stringify(profile), error);
-      return new USER();
-    }
-  }
+  //override | Clone database model values only (not copying references for ListItems)
+  static constructByClone = (profile: USER):USER => 
+    CORE_MODEL.constructByCloneUtility<USER>({currentModel: profile, newModel: new USER(profile.userID || -1), defaultModel: new USER(), propertyList: USER.PROPERTY_LIST,
+      complexPropertyMap: new Map([
+        ['gender', (currentUser:USER, newUser:USER) => {newUser.gender = GenderEnum[currentUser.gender]}],
+        ['passwordHash', (currentUser:USER, newUser:USER) => {newUser.passwordHash = currentUser.passwordHash;}],
+      ])});
 
    /* USER ROLE UTILITIES */
    isRole = (userRole:RoleEnum):boolean => this.userRoleList.includes(userRole) || (this.userRoleList.length === 0 && userRole === RoleEnum.STUDENT);
@@ -133,68 +105,43 @@ export default class USER implements BASE_MODEL {
    getProfileAccessIDList = ():number[] => this.profileAccessList.map(u => u.userID); 
 
   /* PROPERTY FIELD UTILITIES */
-  static hasProperty = (field:string) => USER.#propertyList.includes(field);
-  hasProperty = (field: string) => USER.#propertyList.includes(field);  //Defined in BASE_MODEL; used for JSON parsing
+  override getValidProperties = (properties:string[] = USER.USER_PROPERTY_LIST, includeUserID:boolean = true):Map<string, any> => {
+    const complexFieldMap = new Map();
+    complexFieldMap.set('userRole', (model:USER, baseModel:USER) => model.getHighestRole());
+    complexFieldMap.set('userRoleList', (model:USER, baseModel:USER) => (model.userRoleList.length === 0) ? [model.getHighestRole()] : model.userRoleList);
+    complexFieldMap.set('dateOfBirth', (model:USER, baseModel:USER) => model.dateOfBirth.toISOString());
+    complexFieldMap.set('passwordHash', (model:USER, baseModel:USER) => model.passwordHash);
 
-  getValidProperties = (properties:string[] = USER.#userPropertyList, includeUserID:boolean = true):Map<string, any> => {
-    const map = new Map<string, any>();
-    properties.filter((p) => (includeUserID || (p !== 'userID'))).forEach((field) => {
-        if(field === 'userRole') 
-          map.set(field, this.getHighestRole());
+    return CORE_MODEL.getUniquePropertiesUtility<USER>({fieldList: properties, getModelProperty: (property) => property,
+      model: this, baseModel: undefined, includeID: includeUserID, includeObjects: true, includeNull: false,
+      complexFieldMap});
+    }
 
-        else if(field === 'userRoleList' && this.userRoleList.length === 0) 
-          map.set(field, [this.getHighestRole()]);
-        
-        else if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
-          && (!Array.isArray(this[field]) || this[field].length > 0)) {
-            if(field === 'dateOfBirth')
-                map.set(field, this.dateOfBirth.toISOString());
-            else
-                map.set(field, this[field]);
-          }
-    });
-    return map;
-  }
+  //override
+  static getUniqueDatabaseProperties = (model:USER, baseModel:USER):Map<string, any> =>
+    CORE_MODEL.getUniquePropertiesUtility<USER>({fieldList: USER_TABLE_COLUMNS, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
+      model, baseModel, includeID: false, includeObjects: false, includeNull: true,
+      complexFieldMap: new Map([
+        ['passwordHash', (model:USER, baseModel:USER) => { return (model.passwordHash !== baseModel.passwordHash) ? model.passwordHash : undefined; }],
+      ])});
 
-  static getUniqueDatabaseProperties = (editProfile:USER, currentProfile:USER):Map<string, any> => {
-    const map = new Map<string, any>();
-    USER_TABLE_COLUMNS.filter((c) => ((c !== 'userID'))).forEach((field) => {
-      if (field === 'dateOfBirth') { //Must compare dates as numbers
-        if (editProfile.dateOfBirth.getTime() !== currentProfile.dateOfBirth.getTime())
-          map.set(field, editProfile[field]);
+  override toJSON = ():ProfileResponse => Object.fromEntries(this.getValidProperties(USER.USER_PROPERTY_LIST)) as unknown as ProfileResponse;
 
-      } else if (editProfile.hasOwnProperty(field) && editProfile[field] !== undefined && editProfile[field] !== null
-        && ((Array.isArray(editProfile[field])
-          && (JSON.stringify(Array.from(editProfile[field]).sort()) !== JSON.stringify(Array.from(currentProfile[field]).sort())))
-          || (editProfile[field] !== currentProfile[field])))
-                map.set(field, editProfile[field]);
-    });
-    return map;
-  }
+  toPublicJSON = ():ProfilePublicResponse => Object.fromEntries(this.getValidProperties(USER.PUBLIC_PROPERTY_LIST)) as unknown as ProfilePublicResponse;
 
-  getDatabaseProperties = ():Map<string, any> => this.getValidProperties(USER_TABLE_COLUMNS, false);
+  toPartnerJSON = ():ProfilePartnerResponse => Object.fromEntries(this.getValidProperties(USER.PARTNER_PROPERTY_LIST)) as unknown as ProfilePartnerResponse;
 
-  getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(USER.#databaseIdentifyingPropertyList, false);
-
-  toJSON = ():ProfileResponse => Object.fromEntries(this.getValidProperties(USER.#userPropertyList)) as unknown as ProfileResponse;
-
-  toPublicJSON = ():ProfilePublicResponse => Object.fromEntries(this.getValidProperties(USER.#publicPropertyList)) as unknown as ProfilePublicResponse;
-
-  toPartnerJSON = ():ProfilePartnerResponse => Object.fromEntries(this.getValidProperties(USER.#partnerPropertyList)) as unknown as ProfilePartnerResponse;
-
-  toListItem = ():ProfileListItem => ({userID: this.userID, firstName: this.firstName, displayName: this.displayName, image: this.image});
-
-  toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
+  override  toListItem = ():ProfileListItem => ({userID: this.userID, firstName: this.firstName, displayName: this.displayName, image: this.image});
 
   /** Utility methods for createModelFromJSON **/
-  validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ProfileEditRequest['body']}):boolean|undefined => {
+  override validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ProfileEditRequest['body']}):boolean|undefined => {
     /* DATES | dateOfBirth */
-    if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)
+    if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)     
       const currentDate:Date = new Date(value);
-
-      if(isNaN(currentDate.valueOf()) || currentDate < getDOBMinDate(this.getHighestRole()) || currentDate > getDOBMaxDate(this.getHighestRole()))
+      if(isNaN(currentDate.valueOf()) || currentDate < getDOBMinDate(this.getHighestRole()) || currentDate > getDOBMaxDate(this.getHighestRole())) {
+        log.warn(`User dateOfBirth validation failed: ${value} with current role: ${this.getHighestRole()}`, currentDate.toISOString(), getDOBMinDate(this.getHighestRole()).toISOString(), getDOBMaxDate(this.getHighestRole()).toISOString())
         return false;
-      else return true;
+      } else return true;
 
     } else if ((field.field === 'userRoleTokenList') && (field instanceof InputSelectionField)) {
       return (Array.isArray(value)
@@ -215,7 +162,7 @@ export default class USER implements BASE_MODEL {
     return undefined;
   }
 
-  parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body'] }):boolean|undefined => {
+  override parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body'] }):boolean|undefined => {
     //Special Handling: Password Hash
     if(field.field === 'password' && jsonObj['password'] === jsonObj['passwordVerify']) {
       this.passwordHash = getPasswordHash(jsonObj['password']);
@@ -232,5 +179,4 @@ export default class USER implements BASE_MODEL {
     //No Field Match
     return undefined;
   }
-
 };

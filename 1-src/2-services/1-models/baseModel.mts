@@ -18,6 +18,9 @@ export default interface BASE_MODEL {
   /* Used for JSON parsing */
   hasProperty: (field:string) => boolean;
 
+  /* Orders dependent fields validation & parsing */
+  // prioritySortInputFieldList: (fieldList:InputField[]) => InputField[];
+
   getValidProperties: (properties:string[], includeID:boolean) => Map<string, any>;
 
   getDatabaseProperties: () => Map<string, any>;
@@ -34,4 +37,7 @@ export default interface BASE_MODEL {
 
   //Returns undefined for no-match; indicator to parseInput traditionally | Returns false for error
   parseModelSpecificField: ({field, jsonObj}:{field:InputField, jsonObj:JwtRequest['body']}) => boolean|undefined;
+
+  //Returns difference in model mapping
+  // getJsonToModelFieldMapping: (field:string) => string;
 } 

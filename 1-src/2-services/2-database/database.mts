@@ -46,7 +46,7 @@ export const query = async(query:string):Promise<SQL.RowDataPacket[]> =>
     await DATABASE.query(query)
         .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
                 // log.db('DB Query Successful: ', query, JSON.stringify(rows));
-                return [...rows];
+                return [...postParseResultRows(rows)];
             })
         .catch((error) => {
             log.db('DB Query Failed: ', query, error);
@@ -75,7 +75,7 @@ export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPack
         return await DATABASE.execute(query, preSanitizeInput(fields))
             .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
                     // log.db('DB Execute Successful: ', query, JSON.stringify(rows));
-                    return [...rows];
+                    return [...postParseResultRows(rows)];
                 })
             .catch((error) => {
                 log.db('DB Execute Failed: ', query, JSON.stringify(fields), error);
@@ -172,7 +172,7 @@ export const validateColumns = (inputMap:Map<string, any>, includesRequired:bool
 
 
 /********************************************************************
- *       ADDITIONAL SANITIZATION OF DATABASE VALUES                 *
+ *         ADDITIONAL SANITIZATION OF INPUT VALUES                  *
  * Occurs before SQL (mysql2) prepares statement and escapes values *
  ********************************************************************/
 const TIMEZONE_REGEX = new RegExp(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})$/); //Matches timezone: 1970-01-01T00:00:00.013Z or 1970-01-01T00:00:00.013+06:00
@@ -191,3 +191,21 @@ const preSanitizeInput = (valueList:any[]):any[] =>
         return value;
     });
 
+
+/********************************************************************
+ *       ADDITIONAL UNIVERSAL PARSING OF DATABASE VALUES            *
+ ********************************************************************/
+const BOOLEAN_REGEX = new RegExp(/^is[A-Z]/); //database column prefix with 'is'
+
+const postParseResultRows = (rows:RowDataPacket[]):RowDataPacket[] =>
+    rows.map((row: RowDataPacket) => {
+        Object.entries(row).map(([column, value]) => {
+
+            /*Convert MYSQL tinyint(1) to JavaScript boolean */
+            if ((value !== null) && BOOLEAN_REGEX.test(column) && (value >= 0) && (value <= 1)) {
+                row[column] = (value === 1) ? true : false;
+            }
+        });
+        return row;
+    });
+    
