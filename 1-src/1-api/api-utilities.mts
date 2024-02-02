@@ -85,7 +85,7 @@ const uploadImageProduction = async(fileName:string, imageBlog:Blob):Promise<str
             return fileName;
         }
 
-        log.error('Failed - Production S3 Image Upload', response.$metadata);
+        log.error('Failed - Production S3 Image Upload', JSON.stringify(response.$metadata), JSON.stringify(response));
         return fileName;
 
     } catch(error) {
@@ -110,7 +110,7 @@ const clearImageProduction = async(fileName:string):Promise<boolean> => {
             return true;
         }
 
-        log.error('Failed - Production S3 Image Delete', response.$metadata);
+        log.error('Failed - Production S3 Image Delete', JSON.stringify(response.$metadata), JSON.stringify(response));
         return false;
 
     } catch(error) {
