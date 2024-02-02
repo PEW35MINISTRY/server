@@ -82,11 +82,11 @@ const uploadImageProduction = async(fileName:string, imageBlog:Blob):Promise<str
 
         if (response?.$metadata?.httpStatusCode === 200) {
             log.event('Successful - Production S3 Image Upload', fileName);
-            return fileName;
+            return `http://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;;
         }
 
-        log.error('Failed - Production S3 Image Upload', JSON.stringify(response.$metadata), JSON.stringify(response));
-        return fileName;
+        log.error('Failed - Production S3 Image Upload', JSON.stringify(response));
+        return undefined;
 
     } catch(error) {
         log.error('Error - Production S3 Image Upload', error);
@@ -105,13 +105,12 @@ const clearImageProduction = async(fileName:string):Promise<boolean> => {
 
         const response:DeleteObjectCommandOutput = await client.send(command);
 
-        if (response?.$metadata?.httpStatusCode === 200) {
+        if (response?.$metadata?.httpStatusCode === 204)
             log.event('Successful - Production S3 Image Delete', fileName);
-            return true;
-        }
+        else
+            log.event('Unsuccessful - Production S3 Image Delete', JSON.stringify(response));
 
-        log.error('Failed - Production S3 Image Delete', JSON.stringify(response.$metadata), JSON.stringify(response));
-        return false;
+        return true;
 
     } catch(error) {
         log.error('Error - Production S3 Image Delete', error);
