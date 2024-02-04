@@ -4,7 +4,7 @@ import JWT_PKG, { JwtPayload } from 'jsonwebtoken';
 import { createHash } from 'node:crypto';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { DB_SELECT_USER_PROFILE } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_SELECT_USER, DB_SELECT_USER_PROFILE } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtData, LoginResponseBody } from './auth-types.mjs';
@@ -113,10 +113,11 @@ const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.STUDENT, token:
 }
 
 //Login Operation
-export const getUserLogin = async(email:string = '', password: string = ''):Promise<LoginResponseBody|undefined> => {
+export const getUserLogin = async(email:string = '', password: string = '', detailed = true):Promise<LoginResponseBody|undefined> => {
     //Query Database
     const passwordHash:string = getPasswordHash(password);
-    const userProfile:USER = await DB_SELECT_USER_PROFILE(new Map([['email', email], ['passwordHash', passwordHash]]));
+    const userProfile:USER = detailed ? await DB_SELECT_USER_PROFILE(new Map([['email', email], ['passwordHash', passwordHash]]))
+    : await DB_SELECT_USER(new Map([['email', email], ['passwordHash', passwordHash]]));
 
     if(userProfile.userID > 0) {
         log.auth('Successfully logged in user: ', userProfile.userID);
