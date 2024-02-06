@@ -152,7 +152,7 @@ export const DB_DELETE_ALL_USER_PRAYER_REQUEST = async(userID:number):Promise<bo
         log.db(`DB_DELETE_ALL_USER_PRAYER_REQUEST | Failed to delete prayer_request_recipients for userID: ${userID}`);
         return false;
 
-    } else if(await command('DELETE FROM prayer_request_comment WHERE commenter = ? ;', [userID]) === undefined) {
+    } else if(await command('DELETE FROM prayer_request_comment WHERE commenterID = ? ;', [userID]) === undefined) {
         log.db(`DB_DELETE_ALL_USER_PRAYER_REQUEST | Failed to delete comments for userID: ${userID}`);
         return false;
 

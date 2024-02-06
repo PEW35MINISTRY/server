@@ -214,11 +214,11 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
     await command('DELETE FROM user_role WHERE user_role.userID = ? ;', [userID])
 
     : await command('DELETE FROM user_role '
-    + 'WHERE user_role.userID = ? AND ( '
-    +  userRoleList.map(() => `( user_role.userRoleID IN (SELECT userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))`).join(' OR ')
-    + ' );', [userID, ...userRoleList]);
+        + 'WHERE user_role.userID = ? AND ( '
+        +  userRoleList.map(() => `( user_role.userRoleID IN (SELECT userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))`).join(' OR ')
+        + ' );', [userID, ...userRoleList]);
 
-    return ((response !== undefined) && (response.affectedRows > 0));
+    return (response !== undefined);  //Success on non-error
 }
 
 

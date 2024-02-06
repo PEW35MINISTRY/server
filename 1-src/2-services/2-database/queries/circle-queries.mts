@@ -402,5 +402,5 @@ export const DB_DELETE_CIRCLE_USER_STATUS = async({userID, circleID}:{userID:num
 
         : await command('DELETE FROM circle_user WHERE userID = ? AND circleID = ?;', [userID, circleID]);
 
-    return ((response !== undefined) && ((userID === undefined) || (response.affectedRows === 1)));
+    return (response !== undefined);  //Success on non-error
 }
