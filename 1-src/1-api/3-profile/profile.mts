@@ -124,9 +124,11 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
                 log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
 
-            const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password']);
+            const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password'], false);
 
             if(loginDetails) {
+                if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
+
                 response.status(201).send(loginDetails);
                 await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();
             } else

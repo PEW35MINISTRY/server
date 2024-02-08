@@ -149,8 +149,9 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
     valueList.push(userID);
 
     const result:CommandResponseType = await command(`SELECT COUNT(*) FROM user WHERE ${preparedColumns};`, valueList); 
-    
-    if(result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 1)
+
+    if(result === undefined) return true;    
+    else if(result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 1)
         log.error(`Multiple Accounts Detected with matching fields`, JSON.stringify(validFieldMap));
 
     return (result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 0);
@@ -213,11 +214,11 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
     await command('DELETE FROM user_role WHERE user_role.userID = ? ;', [userID])
 
     : await command('DELETE FROM user_role '
-    + 'WHERE user_role.userID = ? AND ( '
-    +  userRoleList.map(() => `( user_role.userRoleID IN (SELECT userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))`).join(' OR ')
-    + ' );', [userID, ...userRoleList]);
+        + 'WHERE user_role.userID = ? AND ( '
+        +  userRoleList.map(() => `( user_role.userRoleID IN (SELECT userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))`).join(' OR ')
+        + ' );', [userID, ...userRoleList]);
 
-    return ((response !== undefined) && (response.affectedRows > 0));
+    return (response !== undefined);  //Success on non-error
 }
 
 

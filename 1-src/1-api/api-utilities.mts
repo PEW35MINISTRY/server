@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, DeleteObjectCommandOutput, PutObjectCommand, PutObjectCommandOutput , S3Client } from '@aws-sdk/client-s3';
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { NextFunction, Request, Response } from 'express';
@@ -78,13 +78,18 @@ const uploadImageProduction = async(fileName:string, imageBlog:Blob):Promise<str
             Body: imageBlog
         });
 
-        const response = await client.send(command);
+        const response:PutObjectCommandOutput = await client.send(command);
 
-        log.event('Successful - Production S3 Image Upload', fileName);
-        return fileName;
+        if (response?.$metadata?.httpStatusCode === 200) {
+            log.event('Successful - Production S3 Image Upload', fileName);
+            return `http://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;;
+        }
+
+        log.error('Failed - Production S3 Image Upload', JSON.stringify(response));
+        return undefined;
 
     } catch(error) {
-        log.error('Failed - Production S3 Image Upload', error);
+        log.error('Error - Production S3 Image Upload', error);
         return undefined;
     }
 }
@@ -98,13 +103,17 @@ const clearImageProduction = async(fileName:string):Promise<boolean> => {
             Key: fileName
         });
 
-        const response = await client.send(command);
+        const response:DeleteObjectCommandOutput = await client.send(command);
 
-        log.event('Successful - Production S3 Image Delete', fileName);
+        if (response?.$metadata?.httpStatusCode === 204)
+            log.event('Successful - Production S3 Image Delete', fileName);
+        else
+            log.event('Unsuccessful - Production S3 Image Delete', JSON.stringify(response));
+
         return true;
 
     } catch(error) {
-        log.error('Failed - Production S3 Image Delete', error);
+        log.error('Error - Production S3 Image Delete', error);
         return false;
     }
 }
