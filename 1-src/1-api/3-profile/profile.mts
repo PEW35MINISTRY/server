@@ -12,7 +12,7 @@ import * as log from '../../2-services/log.mjs';
 import { JwtClientRequest, JwtRequest, LoginResponseBody } from '../2-auth/auth-types.mjs';
 import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
-import { clearImage, clearImageCombinations, uploadImage } from '../api-utilities.mjs';
+import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { JwtClientSearchRequest, ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
 import { searchUserList, searchUserListFromCache } from './profile-utilities.mjs';
 

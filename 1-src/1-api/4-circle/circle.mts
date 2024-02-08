@@ -13,7 +13,7 @@ import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtCircleRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
-import { clearImage, clearImageCombinations, uploadImage } from '../api-utilities.mjs';
+import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest, JwtCircleSearchRequest } from './circle-types.mjs';
 import { filterListByCircleStatus, searchCircleList, searchCircleListFromCache } from './circle-utilities.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
