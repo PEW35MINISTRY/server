@@ -3,14 +3,12 @@ import { JwtContentRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception } from '../api-types.mjs';
 import * as log from '../../2-services/log.mjs';
 import { DB_DELETE_CONTENT, DB_INSERT_CONTENT, DB_SELECT_CONTENT, DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES, DB_UPDATE_CONTENT } from '../../2-services/2-database/queries/content-queries.mjs';
-import { JwtContentSearchRequest } from './content-types.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import CONTENT_ARCHIVE from '../../2-services/1-models/contentArchiveModel.mjs';
 import { CONTENT_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
-import { ContentSearchFilterEnum, EDIT_CONTENT_FIELDS, EDIT_CONTENT_FIELDS_ADMIN } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
-import { searchContentArchiveList } from './content-utilties.mjs';
+import { ContentSearchRefineEnum, EDIT_CONTENT_FIELDS, EDIT_CONTENT_FIELDS_ADMIN } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
 import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 
 
@@ -30,21 +28,6 @@ export const GET_ContentRequest = async (request: JwtContentRequest, response: R
         next(new Exception(404, `GET_ContentRequest - Content Archive ${request.contentID} Failed to parse from database and is invalid`));
 };
 
-
-/*************************
- *  LIST Content Archive
- *************************/
-//Default Latest List and Content Search | (All parameters are optional)
-export const GET_SearchContentList = async(request: JwtContentSearchRequest, response: Response, next: NextFunction) => {
-    const searchTerm:string = request.query.search || '';
-    const searchFilter:ContentSearchFilterEnum = ContentSearchFilterEnum[request.query.filter] || ContentSearchFilterEnum.ALL;
-    const ignoreCache:boolean = (request.query.ignoreCache === 'true');
-
-    const contentArchiveList:ContentListItem[] = await searchContentArchiveList(searchTerm, searchFilter, request.jwtUserID);
-
-    response.status(200).send(contentArchiveList);
-    log.event(request.jwtUserRole, 'Content Archive List search & filter', searchTerm, searchFilter, ignoreCache, contentArchiveList.length);
-};
 
 
 /*************************

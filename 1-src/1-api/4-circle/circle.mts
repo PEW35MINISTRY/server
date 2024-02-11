@@ -1,6 +1,6 @@
 import { NextFunction, Response } from 'express';
 import { CircleEventListItem, CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
-import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleSearchFilterEnum, CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
+import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleSearchRefineEnum, CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../2-services/1-models/circleAnnouncementModel.mjs';
@@ -14,8 +14,8 @@ import * as log from '../../2-services/log.mjs';
 import { JwtCircleRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
-import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest, JwtCircleSearchRequest } from './circle-types.mjs';
-import { filterListByCircleStatus, searchCircleList, searchCircleListFromCache } from './circle-utilities.mjs';
+import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest } from './circle-types.mjs';
+import { filterListByCircleStatus } from './circle-utilities.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
 
 
@@ -205,28 +205,6 @@ export const DELETE_circleImage = async(request: JwtCircleRequest, response: Res
 /***********************
  *  CIRCLE SEARCH
  ***********************/
-
-//Default List and Circle Search | (All parameters are optional)
-export const GET_SearchCircleList = async(request: JwtCircleSearchRequest, response: Response, next: NextFunction) => {
-    const searchTerm:string = request.query.search || '';
-    const searchFilter:CircleSearchFilterEnum = CircleSearchFilterEnum[request.query.filter] || CircleSearchFilterEnum.ALL;
-    const circleStatus:CircleStatusEnum = CircleStatusEnum[request.query.status] || CircleStatusEnum.NONE;
-    const ignoreCache:boolean = (request.query.ignoreCache === 'true');
-
-    let circleList:CircleListItem[] = [];
-    if((searchTerm.length < 3) && (searchFilter !== CircleSearchFilterEnum.ID)) {
-        circleList = await searchCircleListFromCache('default', CircleSearchFilterEnum.NAME);
-
-    } else if(ignoreCache)
-        circleList = await searchCircleList(searchTerm, searchFilter);
-
-    else //Cache Search
-        circleList = await searchCircleListFromCache(searchTerm, searchFilter);
-
-    response.status(200).send((request.jwtUserRole === RoleEnum.ADMIN) ? circleList : await filterListByCircleStatus({userID: request.jwtUserID, circleList, circleStatus}));
-    log.event(request.jwtUserRole, 'Circle List search & filter', searchTerm, searchFilter, circleStatus, ignoreCache, circleList.length);
-};
-
 export const DELETE_flushCircleSearchCache = async (request:JwtRequest, response:Response, next: NextFunction) => {
 
     if(await DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN()) {

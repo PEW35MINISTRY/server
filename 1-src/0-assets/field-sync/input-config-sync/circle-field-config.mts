@@ -23,14 +23,15 @@ export enum CircleStatusEnum {
     NONE = 'NONE'                     //skip filtering
 }
 
-export enum CircleSearchFilterEnum {
+export enum CircleSearchRefineEnum {
+    ALL = 'ALL',                     //default search all fields
     ID = 'ID',                       //circleID exact match
+    MEMBER_ID = 'MEMBER_ID',         //Any relation or leader
     NAME = 'NAME',
     DESCRIPTION = 'DESCRIPTION',
     NAME_DESCRIPTION = 'NAME_DESCRIPTION',
     LEADER = 'LEADER',
-    LOCATION = 'LOCATION',
-    ALL = 'ALL'                      //default search all fields
+    LOCATION = 'LOCATION'
 }
 
 export const getDateDaysFuture = (days: number = 14):Date => {

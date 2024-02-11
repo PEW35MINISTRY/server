@@ -29,13 +29,13 @@ export enum RoleEnum {
     ADMIN = 'ADMIN',                           //All access and privileges.
 }
 
-export enum UserSearchFilterEnum {
+export enum UserSearchRefineEnum {
+    ALL = 'ALL',                     //default search all fields
     ID = 'ID',                       //userID exact match
     NAME = 'NAME',                   //firstname, lastname, displayname
     EMAIL = 'EMAIL',
     NOTES = 'NOTES',
-    LOCATION = 'LOCATION',
-    ALL = 'ALL'                      //default search all fields
+    LOCATION = 'LOCATION'
 }
 
 export const getDateYearsAgo = (years: number = 13):Date => {

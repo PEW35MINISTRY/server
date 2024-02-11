@@ -1,5 +1,5 @@
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { RoleEnum, UserSearchFilterEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { CredentialProfile } from '../../../1-api/3-profile/profile-types.mjs';
 import USER from '../../1-models/userModel.mjs';
 import * as log from '../../log.mjs';
@@ -286,10 +286,13 @@ export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeStude
     return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
 
-export const DB_SELECT_USER_SEARCH_CACHE = async(searchTerm:string, searchFilter:UserSearchFilterEnum):Promise<ProfileListItem[]> => {
+//Supports saving empty lists, returns undefined on error or not found
+export const DB_SELECT_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine:UserSearchRefineEnum):Promise<ProfileListItem[]|undefined> => {
 
     const rows = await execute('SELECT stringifiedProfileItemList ' + 'FROM user_search_cache '
-        + 'WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+        + 'WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
+
+    if(rows.length === 0) return undefined;
 
     try {
         const stringifiedList:string = rows[0].stringifiedProfileItemList;    
@@ -297,23 +300,23 @@ export const DB_SELECT_USER_SEARCH_CACHE = async(searchTerm:string, searchFilter
         
     } catch(error) {
         log.db('DB_SELECT_USER_SEARCH_CACHE :: Failed to Parse JSON List', rows[0]);
-        return [];
+        return undefined;
     }
 }
 
 //Updates on Duplicate | Only caches searches including students
-export const DB_INSERT_USER_SEARCH_CACHE = async({searchTerm, searchFilter, userList}:{searchTerm:string, searchFilter:UserSearchFilterEnum, userList:ProfileListItem[]}):Promise<boolean> => {
+export const DB_INSERT_USER_SEARCH_CACHE = async({searchTerm, searchRefine: searchRefine, userList}:{searchTerm:string, searchRefine:UserSearchRefineEnum, userList:ProfileListItem[]}):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`INSERT INTO user_search_cache ( searchTerm, searchFilter, stringifiedProfileItemList ) `
-    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchFilter=VALUES(searchFilter), stringifiedProfileItemList=VALUES(stringifiedProfileItemList);`,
-     [searchTerm, searchFilter, JSON.stringify(userList)]); 
+    const response:CommandResponseType = await command(`INSERT INTO user_search_cache ( searchTerm, searchRefine, stringifiedProfileItemList ) `
+    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), stringifiedProfileItemList=VALUES(stringifiedProfileItemList);`,
+     [searchTerm, searchRefine, JSON.stringify(userList)]); 
     
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
-export const DB_DELETE_USER_SEARCH_CACHE = async(searchTerm:string, searchFilter:UserSearchFilterEnum):Promise<boolean> => {
+export const DB_DELETE_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine:UserSearchRefineEnum):Promise<boolean> => {
 
-    const response:CommandResponseType = await command('DELETE FROM user_search_cache WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+    const response:CommandResponseType = await command('DELETE FROM user_search_cache WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }
@@ -327,7 +330,7 @@ export const DB_FLUSH_USER_SEARCH_CACHE_ADMIN = async():Promise<boolean> => {
 }
 
 //TODO reverse search ???
-export const DB_DELETE_USER_SEARCH_REVERSE_CACHE = async(filterList:UserSearchFilterEnum[], valueList:string[]):Promise<boolean> => {
+export const DB_DELETE_USER_SEARCH_REVERSE_CACHE = async(filterList:UserSearchRefineEnum[], valueList:string[]):Promise<boolean> => {
 
 
     const response:CommandResponseType = await command('DELETE FROM user_search_cache '

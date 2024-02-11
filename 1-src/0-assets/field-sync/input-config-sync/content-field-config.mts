@@ -39,15 +39,15 @@ export enum GenderSelectionEnum {
     FEMALE = 'FEMALE',
 }
 
-export enum ContentSearchFilterEnum {
+export enum ContentSearchRefineEnum {
+    ALL = 'ALL',                     //default search all fields
     ID = 'ID',
     RECORDER_ID = 'RECORDER_ID',
     TYPE = 'TYPE',
     SOURCE = 'SOURCE',
     KEYWORD = 'KEYWORD',
     DESCRIPTION = 'DESCRIPTION',
-    NOTES = 'NOTES',
-    ALL = 'ALL'                      //default search all fields
+    NOTES = 'NOTES'
 }
 
 /*********************************************************************************
