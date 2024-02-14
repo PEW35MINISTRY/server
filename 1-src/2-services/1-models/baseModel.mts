@@ -1,4 +1,5 @@
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { DisplayItemType } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { JwtRequest } from '../../1-api/2-auth/auth-types.mjs';
 
 
@@ -24,7 +25,7 @@ export default interface BASE_MODEL {
 
   getDatabaseIdentifyingProperties: (model:any) => Map<string, any>;
 
-  toListItem: () => {};
+  toListItem: () => DisplayItemType;
 
   toString: () => string;
 

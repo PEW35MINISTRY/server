@@ -29,7 +29,7 @@ export enum ContentSourceEnum {
     X_TWITTER = 'X_TWITTER',
     GOT_QUESTIONS = 'GOT_QUESTIONS',
     BIBLE_PROJECT = 'BIBLE_PROJECT',
-    THROUGH_THE_WORLD = 'THROUGH_THE_WORD',
+    THROUGH_THE_WORLD = 'THROUGH_THE_WORLD',
     CUSTOM = 'CUSTOM'
 }
 
@@ -39,15 +39,15 @@ export enum GenderSelectionEnum {
     FEMALE = 'FEMALE',
 }
 
-export enum ContentSearchFilterEnum {
+export enum ContentSearchRefineEnum {
+    ALL = 'ALL',                     //default search all fields
     ID = 'ID',
     RECORDER_ID = 'RECORDER_ID',
     TYPE = 'TYPE',
     SOURCE = 'SOURCE',
     KEYWORD = 'KEYWORD',
     DESCRIPTION = 'DESCRIPTION',
-    NOTES = 'NOTES',
-    ALL = 'ALL'                      //default search all fields
+    NOTES = 'NOTES'
 }
 
 /*********************************************************************************

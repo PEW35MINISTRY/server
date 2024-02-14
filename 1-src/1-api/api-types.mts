@@ -1,3 +1,5 @@
+import { JwtRequest } from "./2-auth/auth-types.mjs";
+
 
 
 /************************************
@@ -22,3 +24,15 @@ export class Exception extends Error {
     CIRCLE_PROFILE = 'CIRCLE_PROFILE',
     CIRCLE_EVENT = 'CIRCLE_EVENT'
   }
+
+  export interface JwtSearchRequest extends JwtRequest {
+        query: {
+            search:string,
+            refine:string,
+            filter:string,
+            ignoreCache:string
+        },
+        params: JwtRequest['params'] & {
+            type?: string
+        },
+    };
