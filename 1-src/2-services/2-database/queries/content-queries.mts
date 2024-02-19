@@ -33,7 +33,7 @@ export const DB_SELECT_CONTENT = async(contentID:number):Promise<CONTENT_ARCHIVE
     + 'WHERE contentID = ?', [contentID]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CONTENT MATCHING IDS IDENTIFIED`, contentID, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CONTENT MATCHING IDS IDENTIFIED`, contentID, JSON.stringify(rows));
         return new CONTENT_ARCHIVE(undefined);
     }
     

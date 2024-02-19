@@ -36,7 +36,7 @@ export const DB_SELECT_CIRCLE = async(circleID:number):Promise<CIRCLE> => {
     const rows = await execute(`SELECT * FROM circle WHERE circleID = ?`, [circleID]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED`, circleID, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED`, circleID, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
@@ -53,7 +53,7 @@ export const DB_SELECT_CIRCLE_DETAIL = async({userID, circleID}:{userID?:number,
     + 'WHERE circle.circleID = ?;', [userID || -1, circleID]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY ID`, circleID, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY ID`, circleID, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
@@ -74,7 +74,7 @@ export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(circleName:string):Promise<
     + 'WHERE circle.name = ?;', [circleName]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY NAME`, circleName, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY NAME`, circleName, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
