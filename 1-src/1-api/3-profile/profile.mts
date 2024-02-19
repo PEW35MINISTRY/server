@@ -7,7 +7,6 @@ import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMN
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
-import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtClientRequest, JwtRequest, LoginResponseBody } from '../2-auth/auth-types.mjs';
 import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
@@ -103,9 +102,9 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
  /* Unauthenticated Route */
  export const POST_signup =  async(request: ProfileSignupRequest, response: Response, next: NextFunction) => {
     
-    const newProfile:USER|undefined = createModelFromJSON({currentModel: new USER(), jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS, next:next}) as USER;
+    const newProfile:USER|Exception = USER.constructByJson({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
 
-    if(newProfile !== undefined) { //undefined handles next(Exception)
+    if(!(newProfile instanceof Exception)) {
         if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
             next(new Exception(400, `Signup Failed :: Missing Required Fields: ${JSON.stringify(USER_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
@@ -132,7 +131,8 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             } else
                 next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`));
         }
-    }
+    } else
+        next(newProfile);
 };
 
 /* Update Profiles */
@@ -141,9 +141,9 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
 
     const currentProfile:USER = await DB_SELECT_USER(new Map([['userID', request.clientID]]));
 
-    const editProfile:USER|undefined = createModelFromJSON({currentModel: currentProfile, jsonObj:request.body, fieldList: (request.jwtUserRole === RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS, next: next}) as USER;
+    const editProfile:USER|Exception = USER.constructAndEvaluateByJson({currentModel: currentProfile, jsonObj:request.body, fieldList: (request.jwtUserRole === RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS});
 
-    if(currentProfile.isValid && editProfile !== undefined && editProfile.isValid) {  //undefined handles next(Exception)
+    if(currentProfile.isValid && !(editProfile instanceof Exception) && editProfile.isValid) {
         //Verify user roles and verify account type tokens
         const currentRoleList:RoleEnum[] = await DB_SELECT_USER_ROLES(request.clientID);
         if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: currentRoleList, adminOverride: (request.jwtUserRole === RoleEnum.ADMIN)}) === false)
@@ -167,7 +167,8 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
             response.status(202).send(editProfile.toJSON());
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(500, `PATCH_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`));
+        next((editProfile instanceof Exception) ? editProfile
+            : new Exception(500, `PATCH_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`));
 };
 
 /* Delete Profiles */

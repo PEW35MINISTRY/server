@@ -8,14 +8,13 @@ import { getPasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
 import { ProfileEditRequest } from '../../1-api/3-profile/profile-types.mjs';
 import { DATABASE_USER, USER_TABLE_COLUMNS } from '../2-database/database-types.mjs';
 import * as log from '../log.mjs';
-import CORE_MODEL from './coreModel.mjs';
 import BASE_MODEL from './baseModel.mjs';
+import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
+import { Exception } from '../../1-api/api-types.mjs';
 
 
-/*******************************************
-UNIVERSAl profile for DATABASE OPERATIONS 
-********************************************/
-export default class USER extends CORE_MODEL implements BASE_MODEL {
+
+export default class USER extends BASE_MODEL {
   static modelType:string = 'USER';
   getID = () => this.userID;
   setID = (id:number) => this.userID = id;
@@ -55,6 +54,29 @@ export default class USER extends CORE_MODEL implements BASE_MODEL {
     this.setID(id);
   }
 
+  /*******************
+   * MODEL UTILITIES *
+   *******************/  
+   /* USER ROLE UTILITIES */
+   isRole = (userRole:RoleEnum):boolean => this.userRoleList.includes(userRole) || (this.userRoleList.length === 0 && userRole === RoleEnum.STUDENT);
+
+   getHighestRole = ():RoleEnum => Object.values(RoleEnum).reverse()
+                     .find((userRole) => (this.isRole(userRole as RoleEnum)))
+                     || RoleEnum.STUDENT; //default
+    
+   /* List Utilities */
+   getCircleIDList = ():number[] => this.circleList.map(c => c.circleID);
+ 
+   getPartnerIDList = ():number[] => this.partnerList.map(p => p.userID);
+ 
+   getContactIDList = ():number[] => this.contactList.map(u => u.userID);
+ 
+   getProfileAccessIDList = ():number[] => this.profileAccessList.map(u => u.userID); 
+
+
+ /*********************
+  * DEFINE PROPERTIES *
+  *********************/
   override get modelType():string { return USER.modelType; }
   override get ID():number { return this.userID; }
   override set ID(id:number) { this.userID = id; }
@@ -70,9 +92,12 @@ export default class USER extends CORE_MODEL implements BASE_MODEL {
 
   override get priorityInputList():string[] { return ['userID', 'userRole', 'userRoleList', 'dateOfBirth', 'password', 'passwordVerify', 'passwordHash']; }
 
-  //override
+  
+ /**********************************
+  * ADDITIONAL STATIC CONSTRUCTORS *
+  **********************************/
   static constructByDatabase = (DB:DATABASE_USER):USER => 
-    CORE_MODEL.constructByDatabaseUtility<USER>({DB, newModel: new USER(DB.userID || -1), defaultModel: new USER(),
+    BASE_MODEL.constructByDatabaseUtility<USER>({DB, newModel: new USER(DB.userID || -1), defaultModel: new USER(),
       complexColumnMap: new Map([
         ['gender', (DB:DATABASE_USER, newUser:USER) => {newUser.gender = GenderEnum[DB.gender]}],
         ['userRoleList', (DB:DATABASE_USER, newUser:USER) => {newUser.userRoleList = [RoleEnum[DB.userRole] || RoleEnum.STUDENT];}],
@@ -81,30 +106,21 @@ export default class USER extends CORE_MODEL implements BASE_MODEL {
 
   //override | Clone database model values only (not copying references for ListItems)
   static constructByClone = (profile: USER):USER => 
-    CORE_MODEL.constructByCloneUtility<USER>({currentModel: profile, newModel: new USER(profile.userID || -1), defaultModel: new USER(), propertyList: USER.PROPERTY_LIST,
+    BASE_MODEL.constructByCloneUtility<USER>({currentModel: profile, newModel: new USER(profile.userID || -1), defaultModel: new USER(), propertyList: USER.PROPERTY_LIST,
       complexPropertyMap: new Map([
         ['gender', (currentUser:USER, newUser:USER) => {newUser.gender = GenderEnum[currentUser.gender]}],
         ['passwordHash', (currentUser:USER, newUser:USER) => {newUser.passwordHash = currentUser.passwordHash;}],
       ])});
 
-   /* USER ROLE UTILITIES */
-   isRole = (userRole:RoleEnum):boolean => this.userRoleList.includes(userRole) || (this.userRoleList.length === 0 && userRole === RoleEnum.STUDENT);
+   override constructByClone = <USER,>():USER => USER.constructByClone(this) as USER;
 
-   getHighestRole = ():RoleEnum => Object.values(RoleEnum).reverse()
-                     .find((userRole, index) => (this.isRole(userRole as RoleEnum)))
-                     || RoleEnum.STUDENT; //default
-   
- 
-   /* List Utilities */
-   getCircleIDList = ():number[] => this.circleList.map(c => c.circleID);
- 
-   getPartnerIDList = ():number[] => this.partnerList.map(p => p.userID);
- 
-   getContactIDList = ():number[] => this.contactList.map(u => u.userID);
- 
-   getProfileAccessIDList = ():number[] => this.profileAccessList.map(u => u.userID); 
+   static constructByJson = <USER,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):USER|Exception => 
+            new USER().populateFromJson({jsonObj, fieldList}) as USER|Exception;
 
-  /* PROPERTY FIELD UTILITIES */
+
+  /**********************
+  * PROPERTY UTILITIES *
+  **********************/  
   override getValidProperties = (properties:string[] = USER.USER_PROPERTY_LIST, includeUserID:boolean = true):Map<string, any> => {
     const complexFieldMap = new Map();
     complexFieldMap.set('userRole', (model:USER, baseModel:USER) => model.getHighestRole());
@@ -112,28 +128,31 @@ export default class USER extends CORE_MODEL implements BASE_MODEL {
     complexFieldMap.set('dateOfBirth', (model:USER, baseModel:USER) => model.dateOfBirth.toISOString());
     complexFieldMap.set('passwordHash', (model:USER, baseModel:USER) => model.passwordHash);
 
-    return CORE_MODEL.getUniquePropertiesUtility<USER>({fieldList: properties, getModelProperty: (property) => property,
-      model: this, baseModel: undefined, includeID: includeUserID, includeObjects: true, includeNull: false,
-      complexFieldMap});
-    }
+    return BASE_MODEL.getUniquePropertiesUtility<USER>({fieldList: properties, getModelProperty: (property) => property,
+      model: this, baseModel: undefined, includeID: includeUserID, includeObjects: true, includeNull: false, complexFieldMap});
+  }
 
-  //override
   static getUniqueDatabaseProperties = (model:USER, baseModel:USER):Map<string, any> =>
-    CORE_MODEL.getUniquePropertiesUtility<USER>({fieldList: USER_TABLE_COLUMNS, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
+    BASE_MODEL.getUniquePropertiesUtility<USER>({fieldList: USER_TABLE_COLUMNS, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
       model, baseModel, includeID: false, includeObjects: false, includeNull: true,
       complexFieldMap: new Map([
         ['passwordHash', (model:USER, baseModel:USER) => { return (model.passwordHash !== baseModel.passwordHash) ? model.passwordHash : undefined; }],
       ])});
 
-  override toJSON = ():ProfileResponse => Object.fromEntries(this.getValidProperties(USER.USER_PROPERTY_LIST)) as unknown as ProfileResponse;
+  override getUniqueDatabaseProperties = (baseModel:USER):Map<string, any> => USER.getUniqueDatabaseProperties(this, baseModel);
 
-  toPublicJSON = ():ProfilePublicResponse => Object.fromEntries(this.getValidProperties(USER.PUBLIC_PROPERTY_LIST)) as unknown as ProfilePublicResponse;
+  override toJSON = ():ProfileResponse => Object.fromEntries(this.getValidProperties(USER.USER_PROPERTY_LIST)) as ProfileResponse;
 
-  toPartnerJSON = ():ProfilePartnerResponse => Object.fromEntries(this.getValidProperties(USER.PARTNER_PROPERTY_LIST)) as unknown as ProfilePartnerResponse;
+  toPublicJSON = ():ProfilePublicResponse => Object.fromEntries(this.getValidProperties(USER.PUBLIC_PROPERTY_LIST)) as ProfilePublicResponse;
+
+  toPartnerJSON = ():ProfilePartnerResponse => Object.fromEntries(this.getValidProperties(USER.PARTNER_PROPERTY_LIST)) as ProfilePartnerResponse;
 
   override  toListItem = ():ProfileListItem => ({userID: this.userID, firstName: this.firstName, displayName: this.displayName, image: this.image});
 
-  /** Utility methods for createModelFromJSON **/
+
+  /****************************************
+  * constructByJson Model Custom Handling *
+  *****************************************/  
   override validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ProfileEditRequest['body']}):boolean|undefined => {
     /* DATES | dateOfBirth */
     if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)     
@@ -165,18 +184,29 @@ export default class USER extends CORE_MODEL implements BASE_MODEL {
   override parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body'] }):boolean|undefined => {
     //Special Handling: Password Hash
     if(field.field === 'password' && jsonObj['password'] === jsonObj['passwordVerify']) {
-      this.passwordHash = getPasswordHash(jsonObj['password']);
-      return true;
+        this.passwordHash = getPasswordHash(jsonObj['password']);
 
     } else if(field.field === 'passwordVerify') { //valid Skip without error
-      return true;
+        return true;
 
     } else if(field.field === 'userRoleTokenList') {
-      this.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string] || RoleEnum.STUDENT);
-      return true;
-    }
+        this.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string] || RoleEnum.STUDENT);
 
-    //No Field Match
-    return undefined;
+    } else if(field.field === 'userRoleList') {
+        this.userRoleList = Array.from(jsonObj[field.field] as string[]).map(role => RoleEnum[role as string]);
+
+    } else if(field.field === 'gender') {
+        this.gender = GenderEnum[jsonObj[field.field]];
+
+    } else if(field.field === 'walkLevel') {
+        this.walkLevel = parseInt(jsonObj[String(field.field)]);
+
+    } else if(['displayName', 'email'].includes(field.field)) { //Lowercase
+        this[field.field] = (String(jsonObj[field.field]) || '').toLowerCase();
+
+    } else //No Field Match
+        return undefined;
+
+    return true;
   }
 };
