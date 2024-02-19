@@ -14,10 +14,8 @@ import { Exception } from '../../1-api/api-types.mjs';
 
 
 
-export default class USER extends BASE_MODEL {
+export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileResponse> {
   static modelType:string = 'USER';
-  getID = () => this.userID;
-  setID = (id:number) => this.userID = id;
 
   //Static list of class property fields | (This is display-responses; NOT edit-access -> see: profile-field-config.mts)
   static DATABASE_IDENTIFYING_PROPERTY_LIST = ['firstName', 'lastName', 'displayName', 'email']; //exclude: usedID, complex types, and lists
@@ -50,40 +48,40 @@ export default class USER extends BASE_MODEL {
 
   //Used as error case or blank
   constructor(id:number = -1) {
-    super();
-    this.setID(id);
+    super(id);
   }
 
-  /*******************
-   * MODEL UTILITIES *
-   *******************/  
-   /* USER ROLE UTILITIES */
-   isRole = (userRole:RoleEnum):boolean => this.userRoleList.includes(userRole) || (this.userRoleList.length === 0 && userRole === RoleEnum.STUDENT);
+  override getNewInstance = (id:number = -1) => new USER(id);
 
-   getHighestRole = ():RoleEnum => Object.values(RoleEnum).reverse()
+ /*******************
+  * MODEL UTILITIES *
+  *******************/  
+  /* USER ROLE UTILITIES */
+  isRole = (userRole:RoleEnum):boolean => this.userRoleList.includes(userRole) || (this.userRoleList.length === 0 && userRole === RoleEnum.STUDENT);
+
+  getHighestRole = ():RoleEnum => Object.values(RoleEnum).reverse()
                      .find((userRole) => (this.isRole(userRole as RoleEnum)))
                      || RoleEnum.STUDENT; //default
     
-   /* List Utilities */
-   getCircleIDList = ():number[] => this.circleList.map(c => c.circleID);
+  /* List Utilities */
+  getCircleIDList = ():number[] => this.circleList.map(c => c.circleID);
  
-   getPartnerIDList = ():number[] => this.partnerList.map(p => p.userID);
+  getPartnerIDList = ():number[] => this.partnerList.map(p => p.userID);
  
-   getContactIDList = ():number[] => this.contactList.map(u => u.userID);
+  getContactIDList = ():number[] => this.contactList.map(u => u.userID);
  
-   getProfileAccessIDList = ():number[] => this.profileAccessList.map(u => u.userID); 
+  getProfileAccessIDList = ():number[] => this.profileAccessList.map(u => u.userID); 
 
 
  /*********************
   * DEFINE PROPERTIES *
   *********************/
   override get modelType():string { return USER.modelType; }
-  override get ID():number { return this.userID; }
-  override set ID(id:number) { this.userID = id; }
+  override get IDProperty():string { return 'userID'; }
 
-  override get databaseTableColumnList():string[] { return USER_TABLE_COLUMNS; }
-  override get databaseIdentifyingPropertyList():string[] { return USER.DATABASE_IDENTIFYING_PROPERTY_LIST; }
-  override get propertyList():string[] { return USER.PROPERTY_LIST; }
+  override get DATABASE_COLUMN_LIST():string[] { return USER_TABLE_COLUMNS; }
+  override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return USER.DATABASE_IDENTIFYING_PROPERTY_LIST; }
+  override get PROPERTY_LIST():string[] { return USER.PROPERTY_LIST; }
 
   override get jsonToModelMapping():BiDirectionalMap<string> { return new BiDirectionalMap([
           ['userRoleTokenList', 'userRoleList'],
@@ -93,10 +91,10 @@ export default class USER extends BASE_MODEL {
   override get priorityInputList():string[] { return ['userID', 'userRole', 'userRoleList', 'dateOfBirth', 'password', 'passwordVerify', 'passwordHash']; }
 
   
- /**********************************
-  * ADDITIONAL STATIC CONSTRUCTORS *
-  **********************************/
-  static constructByDatabase = (DB:DATABASE_USER):USER => 
+/**********************************
+ * ADDITIONAL STATIC CONSTRUCTORS *
+ **********************************/
+ static constructByDatabase = (DB:DATABASE_USER):USER => 
     BASE_MODEL.constructByDatabaseUtility<USER>({DB, newModel: new USER(DB.userID || -1), defaultModel: new USER(),
       complexColumnMap: new Map([
         ['gender', (DB:DATABASE_USER, newUser:USER) => {newUser.gender = GenderEnum[DB.gender]}],
@@ -140,8 +138,6 @@ export default class USER extends BASE_MODEL {
       ])});
 
   override getUniqueDatabaseProperties = (baseModel:USER):Map<string, any> => USER.getUniqueDatabaseProperties(this, baseModel);
-
-  override toJSON = ():ProfileResponse => Object.fromEntries(this.getValidProperties(USER.USER_PROPERTY_LIST)) as ProfileResponse;
 
   toPublicJSON = ():ProfilePublicResponse => Object.fromEntries(this.getValidProperties(USER.PUBLIC_PROPERTY_LIST)) as ProfilePublicResponse;
 

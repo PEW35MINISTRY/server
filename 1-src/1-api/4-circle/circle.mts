@@ -248,6 +248,14 @@ export const POST_circleAnnouncement =  async(request: CircleAnnouncementCreateR
     if(!(newCircleAnnouncement instanceof Exception)) {
         newCircleAnnouncement.circleID = request.circleID;
 
+
+
+
+
+        const circleAnnouncement:CIRCLE_ANNOUNCEMENT = newCircleAnnouncement.constructByClone()
+
+
+        
         if(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED.every((column) => newCircleAnnouncement[column] !== undefined) === false) 
             next(new Exception(400, `Create Circle Announcement Failed :: Missing Required Fields: ${JSON.stringify(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 

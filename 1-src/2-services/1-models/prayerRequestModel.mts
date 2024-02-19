@@ -10,10 +10,8 @@ import * as log from '../log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 
 
-export default class PRAYER_REQUEST extends BASE_MODEL  {
+export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerRequestListItem, PrayerRequestResponseBody>  {
     static modelType = 'PRAYER_REQUEST';
-    getID = () => this.prayerRequestID;
-    setID = (id:number) => this.prayerRequestID = id;
 
     //Static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = ['requestorID', 'topic', 'description']; //exclude: prayerRequestID, complex types, and lists
@@ -43,9 +41,10 @@ export default class PRAYER_REQUEST extends BASE_MODEL  {
 
     //Used as error case or blank
     constructor(id:number = -1) {
-        super();
-        this.setID(id);
+        super(id);
     }
+
+    override getNewInstance = (id:number = -1) => new PRAYER_REQUEST(id);
 
    /*******************
     * MODEL UTILITIES *
@@ -67,12 +66,11 @@ export default class PRAYER_REQUEST extends BASE_MODEL  {
     * DEFINE PROPERTIES *
     *********************/    
     override get modelType():string { return PRAYER_REQUEST.modelType; }
-    override get ID():number { return this.prayerRequestID; }
-    override set ID(id:number) { this.prayerRequestID = id; }
+    override get IDProperty():string { return 'prayerRequestID'; }
 
-    override get databaseTableColumnList():string[] { return PRAYER_REQUEST_TABLE_COLUMNS; }
-    override get databaseIdentifyingPropertyList():string[] { return PRAYER_REQUEST.DATABASE_IDENTIFYING_PROPERTY_LIST; }
-    override get propertyList():string[] { return PRAYER_REQUEST.PROPERTY_LIST; }
+    override get DATABASE_COLUMN_LIST():string[] { return PRAYER_REQUEST_TABLE_COLUMNS; }
+    override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return PRAYER_REQUEST.DATABASE_IDENTIFYING_PROPERTY_LIST; }
+    override get PROPERTY_LIST():string[] { return PRAYER_REQUEST.PROPERTY_LIST; }
 
     override hasProperty = (field:string) => [ ...PRAYER_REQUEST.PROPERTY_LIST, 'addUserRecipientIDList', 'removeUserRecipientIDList', 'addCircleRecipientIDList', 'removeCircleRecipientIDList' ].includes(field); //used for JSON parsing
 
@@ -119,8 +117,6 @@ export default class PRAYER_REQUEST extends BASE_MODEL  {
             ])});
 
     override getUniqueDatabaseProperties = (baseModel:PRAYER_REQUEST):Map<string, any> => PRAYER_REQUEST.getUniqueDatabaseProperties(this, baseModel);
-
-    override toJSON = ():PrayerRequestResponseBody => Object.fromEntries(this.getValidProperties(PRAYER_REQUEST.PROPERTY_LIST)) as PrayerRequestResponseBody;
 
     override  toListItem = ():PrayerRequestListItem => ({prayerRequestID: this.prayerRequestID, requestorProfile: this.requestorProfile, topic: this.topic, prayerCount: this.prayerCount, tagList: this.tagList});
 };

@@ -10,11 +10,8 @@ import BASE_MODEL from './baseModel.mjs';
 
 
 
-export default class CONTENT_ARCHIVE extends BASE_MODEL  {
+export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, ContentListItem, ContentResponseBody> {
     static modelType = 'CONTENT_ARCHIVE';
-    getID = () => this.contentID;
-    setID = (id:number) => this.contentID = id;
-    isValid: boolean = false;
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = [ 'recorderID', 'type', 'source', 'url' ]; //exclude: contentID, complex types, and lists
@@ -41,9 +38,10 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL  {
 
     //Used as error case or blank
     constructor(id:number = -1) {
-        super();
-        this.setID(id);
+        super(id);
     }
+
+    override getNewInstance = (id:number = -1) => new CONTENT_ARCHIVE(id);
 
    /*******************
     * MODEL UTILITIES *
@@ -65,12 +63,11 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL  {
     * DEFINE PROPERTIES *
     *********************/
     override get modelType():string { return CONTENT_ARCHIVE.modelType; }
-    override get ID():number { return this.contentID; }
-    override set ID(id:number) { this.contentID = id; }
-
-    override get databaseTableColumnList():string[] { return CONTENT_TABLE_COLUMNS; }
-    override get databaseIdentifyingPropertyList():string[] { return CONTENT_ARCHIVE.DATABASE_IDENTIFYING_PROPERTY_LIST; }
-    override get propertyList():string[] { return CONTENT_ARCHIVE.PROPERTY_LIST; }
+    override get IDProperty():string { return 'contentID'; }
+ 
+    override get DATABASE_COLUMN_LIST():string[] { return CONTENT_TABLE_COLUMNS; }
+    override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return CONTENT_ARCHIVE.DATABASE_IDENTIFYING_PROPERTY_LIST; }
+    override get PROPERTY_LIST():string[] { return CONTENT_ARCHIVE.PROPERTY_LIST; }
 
 
    /**********************************
@@ -86,8 +83,8 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL  {
            ])});
  
      //Clone database model values only (not copying references for ListItems)
-    static constructByClone = (circle:CONTENT_ARCHIVE):CONTENT_ARCHIVE =>
-        BASE_MODEL.constructByCloneUtility<CONTENT_ARCHIVE>({currentModel: circle, newModel: new CONTENT_ARCHIVE(circle.contentID || -1), defaultModel: new CONTENT_ARCHIVE(), propertyList: CONTENT_ARCHIVE.PROPERTY_LIST,
+    static constructByClone = (contentArchive:CONTENT_ARCHIVE):CONTENT_ARCHIVE =>
+        BASE_MODEL.constructByCloneUtility<CONTENT_ARCHIVE>({currentModel: contentArchive, newModel: new CONTENT_ARCHIVE(contentArchive.contentID || -1), defaultModel: new CONTENT_ARCHIVE(), propertyList: CONTENT_ARCHIVE.PROPERTY_LIST,
          complexPropertyMap: new Map([
             ['type', (currentContent:CONTENT_ARCHIVE, newContent:CONTENT_ARCHIVE) => {newContent.gender = ContentTypeEnum[currentContent.gender]}],
             ['source', (currentContent:CONTENT_ARCHIVE, newContent:CONTENT_ARCHIVE) => {newContent.gender = ContentSourceEnum[currentContent.gender]}],
@@ -120,10 +117,6 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL  {
                     return (JSON.stringify(Array.from(model.keywordList).sort()) !== JSON.stringify(Array.from(baseModel.keywordList).sort())) 
                     ? JSON.stringify(model.keywordList) : undefined; }],
             ])});
-
-    override getUniqueDatabaseProperties = (baseModel:CONTENT_ARCHIVE):Map<string, any> => CONTENT_ARCHIVE.getUniqueDatabaseProperties(this, baseModel);
-
-    override toJSON = ():ContentResponseBody => Object.fromEntries(this.getValidProperties(CONTENT_ARCHIVE.PROPERTY_LIST)) as ContentResponseBody;
 
     override toListItem = ():ContentListItem => ({contentID: this.contentID, 
         type: this.type === ContentTypeEnum.CUSTOM ? this.customType : this.type, 

@@ -7,10 +7,8 @@ import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, DATABASE_CIRCLE_ANNOUNCEMENT } from 
 import BASE_MODEL from './baseModel.mjs';
 
 
-export default class CIRCLE_ANNOUNCEMENT extends BASE_MODEL  {
+export default class CIRCLE_ANNOUNCEMENT extends BASE_MODEL<CIRCLE_ANNOUNCEMENT, CircleAnnouncementListItem, CircleAnnouncementListItem>  {
     static modelType = 'CIRCLE_ANNOUNCEMENT';
-    getID = () => this.announcementID;
-    setID = (id:number) => this.announcementID = id;
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = ['circleID', 'message']; //exclude: announcementID, complex types, and lists
@@ -24,9 +22,10 @@ export default class CIRCLE_ANNOUNCEMENT extends BASE_MODEL  {
 
     //Used as error case or blank
     constructor(id:number = -1) {
-        super();
-        this.setID(id);
+        super(id);
     }
+
+    override getNewInstance = (id:number = -1) => new CIRCLE_ANNOUNCEMENT(id);
 
    /*******************
     * MODEL UTILITIES *
@@ -41,12 +40,11 @@ export default class CIRCLE_ANNOUNCEMENT extends BASE_MODEL  {
     * DEFINE PROPERTIES *
     *********************/    
     override get modelType():string { return CIRCLE_ANNOUNCEMENT.modelType; }
-    override get ID():number { return this.circleID; }
-    override set ID(id:number) { this.circleID = id; }
+    override get IDProperty():string { return 'announcementID'; }
 
-    override get databaseTableColumnList():string[] { return CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS; }
-    override get databaseIdentifyingPropertyList():string[] { return CIRCLE_ANNOUNCEMENT.DATABASE_IDENTIFYING_PROPERTY_LIST; }
-    override get propertyList():string[] { return CIRCLE_ANNOUNCEMENT.PROPERTY_LIST; }
+    override get DATABASE_COLUMN_LIST():string[] { return CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS; }
+    override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return CIRCLE_ANNOUNCEMENT.DATABASE_IDENTIFYING_PROPERTY_LIST; }
+    override get PROPERTY_LIST():string[] { return CIRCLE_ANNOUNCEMENT.PROPERTY_LIST; }
 
 
     /**********************************
@@ -55,31 +53,8 @@ export default class CIRCLE_ANNOUNCEMENT extends BASE_MODEL  {
     static constructByDatabase = (DB:DATABASE_CIRCLE_ANNOUNCEMENT):CIRCLE_ANNOUNCEMENT => 
         BASE_MODEL.constructByDatabaseUtility<CIRCLE_ANNOUNCEMENT>({DB, newModel: new CIRCLE_ANNOUNCEMENT(DB.circleID || -1), defaultModel: new CIRCLE_ANNOUNCEMENT()});
 
-    static constructByClone = (announcement:CIRCLE_ANNOUNCEMENT):CIRCLE_ANNOUNCEMENT =>
-        BASE_MODEL.constructByCloneUtility<CIRCLE_ANNOUNCEMENT>({currentModel: announcement, newModel: new CIRCLE_ANNOUNCEMENT(announcement.circleID || -1), defaultModel: new CIRCLE_ANNOUNCEMENT(), propertyList: CIRCLE_ANNOUNCEMENT.PROPERTY_LIST});
-
-    override constructByClone = <CIRCLE_ANNOUNCEMENT,>():CIRCLE_ANNOUNCEMENT => CIRCLE_ANNOUNCEMENT.constructByClone(this) as CIRCLE_ANNOUNCEMENT;
-
     static constructByJson = <CIRCLE_ANNOUNCEMENT,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):CIRCLE_ANNOUNCEMENT|Exception => 
         new CIRCLE_ANNOUNCEMENT().populateFromJson({jsonObj, fieldList}) as CIRCLE_ANNOUNCEMENT|Exception;
-
-
-   /**********************
-    * PROPERTY UTILITIES *
-    **********************/  
-    override getValidProperties = (properties:string[] = CIRCLE_ANNOUNCEMENT.PROPERTY_LIST, includeUserID:boolean = true):Map<string, any> =>
-        BASE_MODEL.getUniquePropertiesUtility<CIRCLE_ANNOUNCEMENT>({fieldList: properties, getModelProperty: (property) => property,
-            model: this, baseModel: undefined, includeID: includeUserID, includeObjects: true, includeNull: false, complexFieldMap: new Map()});
-
-    static getUniqueDatabaseProperties = (model:CIRCLE_ANNOUNCEMENT, baseModel:CIRCLE_ANNOUNCEMENT):Map<string, any> =>
-        BASE_MODEL.getUniquePropertiesUtility<CIRCLE_ANNOUNCEMENT>({fieldList: CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
-            model, baseModel, includeID: false, includeObjects: false, includeNull: true});
-
-    override getUniqueDatabaseProperties = (baseModel:CIRCLE_ANNOUNCEMENT):Map<string, any> => CIRCLE_ANNOUNCEMENT.getUniqueDatabaseProperties(this, baseModel);
-
-    override toJSON = ():CircleAnnouncementListItem => this.toJSON() as CircleAnnouncementListItem;
-
-    override toListItem = ():CircleAnnouncementListItem => this.toJSON();
 
     
    /****************************************

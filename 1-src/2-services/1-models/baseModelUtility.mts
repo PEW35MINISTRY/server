@@ -13,12 +13,12 @@ export default {
     *********************************************/
     //MUST copy primitives properties directly and create new complex types to avoid reference linking
     //Use 'complexColumnMap' to skip columns:()=>{}
-    constructByDatabaseUtility: <T extends BASE_MODEL>({ DB, newModel, defaultModel, complexColumnMap = new Map() }
-        :{ DB:any; newModel:T; defaultModel:T; complexColumnMap?:Map<string, (DB:any, newModel:T) => void | Error> }):T => {
+    constructByDatabaseUtility: <M extends BASE_MODEL<any, any, any>>({ DB, newModel, defaultModel, complexColumnMap = new Map() }
+        :{ DB:any; newModel:M; defaultModel:M; complexColumnMap?:Map<string, (DB:any, newModel:M) => void | Error> }):M => {
         try {
             if (DB === undefined) throw new Error('Undefined Database Object');
 
-            for (const column of newModel.prioritySortFieldList(newModel.databaseTableColumnList)) {
+            for (const column of newModel.prioritySortFieldList(newModel.DATABASE_COLUMN_LIST)) {
                 const property:string | undefined = newModel.getPropertyFromDatabaseColumn(column, true);
 
                 if (property === undefined && !complexColumnMap.has(column))
@@ -51,8 +51,8 @@ export default {
 
 
 
-    constructByCloneUtility: <T extends BASE_MODEL>({ currentModel, newModel, defaultModel, propertyList, complexPropertyMap = new Map() }
-        :{ currentModel:T; newModel:T; defaultModel:T; propertyList:string[]; complexPropertyMap?:Map<string, (currentModel:T, newModel:T) => void | Error> }):T => {
+    constructByCloneUtility: <M extends BASE_MODEL<any, any, any>>({ currentModel, newModel, defaultModel, propertyList, complexPropertyMap = new Map() }
+        :{ currentModel:M; newModel:M; defaultModel:M; propertyList:string[]; complexPropertyMap?:Map<string, (currentModel:M, newModel:M) => void | Error> }):M => {
         try {
             for (const property of [...currentModel.prioritySortFieldList(propertyList)]) {
                 const currentValue = currentModel[property];
@@ -98,8 +98,8 @@ export default {
     * - baseModel | set to undefined to getValidProperties on a single model                                                     *
     * - complexColumnMap | Must test for unique and return new copy or undefined                                                 *
     ******************************************************************************************************************************/
-    getUniquePropertiesUtility: <T extends BASE_MODEL>({ fieldList, getModelProperty, model, baseModel, complexFieldMap = new Map(), includeID = false, includeObjects = false, includeNull = false }
-        : { fieldList:string[]; getModelProperty:(field:string) => string | undefined; model:T; baseModel?:T; complexFieldMap?:Map<string, (model:T, baseModel:T) => any | undefined | Error>;
+    getUniquePropertiesUtility: <M extends BASE_MODEL<any, any, any>>({ fieldList, getModelProperty, model, baseModel, complexFieldMap = new Map(), includeID = false, includeObjects = false, includeNull = false }
+        : { fieldList:string[]; getModelProperty:(field:string) => string | undefined; model:M; baseModel?:M; complexFieldMap?:Map<string, (model:M, baseModel:M) => any | undefined | Error>;
             includeID?:boolean; includeObjects?:boolean, includeNull?:boolean}):Map<string, any> => {
         const map = new Map<string, any>();
 
@@ -149,8 +149,8 @@ export default {
     * constructByJson => populateFromJson                       *
     * Returns: modified model or undefined with Express Exception *
     ***************************************************************/
-    constructByJson: <T extends BASE_MODEL>({currentModel, jsonObj, fieldList}:{currentModel:BASE_MODEL, jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):T|Exception => {
-        const model:T = currentModel.constructByClone();
+    constructByJson: <M extends BASE_MODEL<any, any, any>>({currentModel, jsonObj, fieldList}:{currentModel:M, jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):M|Exception => {
+        const model:M = currentModel.constructByClone();
 
         if(model === undefined) {
             log.error('Unexpected Undefined Model | createFromJSON');
