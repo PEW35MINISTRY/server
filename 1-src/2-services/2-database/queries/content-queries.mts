@@ -59,18 +59,6 @@ export const DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES = async(recorderID:number =
 }
 
 
-export const DB_SELECT_OWNED_CONTENT_ARCHIVES = async():Promise<ContentListItem[]> => {
-    const rows = await query('SELECT contentID, type, customType, source, customSource, url, description, keywordListStringified ' + 'FROM content '
-    + 'ORDER BY content.modifiedDT DESC LIMIT 30;');
- 
-    return [...rows.map(row => ({contentID: row.contentID || -1,
-        type: (row.type === 'CUSTOM' ? row.customType : row.type) || '', 
-        source: (row.source === 'CUSTOM' ? row.customSource : row.source) || '', 
-        url: row.url || '', description: row.description || '', keywordList: CONTENT_ARCHIVE.contentArchiveParseKeywordList(row.keywordListStringified)}))];
-}
-
-
-
 /********************
  *  CONTENT QUERIES
  ********************/

@@ -1,6 +1,6 @@
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { CircleSearchFilterEnum, CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
+import { CircleSearchRefineEnum, CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
 import * as log from '../../log.mjs';
@@ -157,10 +157,12 @@ export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:strin
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
 
-export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchFilter:CircleSearchFilterEnum):Promise<CircleListItem[]> => {
+export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<CircleListItem[]|undefined> => {
 
     const rows = await execute('SELECT stringifiedCircleItemList ' + 'FROM circle_search_cache '
-        + 'WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+        + 'WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
+
+    if(rows.length === 0) return undefined;
 
     try {
         const stringifiedList:string = rows[0].stringifiedCircleItemList;    
@@ -168,23 +170,23 @@ export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchFilt
         
     } catch(error) {
         log.db('DB_SELECT_CIRCLE_SEARCH_CACHE :: Failed to Parse JSON List', rows[0]);
-        return [];
+        return undefined;
     }
 }
 
 //Updates on Duplicate
-export const DB_INSERT_CIRCLE_SEARCH_CACHE = async({searchTerm, searchFilter, circleList}:{searchTerm:string, searchFilter:CircleSearchFilterEnum, circleList:CircleListItem[]}):Promise<boolean> => {
+export const DB_INSERT_CIRCLE_SEARCH_CACHE = async({searchTerm, searchRefine, circleList}:{searchTerm:string, searchRefine:CircleSearchRefineEnum, circleList:CircleListItem[]}):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`INSERT INTO circle_search_cache ( searchTerm, searchFilter, stringifiedCircleItemList ) `
-    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchFilter=VALUES(searchFilter), stringifiedCircleItemList=VALUES(stringifiedCircleItemList);`,
-     [searchTerm, searchFilter, JSON.stringify(circleList)]); 
+    const response:CommandResponseType = await command(`INSERT INTO circle_search_cache ( searchTerm, searchRefine, stringifiedCircleItemList ) `
+    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), stringifiedCircleItemList=VALUES(stringifiedCircleItemList);`,
+     [searchTerm, searchRefine, JSON.stringify(circleList)]); 
     
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
-export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchFilter:CircleSearchFilterEnum):Promise<boolean> => {
+export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<boolean> => {
 
-    const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+    const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }
@@ -198,7 +200,7 @@ export const DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN = async():Promise<boolean> => {
 }
 
 //TODO reverse search ???
-export const DB_DELETE_CIRCLE_SEARCH_REVERSE_CACHE = async(filterList:CircleSearchFilterEnum[], valueList:string[]):Promise<boolean> => {
+export const DB_DELETE_CIRCLE_SEARCH_REVERSE_CACHE = async(filterList:CircleSearchRefineEnum[], valueList:string[]):Promise<boolean> => {
 
 
     const response:CommandResponseType = await command('DELETE FROM circle_search_cache '
@@ -402,5 +404,5 @@ export const DB_DELETE_CIRCLE_USER_STATUS = async({userID, circleID}:{userID:num
 
         : await command('DELETE FROM circle_user WHERE userID = ? AND circleID = ?;', [userID, circleID]);
 
-    return ((response !== undefined) && ((userID === undefined) || (response.affectedRows === 1)));
+    return (response !== undefined);  //Success on non-error
 }

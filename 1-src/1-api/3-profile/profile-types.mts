@@ -18,16 +18,6 @@ export type CredentialProfile = {
     passwordHash: string,
 }
 
-export interface JwtClientSearchRequest extends JwtRequest {
-    query: {
-        search:string,
-        filter:string,
-        excludeStudent:string,
-        searchInactive:string,
-        ignoreCache:string
-    },
-    circleID: number,
-};
 
 export interface ProfileEditRequest extends JwtClientRequest {
     body: ProfileEditRequestBody

@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import URL, { URLSearchParams } from 'url';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT, UserSearchFilterEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT, UserSearchRefineEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
@@ -10,10 +10,11 @@ import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, 
 import * as log from '../../2-services/log.mjs';
 import { JwtClientRequest, JwtRequest, LoginResponseBody } from '../2-auth/auth-types.mjs';
 import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
-import { Exception, ImageTypeEnum } from '../api-types.mjs';
-import { clearImage, clearImageCombinations, uploadImage } from '../api-utilities.mjs';
-import { JwtClientSearchRequest, ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
-import { searchUserList, searchUserListFromCache } from './profile-utilities.mjs';
+import { Exception, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
+import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
+import { ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
+
+
 
 //UI Helper Utility
 export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
@@ -123,9 +124,11 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
                 log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
 
-            const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password']);
+            const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password'], false);
 
             if(loginDetails) {
+                if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
+
                 response.status(201).send(loginDetails);
                 await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();
             } else
@@ -240,30 +243,6 @@ export const DELETE_profileImage = async(request: JwtClientRequest, response: Re
 /***********************
  *  CLIENT SEARCH
  ***********************/
-
-//Default List and Client Search | (All parameters are optional)
-export const GET_SearchUserList = async(request: JwtClientSearchRequest, response: Response, next: NextFunction) => {
-    const searchTerm:string = request.query.search || '';
-    const searchFilter:UserSearchFilterEnum = UserSearchFilterEnum[request.query.filter] || UserSearchFilterEnum.ALL;
-    const excludeStudent:boolean = (request.query.excludeStudent === 'true');
-    const searchInactive:boolean = (request.query.searchInactive === 'true');
-    const ignoreCache:boolean = (request.query.ignoreCache === 'true');
-
-    let userList:ProfileListItem[] = [];
-    let statusCode:number = 200;
-    if((searchTerm.length < 3) && (searchFilter !== UserSearchFilterEnum.ID)) {
-        userList = await searchUserListFromCache({requestingUserID: request.jwtUserID, searchTerm: 'default', searchFilter, excludeStudent, searchInactive});
-        statusCode = 205;
-
-    } else if(ignoreCache)
-        userList = await searchUserList({requestingUserID: request.jwtUserID, searchTerm, searchFilter, excludeStudent, searchInactive});
-
-    else //Cache Search
-        userList = await searchUserListFromCache({requestingUserID: request.jwtUserID, searchTerm, searchFilter, excludeStudent, searchInactive});
-
-    response.status(statusCode).send(userList);
-    log.event('User List search & filter', searchTerm, searchFilter, ignoreCache, userList.length);
-};
 
 export const DELETE_flushClientSearchCache = async (request:JwtRequest, response:Response, next: NextFunction) => {
 
