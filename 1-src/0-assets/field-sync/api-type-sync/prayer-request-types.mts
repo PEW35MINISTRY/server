@@ -40,8 +40,6 @@ export interface PrayerRequestResponseBody {
     commentList?: PrayerRequestCommentListItem[],
     userRecipientList?: number[],
     circleRecipientList?: number[],
-    addCircleRecipientIDList?: number[],
-    removeCircleRecipientIDList?: number[]
 }
 
 export interface PrayerRequestPostRequestBody {
