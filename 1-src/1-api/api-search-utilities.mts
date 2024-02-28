@@ -71,8 +71,8 @@ export class SearchTypeInfoServer<ListItemType, ModelType> extends SearchTypeInf
 
 
 
-export const SearchDetailServer:Record<SearchType, SearchTypeInfoServer<any, BASE_MODEL>> = {
-  [SearchType.NONE]: new SearchTypeInfoServer<LabelListItem,  BASE_MODEL>({ searchTypeInfo: SearchDetail[SearchType.NONE] }),
+export const SearchDetailServer:Record<SearchType, SearchTypeInfoServer<any, BASE_MODEL<any, any, any>>> = {
+  [SearchType.NONE]: new SearchTypeInfoServer<LabelListItem,  BASE_MODEL<any, any, any>>({ searchTypeInfo: SearchDetail[SearchType.NONE] }),
 
   [SearchType.USER]: new SearchTypeInfoServer<ProfileListItem, USER>({ searchTypeInfo: SearchDetail[SearchType.USER], 
                           refineDatabaseMapping: new Map([[UserSearchRefineEnum.NAME, ['firstName', 'lastName', 'displayName']],
@@ -129,7 +129,7 @@ export const GET_SearchList = async(searchType:SearchType|undefined, request:Jwt
         if(searchType === undefined) return next(new Exception(400, `Failed to parse search type :: missing 'type' parameter :: ${request.params.type}`, 'Missing Search Type'));
 
         /* Authorization verify access role */
-        const searchDetail:SearchTypeInfoServer<ProfileListItem, BASE_MODEL> = SearchDetailServer[searchType];
+        const searchDetail:SearchTypeInfoServer<ProfileListItem, BASE_MODEL<any, any, any>> = SearchDetailServer[searchType];
         if((searchDetail.roleList.length < Object.values(RoleEnum).length) && (request.jwtUserRole !== RoleEnum.ADMIN) && !(await DB_IS_ANY_USER_ROLE({userID: request.jwtUserID, userRoleList: searchDetail.roleList.map(role => DATABASE_USER_ROLE_ENUM[role])})))
             return next(new Exception(401, `Search ${searchDetail.displayTitle} operation is unauthorized for user ${request.jwtUserID}`));
     }
@@ -151,7 +151,7 @@ export const GET_SearchList = async(searchType:SearchType|undefined, request:Jwt
 export const searchList = async(searchType:SearchType, request:JwtSearchRequest):Promise<DisplayItemType[]|undefined> => {
     //Precaution since all fields are parsed from input or reference config: SearchDetailServer
     try {
-        const searchDetail:SearchTypeInfoServer<DisplayItemType, BASE_MODEL> = SearchDetailServer[searchType];
+        const searchDetail:SearchTypeInfoServer<DisplayItemType, BASE_MODEL<any, any, any>> = SearchDetailServer[searchType];
         let searchTerm:string = request.query.search || '';
         const searchRefine:string = searchDetail.searchRefineList.includes(request.query.refine || '') ? request.query.refine : 'ALL';
         const searchFilter:string = request.query.filter || '';
@@ -220,7 +220,7 @@ export const searchList = async(searchType:SearchType, request:JwtSearchRequest)
  *   GENERIC CACHE FLUSH ROUTE   *
  *********************************/
 export const DELETE_flushSearchCacheAdmin = async (searchType:SearchType|undefined, request:JwtSearchRequest, response:Response, next: NextFunction) => {
-    let searchDetail:SearchTypeInfoServer<ProfileListItem, BASE_MODEL> = SearchDetailServer[searchType];
+    let searchDetail:SearchTypeInfoServer<ProfileListItem, BASE_MODEL<any, any, any>> = SearchDetailServer[searchType];
 
     /* Identifying Search Type via URL parameter and authenticate */
     if(searchType === undefined) {
