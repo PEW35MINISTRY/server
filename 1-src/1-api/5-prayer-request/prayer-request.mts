@@ -4,7 +4,7 @@ import { CREATE_PRAYER_REQUEST_FIELDS, EDIT_PRAYER_REQUEST_FIELDS, PRAYER_REQUES
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import PRAYER_REQUEST from '../../2-services/1-models/prayerRequestModel.mjs';
 import { PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
-import { DB_DELETE_PRAYER_REQUEST, DB_DELETE_PRAYER_REQUEST_COMMENT, DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH, DB_INSERT_AND_SELECT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST_COMMENT, DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH, DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST, DB_SELECT_PRAYER_REQUEST_DETAIL, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST, DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST, DB_UPDATE_INCREMENT_PRAYER_COUNT, DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT, DB_UPDATE_PRAYER_REQUEST, DB_UPDATE_RESOLVE_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
+import { DB_DELETE_PRAYER_REQUEST, DB_DELETE_PRAYER_REQUEST_COMMENT, DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH, DB_INSERT_AND_SELECT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST_COMMENT, DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH, DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST, DB_SELECT_PRAYER_REQUEST_COMMENT, DB_SELECT_PRAYER_REQUEST_DETAIL, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST, DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST, DB_UPDATE_INCREMENT_PRAYER_COUNT, DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT, DB_UPDATE_PRAYER_REQUEST, DB_UPDATE_RESOLVE_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from '../2-auth/auth-types.mjs';
@@ -46,26 +46,16 @@ export const GET_PrayerRequestRequestorResolvedList = async(request: JwtClientRe
  *************************************/
 export const GET_PrayerRequest = async (request: JwtPrayerRequest, response: Response, next: NextFunction) => {
 
-    const prayerRequest = await DB_SELECT_PRAYER_REQUEST_DETAIL(request.prayerRequestID, false);
+    const prayerRequest = await DB_SELECT_PRAYER_REQUEST_DETAIL(request.prayerRequestID, true); //Includes user and circle recipient list
+
     if(prayerRequest.isValid) {
         response.status(200).send(prayerRequest.toJSON());
         log.event('Returning specific Prayer Request:', request.prayerRequestID);
 
     } else 
-        next(new Exception(404, `User ${request.jwtUserID} is not a recipient of Prayer Request ${request.prayerRequestID}`));
+        next(new Exception(404, `Prayer Request: ${request.prayerRequestID} unavailable from database.`));
 };
 
-//Includes user and circle recipient list
-export const GET_PrayerRequestRequestorDetails = async (request: JwtPrayerRequest, response: Response, next: NextFunction) => {
-
-    const prayerRequest = await DB_SELECT_PRAYER_REQUEST_DETAIL(request.prayerRequestID, true);
-    if(prayerRequest.isValid) {
-        response.status(200).send(prayerRequest.toJSON());
-        log.event('Returning Requestor Details for specific Prayer Request:', request.prayerRequestID);
-
-    } else 
-        next(new Exception(404, `User ${request.jwtUserID} is not a recipient of Prayer Request ${request.prayerRequestID}`));
-};
 
 //POST includes sharing to circle/partners/leaders recipients
 export const POST_prayerRequest = async (request: PrayerRequestPostRequest, response: Response, next: NextFunction) => {
@@ -195,12 +185,12 @@ export const POST_prayerRequestComment = async (request: PrayerRequestCommentReq
     const message:string = request.body.message;
     
     if((message !== undefined) && new RegExp(validationRegex).test(message)
-        &&  await DB_INSERT_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID,
-                commenterID: request.jwtUserID, message: message}))
-        response.status(200).send(`Comment saved for prayer request ${request.prayerRequestID}`);
+        &&  await DB_INSERT_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID, commenterID: request.jwtUserID, message: message}))
+
+        response.status(200).send(
+            await DB_SELECT_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID, commenterID: request.jwtUserID, message})); //Returns undefined in error
     else {
-        next(new Exception(500, `Failed to Save comment for prayer request ${request.prayerRequestID}`));
-        log.event(`New comment for Prayer Request ${request.prayerRequestID} successfully saved.`);
+        next(new Exception(500, `Comment failed validation for prayer request ${request.prayerRequestID}`));
     }
 };
 

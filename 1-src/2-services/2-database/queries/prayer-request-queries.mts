@@ -346,6 +346,25 @@ export const DB_SELECT_PRAYER_REQUEST_COMMENT_LIST = async(prayerRequestID:numbe
             commenterProfile: {userID: row.commenterID, firstName: row.commenterFirstName, displayName: row.commenterDisplayName, image: row.commenterImage}}))];
 }
 
+//Used to identify commentID
+export const DB_SELECT_PRAYER_REQUEST_COMMENT = async({prayerRequestID, commenterID, message}:{prayerRequestID:number, commenterID:number, message:string}):Promise<PrayerRequestCommentListItem|undefined> => {
+    const rows = await execute('SELECT prayer_request_comment.*, '
+    + 'user.firstName as commenterFirstName, user.displayName as commenterDisplayName, user.image as commenterImage '
+    + 'FROM prayer_request_comment '
+    + 'LEFT JOIN user ON user.userID = prayer_request_comment.commenterID '
+    + 'WHERE prayerRequestID = ? AND prayer_request_comment.commenterID = ? AND prayer_request_comment.message = ?;',
+      [prayerRequestID, commenterID, message]); 
+
+    if(rows.length === 1) 
+        return ({commentID: rows[0].commentID || -1, prayerRequestID: rows[0].prayerRequestID || -1, message: rows[0].message || '', likeCount: rows[0].likeCount || 0,
+                commenterProfile: {userID: rows[0].commenterID, firstName: rows[0].commenterFirstName, displayName: rows[0].commenterDisplayName, image: rows[0].commenterImage}});
+
+    else {
+        log.error(`DB_SELECT_PRAYER_REQUEST_COMMENT ${rows.length ? 'MULTIPLE' : 'NONE'} COMMENTS IDENTIFIED`, prayerRequestID, commenterID, message, JSON.stringify(rows));
+        return undefined;
+    }
+}
+
 export const DB_INSERT_PRAYER_REQUEST_COMMENT = async({prayerRequestID, commenterID, message}:{prayerRequestID:number, commenterID:number, message:string}):Promise<boolean> => {
     const response:CommandResponseType = await command(`INSERT INTO prayer_request_comment ( prayerRequestID, commenterID, message ) VALUES ( ?, ?, ? );`, [prayerRequestID, commenterID, message]);
 

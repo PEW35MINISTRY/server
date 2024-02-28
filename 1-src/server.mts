@@ -23,7 +23,7 @@ import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_authorization_reset } from './1-api/2-auth/auth.mjs';
 import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
-import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestRequestorDetails, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
+import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, GET_ContentRequest, PATCH_contentArchive, POST_newContentArchive } from './1-api/11-content/content.mjs';
 
 //Import Services
@@ -170,7 +170,7 @@ apiServer.delete('/api/prayer-request/:prayer/comment/:comment', DELETE_prayerRe
 /*****************************************************************************/
 apiServer.use('/api/prayer-request-edit/:prayer', (request:JwtPrayerRequest, response:Response, next:NextFunction) => authenticatePrayerRequestRequestorMiddleware(request, response, next));
 
-apiServer.get('/api/prayer-request-edit/:prayer', GET_PrayerRequestRequestorDetails);
+apiServer.get('/api/prayer-request-edit/:prayer', GET_PrayerRequest);
 apiServer.patch('/api/prayer-request-edit/:prayer', PATCH_prayerRequest);
 apiServer.post('/api/prayer-request-edit/:prayer/resolved', POST_prayerRequestResolved);
 apiServer.delete('/api/prayer-request-edit/:prayer', DELETE_prayerRequest);
