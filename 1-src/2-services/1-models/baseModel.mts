@@ -68,7 +68,7 @@ export default abstract class BASE_MODEL<Model, ListItem, JsonResponse> {
     
     toListItem = ():ListItem => this.toJSON() as unknown as ListItem;
 
-    toJSON = ():JsonResponse => Object.fromEntries(this.getValidProperties(this.PROPERTY_LIST, true)) as JsonResponse;
+    toJSON = ():JsonResponse => Object.fromEntries(this.getValidProperties()) as JsonResponse;
     
     toString = ():string => JSON.stringify(this.toJSON());
  
