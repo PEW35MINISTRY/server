@@ -1,26 +1,21 @@
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
-import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
+import { PrayerRequestCommentListItem, PrayerRequestListItem, PrayerRequestResponseBody } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { PrayerRequestTagEnum } from '../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
-import { PrayerRequestPostRequest } from '../../1-api/5-prayer-request/prayer-request-types.mjs';
+import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
+import { Exception } from '../../1-api/api-types.mjs';
 import { DATABASE_PRAYER_REQUEST, PRAYER_REQUEST_TABLE_COLUMNS } from '../2-database/database-types.mjs';
 import * as log from '../log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 
 
-/*******************************************
-  UNIVERSAl PRAYER_REQUEST for DATABASE OPERATIONS 
-********************************************/
-export default class PRAYER_REQUEST implements BASE_MODEL  {
-    modelType = 'PRAYER_REQUEST';
-    getID = () => this.prayerRequestID;
-    setID = (id:number) => this.prayerRequestID = id;
-    isValid: boolean = false;
+export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerRequestListItem, PrayerRequestResponseBody>  {
+    static modelType = 'PRAYER_REQUEST';
 
-    //Private static list of class property fields | (This is display-responses; NOT edit-access.)
-    #displayPropertyList = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
-    #propertyList = [ ...this.#displayPropertyList, 'addUserRecipientIDList', 'removeUserRecipientIDList', 'addCircleRecipientIDList', 'removeCircleRecipientIDList' ];
+    //Static list of class property fields | (This is display-responses; NOT edit-access.)
+    static DATABASE_IDENTIFYING_PROPERTY_LIST = ['requestorID', 'topic', 'description']; //exclude: prayerRequestID, complex types, and lists
+    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
 
     prayerRequestID: number = -1;
     requestorID: number;
@@ -44,103 +39,84 @@ export default class PRAYER_REQUEST implements BASE_MODEL  {
     addCircleRecipientIDList: number[];
     removeCircleRecipientIDList: number[];
 
-    constructor(DB?:DATABASE_PRAYER_REQUEST, prayerRequestID?:number) {
-        try {
-            this.prayerRequestID = prayerRequestID || DB?.prayerRequestID || -1;
+    //Used as error case or blank
+    constructor(id:number = -1) {
+        super(id);
+    }
 
-            if(DB !== undefined) {
-                this.requestorID = DB.requestorID;
-                this.topic = DB.topic;
-                this.description = DB.description;
-                this.prayerCount = DB.prayerCount;
-                this.isOnGoing = DB.isOnGoing ? true : false;
-                this.isResolved = DB.isResolved ? true : false;
-                this.expirationDate = DB.expirationDate;
+    override getNewInstance = (id:number = -1) => new PRAYER_REQUEST(id);
 
-                this.tagList = prayerRequestParseTags(DB.tagsStringified);
-                
-                this.isValid = true;
+   /*******************
+    * MODEL UTILITIES *
+    *******************/  
+    static prayerRequestParseTags = (tagListStringified:string):PrayerRequestTagEnum[] => {
+        const tagList = [];
+        if(tagListStringified !== undefined && tagListStringified !== null && tagListStringified.length > 0) {        
+            try {
+                tagList.push(...Array.from(JSON.parse(tagListStringified)));
+            } catch(error) {
+                log.error('Failed to parse PRAYER_REQUEST.tagListStringified', tagListStringified, error);
             }
-        } catch(error) {
-            log.db('INVALID Database Object; failed to parse PRAYER_REQUEST', JSON.stringify(DB), error);
         }
+        return tagList;
     }
 
-    /* PROPERTY FIELD UTILITIES */
-    hasProperty = (field:string) => this.#propertyList.includes(field);
 
-    getValidProperties = (properties:string[] = this.#displayPropertyList, includePrayerRequestID:boolean = true):Map<string, any> => {
-        const map = new Map<string, any>();
-        properties.filter((p) => (includePrayerRequestID || (p !== 'prayerRequestID'))).forEach((field) => {
-            if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
-              && (!Array.isArray(this[field]) || this[field].length > 0)) {
-                if(field === 'expirationDate')
-                    map.set(field, this.expirationDate.toISOString());
-                else
-                    map.set(field, this[field]);
-              }
-        });
-        return map;
+    /*********************
+    * DEFINE PROPERTIES *
+    *********************/    
+    override get modelType():string { return PRAYER_REQUEST.modelType; }
+    override get IDProperty():string { return 'prayerRequestID'; }
+
+    override get DATABASE_COLUMN_LIST():string[] { return PRAYER_REQUEST_TABLE_COLUMNS; }
+    override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return PRAYER_REQUEST.DATABASE_IDENTIFYING_PROPERTY_LIST; }
+    override get PROPERTY_LIST():string[] { return PRAYER_REQUEST.PROPERTY_LIST; }
+
+    override hasProperty = (field:string) => [ ...PRAYER_REQUEST.PROPERTY_LIST, 'addUserRecipientIDList', 'removeUserRecipientIDList', 'addCircleRecipientIDList', 'removeCircleRecipientIDList' ].includes(field); //used for JSON parsing
+
+    /**********************************
+    * ADDITIONAL STATIC CONSTRUCTORS *
+    **********************************/
+    static constructByDatabase = (DB:DATABASE_PRAYER_REQUEST):PRAYER_REQUEST => 
+       BASE_MODEL.constructByDatabaseUtility<PRAYER_REQUEST>({DB, newModel: new PRAYER_REQUEST(DB.prayerRequestID || -1), defaultModel: new PRAYER_REQUEST(),
+        complexColumnMap: new Map([
+            ['tagListStringified', (DB:DATABASE_PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => {newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(DB.tagListStringified)}],
+          ])});
+
+    //Clone database model values only (not copying references for ListItems)
+    static constructByClone = (circle:PRAYER_REQUEST):PRAYER_REQUEST =>
+       BASE_MODEL.constructByCloneUtility<PRAYER_REQUEST>({currentModel: circle, newModel: new PRAYER_REQUEST(circle.prayerRequestID || -1), defaultModel: new PRAYER_REQUEST(), propertyList: PRAYER_REQUEST.PROPERTY_LIST,
+        complexPropertyMap: new Map([
+            ['tagList', (currentPrayerRequest:PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => {newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(JSON.stringify(currentPrayerRequest.tagList))}],
+          ])});
+
+    override constructByClone = <PRAYER_REQUEST,>():PRAYER_REQUEST => PRAYER_REQUEST.constructByClone(this) as PRAYER_REQUEST;
+
+    static constructByJson = <PRAYER_REQUEST,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):PRAYER_REQUEST|Exception => 
+        new PRAYER_REQUEST().populateFromJson({jsonObj, fieldList}) as PRAYER_REQUEST|Exception;
+
+
+   /**********************
+    * PROPERTY UTILITIES *
+    **********************/  
+    override getValidProperties = (properties:string[] = PRAYER_REQUEST.PROPERTY_LIST, includeUserID:boolean = true):Map<string, any> => {
+        const complexFieldMap = new Map();
+        complexFieldMap.set('tagListStringified', (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST) => JSON.stringify(model.tagList));
+
+        return BASE_MODEL.getUniquePropertiesUtility<PRAYER_REQUEST>({fieldList: properties, getModelProperty: (property) => property,
+            model: this, baseModel: undefined, includeID: includeUserID, includeObjects: true, includeNull: false, complexFieldMap});
     }
 
- 
-    getUniqueDatabaseProperties = (prayerRequest:PRAYER_REQUEST):Map<string, any> => {
-        const map = new Map<string, any>();
-        PRAYER_REQUEST_TABLE_COLUMNS.filter((c) => ((c !== 'prayerRequestID'))).forEach((field) => {
+    static getUniqueDatabaseProperties = (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST):Map<string, any> =>
+        BASE_MODEL.getUniquePropertiesUtility<PRAYER_REQUEST>({fieldList: PRAYER_REQUEST_TABLE_COLUMNS, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
+            model, baseModel, includeID: false, includeObjects: false, includeNull: true,
+            complexFieldMap: new Map([
+                ['tagListStringified', (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST) => { 
+                    return (JSON.stringify(Array.from(model.tagList).sort()) !== JSON.stringify(Array.from(baseModel.tagList).sort())) 
+                    ? JSON.stringify(model.tagList) : undefined; }],
+            ])});
 
-            if(field === 'tagsStringified' && (JSON.stringify(Array.from(this['tagList']).sort()) !== JSON.stringify(Array.from(prayerRequest['tagList']).sort())))
-                map.set('tagsStringified', JSON.stringify(this['tagList']));
-            
-            else if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
-                && ((Array.isArray(this[field]) 
-                    && (JSON.stringify(Array.from(this[field]).sort()) !== JSON.stringify(Array.from(prayerRequest[field]).sort()))) 
-                || (this[field] !== prayerRequest[field])))
-                    map.set(field, this[field]);
-        });
-        return map;
-      }
+    override getUniqueDatabaseProperties = (baseModel:PRAYER_REQUEST):Map<string, any> => PRAYER_REQUEST.getUniqueDatabaseProperties(this, baseModel);
 
-    getDatabaseProperties = ():Map<string, any> => this.getUniqueDatabaseProperties(new PRAYER_REQUEST());
-
-    toJSON = ():DATABASE_PRAYER_REQUEST => Object.fromEntries(this.getValidProperties()) as unknown as DATABASE_PRAYER_REQUEST;
-
-    toListItem = ():PrayerRequestListItem => ({prayerRequestID: this.prayerRequestID, requestorProfile: this.requestorProfile, topic: this.topic, prayerCount: this.prayerCount, tagList: this.tagList});
-
-    toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
-
-    /** Utility methods for createModelFromJSON **/
-    validateModelSpecificField = ({field, value}:{field:InputField, value:string}):boolean|undefined => {
-        //No Field Match
-        return undefined;
-    }
-
-    parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:PrayerRequestPostRequest['body']}):boolean|undefined => {
-        //Handle inviteToken for security
-        if(field.field === 'tagList') {
-            Array.from(jsonObj[field.field]).forEach((item:string) => {
-                if(Object.values(PrayerRequestTagEnum).includes(PrayerRequestTagEnum[item])) 
-                    this.tagList.push(PrayerRequestTagEnum[item]);
-            });
-            return true;
-        }
-        //No Field Match
-        return undefined;
-    }
+    override  toListItem = ():PrayerRequestListItem => ({prayerRequestID: this.prayerRequestID, requestorProfile: this.requestorProfile, topic: this.topic, prayerCount: this.prayerCount, tagList: this.tagList});
 };
-
-/* ADDITIONAL UTILITIES */
-export const prayerRequestParseTags = (tagsStringified:string):PrayerRequestTagEnum[] => {
-    const tagList = [];
-    if(tagsStringified !== undefined && tagsStringified !== null && tagsStringified.length > 0) {        
-        try {
-            const list:string[] = JSON.parse(tagsStringified);
-            list.forEach((item:string) => {
-                if(Object.values(PrayerRequestTagEnum).includes(PrayerRequestTagEnum[item])) 
-                    tagList.push(PrayerRequestTagEnum[item]);
-            });
-        } catch(error) {
-            log.error('Failed to parse prayer request tags', tagsStringified, error);
-        }
-    }
-    return tagList;
-}

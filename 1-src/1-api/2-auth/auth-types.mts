@@ -62,6 +62,13 @@ export interface JwtCircleRequest extends JwtRequest {
     circleID: number,
 };
 
+export interface JwtContentRequest extends JwtRequest {
+    params: JwtRequest['params'] & {
+        content:string,
+    },
+    contentID: number,
+};
+
 export interface JwtAdminRequest extends JwtRequest {
 
 };

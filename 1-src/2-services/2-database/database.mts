@@ -15,7 +15,7 @@ const CONFIGURATIONS:PoolOptions = {
     connectionLimit: (process.env.DATABASE_CONNECTION_MAX as unknown as number) || 10,
     maxIdle: (process.env.DATABASE_CONNECTION_MIN as unknown as number) || 5,
     idleTimeout: (process.env.DATABASE_IDLE_TIME_MS as unknown as number) || 60000, 
-    timezone: 'local',
+    timezone: 'Z',
   };
 
 const DATABASE:Pool = SQL.createPool(CONFIGURATIONS);
@@ -46,7 +46,7 @@ export const query = async(query:string):Promise<SQL.RowDataPacket[]> =>
     await DATABASE.query(query)
         .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
                 // log.db('DB Query Successful: ', query, JSON.stringify(rows));
-                return [...rows];
+                return [...postParseResultRows(rows)];
             })
         .catch((error) => {
             log.db('DB Query Failed: ', query, error);
@@ -57,39 +57,71 @@ export const query = async(query:string):Promise<SQL.RowDataPacket[]> =>
 /***************************************
  *  EXECUTE: PREPARED SELECT STATEMENT
  ***************************************/
-export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPacket[]> => 
-     await DATABASE.execute(query, fields)
-        .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
-                // log.db('DB Execute Successful: ', query, JSON.stringify(rows));
-                return [...rows];
-            })
-        .catch((error) => {
-            log.db('DB Execute Failed: ', query, JSON.stringify(fields), error);
-            return [];
-        });
+export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPacket[]> => {
+    //validate fields supplied
+    if((query.split('?').length - 1) !== fields.length) {
+        log.error('DB execute Rejected for incorrect number of fields provided: ', query, (query.split('?').length - 1), fields.length, JSON.stringify(fields));
+        return [];
+
+    } else if(fields.some(field => (field === undefined))) { //use null to clear
+        log.error('DB execute Rejected for undefined field: ', query, fields.length, JSON.stringify(fields));
+        return [];
+
+    } else if(fields.some(field => (field !== null && field.length === 0))) {
+        log.error('DB execute Rejected for empty string field: ', query, fields.length, JSON.stringify(fields));
+        return [];
+
+    } else {
+        return await DATABASE.execute(query, preSanitizeInput(fields))
+            .then(([rows, fields]:[SQL.RowDataPacket[], SQL.FieldPacket[]]) => {
+                    // log.db('DB Execute Successful: ', query, JSON.stringify(rows));
+                    return [...postParseResultRows(rows)];
+                })
+            .catch((error) => {
+                log.db('DB Execute Failed: ', query, JSON.stringify(fields), error);
+                return [];
+            });
+    }
+}
 
 
 /***************************************************
  *  COMMAND: PREPARED DATABASE OPERATION STATEMENT
  ***************************************************/
-export const command = async(query:string, fields:any[]):Promise<CommandResponseType|undefined> => 
-    await DATABASE.execute(query, fields)
-        .then((result:any[]) => {
-                if(result.length >= 1) {
-                    // log.db('DB Command Successful: ', query, JSON.stringify(result));
-                    if((result as unknown as SQL.ResultSetHeader[])[0].affectedRows !== undefined)
-                        return (result as unknown as SQL.ResultSetHeader[])[0];
-                    else
-                        return (result as unknown as SQL.RowDataPacket[])[0];
-                } else {
-                    log.error('DB Command Successful; but NO Response: ', query, JSON.stringify(result));
-                    return undefined;
-                }
-            })
-        .catch((error) => {
-            log.db('DB Command Failed: ', query, JSON.stringify(fields), error);
-            return undefined;
-        });
+export const command = async(query:string, fields:any[]):Promise<CommandResponseType|undefined> => {
+    //validate fields supplied
+    if((query.split('?').length - 1) !== fields.length) {
+        log.error('DB command Rejected for incorrect number of fields provided: ', query, (query.split('?').length - 1), fields.length, JSON.stringify(fields));
+        return undefined;
+
+    } else if(fields.some(field => (field === undefined))) { //use null to clear
+        log.error('DB command Rejected for undefined field: ', query, fields.length, JSON.stringify(fields));
+        return undefined;
+
+    } else if(fields.some(field => (field !== null && field.length === 0))) {
+        log.error('DB command Rejected for empty string field: ', query, fields.length, JSON.stringify(fields));
+        return undefined;
+
+    } else {
+        return await DATABASE.execute(query, preSanitizeInput(fields))
+            .then((result:any[]) => {
+                    if(result.length >= 1) {
+                        // log.db('DB Command Successful: ', query, JSON.stringify(result));
+                        if((result as unknown as SQL.ResultSetHeader[])[0].affectedRows !== undefined)
+                            return (result as unknown as SQL.ResultSetHeader[])[0];
+                        else
+                            return (result as unknown as SQL.RowDataPacket[])[0];
+                    } else {
+                        log.error('DB Command Successful; but NO Response: ', query, JSON.stringify(result));
+                        return undefined;
+                    }
+                })
+            .catch((error) => {
+                log.db('DB Command Failed: ', query, JSON.stringify(fields), error);
+                return undefined;
+            });
+    }
+}
 
         
 /************************************************************
@@ -105,7 +137,7 @@ export const batch = async(query:string, fieldSets:any[][]):Promise<boolean|unde
 
     } else {
         try { //Note: All queries must be valid for a success
-            return await DATABASE.query(query, [fieldSets])
+            return await DATABASE.query(query, [fieldSets.map(fieldList => preSanitizeInput(fieldList))])
                 .then((result:any[]) => {
                     if(result.length >= 1) {
                         // log.db('DB Batch Successful: ', query, fieldSets.length, JSON.stringify(result));
@@ -138,3 +170,42 @@ export const validateColumns = (inputMap:Map<string, any>, includesRequired:bool
     }) 
     && (!includesRequired || requiredColumnList.every((c)=>inputMap.has(c)));
 
+
+/********************************************************************
+ *         ADDITIONAL SANITIZATION OF INPUT VALUES                  *
+ * Occurs before SQL (mysql2) prepares statement and escapes values *
+ ********************************************************************/
+const TIMEZONE_REGEX = new RegExp(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})$/); //Matches timezone: 1970-01-01T00:00:00.013Z or 1970-01-01T00:00:00.013+06:00
+
+const preSanitizeInput = (valueList:any[]):any[] =>
+    valueList.map(value => {    
+        /* null is allowed to clear fields */
+        if(value == null) return value;
+        
+        /* Remove Timezone Suffix from Date.toISOString | Server & Database are in UTC, client may convert timezone locally */ 
+        if (TIMEZONE_REGEX.test(value)) {
+            const timezoneMatch:string[] = value.match(TIMEZONE_REGEX);
+            if (timezoneMatch && timezoneMatch.length > 1) return value.replace(timezoneMatch[1], ''); // Remove timezone 'Z' or '+06:00'
+        }
+
+        return value;
+    });
+
+
+/********************************************************************
+ *       ADDITIONAL UNIVERSAL PARSING OF DATABASE VALUES            *
+ ********************************************************************/
+const BOOLEAN_REGEX = new RegExp(/^is[A-Z]/); //database column prefix with 'is'
+
+const postParseResultRows = (rows:RowDataPacket[]):RowDataPacket[] =>
+    rows.map((row: RowDataPacket) => {
+        Object.entries(row).map(([column, value]) => {
+
+            /*Convert MYSQL tinyint(1) to JavaScript boolean */
+            if ((value !== null) && BOOLEAN_REGEX.test(column) && (value >= 0) && (value <= 1)) {
+                row[column] = (value === 1) ? true : false;
+            }
+        });
+        return row;
+    });
+    

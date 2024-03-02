@@ -1,20 +1,20 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import URL, { URLSearchParams } from 'url';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT, UserSearchFilterEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT, UserSearchRefineEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
-import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtClientRequest, JwtRequest, LoginResponseBody } from '../2-auth/auth-types.mjs';
 import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
-import { Exception, ImageTypeEnum } from '../api-types.mjs';
-import { clearImage, clearImageCombinations, uploadImage } from '../api-utilities.mjs';
-import { JwtClientSearchRequest, ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
-import { searchUserList, searchUserListFromCache } from './profile-utilities.mjs';
+import { Exception, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
+import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
+import { ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
+
+
 
 //UI Helper Utility
 export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
@@ -103,9 +103,9 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
  /* Unauthenticated Route */
  export const POST_signup =  async(request: ProfileSignupRequest, response: Response, next: NextFunction) => {
     
-    const newProfile:USER|undefined = createModelFromJSON({currentModel: new USER(), jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS, next:next}) as USER;
+    const newProfile:USER|Exception = USER.constructByJson({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
 
-    if(newProfile !== undefined) { //undefined handles next(Exception)
+    if(!(newProfile instanceof Exception)) {
         if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
             next(new Exception(400, `Signup Failed :: Missing Required Fields: ${JSON.stringify(USER_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
@@ -113,7 +113,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
         else if(await validateNewRoleTokenList({newRoleList:newProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: newProfile.email}) === false)
             next(new Exception(401, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
 
-        else if(await DB_INSERT_USER(newProfile.getValidProperties(USER_TABLE_COLUMNS, false)) === false) 
+        else if(await DB_INSERT_USER(newProfile.getDatabaseProperties()) === false) 
                 next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Save Failed'));
 
         //New Account Success -> Auto Login Response
@@ -124,15 +124,18 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
                 log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
 
-            const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password']);
+            const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password'], false);
 
             if(loginDetails) {
+                if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
+
                 response.status(201).send(loginDetails);
                 await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();
             } else
                 next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`));
         }
-    }
+    } else
+        next(newProfile);
 };
 
 /* Update Profiles */
@@ -141,16 +144,16 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
 
     const currentProfile:USER = await DB_SELECT_USER(new Map([['userID', request.clientID]]));
 
-    const editProfile:USER|undefined = createModelFromJSON({currentModel: currentProfile, jsonObj:request.body, fieldList: (request.jwtUserRole === RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS, next: next}) as USER;
+    const editProfile:USER|Exception = USER.constructAndEvaluateByJson({currentModel: currentProfile, jsonObj:request.body, fieldList: (request.jwtUserRole === RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS});
 
-    if(currentProfile.isValid && editProfile !== undefined && editProfile.isValid) {  //undefined handles next(Exception)
+    if(currentProfile.isValid && !(editProfile instanceof Exception) && editProfile.isValid) {
         //Verify user roles and verify account type tokens
         const currentRoleList:RoleEnum[] = await DB_SELECT_USER_ROLES(request.clientID);
         if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: currentRoleList, adminOverride: (request.jwtUserRole === RoleEnum.ADMIN)}) === false)
             next(new Exception(401, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
 
-        else if((editProfile.getUniqueDatabaseProperties(currentProfile).size > 0 )
-                && await DB_UPDATE_USER(request.clientID, editProfile.getUniqueDatabaseProperties(currentProfile)) === false) 
+        else if((USER.getUniqueDatabaseProperties(editProfile, currentProfile).size > 0 )
+                && await DB_UPDATE_USER(request.clientID, USER.getUniqueDatabaseProperties(editProfile, currentProfile)) === false) 
             next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
 
         else {
@@ -167,7 +170,8 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
             response.status(202).send(editProfile.toJSON());
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(500, `PATCH_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`));
+        next((editProfile instanceof Exception) ? editProfile
+            : new Exception(500, `PATCH_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`));
 };
 
 /* Delete Profiles */
@@ -205,7 +209,7 @@ export const GET_profileImage = async(request: JwtClientRequest, response: Respo
 
 /* Headers: Content-Type: 'image/jpg' or 'image/png' & Content-Length: (calculated) | Body: binary: Blob */
 export const POST_profileImage = async(request: ProfileImageRequest, response: Response, next: NextFunction) => {
-    const fileName:string = request.params.file || 'invalid';
+    const fileName:string = request.params.file || 'invalid'; //Necessary to parse file extension
     const fileExtension:string = fileName.split('.').pop();
     let filePath:string|undefined = undefined;
 
@@ -223,7 +227,7 @@ export const POST_profileImage = async(request: ProfileImageRequest, response: R
         next(new Exception(500, `Profile image upload failed to save: ${filePath}`, 'Save Failed'));
 
     else
-        response.status(202).send(`Successfully saved profile image: ${filePath}`);
+        response.status(202).send(filePath);
 }
 
 export const DELETE_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
@@ -239,30 +243,6 @@ export const DELETE_profileImage = async(request: JwtClientRequest, response: Re
 /***********************
  *  CLIENT SEARCH
  ***********************/
-
-//Default List and Client Search | (All parameters are optional)
-export const GET_SearchUserList = async(request: JwtClientSearchRequest, response: Response, next: NextFunction) => {
-    const searchTerm:string = request.query.search || '';
-    const searchFilter:UserSearchFilterEnum = UserSearchFilterEnum[request.query.filter] || UserSearchFilterEnum.ALL;
-    const excludeStudent:boolean = (request.query.excludeStudent === 'true');
-    const searchInactive:boolean = (request.query.searchInactive === 'true');
-    const ignoreCache:boolean = (request.query.ignoreCache === 'true');
-
-    let userList:ProfileListItem[] = [];
-    let statusCode:number = 200;
-    if((searchTerm.length < 3) && (searchFilter !== UserSearchFilterEnum.ID)) {
-        userList = await searchUserListFromCache({requestingUserID: request.jwtUserID, searchTerm: 'default', searchFilter, excludeStudent, searchInactive});
-        statusCode = 205;
-
-    } else if(ignoreCache)
-        userList = await searchUserList({requestingUserID: request.jwtUserID, searchTerm, searchFilter, excludeStudent, searchInactive});
-
-    else //Cache Search
-        userList = await searchUserListFromCache({requestingUserID: request.jwtUserID, searchTerm, searchFilter, excludeStudent, searchInactive});
-
-    response.status(statusCode).send(userList);
-    log.event('User List search & filter', searchTerm, searchFilter, ignoreCache, userList.length);
-};
 
 export const DELETE_flushClientSearchCache = async (request:JwtRequest, response:Response, next: NextFunction) => {
 

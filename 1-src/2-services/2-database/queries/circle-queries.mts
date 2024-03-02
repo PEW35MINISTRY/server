@@ -1,6 +1,6 @@
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { CircleSearchFilterEnum, CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
+import { CircleSearchRefineEnum, CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
 import * as log from '../../log.mjs';
@@ -36,11 +36,11 @@ export const DB_SELECT_CIRCLE = async(circleID:number):Promise<CIRCLE> => {
     const rows = await execute(`SELECT * FROM circle WHERE circleID = ?`, [circleID]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED`, circleID, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED`, circleID, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
-    return new CIRCLE(rows[0] as DATABASE_CIRCLE); 
+    return CIRCLE.constructByDatabase(rows[0] as DATABASE_CIRCLE); 
 }
 
 //Includes circle, leader profile, and requestor status
@@ -53,11 +53,11 @@ export const DB_SELECT_CIRCLE_DETAIL = async({userID, circleID}:{userID?:number,
     + 'WHERE circle.circleID = ?;', [userID || -1, circleID]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY ID`, circleID, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY ID`, circleID, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
-    const circle = new CIRCLE(rows[0] as DATABASE_CIRCLE); 
+    const circle = CIRCLE.constructByDatabase(rows[0] as DATABASE_CIRCLE); 
     circle.requestorID = userID;
     circle.requestorStatus = (userID === circle.leaderID) ? CircleStatusEnum.LEADER : CircleStatusEnum[rows[0].status];
     circle.leaderProfile = {userID: rows[0].leaderID, firstName: rows[0].leaderFirstName, displayName: rows[0].leaderDisplayName, image: rows[0].leaderImage};
@@ -74,11 +74,11 @@ export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(circleName:string):Promise<
     + 'WHERE circle.name = ?;', [circleName]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY NAME`, circleName, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY NAME`, circleName, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
-    const circle = new CIRCLE(rows[0] as DATABASE_CIRCLE); 
+    const circle = CIRCLE.constructByDatabase(rows[0] as DATABASE_CIRCLE); 
     circle.leaderProfile = {userID: rows[0].leaderID, firstName: rows[0].leaderFirstName, displayName: rows[0].leaderDisplayName, image: rows[0].leaderImage};
 
     return circle;
@@ -157,10 +157,12 @@ export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:strin
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
 
-export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchFilter:CircleSearchFilterEnum):Promise<CircleListItem[]> => {
+export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<CircleListItem[]|undefined> => {
 
     const rows = await execute('SELECT stringifiedCircleItemList ' + 'FROM circle_search_cache '
-        + 'WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+        + 'WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
+
+    if(rows.length === 0) return undefined;
 
     try {
         const stringifiedList:string = rows[0].stringifiedCircleItemList;    
@@ -168,23 +170,23 @@ export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchFilt
         
     } catch(error) {
         log.db('DB_SELECT_CIRCLE_SEARCH_CACHE :: Failed to Parse JSON List', rows[0]);
-        return [];
+        return undefined;
     }
 }
 
 //Updates on Duplicate
-export const DB_INSERT_CIRCLE_SEARCH_CACHE = async({searchTerm, searchFilter, circleList}:{searchTerm:string, searchFilter:CircleSearchFilterEnum, circleList:CircleListItem[]}):Promise<boolean> => {
+export const DB_INSERT_CIRCLE_SEARCH_CACHE = async({searchTerm, searchRefine, circleList}:{searchTerm:string, searchRefine:CircleSearchRefineEnum, circleList:CircleListItem[]}):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`INSERT INTO circle_search_cache ( searchTerm, searchFilter, stringifiedCircleItemList ) `
-    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchFilter=VALUES(searchFilter), stringifiedCircleItemList=VALUES(stringifiedCircleItemList);`,
-     [searchTerm, searchFilter, JSON.stringify(circleList)]); 
+    const response:CommandResponseType = await command(`INSERT INTO circle_search_cache ( searchTerm, searchRefine, stringifiedCircleItemList ) `
+    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), stringifiedCircleItemList=VALUES(stringifiedCircleItemList);`,
+     [searchTerm, searchRefine, JSON.stringify(circleList)]); 
     
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
-export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchFilter:CircleSearchFilterEnum):Promise<boolean> => {
+export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<boolean> => {
 
-    const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchFilter = ?;', [searchTerm, searchFilter]);
+    const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }
@@ -198,7 +200,7 @@ export const DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN = async():Promise<boolean> => {
 }
 
 //TODO reverse search ???
-export const DB_DELETE_CIRCLE_SEARCH_REVERSE_CACHE = async(filterList:CircleSearchFilterEnum[], valueList:string[]):Promise<boolean> => {
+export const DB_DELETE_CIRCLE_SEARCH_REVERSE_CACHE = async(filterList:CircleSearchRefineEnum[], valueList:string[]):Promise<boolean> => {
 
 
     const response:CommandResponseType = await command('DELETE FROM circle_search_cache '
@@ -218,7 +220,7 @@ export const DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT = async(circleID:number):Prom
         + 'WHERE circleID = ? '                                              //TODO: Filter for current: ' AND startDate < ? AND endDate > ? '
         + 'ORDER BY startDate ASC;', [circleID]);
 
-    return [...rows.map(row => (new CIRCLE_ANNOUNCEMENT(row as DATABASE_CIRCLE_ANNOUNCEMENT)))];
+    return [...rows.map(row => (CIRCLE_ANNOUNCEMENT.constructByDatabase(row as DATABASE_CIRCLE_ANNOUNCEMENT)))];
 }
 
 export const DB_INSERT_CIRCLE_ANNOUNCEMENT = async(fieldMap:Map<string, any>):Promise<boolean> => {
@@ -402,5 +404,5 @@ export const DB_DELETE_CIRCLE_USER_STATUS = async({userID, circleID}:{userID:num
 
         : await command('DELETE FROM circle_user WHERE userID = ? AND circleID = ?;', [userID, circleID]);
 
-    return ((response !== undefined) && ((userID === undefined) || (response.affectedRows === 1)));
+    return (response !== undefined);  //Success on non-error
 }

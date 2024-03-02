@@ -3,32 +3,35 @@ dotenv.config();
 import fs from 'fs';
 import path from 'path';
 const __dirname = path.resolve();
-import { createServer } from 'http';
-import express, { Application , Request, Response, NextFunction} from 'express';
+import { createServer, request } from 'http';
+import express, { Application , Request, Response, NextFunction, response} from 'express';
 import { Server, Socket } from 'socket.io';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 
 //Import Types
-import {Exception} from './1-api/api-types.mjs'
+import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
-import { JwtAdminRequest, JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from './1-api/2-auth/auth-types.mjs';
+import { JwtAdminRequest, JwtCircleRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest, JwtRequest } from './1-api/2-auth/auth-types.mjs';
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 
 //Import Routes
 import logRoutes from './1-api/1-log/log.mjs';
 import apiRoutes from './1-api/api.mjs';
-import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware } from './1-api/2-auth/authorization.mjs';
+import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_authorization_reset } from './1-api/2-auth/auth.mjs';
-import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, GET_SearchUserList, DELETE_flushClientSearchCache, POST_signup } from './1-api/3-profile/profile.mjs';
-import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, GET_SearchCircleList, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
-import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestRequestorDetails, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
+import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup } from './1-api/3-profile/profile.mjs';
+import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
+import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
+import { DELETE_contentArchive, GET_ContentRequest, PATCH_contentArchive, POST_newContentArchive } from './1-api/11-content/content.mjs';
 
 //Import Services
 import * as log from './2-services/log.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
+import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
+import { SearchType } from './0-assets/field-sync/input-config-sync/search-config.mjs';
 
 /********************
     EXPRESS SEVER
@@ -96,7 +99,7 @@ apiServer.get('/website', (request: Request, response: Response) => {
 
 apiServer.use(express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
 apiServer.get('/portal/*', (request: Request, response: Response) => {
-    response.status(301).redirect('/portal');
+    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
 apiServer.get('/portal', (request: Request, response: Response) => {
@@ -144,9 +147,7 @@ apiServer.get('/api/contacts', GET_userContacts); //Returns id and Name
 
 apiServer.get('/api/user/profile/edit-fields', GET_EditProfileFields);
 
-apiServer.get('/api/user-list', GET_SearchUserList); //optional parameters: search, filter, excludeStudent, searchInactive, ignoreCache (Does not filter edit authentication)
-
-apiServer.get('/api/circle-list', GET_SearchCircleList); //optional parameters: search, filter, status, ignoreCache
+apiServer.get('/api/search-list/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => GET_SearchList(undefined, request, response, next)); //(Handles authentication)
 
 apiServer.get('/api/prayer-request/user-list', GET_PrayerRequestUserList);
 apiServer.post('/api/prayer-request', POST_prayerRequest);
@@ -169,7 +170,7 @@ apiServer.delete('/api/prayer-request/:prayer/comment/:comment', DELETE_prayerRe
 /*****************************************************************************/
 apiServer.use('/api/prayer-request-edit/:prayer', (request:JwtPrayerRequest, response:Response, next:NextFunction) => authenticatePrayerRequestRequestorMiddleware(request, response, next));
 
-apiServer.get('/api/prayer-request-edit/:prayer', GET_PrayerRequestRequestorDetails);
+apiServer.get('/api/prayer-request-edit/:prayer', GET_PrayerRequest);
 apiServer.patch('/api/prayer-request-edit/:prayer', PATCH_prayerRequest);
 apiServer.post('/api/prayer-request-edit/:prayer/resolved', POST_prayerRequestResolved);
 apiServer.delete('/api/prayer-request-edit/:prayer', DELETE_prayerRequest);
@@ -268,6 +269,21 @@ apiServer.get('/api/leader/profile-access', GET_profileAccessUserList);
 apiServer.post('/api/leader/circle', POST_newCircle);
 
 
+
+/**************************************/
+/* Authenticate CONTENT_APPROVER Role */
+/**************************************/
+apiServer.use('/api/content-archive', (request:JwtRequest, response:Response, next:NextFunction) => authenticateContentApproverMiddleware(request, response, next));
+
+apiServer.post('/api/content-archive/', POST_newContentArchive);
+
+apiServer.use('/api/content-archive/:content', (request:JwtContentRequest, response:Response, next:NextFunction) => extractContentMiddleware(request, response, next));
+apiServer.get('/api/content-archive/:content', GET_ContentRequest);
+apiServer.patch('/api/content-archive/:content', PATCH_contentArchive);
+apiServer.delete('/api/content-archive/:content', DELETE_contentArchive);
+
+
+
 /***********************************/
 /* Authenticate Current ADMIN Role */
 /***********************************/
@@ -277,8 +293,7 @@ apiServer.use('/api/admin', (request:JwtAdminRequest, response:Response, next:Ne
 apiServer.use(express.text());
 apiServer.use('/api/admin/log', logRoutes);
 apiServer.post('/api/admin/authorization-reset', POST_authorization_reset);
-apiServer.delete('/api/admin/flush-user-search-cache', DELETE_flushClientSearchCache);
-apiServer.delete('/api/admin/flush-circle-search-cache', DELETE_flushCircleSearchCache);
+apiServer.delete('/api/admin/flush-search-cache/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => DELETE_flushSearchCacheAdmin(undefined, request, response, next)); //(Handles authentication)
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
@@ -288,8 +303,12 @@ apiServer.post('/api/admin/circle/:circle/join/:client', POST_circleMemberJoinAd
 //******************/
 /* Error Handling  */
 /*******************/
+apiServer.use('/error', (request: Request, response:Response, next: NextFunction) => {
+    next(new Exception(500, 'EXPECTED ERROR - UI Defined', 'Report Error'));
+});
+
 apiServer.use((request: Request, response:Response, next: NextFunction) => {
-    next(new Exception(404, "Invalid Request"));
+    next(new Exception(404, 'Invalid Request'));
 });
 
 apiServer.use((error: Exception, request: Request, response:Response, next: NextFunction) => {
@@ -319,7 +338,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     else if(status === 400) log.warn('API | 400 | User Request Invalid:', message);
     else if(status === 401) log.auth('API   401 | User Unauthorized:', message);
     else if(status === 404) log.warn('API | 404 | Request Not Found:', message);
-    else log.error(`API | ${status} | Server Error:`, message);
+    else log.error(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
 });
 
 //Must match Portal in app-types.tsx

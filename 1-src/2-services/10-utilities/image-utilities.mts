@@ -1,12 +1,16 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, DeleteObjectCommandOutput, PutObjectCommand, PutObjectCommandOutput , S3Client } from '@aws-sdk/client-s3';
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { NextFunction, Request, Response } from 'express';
-import { SUPPORTED_IMAGE_EXTENSION_LIST } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
-import * as log from '../2-services/log.mjs';
-import { ImageTypeEnum } from './api-types.mjs';
+import * as log from '../log.mjs';
+import { SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { ImageTypeEnum } from '../../1-api/api-types.mjs';
 dotenv.config(); 
 
+
+
+/***************************
+ * EXPORTED IMAGE HANDLING *
+ ***************************/
   
 export const getImageFileName = ({id, imageType, fileName}:{id:number, imageType:ImageTypeEnum, fileName:string}):string|undefined => {
     const extension = fileName.split('.').pop(); //dot optional
@@ -17,7 +21,6 @@ export const getImageFileName = ({id, imageType, fileName}:{id:number, imageType
         return undefined;
     }    
 }
-
 
 export const uploadImage = async({id, imageType, fileName, imageBlob: imageBlob}:{id:number, imageType:ImageTypeEnum, fileName:string, imageBlob:Blob}):Promise<string|undefined> => {
     const imageFileName = getImageFileName({id, imageType, fileName});
@@ -39,9 +42,15 @@ export const clearImageCombinations = async ({id, imageType}:{id:number, imageTy
     }, Promise.resolve(true));
 
 
+
+ /***************************
+ * DEVELOPMENT IMAGE UPLOAD *
+ ****************************/
+ const DEVELOPMENT_BUCKET_URL:string = `https://3uczw0bwaj.execute-api.${process.env.IMAGE_BUCKET_REGION}.amazonaws.com/prod/${process.env.IMAGE_BUCKET_NAME}`;
+
 /* Development Environment AWS S3 Bucket Upload */
 const uploadImageDevelopment = async(fileName:string, imageBlob:Blob):Promise<string|undefined> => 
-    await axios.put(`https://3uczw0bwaj.execute-api.${process.env.IMAGE_BUCKET_REGION}.amazonaws.com/prod/${process.env.IMAGE_BUCKET_NAME}/${fileName}`,
+    await axios.put(`${DEVELOPMENT_BUCKET_URL}/${fileName}`,
             imageBlob,
             { headers: { 'x-api-key': process.env.IMAGE_BUCKET_KEY }})
         .then((response) => {
@@ -55,7 +64,7 @@ const uploadImageDevelopment = async(fileName:string, imageBlob:Blob):Promise<st
 
 
 const clearImageDevelopment = async(fileName:string):Promise<boolean> => 
-    await axios.delete(`https://3uczw0bwaj.execute-api.${process.env.IMAGE_BUCKET_REGION}.amazonaws.com/prod/${process.env.IMAGE_BUCKET_NAME}/${fileName}`,
+    await axios.delete(`${DEVELOPMENT_BUCKET_URL}/${fileName}`,
             { headers: { 'x-api-key': process.env.IMAGE_BUCKET_KEY }})
         .then((response) => {
             log.event('Successful - Development S3 Image Delete', fileName, response.status, response.data);
@@ -66,6 +75,11 @@ const clearImageDevelopment = async(fileName:string):Promise<boolean> =>
             return false;
         });
 
+
+
+ /******************************
+ * AWS PRODUCTION IMAGE UPLOAD *
+ *******************************/
 
 /* Development Environment AWS S3 Bucket Upload | Uses IAM authentication */
 const uploadImageProduction = async(fileName:string, imageBlog:Blob):Promise<string|undefined> => {
@@ -78,13 +92,18 @@ const uploadImageProduction = async(fileName:string, imageBlog:Blob):Promise<str
             Body: imageBlog
         });
 
-        const response = await client.send(command);
+        const response:PutObjectCommandOutput = await client.send(command);
 
-        log.event('Successful - Production S3 Image Upload', fileName);
-        return fileName;
+        if (response?.$metadata?.httpStatusCode === 200) {
+            log.event('Successful - Production S3 Image Upload', fileName);
+            return `http://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;;
+        }
+
+        log.error('Failed - Production S3 Image Upload', JSON.stringify(response));
+        return undefined;
 
     } catch(error) {
-        log.error('Failed - Production S3 Image Upload', error);
+        log.error('Error - Production S3 Image Upload', error);
         return undefined;
     }
 }
@@ -98,13 +117,17 @@ const clearImageProduction = async(fileName:string):Promise<boolean> => {
             Key: fileName
         });
 
-        const response = await client.send(command);
+        const response:DeleteObjectCommandOutput = await client.send(command);
 
-        log.event('Successful - Production S3 Image Delete', fileName);
+        if (response?.$metadata?.httpStatusCode === 204)
+            log.event('Successful - Production S3 Image Delete', fileName);
+        else
+            log.event('Unsuccessful - Production S3 Image Delete', JSON.stringify(response));
+
         return true;
 
     } catch(error) {
-        log.error('Failed - Production S3 Image Delete', error);
+        log.error('Error - Production S3 Image Delete', error);
         return false;
     }
 }
