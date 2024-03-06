@@ -13,7 +13,7 @@ export interface CommandResponseType extends SQL.ResultSetHeader {
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
 export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
-    'userID', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes'
+    'userID', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes', 'maxPartners'
 ];
 
 export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
@@ -30,6 +30,7 @@ export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
     walkLevel?: number,
     image?: string,
     notes?: string,
+    maxPartners: number,
     userRole?: DATABASE_USER_ROLE_ENUM, //Top role from table user_role_defined
 };
 
@@ -70,7 +71,7 @@ export enum DATABASE_PARTNER_STATUS_ENUM {
     PENDING_CONTRACT_BOTH = 'PENDING_CONTRACT_BOTH',
     PENDING_CONTRACT_USER = 'PENDING_CONTRACT_USER',
     PENDING_CONTRACT_PARTNER = 'PENDING_CONTRACT_PARTNER',
-    LOCKED = 'LOCKED',
+    ENDED = 'ENDED',
     FAILED = 'FAILED'
 }
 

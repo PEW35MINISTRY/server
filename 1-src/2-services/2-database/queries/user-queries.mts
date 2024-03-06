@@ -6,6 +6,7 @@ import * as log from '../../log.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
 import { DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
+import { DB_SELECT_PARTNER_LIST, DB_SELECT_PENDING_PARTNER_LIST } from './partner-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST } from './prayer-request-queries.mjs';
 
 
@@ -76,7 +77,8 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     const user = USER.constructByDatabase(rows[0] as DATABASE_USER);
     user.userRoleList = await DB_SELECT_USER_ROLES(user.userID);
     user.circleList = await DB_SELECT_USER_CIRCLES(user.userID);  //Includes all statuses
-    user.partnerList = await DB_SELECT_USER_PARTNERS(user.userID);
+    user.partnerList = await DB_SELECT_PARTNER_LIST(user.userID);
+    user.pendingPartnerList = await DB_SELECT_PENDING_PARTNER_LIST(user.userID); //Contract Pending by either
     user.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID);
     user.contactList = await DB_SELECT_CONTACTS(user.userID);
     if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_CIRCLES(user.userID);

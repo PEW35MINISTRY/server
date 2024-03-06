@@ -1,6 +1,6 @@
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
-import { ProfileListItem, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { PartnerListItem, ProfileListItem, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import InputField, { InputSelectionField, InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { GenderEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import BiDirectionalMap from '../../0-assets/modules/BiDirectionalMap.mjs';
@@ -21,8 +21,8 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   static DATABASE_IDENTIFYING_PROPERTY_LIST = ['firstName', 'lastName', 'displayName', 'email']; //exclude: usedID, complex types, and lists
   static PUBLIC_PROPERTY_LIST = ['userID', 'firstName', 'lastName', 'displayName', 'postalCode', 'dateOfBirth', 'gender', 'image', 'circleList', 'userRole'];
   static PARTNER_PROPERTY_LIST = [...USER.PUBLIC_PROPERTY_LIST, 'walkLevel'];
-  static USER_PROPERTY_LIST = [...USER.PARTNER_PROPERTY_LIST, 'email', 'isActive', 'notes', 'userRoleList', 'partnerList', 'prayerRequestList', 'contactList', 'profileAccessList'];
-  static PROPERTY_LIST = USER.USER_PROPERTY_LIST.filter(property => !['circleList', 'partnerList', 'prayerRequestList', 'contactList', 'profileAccessList'].includes(property)); //Not Edited through Model
+  static USER_PROPERTY_LIST = [...USER.PARTNER_PROPERTY_LIST, 'email', 'isActive', 'maxPartners', 'notes', 'userRoleList', 'partnerList', 'pendingPartnerList', 'prayerRequestList', 'contactList', 'profileAccessList'];
+  static PROPERTY_LIST = USER.USER_PROPERTY_LIST.filter(property => !['circleList', 'partnerList', 'pendingPartnerList', 'prayerRequestList', 'contactList', 'profileAccessList'].includes(property)); //Not Edited through Model
 
   userID: number = -1;
   firstName?: string;
@@ -35,13 +35,15 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   gender?: GenderEnum;
   isActive?: boolean;
   walkLevel?: number;
+  maxPartners: number;
   image?: string;
   notes?: string;
 
   //Query separate Tables
   userRoleList: RoleEnum[] = [RoleEnum.STUDENT];
   circleList: CircleListItem[] = [];               //Includes all status: MEMBER|INVITE|REQUEST|LEADER
-  partnerList: ProfileListItem[] = [];
+  partnerList: PartnerListItem[] = [];
+  pendingPartnerList: PartnerListItem[] = [];
   prayerRequestList: PrayerRequestListItem[] = [];
   contactList: ProfileListItem[] = [];
   profileAccessList: ProfileListItem[] = []; //Leaders

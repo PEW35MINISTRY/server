@@ -13,6 +13,7 @@ import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '..
 import { Exception, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
+import { DB_DELETE_PARTNERSHIP } from '../../2-services/2-database/queries/partner-queries.mjs';
 
 
 
@@ -180,8 +181,8 @@ export const DELETE_userProfile = async (request: JwtClientRequest, response: Re
     if(await DB_DELETE_CIRCLE_USER_STATUS({userID: request.clientID, circleID: undefined}) === false) //Leader must delete circle manually
         next(new Exception(500, `Failed to delete all circle membership of user ${request.clientID}`, 'Circle Membership Exists'));
 
-    // else if(await DB_DELETE_PARTNERSHIP({userID: request.clientID, partnerUserID: undefined}) === false)
-    //     next(new Exception(500, `Failed to delete all partnerships of user ${request.clientID}`, 'Partnerships Exists'));
+    else if(await DB_DELETE_PARTNERSHIP(request.clientID) === false)
+        next(new Exception(500, `Failed to delete all partnerships of user ${request.clientID}`, 'Partnerships Exists'));
 
     else if(await DB_DELETE_ALL_USER_PRAYER_REQUEST(request.clientID) === false)
         next(new Exception(500, `Failed to delete all prayer requests of user ${request.clientID}`, 'Prayer Requests Exists'));

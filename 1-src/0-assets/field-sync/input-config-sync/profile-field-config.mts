@@ -44,7 +44,7 @@ export enum PartnerStatusEnum {
     PENDING_CONTRACT_BOTH = 'PENDING_CONTRACT_BOTH',
     PENDING_CONTRACT_USER = 'PENDING_CONTRACT_USER',
     PENDING_CONTRACT_PARTNER = 'PENDING_CONTRACT_PARTNER',
-    LOCKED = 'LOCKED',
+    ENDED = 'ENDED',
     FAILED = 'FAILED'
 }
 
@@ -77,6 +77,7 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX, validationMessage: '5-20 characters.' }),
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX, validationMessage: 'Must match password field.' }),
     new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{5,15}$/), validationMessage: 'Required, 5-15 characters.' }),
+    new InputRangeField({title: 'Max Partners', field: 'maxPartners', required: true, minValue: 0, maxValue: 10, type: InputType.RANGE_SLIDER, validationRegex: new RegExp(/[0-9]+/), validationMessage: 'Required, between 0-10.'}),
 ];
 
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
@@ -107,14 +108,4 @@ export const SIGNUP_PROFILE_FIELDS_STUDENT:InputField[] = [
 export const SIGNUP_PROFILE_FIELDS:InputField[] = [    
     new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: false, selectOptionList: Object.values(RoleEnum), validationMessage: 'Authorization token is required.'}),
     ...SIGNUP_PROFILE_FIELDS_STUDENT,
-];
-
-//Note: userID is always less than partnerID and relevant contractDT
-export const EDIT_PARTNERSHIP_FIELDS_ADMIN:InputField[] = [    
-    new InputField({title: 'User Id', field: 'userID', type: InputType.NUMBER, required: true, selectOptionList: Object.values(RoleEnum), validationMessage: 'User ID is required.'}),
-    new InputField({title: 'Partner User Id', field: 'partnerID', type: InputType.NUMBER, required: true, selectOptionList: Object.values(RoleEnum), validationMessage: 'Partner user ID is required.'}),
-    new InputField({title: 'Partnership Status', field: 'status', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(PartnerStatusEnum)}),
-    new InputField({title: 'User Contract Accepted', field: 'userContractDT', type: InputType.DATE, validationRegex: DATE_REGEX, validationMessage: 'Required, must be valid age.' }),
-    new InputField({title: 'Partner Contract Accepted', field: 'partnerContractDT', type: InputType.DATE, validationRegex: DATE_REGEX, validationMessage: 'Required, must be valid age.' }),
-    new InputField({title: 'Partnership Started', field: 'partnershipDT', type: InputType.DATE, validationRegex: DATE_REGEX, validationMessage: 'Required, must be valid age.' }),
 ];

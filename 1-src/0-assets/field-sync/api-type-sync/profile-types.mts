@@ -30,10 +30,15 @@ export interface ProfileListItem {
 }
 
 export interface PartnerListItem extends ProfileListItem {
-    status: PartnerStatusEnum,
-    userContractDT?: string,
-    partnerContractDT?: string,
-    partnershipDT?: string,
+    status: PartnerStatusEnum, //Transformed in reference to requesting userID
+    userContractDT?: Date,
+    partnerContractDT?: Date,
+    partnershipDT?: Date,
+}
+
+export interface ProfilePartnerCountListItem extends ProfileListItem {
+    maxPartners: number,
+    partnerCountMap: Map<PartnerStatusEnum, number> | [PartnerStatusEnum, number][]
 }
 
 export interface ProfilePublicResponse {

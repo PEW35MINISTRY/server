@@ -54,6 +54,20 @@ export interface JwtClientRequest extends JwtRequest {
     clientID:number,
 };
 
+export interface JwtClientStatusRequest extends JwtClientRequest {
+    params: JwtClientRequest['params'] & {
+        status?: string
+    },
+};
+
+export interface JwtClientPartnerRequest extends JwtClientRequest {
+    params: JwtClientRequest['params'] & {
+        partner:string,
+        status?: string
+    },
+    partnerID:number,
+};
+
 export interface JwtCircleRequest extends JwtRequest {
     params: JwtRequest['params'] & {
         circle:string,

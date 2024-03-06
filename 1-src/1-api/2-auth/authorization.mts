@@ -1,12 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
-import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
+import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
 import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
-import { DB_IS_USER_PARTNER } from '../../2-services/2-database/queries/partner-queries.mjs';
+import { DB_IS_USER_PARTNER_ANY_STATUS } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DB_IS_PRAYER_REQUEST_REQUESTOR, DB_IS_RECIPIENT_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
-import { JwtCircleRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
+import { JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
 import { getJWTData as getJwtData, isMaxRoleGreaterThan, verifyJWT as verifyJwt } from './auth-utilities.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
@@ -106,15 +106,45 @@ export const extractClientMiddleware = async(request: JwtClientRequest, response
     }
 }
 
+/* Extract Partner Parameter | cache: request.partnerID */
+export const extractPartnerMiddleware = async(request: JwtClientPartnerRequest, response: Response, next: NextFunction):Promise<void> => {
+    //Verify Partner Parameter Exist
+    if(request.params.partner === undefined || isNaN(parseInt(request.params.partner))) 
+        next(new Exception(400, `FAILED AUTHENTICATED :: PARTNER :: missing partner-id parameter :: ${request.params.partner}`, 'Missing Partner'));
+
+    else {
+        const partnerID:number = parseInt(request.params.partner);
+        request.partnerID = partnerID;
+        next();
+    }
+}
+
 /* Authenticate Partner Status | extractClientMiddleware cached: request.clientID */
 //Note: ADMIN allowed access for testing; but leader or same user not allowed; must use authenticateProfileMiddleware routes
+export const authenticatePendingPartnerMiddleware = async(request: JwtClientRequest, response: Response, next: NextFunction):Promise<void> => { //TODO: query patch to remove unmatched partner
+
+    if(request.jwtUserID === request.clientID) 
+        next(new Exception(403, `FAILED AUTHENTICATED :: PENDING PARTNER :: userID cannot match clientID :: ${request.clientID}`, 'Cannot be partner with self'));
+
+    else if((request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE({userID: request.jwtUserID, userRole: DATABASE_USER_ROLE_ENUM.ADMIN}))
+            || await DB_IS_USER_PARTNER_ANY_STATUS(request.jwtUserID, request.clientID, [DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER])) {
+
+        request.clientID = request.clientID;
+        log.auth(`AUTHENTICATED :: PENDING PARTNER :: status verified: Requestor: ${request.jwtUserID} is a pending partner of User: ${request.clientID}`);
+        next();
+
+    } else {
+        next(new Exception(404, `FAILED AUTHENTICATED :: PENDING PARTNER :: Requestor: ${request.jwtUserID} is not a pending partner of User: ${request.clientID}`, 'Partnership Not Found'));
+    }
+}
+
 export const authenticatePartnerMiddleware = async(request: JwtClientRequest, response: Response, next: NextFunction):Promise<void> => { //TODO: query patch to remove unmatched partner
 
     if(request.jwtUserID === request.clientID) 
         next(new Exception(403, `FAILED AUTHENTICATED :: PARTNER :: userID cannot match clientID :: ${request.clientID}`, 'Cannot be partner with self'));
 
     else if((request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE({userID: request.jwtUserID, userRole: DATABASE_USER_ROLE_ENUM.ADMIN}))
-            || await DB_IS_USER_PARTNER({userID: request.jwtUserID, clientID: request.clientID})) {
+            || await DB_IS_USER_PARTNER_ANY_STATUS(request.jwtUserID, request.clientID, [DATABASE_PARTNER_STATUS_ENUM.PARTNER])) {
 
         request.clientID = request.clientID;
         log.auth(`AUTHENTICATED :: PARTNER :: status verified: Requestor: ${request.jwtUserID} is a partner of User: ${request.clientID}`);
