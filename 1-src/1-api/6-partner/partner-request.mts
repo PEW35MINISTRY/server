@@ -3,7 +3,7 @@ import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtAdminRequest, JwtClientPartnerRequest, JwtClientRequest, JwtClientStatusRequest } from '../2-auth/auth-types.mjs';
 import { PartnerStatusEnum, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP, DB_IS_USER_PARTNER_ANY_STATUS, DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PENDING_PARTNER_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
+import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP, DB_IS_USER_PARTNER_ANY_STATUS, DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PENDING_PARTNER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DATABASE_PARTNER_STATUS_ENUM } from '../../2-services/2-database/database-types.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
@@ -144,13 +144,13 @@ export const DELETE_AllPartnershipsAdmin = async(request:JwtClientRequest, respo
 /**************************
  *  ADMIN PARTNER ROUTES  *
  **************************/
-export const GET_AllPartnerPendingList = async(request:JwtAdminRequest, response:Response) => {
-    response.status(200).send(await DB_SELECT_PENDING_PARTNER_LIST());
+export const GET_AllUnassignedPartnerList = async(request:JwtAdminRequest, response:Response) => {
+    response.status(200).send(await DB_SELECT_UNASSIGNED_PARTNER_USER_LIST());
 };
 
 
-export const GET_AllUnassignedPartnerList = async(request:JwtAdminRequest, response:Response) => {
-    response.status(200).send(await DB_SELECT_UNASSIGNED_PARTNER_USER_LIST());
+export const GET_AllPartnerPairPendingList = async(request:JwtAdminRequest, response:Response) => {
+    response.status(200).send(await DB_SELECT_PENDING_PARTNER_PAIR_LIST()); //[PartnerListItem, PartnerListItem][]
 };
 
 

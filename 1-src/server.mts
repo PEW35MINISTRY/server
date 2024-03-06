@@ -27,7 +27,7 @@ import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, D
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, GET_ContentRequest, PATCH_contentArchive, POST_newContentArchive } from './1-api/11-content/content.mjs';
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
-import { POST_PartnerContractSign, POST_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_AllPartnershipsAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerPendingList, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList } from './1-api/6-partner/partner-request.mjs';
+import { POST_PartnerContractSign, POST_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_AllPartnershipsAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
 
 //Import Services
 import * as log from './2-services/log.mjs';
@@ -316,8 +316,8 @@ apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClient
 apiServer.post('/api/admin/circle/:circle/join/:client', POST_circleMemberJoinAdmin);
 
 /* Partnerships */
-apiServer.get('/api/admin/partnership/pending-list', GET_AllPartnerPendingList);
 apiServer.get('/api/admin/partnership/unassigned-list', GET_AllUnassignedPartnerList);
+apiServer.get('/api/admin/partnership/pending-list', GET_AllPartnerPairPendingList);
 apiServer.get('/api/admin/partnership/status-map', GET_AllPartnerStatusMap);
 apiServer.get('/api/admin/partnership/fewer-status-map', GET_AllFewerPartnerStatusMap);
 

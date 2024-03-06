@@ -63,7 +63,8 @@ export interface ProfileResponse extends ProfilePartnerResponse  {
     isActive: boolean,
     notes?: string,
     userRoleList: RoleEnum[],
-    partnerList?: ProfileListItem[],
+    partnerList?: PartnerListItem[],
+    pendingPartnerList?: PartnerListItem[],
     prayerRequestList?: PrayerRequestListItem[],
     contactList?: ProfileListItem[],
     profileAccessList?: ProfileListItem[], //Leaders

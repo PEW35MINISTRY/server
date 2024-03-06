@@ -45,7 +45,7 @@ export const DB_IS_USER_PARTNER_ANY_STATUS = async(userID:number, clientID:numbe
 
     const preparedColumns:string = '( ' + statusList.map((key)=> `status = ?`).join(' OR ') + ' )';
 
-    const rows = await execute('SELECT * ' + 'FROM partner '
+    const rows = await execute('SELECT partner.status ' + 'FROM partner '
         + `WHERE userID = ? AND partnerID = ? AND ${preparedColumns};`, [getUserID(userID, clientID), getPartnerID(userID, clientID), ...statusList]);
 
     if(rows.length > 1) log.db(`DB_IS_ANY_USER_PARTNER MULTIPLE RECORDS for partnership IDENTIFIED`, userID, clientID, status, JSON.stringify(rows));
@@ -63,23 +63,23 @@ export const DB_SELECT_PARTNER_STATUS = async(userID:number, clientID:number):Pr
 }
 
 
-
 export const DB_SELECT_PARTNER_LIST = async(userID:number, status:DATABASE_PARTNER_STATUS_ENUM = DATABASE_PARTNER_STATUS_ENUM.PARTNER):Promise<PartnerListItem[]> => {
-    //Post Filter to match userID perspective
-    if(status === DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER 
-               || status === DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER) {
-       
-        return (await DB_SELECT_PENDING_PARTNER_LIST(userID))
-                .filter((partner:PartnerListItem) => (DATABASE_PARTNER_STATUS_ENUM[partner.status] === status));
+
+    const rows:RowDataPacket[] = ([DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER].includes(status)) ?
+        await execute('SELECT user.userID, user.firstName, user.displayName, user.image, status '
+            + 'FROM partner '
+            + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
+            + `WHERE user.userID = ? AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
+            , [userID])
     
-    } else {
-        const rows:RowDataPacket[] = await execute('SELECT user.*, status, partnerID ' + 'FROM partner '
+        : await execute('SELECT user.userID, user.firstName, user.displayName, user.image, status, partnerID ' + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
             + 'WHERE user.userID = ? AND status = ?;', [userID, status]);
 
-        return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
-            status: PartnerStatusEnum[convertDatabaseStatus(userID, row.partnerID, row.status)]}))];
-    }   
+    //Filtered to match userID perspective
+    return rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
+                status: PartnerStatusEnum[convertDatabaseStatus(userID, row.partnerID, row.status)]}))
+            .filter((partner:PartnerListItem) => (DATABASE_PARTNER_STATUS_ENUM[partner.status] === status));
 }
 
 
@@ -96,8 +96,27 @@ export const DB_SELECT_PENDING_PARTNER_LIST = async(userID?:number):Promise<Part
             + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
             );
 
+    //Filtered to match userID perspective
     return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
                                 status: PartnerStatusEnum[convertDatabaseStatus(userID || -1, row.partnerID, row.status)]}))];
+}
+
+
+export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[PartnerListItem, PartnerListItem][]> => {
+    //Post Filter to match userID perspective
+    const rows:RowDataPacket[] = await query('SELECT status, user.userID, user.firstName, user.displayName, user.image, '
+            + 'client.userID as clientID, client.firstName as clientFirstName, client.displayName as clientDisplayName, client.image as clientImage '
+            + 'FROM partner '
+            + 'LEFT JOIN user ON (partner.userID = user.userID) '
+            + 'LEFT JOIN user client ON (partner.partnerID = client.userID) '
+            + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
+        );
+
+    //Filtered to match userID perspective
+    return rows.map(row => ([{userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
+                                    status: PartnerStatusEnum[convertDatabaseStatus(row.userID, row.clientID, row.status)]},
+                                {userID: row.clientID || -1, firstName: row.clientFirstName || '', displayName: row.clientDisplayName || '', image: row.clientImage || '',
+                                    status: PartnerStatusEnum[convertDatabaseStatus(row.clientID, row.userID, row.status)]}]));
 }
 
 
