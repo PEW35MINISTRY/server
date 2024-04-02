@@ -6,8 +6,8 @@ import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-fi
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_SELECT_USER, DB_SELECT_USER_PROFILE } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
-import { Exception } from '../api-types.mjs';
-import { JwtData, LoginResponseBody } from './auth-types.mjs';
+import { JwtData } from './auth-types.mjs';
+import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 dotenv.config(); 
 const {sign, verify, decode} = JWT_PKG;
 

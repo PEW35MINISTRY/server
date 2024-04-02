@@ -378,7 +378,8 @@ export const DB_IS_CIRCLE_LEADER = async({leaderID, circleID}:{leaderID:number, 
 
 //Create New request or invite; should fail if either exists
 export const DB_INSERT_CIRCLE_USER_STATUS = async({userID, circleID, status}:{userID:number, circleID:number, status:DATABASE_CIRCLE_STATUS_ENUM}):Promise<boolean> => {
-    const response:CommandResponseType = await command(`INSERT INTO circle_user ( circleID, userID, status ) VALUES ( ?, ?, ? );`, [circleID, userID, status]);
+    const response:CommandResponseType = await command('INSERT INTO circle_user ( circleID, userID, status ) VALUES ( ?, ?, ? ) '
+    + 'ON DUPLICATE KEY UPDATE status = ?;', [circleID, userID, status, status]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }

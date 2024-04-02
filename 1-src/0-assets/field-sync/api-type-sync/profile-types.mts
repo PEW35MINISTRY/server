@@ -17,7 +17,7 @@ import { PrayerRequestListItem } from './prayer-request-types.mjs'
 export type CredentialProfile = { 
     userID: number,
     displayName: string,
-    userRole: string,
+    userRole: RoleEnum,
     email: string,
     passwordHash: string,
 }
@@ -43,7 +43,7 @@ export interface ProfilePartnerCountListItem extends ProfileListItem {
 
 export interface ProfilePublicResponse {
     userID: number, 
-    userRole: string, 
+    userRole: RoleEnum, 
     firstName: string,
     displayName: string, 
     gender: GenderEnum,

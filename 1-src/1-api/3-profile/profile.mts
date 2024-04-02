@@ -8,11 +8,12 @@ import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELE
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
-import { JwtClientRequest, JwtRequest, LoginResponseBody } from '../2-auth/auth-types.mjs';
+import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
+import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { DB_DELETE_PARTNERSHIP } from '../../2-services/2-database/queries/partner-queries.mjs';
 
 
@@ -67,7 +68,7 @@ export const GET_publicProfile =  async (request: JwtClientRequest, response: Re
         response.status(200).send(profile.toPublicJSON())   
         log.event('Returning public profile for userID: ', request.clientID);
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(404, `GET_publicProfile - user  ${request.clientID} failed to parse from database and is invalid.`)); 
+        next(new Exception(404, `GET_publicProfile - user  ${request.clientID} failed to parse from database and is invalid.`, 'Profile Not Found')); 
 };
 
 export const GET_profileAccessUserList =  async (request: JwtRequest, response: Response, next: NextFunction) => { 
@@ -87,7 +88,7 @@ export const GET_userProfile = async (request: JwtClientRequest, response: Respo
         response.status(200).send(profile.toJSON())   
         log.event('Returning profile for userID: ', request.clientID);
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(404, `GET_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`)); 
+        next(new Exception(404, `GET_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`, 'Profile Not Found')); 
 };
 
 export const GET_partnerProfile = async (request: JwtClientRequest, response: Response, next: NextFunction) => {     
@@ -133,7 +134,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
                 response.status(201).send(loginDetails);
                 await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();
             } else
-                next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`));
+                next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`, 'Please Login'));
         }
     } else
         next(newProfile);

@@ -22,7 +22,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   static PUBLIC_PROPERTY_LIST = ['userID', 'firstName', 'lastName', 'displayName', 'postalCode', 'dateOfBirth', 'gender', 'image', 'circleList', 'userRole'];
   static PARTNER_PROPERTY_LIST = [...USER.PUBLIC_PROPERTY_LIST, 'walkLevel'];
   static USER_PROPERTY_LIST = [...USER.PARTNER_PROPERTY_LIST, 'email', 'isActive', 'maxPartners', 'notes', 'userRoleList', 'partnerList', 'pendingPartnerList', 'prayerRequestList', 'contactList', 'profileAccessList'];
-  static PROPERTY_LIST = USER.USER_PROPERTY_LIST.filter(property => !['circleList', 'partnerList', 'pendingPartnerList', 'prayerRequestList', 'contactList', 'profileAccessList'].includes(property)); //Not Edited through Model
+  static PROPERTY_LIST = USER.USER_PROPERTY_LIST.filter(property => !property.endsWith('List'));
 
   userID: number = -1;
   firstName?: string;
@@ -81,7 +81,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   override get modelType():string { return USER.modelType; }
   override get IDProperty():string { return 'userID'; }
 
-  override get DATABASE_COLUMN_LIST():string[] { return USER_TABLE_COLUMNS; }
+  override get DATABASE_COLUMN_LIST():string[] { return [...USER_TABLE_COLUMNS, 'userRole']; }
   override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return USER.DATABASE_IDENTIFYING_PROPERTY_LIST; }
   override get PROPERTY_LIST():string[] { return USER.PROPERTY_LIST; }
 
@@ -100,7 +100,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
     BASE_MODEL.constructByDatabaseUtility<USER>({DB, newModel: new USER(DB.userID || -1), defaultModel: new USER(),
       complexColumnMap: new Map([
         ['gender', (DB:DATABASE_USER, newUser:USER) => {newUser.gender = GenderEnum[DB.gender]}],
-        ['userRoleList', (DB:DATABASE_USER, newUser:USER) => {newUser.userRoleList = [RoleEnum[DB.userRole] || RoleEnum.STUDENT];}],
+        ['userRole', (DB:DATABASE_USER, newUser:USER) => {newUser.userRoleList = [RoleEnum[DB.userRole] || RoleEnum.STUDENT];}],
         ['passwordHash', (DB:DATABASE_USER, newUser:USER) => {newUser.passwordHash = DB.passwordHash;}],
       ])});
 
