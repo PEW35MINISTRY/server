@@ -52,7 +52,7 @@ export const GET_PrayerRequest = async (request: JwtPrayerRequest, response: Res
         log.event('Returning specific Prayer Request:', request.prayerRequestID);
 
     } else 
-        next(new Exception(404, `Prayer Request: ${request.prayerRequestID} unavailable from database.`));
+        next(new Exception(404, `Prayer Request: ${request.prayerRequestID} unavailable from database.`, 'Prayer Request Not Found'));
 };
 
 
