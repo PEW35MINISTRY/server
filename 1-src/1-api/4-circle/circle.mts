@@ -90,7 +90,7 @@ export const POST_newCircle =  async(request: JwtRequest, response: Response, ne
             next(new Exception(400, `Create Circle Failed :: Missing Required Fields: ${JSON.stringify(CIRCLE_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
         //Verify leaderID in body is leader role; could be ADMIN in header already verified
-        else if(await DB_IS_USER_ROLE({userID: newCircle.leaderID, userRole: DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER}) === false)
+        else if(await DB_IS_USER_ROLE(newCircle.leaderID, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER) === false)
             next(new Exception(401, `Edit Circle Failed :: failed to verify leader status of userID: ${newCircle.leaderID}`, 'Leader status not verified.'));
 
         else if(await DB_INSERT_CIRCLE(newCircle.getDatabaseProperties()) === false) 
@@ -123,7 +123,7 @@ export const PATCH_circle =  async(request: JwtCircleRequest, response: Response
     if(currentCircle.isValid && !(editCircle instanceof Exception) && editCircle.isValid) { 
         //Verify leaderID is leader role
         if(editCircle.leaderID !== undefined && editCircle.leaderID !== currentCircle.leaderID 
-                && await DB_IS_USER_ROLE({userID: editCircle.leaderID, userRole: DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER}) === false)
+                && await DB_IS_USER_ROLE(editCircle.leaderID, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER) === false)
             next(new Exception(401, `Edit Circle Failed :: failed to verify leader status of userID: ${editCircle.leaderID}`, 'Leader status not verified.'));
 
         else if((editCircle.getUniqueDatabaseProperties(currentCircle).size > 0 )

@@ -30,11 +30,18 @@ export const getUserID = (userID:number, partnerID:number):number => (userID < p
 export const getPartnerID = (userID:number, partnerID:number):number => (userID > partnerID) ? userID : partnerID;
 
 //From userID's perspective
-const convertDatabaseStatus = (userID:number, partnerID:number, status:DATABASE_PARTNER_STATUS_ENUM):DATABASE_PARTNER_STATUS_ENUM => 
-    ((userID === getPartnerID(userID, partnerID)) && (status === DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER)) ? DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER
-    : ((userID === getPartnerID(userID, partnerID)) && (status === DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER)) ? DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER
-    : status;
-
+const convertPartnershipPerspective = (userID:number, itemUserID, itemPartnerID, item:PartnerListItem):PartnerListItem => 
+    ({ ...item,
+        status: (userID === itemPartnerID 
+                    && (item.status === PartnerStatusEnum.PENDING_CONTRACT_USER 
+                        || item.status === PartnerStatusEnum.PENDING_CONTRACT_PARTNER)) ? 
+                (item.status === PartnerStatusEnum.PENDING_CONTRACT_USER ? 
+                    PartnerStatusEnum.PENDING_CONTRACT_PARTNER 
+                    : PartnerStatusEnum.PENDING_CONTRACT_USER) 
+                : item.status,
+        //partnerID
+        userID: (userID === itemPartnerID) ? itemUserID : itemPartnerID,
+    });
 
 /*********************
  *  PARTNER QUERIES  *
@@ -63,60 +70,75 @@ export const DB_SELECT_PARTNER_STATUS = async(userID:number, clientID:number):Pr
 }
 
 
-export const DB_SELECT_PARTNER_LIST = async(userID:number, status:DATABASE_PARTNER_STATUS_ENUM = DATABASE_PARTNER_STATUS_ENUM.PARTNER):Promise<PartnerListItem[]> => {
+export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PARTNER_STATUS_ENUM):Promise<PartnerListItem[]> => {
 
-    const rows:RowDataPacket[] = ([DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER].includes(status)) ?
-        await execute('SELECT user.userID, user.firstName, user.displayName, user.image, status '
-            + 'FROM partner '
-            + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-            + `WHERE user.userID = ? AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
-            , [userID])
+    const rows:RowDataPacket[] = (status === undefined) ?
+            await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+                + 'FROM partner '
+                + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
+                + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
+                + `AND status NOT IN ('FAILED', 'ENDED');`, [userID, userID, userID])
+
+        : ([DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER].includes(status)) ?
+            await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+                + 'FROM partner '
+                + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
+                + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
+                + `AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
+                , [userID, userID, userID])
     
-        : await execute('SELECT user.userID, user.firstName, user.displayName, user.image, status, partnerID ' + 'FROM partner '
-            + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-            + 'WHERE user.userID = ? AND status = ?;', [userID, status]);
+            : await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+                + 'FROM partner '
+                + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
+                + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
+                + 'AND status = ?;', [userID, userID, userID, status]);
 
     //Filtered to match userID perspective
-    return rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
-                status: PartnerStatusEnum[convertDatabaseStatus(userID, row.partnerID, row.status)]}))
-            .filter((partner:PartnerListItem) => (DATABASE_PARTNER_STATUS_ENUM[partner.status] === status));
+    return rows.map(row => convertPartnershipPerspective(userID, row.userID, row.partnerID,
+        {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
+                status: PartnerStatusEnum[row.status]}))
+            .filter((partner:PartnerListItem) => (!status || DATABASE_PARTNER_STATUS_ENUM[partner.status] === status));
 }
 
 
 export const DB_SELECT_PENDING_PARTNER_LIST = async(userID?:number):Promise<PartnerListItem[]> => {
-    //Post Filter to match userID perspective
     const rows:RowDataPacket[] = (userID !== undefined) ?    
-        await execute('SELECT user.*, status, partnerID ' + 'FROM partner '
+        await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+            + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-            + `WHERE user.userID = ? AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
-            , [userID])
+            + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
+            + `AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
+            , [userID, userID, userID])
 
-        : await query('SELECT user.*, status, partnerID ' + 'FROM partner '
+        : await query('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+            + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
             + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
             );
 
-    //Filtered to match userID perspective
-    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
-                                status: PartnerStatusEnum[convertDatabaseStatus(userID || -1, row.partnerID, row.status)]}))];
+    return [...rows.map(row => convertPartnershipPerspective(row.userID, row.userID, row.partnerID,
+        {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', status: PartnerStatusEnum[row.status]}))];
 }
 
 
 export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[PartnerListItem, PartnerListItem][]> => {
-    //Post Filter to match userID perspective
-    const rows:RowDataPacket[] = await query('SELECT status, user.userID, user.firstName, user.displayName, user.image, '
-            + 'client.userID as clientID, client.firstName as clientFirstName, client.displayName as clientDisplayName, client.image as clientImage '
+    const rows:RowDataPacket[] = await query('SELECT status, user.userID, user.firstName, user.displayName, user.image, userContractDT, '
+            + 'client.userID as clientID, client.firstName as clientFirstName, client.displayName as clientDisplayName, client.image as clientImage, partnerContractDT '
             + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID) '
             + 'LEFT JOIN user client ON (partner.partnerID = client.userID) '
-            + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
+            + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER') `
+            + 'ORDER BY partner.modifiedDT DESC;'
         );
 
-    //Filtered to match userID perspective
-    return rows.map(row => ([{userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
-                                    status: PartnerStatusEnum[convertDatabaseStatus(row.userID, row.clientID, row.status)]},
-                                {userID: row.clientID || -1, firstName: row.clientFirstName || '', displayName: row.clientDisplayName || '', image: row.clientImage || '',
-                                    status: PartnerStatusEnum[convertDatabaseStatus(row.clientID, row.userID, row.status)]}]));
+    //Only here does userID match status
+    return rows.map(row => ([
+            {userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', contractDT: row.userContractDT, status: PartnerStatusEnum[row.status]},
+            {userID: row.clientID || -1, firstName: row.clientFirstName || '', displayName: row.clientDisplayName || '', image: row.clientImage || '', contractDT: row.partnerContractDT, 
+                status: (PartnerStatusEnum[row.status] === PartnerStatusEnum.PENDING_CONTRACT_USER) ? PartnerStatusEnum.PENDING_CONTRACT_PARTNER
+                        : (PartnerStatusEnum[row.status] === PartnerStatusEnum.PENDING_CONTRACT_PARTNER) ? PartnerStatusEnum.PENDING_CONTRACT_USER
+                        : PartnerStatusEnum[row.status]}
+    ]));
 }
 
 
@@ -124,25 +146,30 @@ export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[PartnerListI
  *  PARTNER STATUS *
  *******************/
 export const DB_ASSIGN_PARTNER_STATUS = async(userID:number, clientID:number, status:DATABASE_PARTNER_STATUS_ENUM = DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH):Promise<boolean> => {
-    const response:CommandResponseType = await command('INSERT INTO partner ( userID, partnerID, status ) VALUES (?, ?, ?) '
+    const response:CommandResponseType = await command('INSERT INTO partner ( userID, partnerID, status, userContractDT, partnerContractDT ) VALUES (?, ?, ?, ?, ?) '
     + 'ON DUPLICATE KEY UPDATE status = ?;',
-     [getUserID(userID, clientID), getPartnerID(userID, clientID), status, status]);
+     [getUserID(userID, clientID), getPartnerID(userID, clientID), status, 
+        (userID === getUserID(userID, clientID)) ? new Date() : null, 
+        (userID === getPartnerID(userID, clientID)) ? new Date() : null, 
+        status]);
 
     return ((response !== undefined) && (response.affectedRows > 0));
 }
 
-
-export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number):Promise<boolean> => {    
+//Include either (userID & clientID) or (userID & status)
+export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, status?:PartnerStatusEnum):Promise<boolean> => {    
     log.db(`DELETE PARTNERSHIP attempted: userID:${userID} and clientID:${clientID} with status:${(clientID === undefined) ? 'ALL PARTNER CONNECTIONS' : 'Single Partnership'}`);
 
-    const response:CommandResponseType = (clientID === undefined) //Delete all partnership connections
-        ? await command('DELETE FROM partner WHERE userID = ? OR partnerID = ?;', [userID, userID])
+    const response:CommandResponseType = (status !== undefined)
+        ? await command('DELETE FROM partner WHERE userID = ? AND status = ?;', [userID, status])
+
+        : (clientID === undefined) //Delete all partnership connections
+            ? await command('DELETE FROM partner WHERE userID = ? OR partnerID = ?;', [userID, userID])
 
         : await command('DELETE FROM partner WHERE userID = ? AND partnerID = ?;', [getUserID(userID, clientID), getPartnerID(userID, clientID)]);
 
     return (response !== undefined);  //Success on non-error
 }
-
 
 
 /***************************

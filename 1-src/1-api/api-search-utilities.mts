@@ -130,7 +130,7 @@ export const GET_SearchList = async(searchType:SearchType|undefined, request:Jwt
 
         /* Authorization verify access role */
         const searchDetail:SearchTypeInfoServer<ProfileListItem, BASE_MODEL<any, any, any>> = SearchDetailServer[searchType];
-        if((searchDetail.roleList.length < Object.values(RoleEnum).length) && (request.jwtUserRole !== RoleEnum.ADMIN) && !(await DB_IS_ANY_USER_ROLE({userID: request.jwtUserID, userRoleList: searchDetail.roleList.map(role => DATABASE_USER_ROLE_ENUM[role])})))
+        if((searchDetail.roleList.length < Object.values(RoleEnum).length) && (request.jwtUserRole !== RoleEnum.ADMIN) && !(await DB_IS_ANY_USER_ROLE(request.jwtUserID, searchDetail.roleList.map(role => DATABASE_USER_ROLE_ENUM[role]))))
             return next(new Exception(401, `Search ${searchDetail.displayTitle} operation is unauthorized for user ${request.jwtUserID}`));
     }
 
@@ -230,7 +230,7 @@ export const DELETE_flushSearchCacheAdmin = async (searchType:SearchType|undefin
 
         /* Authorization verify access role */
         searchDetail = SearchDetailServer[searchType];
-        if((searchDetail.roleList.length < Object.values(RoleEnum).length) && (request.jwtUserRole !== RoleEnum.ADMIN) && !(await DB_IS_ANY_USER_ROLE({userID: request.jwtUserID, userRoleList: searchDetail.roleList.map(role => DATABASE_USER_ROLE_ENUM[role])})))
+        if((searchDetail.roleList.length < Object.values(RoleEnum).length) && (request.jwtUserRole !== RoleEnum.ADMIN) && !(await DB_IS_ANY_USER_ROLE(request.jwtUserID, searchDetail.roleList.map(role => DATABASE_USER_ROLE_ENUM[role]))))
             return next(new Exception(401, `Search ${searchDetail.displayTitle} operation is unauthorized for user ${request.jwtUserID}`));
     }
 

@@ -1,25 +1,24 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
-import { JwtAdminRequest, JwtClientPartnerRequest, JwtClientRequest, JwtClientStatusRequest } from '../2-auth/auth-types.mjs';
+import { JwtAdminRequest, JwtClientPartnerRequest, JwtClientRequest, JwtClientStatusFilterRequest, JwtClientStatusRequest } from '../2-auth/auth-types.mjs';
 import { PartnerStatusEnum, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP, DB_IS_USER_PARTNER_ANY_STATUS, DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PENDING_PARTNER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
-import { DATABASE_PARTNER_STATUS_ENUM } from '../../2-services/2-database/database-types.mjs';
+import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP,  DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PENDING_PARTNER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
+import { DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
-import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { DB_IS_USER_ROLE, DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
+import { PartnerListItem, ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 
 
 
 /*********************************
  *  List PARTNER REQUEST ROUTES  *
  *********************************/
-export const GET_PartnerList = async(statusFilter:PartnerStatusEnum|undefined, request:JwtClientStatusRequest, response:Response, next:NextFunction) => {
+export const GET_PartnerList = async(statusFilter:PartnerStatusEnum|undefined, request:JwtClientStatusFilterRequest, response:Response, next:NextFunction) => {
     if(statusFilter === undefined) {
-        statusFilter = PartnerStatusEnum[request.params.status];
+        statusFilter = PartnerStatusEnum[request.query.status];
+    } //Still undefined returns all partnerships
 
-        if(statusFilter === undefined) return next(new Exception(400, `Failed to parse partner status filter :: missing 'status' parameter :: ${request.params.status}`, 'Missing Status Filter'));
-    }
     response.status(200).send(await DB_SELECT_PARTNER_LIST(request.clientID, DATABASE_PARTNER_STATUS_ENUM[statusFilter]));
 };
 
@@ -37,7 +36,10 @@ export const POST_NewPartnerSearch = async(request:JwtClientRequest, response:Re
     const profile:USER = await DB_SELECT_USER(new Map([['userID', request.clientID]]));
 
     if(!profile.isValid)
-        return next(new Exception(404, `GET_AvailablePartnerList - user  ${request.clientID} failed to parse from database and is invalid.`)); 
+        return next(new Exception(404, `POST_NewPartnerSearch - user  ${request.clientID} failed to parse from database and is invalid.`, 'Invalid Profile')); 
+
+    else if(await DB_IS_USER_ROLE(request.clientID, DATABASE_USER_ROLE_ENUM.STUDENT, true) === false)
+        return next(new Exception(401, `POST_NewPartnerSearch - user  ${request.clientID} is not a STUDENT role and not eligible for partners.`, 'Student Role Required')); 
 
     const availableList:ProfileListItem[] = await DB_SELECT_AVAILABLE_PARTNER_LIST(profile);
 
@@ -46,21 +48,21 @@ export const POST_NewPartnerSearch = async(request:JwtClientRequest, response:Re
         return next(new Exception(404, `Unable to find available partner, support has been notified.`, 'Partner Unavailable')); 
         
     } else { //Assign new Partnership
-        const newPartnerID:number = availableList[0].userID;
+        const newPartner:PartnerListItem = {...availableList[0], status: PartnerStatusEnum.PENDING_CONTRACT_BOTH};
 
-        log.event(`Creating new partnership between ${request.clientID} and ${newPartnerID}`);
+        log.event(`Creating new partnership between ${request.clientID} and ${newPartner.userID}`);
         //TODO also notify users
 
-        if(await DB_ASSIGN_PARTNER_STATUS(request.clientID, newPartnerID, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH))
-            response.status(200).send(`Created new partnership proposal between user ${request.clientID} and partner ${newPartnerID}`);
+        if(await DB_ASSIGN_PARTNER_STATUS(request.clientID, newPartner.userID, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH))
+            response.status(200).send(newPartner);
         else
-            return next(new Exception(500, `Failed to create new  partnership status for user ${request.clientID} and partner ${newPartnerID}`, 'Save Failed'));
+            return next(new Exception(500, `Failed to create new  partnership status for user ${request.clientID} and partner ${newPartner.userID}`, 'Save Failed'));
     }
 };
 
 
 //user 'jwtUserID' is taking action with partner 'clientID'
-export const POST_PartnerContractSign = async(request:JwtClientRequest, response:Response, next:NextFunction) => {
+export const POST_PartnerContractAccept = async(request:JwtClientRequest, response:Response, next:NextFunction) => {
     const currentStatus:PartnerStatusEnum = await DB_SELECT_PARTNER_STATUS(request.jwtUserID, request.clientID);
     let newStatus:PartnerStatusEnum = currentStatus;
     if((currentStatus === PartnerStatusEnum.PENDING_CONTRACT_BOTH) && (request.jwtUserID === getUserID(request.jwtUserID , request.clientID))) 
@@ -87,7 +89,7 @@ export const POST_PartnerContractSign = async(request:JwtClientRequest, response
 
 
 //user 'jwtUserID' is taking action with partner 'clientID'
-export const POST_PartnerContractDecline = async(request:JwtClientRequest, response:Response, next:NextFunction) => {
+export const DELETE_PartnerContractDecline = async(request:JwtClientRequest, response:Response, next:NextFunction) => {
     if(await DB_ASSIGN_PARTNER_STATUS(request.jwtUserID, request.clientID, DATABASE_PARTNER_STATUS_ENUM.FAILED))
         response.status(200).send(`Declined partnership between user ${request.jwtUserID} and partner ${request.clientID}}`);
     else
@@ -132,13 +134,18 @@ export const DELETE_PartnershipAdmin = async(request:JwtClientPartnerRequest, re
 };
 
 
-export const DELETE_AllPartnershipsAdmin = async(request:JwtClientRequest, response:Response, next:NextFunction) => {
-    if(await DB_DELETE_PARTNERSHIP(request.clientID))
-        response.status(202).send('All partnerships deleted');
-    else
-        next(new Exception(500, `Failed to delete all partnerships of user ${request.clientID}`, 'Partnerships Exists'));
-};
+export const DELETE_PartnershipByTypeAdmin = async(status:PartnerStatusEnum|undefined, request:JwtClientPartnerRequest, response:Response, next:NextFunction) => {
+    if(status === undefined) {
+        status = PartnerStatusEnum[request.params.status];
 
+        if(status === undefined) return next(new Exception(400, `Failed to parse status filter :: missing 'status' parameter :: ${request.params.status}`, 'Missing Status Filter'));
+    }
+
+    if(await DB_DELETE_PARTNERSHIP(request.clientID, undefined, status))
+        response.status(202).send(`All ${status} partnerships deleted for user ${request.clientID}`);
+    else
+        next(new Exception(500, `Failed to delete all ${status} partnerships of user ${request.clientID}`, 'Partnerships Exists'));
+};
 
 
 /**************************
@@ -171,9 +178,11 @@ export const GET_AvailablePartnerList = async(request:JwtClientRequest, response
     const profile:USER = await DB_SELECT_USER(new Map([['userID', request.clientID]]));
 
     if(!profile.isValid)
-        next(new Exception(500, `GET_AvailablePartnerList - user ${request.clientID} failed to parse from database and is invalid.`)); 
-    else if(profile.isRole(RoleEnum.STUDENT))
-        next(new Exception(401, `GET_AvailablePartnerList - user ${request.clientID} is not a STUDENT and not authorized to have partners.`))
+        next(new Exception(500, `GET_AvailablePartnerList - user ${request.clientID} failed to parse from database and is invalid.`, 'Invalid User')); 
+
+    else if(!profile.isRole(RoleEnum.STUDENT))
+        next(new Exception(400, `GET_AvailablePartnerList - user ${request.clientID} is not a STUDENT and not authorized to have partners.`, 'Student Role Required'))
+
     else
         response.status(200).send(await DB_SELECT_AVAILABLE_PARTNER_LIST(profile));
 };

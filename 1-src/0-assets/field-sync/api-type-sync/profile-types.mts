@@ -31,8 +31,7 @@ export interface ProfileListItem {
 
 export interface PartnerListItem extends ProfileListItem {
     status: PartnerStatusEnum, //Transformed in reference to requesting userID
-    userContractDT?: Date,
-    partnerContractDT?: Date,
+    contractDT?: Date,
     partnershipDT?: Date,
 }
 
@@ -63,8 +62,11 @@ export interface ProfileResponse extends ProfilePartnerResponse  {
     isActive: boolean,
     notes?: string,
     userRoleList: RoleEnum[],
+    circleInviteList?: CircleListItem[],
+    circleRequestList?: CircleListItem[],
     partnerList?: PartnerListItem[],
-    pendingPartnerList?: PartnerListItem[],
+    partnerPendingUserList?: PartnerListItem[],
+    partnerPendingPartnerList?: PartnerListItem[],
     prayerRequestList?: PrayerRequestListItem[],
     contactList?: ProfileListItem[],
     profileAccessList?: ProfileListItem[], //Leaders

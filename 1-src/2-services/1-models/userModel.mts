@@ -21,7 +21,8 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   static DATABASE_IDENTIFYING_PROPERTY_LIST = ['firstName', 'lastName', 'displayName', 'email']; //exclude: usedID, complex types, and lists
   static PUBLIC_PROPERTY_LIST = ['userID', 'firstName', 'lastName', 'displayName', 'postalCode', 'dateOfBirth', 'gender', 'image', 'circleList', 'userRole'];
   static PARTNER_PROPERTY_LIST = [...USER.PUBLIC_PROPERTY_LIST, 'walkLevel'];
-  static USER_PROPERTY_LIST = [...USER.PARTNER_PROPERTY_LIST, 'email', 'isActive', 'maxPartners', 'notes', 'userRoleList', 'partnerList', 'pendingPartnerList', 'prayerRequestList', 'contactList', 'profileAccessList'];
+  static USER_PROPERTY_LIST = [...USER.PARTNER_PROPERTY_LIST, 'email', 'isActive', 'maxPartners', 'notes', 'userRoleList', 'circleInviteList', 'circleInviteList', 'circleRequestList',
+                                'partnerList', 'partnerPendingUserList', 'partnerPendingPartnerList', 'prayerRequestList', 'contactList', 'profileAccessList'];
   static PROPERTY_LIST = USER.USER_PROPERTY_LIST.filter(property => !property.endsWith('List'));
 
   userID: number = -1;
@@ -41,10 +42,13 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
 
   //Query separate Tables
   userRoleList: RoleEnum[] = [RoleEnum.STUDENT];
-  circleList: CircleListItem[] = [];               //Includes all status: MEMBER|INVITE|REQUEST|LEADER
+  circleList: CircleListItem[] = [];                 //Includes: MEMBER|LEADER
+  circleInviteList: CircleListItem[] = [];
+  circleRequestList: CircleListItem[] = [];
   partnerList: PartnerListItem[] = [];
-  pendingPartnerList: PartnerListItem[] = [];
-  prayerRequestList: PrayerRequestListItem[] = [];
+  partnerPendingUserList: PartnerListItem[] = [];    //Transformed in DB to USER perspective | Includes: PENDING_CONTRACT_USER, PENDING_CONTRACT_BOTH
+  partnerPendingPartnerList: PartnerListItem[] = []; //Transformed in DB to USER perspective | Includes: PENDING_CONTRACT_PARTNER
+  prayerRequestList: PrayerRequestListItem[] = [];   //Owned & active Prayer Requests
   contactList: ProfileListItem[] = [];
   profileAccessList: ProfileListItem[] = []; //Leaders
 

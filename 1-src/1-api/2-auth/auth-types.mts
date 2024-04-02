@@ -50,6 +50,12 @@ export interface JwtClientRequest extends JwtRequest {
     clientID:number,
 };
 
+export interface JwtClientStatusFilterRequest extends JwtClientRequest {
+    query: {
+        status?: string
+    },
+};
+
 export interface JwtClientStatusRequest extends JwtClientRequest {
     params: JwtClientRequest['params'] & {
         status?: string

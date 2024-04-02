@@ -126,7 +126,7 @@ export const authenticatePendingPartnerMiddleware = async(request: JwtClientRequ
     if(request.jwtUserID === request.clientID) 
         next(new Exception(403, `FAILED AUTHENTICATED :: PENDING PARTNER :: userID cannot match clientID :: ${request.clientID}`, 'Cannot be partner with self'));
 
-    else if((request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE({userID: request.jwtUserID, userRole: DATABASE_USER_ROLE_ENUM.ADMIN}))
+    else if((request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
             || await DB_IS_USER_PARTNER_ANY_STATUS(request.jwtUserID, request.clientID, [DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER])) {
 
         request.clientID = request.clientID;
@@ -143,7 +143,7 @@ export const authenticatePartnerMiddleware = async(request: JwtClientRequest, re
     if(request.jwtUserID === request.clientID) 
         next(new Exception(403, `FAILED AUTHENTICATED :: PARTNER :: userID cannot match clientID :: ${request.clientID}`, 'Cannot be partner with self'));
 
-    else if((request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE({userID: request.jwtUserID, userRole: DATABASE_USER_ROLE_ENUM.ADMIN}))
+    else if((request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
             || await DB_IS_USER_PARTNER_ANY_STATUS(request.jwtUserID, request.clientID, [DATABASE_PARTNER_STATUS_ENUM.PARTNER])) {
 
         request.clientID = request.clientID;
@@ -160,7 +160,7 @@ export const authenticatePartnerMiddleware = async(request: JwtClientRequest, re
 export const authenticateClientAccessMiddleware = async(request: JwtClientRequest, response: Response, next: NextFunction):Promise<void> => {
     //Verify Requestor Authorization
     if((request.jwtUserID === request.clientID)
-        || (request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE({userID: request.jwtUserID, userRole: DATABASE_USER_ROLE_ENUM.ADMIN}))
+        || (request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
         || (await DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES({userID: request.clientID, leaderID: request.jwtUserID}))) {
 
             request.clientID = request.clientID;
@@ -190,7 +190,7 @@ export const extractCircleMiddleware = async(request: JwtCircleRequest, response
 /* Authenticate Circle Membership | extractCircleMiddleware cached: request.circleID */
 export const authenticateCircleMembershipMiddleware = async(request: JwtCircleRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    if((request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE({userID: request.jwtUserID, userRole: DATABASE_USER_ROLE_ENUM.ADMIN}))
+    if((request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
         || await DB_IS_CIRCLE_USER_OR_LEADER({userID: request.jwtUserID, circleID: request.circleID, status: DATABASE_CIRCLE_STATUS_ENUM.MEMBER})) {
             log.auth(`AUTHENTICATED :: CIRCLE MEMBER :: status verified: User: ${request.jwtUserID} is a member of circle: ${request.circleID}`);
             next();
@@ -204,7 +204,7 @@ export const authenticateCircleMembershipMiddleware = async(request: JwtCircleRe
 export const authenticateCircleLeaderMiddleware = async(request: JwtCircleRequest, response: Response, next: NextFunction):Promise<void> => {
 
     if((request.jwtUserRole === RoleEnum.ADMIN 
-            && await DB_IS_USER_ROLE({userID: request.jwtUserID, userRole: DATABASE_USER_ROLE_ENUM.ADMIN}))
+            && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
         || (isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: request.jwtUserRole}) 
             && await DB_IS_CIRCLE_LEADER({leaderID: request.jwtUserID, circleID: request.circleID}))) {
 
@@ -220,7 +220,7 @@ export const authenticateCircleLeaderMiddleware = async(request: JwtCircleReques
 export const authenticateLeaderMiddleware = async(request: JwtRequest, response: Response, next: NextFunction):Promise<void> => {
 
     if((isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: request.jwtUserRole}) 
-            && await DB_IS_ANY_USER_ROLE({userID: request.jwtUserID, userRoleList: [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER]}))) {
+            && await DB_IS_ANY_USER_ROLE(request.jwtUserID, [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER]))) {
 
         log.auth(`AUTHENTICATED :: LEADER :: status verified: User: ${request.jwtUserID} is a Leader Role`);
         next();
@@ -257,7 +257,7 @@ export const authenticateContentApproverMiddleware = async(request: JwtRequest, 
 /* Authenticate current ADMIN role (JWT could be stale) */
 export const authenticateAdminMiddleware = async(request: JwtRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    if(request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE({userID: request.jwtUserID, userRole: DATABASE_USER_ROLE_ENUM.ADMIN})) {
+    if(request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN)) {
         log.auth(`AUTHENTICATED :: ADMIN :: status verified: User: ${request.jwtUserID} is an ADMIN`);
         next();
 
