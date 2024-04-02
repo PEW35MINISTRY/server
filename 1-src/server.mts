@@ -12,7 +12,7 @@ import cors from 'cors';
 //Import Types
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
-import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest } from './1-api/2-auth/auth-types.mjs';
+import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest } from './1-api/2-auth/auth-types.mjs';
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 import { SearchType } from './0-assets/field-sync/input-config-sync/search-config.mjs';
 
@@ -27,7 +27,7 @@ import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, D
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, GET_ContentRequest, PATCH_contentArchive, POST_newContentArchive } from './1-api/11-content/content.mjs';
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
-import { POST_PartnerContractSign, POST_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_AllPartnershipsAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
+import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
 
 //Import Services
 import * as log from './2-services/log.mjs';
@@ -183,8 +183,8 @@ apiServer.delete('/api/prayer-request-edit/:prayer', DELETE_prayerRequest);
 apiServer.use('/api/partner-pending/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.use('/api/partner-pending/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => authenticatePendingPartnerMiddleware(request, response, next));
 
-apiServer.post('/api/partner-pending/:client/contract', POST_PartnerContractSign);
-apiServer.post('/api/partner-pending/:client/decline', POST_PartnerContractDecline);
+apiServer.post('/api/partner-pending/:client/accept', POST_PartnerContractAccept);
+apiServer.delete('/api/partner-pending/:client/decline', DELETE_PartnerContractDecline);
 
 
 /****************************************************/
@@ -223,7 +223,7 @@ apiServer.delete('/api/user/:client/image', DELETE_profileImage);
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
 
-apiServer.get('/api/user/:client/partner-list', GET_PartnerList);
+apiServer.get('/api/user/:client/partner-list', (request:JwtClientStatusFilterRequest, response:Response, next:NextFunction) => GET_PartnerList(undefined, request, response, next));
 apiServer.get('/api/user/:client/partner-pending-list', GET_PendingPartnerList);
 apiServer.post('/api/user/:client/new-partner', POST_NewPartnerSearch);
 
@@ -323,7 +323,7 @@ apiServer.get('/api/admin/partnership/fewer-status-map', GET_AllFewerPartnerStat
 
 apiServer.use('/api/admin/partnership/client/:client', (request:JwtClientStatusRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.get('/api/admin/partnership/client/:client/available', GET_AvailablePartnerList);
-apiServer.delete('/api/admin/partnership/client/:client/all', DELETE_AllPartnershipsAdmin); //Delete all partnerships
+apiServer.delete('/api/admin/partnership/client/:client/status/:status', (request:JwtClientPartnerRequest, response:Response, next:NextFunction) => DELETE_PartnershipByTypeAdmin(undefined, request, response, next));
 
 apiServer.use('/api/admin/partnership/client/:client/partner/:partner', (request:JwtClientPartnerRequest, response:Response, next:NextFunction) => extractPartnerMiddleware(request, response, next));
 apiServer.post('/api/admin/partnership/client/:client/partner/:partner/status/:status', (request:JwtClientPartnerRequest, response:Response, next:NextFunction) => POST_PartnerStatusAdmin(undefined, request, response, next));
