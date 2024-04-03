@@ -5,7 +5,6 @@ import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-fi
 import PRAYER_REQUEST from '../../2-services/1-models/prayerRequestModel.mjs';
 import { PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_PRAYER_REQUEST, DB_DELETE_PRAYER_REQUEST_COMMENT, DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH, DB_INSERT_AND_SELECT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST_COMMENT, DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH, DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST, DB_SELECT_PRAYER_REQUEST_COMMENT, DB_SELECT_PRAYER_REQUEST_DETAIL, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST, DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST, DB_UPDATE_INCREMENT_PRAYER_COUNT, DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT, DB_UPDATE_PRAYER_REQUEST, DB_UPDATE_RESOLVE_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception } from '../api-types.mjs';
@@ -53,15 +52,15 @@ export const GET_PrayerRequest = async (request: JwtPrayerRequest, response: Res
         log.event('Returning specific Prayer Request:', request.prayerRequestID);
 
     } else 
-        next(new Exception(404, `Prayer Request: ${request.prayerRequestID} unavailable from database.`));
+        next(new Exception(404, `Prayer Request: ${request.prayerRequestID} unavailable from database.`, 'Prayer Request Not Found'));
 };
 
 
 //POST includes sharing to circle/partners/leaders recipients
 export const POST_prayerRequest = async (request: PrayerRequestPostRequest, response: Response, next: NextFunction) => {
-    const newPrayerRequest:PRAYER_REQUEST|undefined = createModelFromJSON({currentModel: new PRAYER_REQUEST(), jsonObj:request.body, fieldList: CREATE_PRAYER_REQUEST_FIELDS, next:next}) as PRAYER_REQUEST;
+    const newPrayerRequest:PRAYER_REQUEST|Exception = PRAYER_REQUEST.constructByJson({jsonObj:request.body, fieldList: CREATE_PRAYER_REQUEST_FIELDS});
 
-    if(newPrayerRequest !== undefined) { //undefined handles next(Exception)
+    if(!(newPrayerRequest instanceof Exception)) {
         const requestorID:number = ((request.jwtUserRole === RoleEnum.ADMIN) && request.body['requestorID'] !== undefined) ? request.body['requestorID'] : request.jwtUserID;
         newPrayerRequest.requestorID = requestorID;
 
@@ -82,8 +81,8 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
                     log.event('Created New Prayer Request:', savedPrayerRequest.prayerRequestID);
                 }
         }
-    } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(500, `POST_prayerRequest - Failed to parse new prayer request and is invalid`));
+    } else
+        next(newPrayerRequest);
 };
 
 export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, response: Response, next: NextFunction) => {
@@ -92,9 +91,9 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
 
     const currentPrayerRequest:PRAYER_REQUEST = await DB_SELECT_PRAYER_REQUEST_DETAIL(request.prayerRequestID, true);
 
-    const editPrayerRequest:PRAYER_REQUEST|undefined = createModelFromJSON({currentModel: currentPrayerRequest, jsonObj:request.body, fieldList: FIELD_LIST, next:next}) as PRAYER_REQUEST;
+    const editPrayerRequest:PRAYER_REQUEST|Exception = PRAYER_REQUEST.constructAndEvaluateByJson({currentModel: currentPrayerRequest, jsonObj:request.body, fieldList: FIELD_LIST});
 
-    if(currentPrayerRequest.isValid && editPrayerRequest !== undefined && editPrayerRequest.isValid) {  //undefined handles next(Exception)
+    if(currentPrayerRequest.isValid && !(editPrayerRequest instanceof Exception) && editPrayerRequest.isValid) {  //undefined handles next(Exception)
         
         if((PRAYER_REQUEST.getUniqueDatabaseProperties(editPrayerRequest, currentPrayerRequest).size > 0 )
                 && await DB_UPDATE_PRAYER_REQUEST(request.prayerRequestID, PRAYER_REQUEST.getUniqueDatabaseProperties(editPrayerRequest, currentPrayerRequest)) === false) 
@@ -126,7 +125,8 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
             }
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(500, `PATCH_prayerRequest - prayer request ${request.prayerRequestID} failed to parse from database and is invalid.`));
+        next((editPrayerRequest instanceof Exception) ? editPrayerRequest
+            : new Exception(500, `PATCH_prayerRequest - prayer request ${request.prayerRequestID} failed to parse from database and is invalid.`));
 };
 
 
@@ -181,7 +181,7 @@ export const DELETE_prayerRequest = async (request: JwtPrayerRequest, response: 
  **********************************/
 //No Model: Prayer Request Comment is parsed here
 export const POST_prayerRequestComment = async (request: PrayerRequestCommentRequest, response: Response, next: NextFunction) => {
-    const validationRegex:RegExp = PRAYER_REQUEST_COMMENT_FIELDS.find((input) => input.field === 'message')?.validationRegex || new RegExp(/.{10,200}/);
+    const validationRegex:RegExp = PRAYER_REQUEST_COMMENT_FIELDS.find((input) => input.field === 'message')?.validationRegex || new RegExp(/.{1,200}/);
     const message:string = request.body.message;
     
     if((message !== undefined) && new RegExp(validationRegex).test(message)

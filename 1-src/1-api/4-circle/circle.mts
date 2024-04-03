@@ -9,13 +9,11 @@ import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCL
 import { DB_DELETE_CIRCLE, DB_DELETE_CIRCLE_ANNOUNCEMENT, DB_DELETE_CIRCLE_USER_STATUS, DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_INSERT_CIRCLE, DB_INSERT_CIRCLE_ANNOUNCEMENT, DB_INSERT_CIRCLE_USER_STATUS, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_CIRCLE_DETAIL, DB_SELECT_CIRCLE_DETAIL_BY_NAME, DB_SELECT_CIRCLE_USER_LIST, DB_SELECT_USER_CIRCLES, DB_UPDATE_CIRCLE, DB_UPDATE_CIRCLE_USER_STATUS } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
-import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtCircleRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest } from './circle-types.mjs';
-import { filterListByCircleStatus } from './circle-utilities.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
 
 
@@ -27,7 +25,7 @@ export const GET_circle =  async(request: JwtCircleRequest, response: Response, 
     const circle:CIRCLE = await DB_SELECT_CIRCLE_DETAIL({circleID: request.circleID, userID: request.jwtUserID});
 
     if(!circle.isValid) { //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(404, `GET_circle - circle ${request.circleID} Failed to parse from database and is invalid`));
+        next(new Exception(404, `GET_circle - circle ${request.circleID} Failed to parse from database and is invalid`, 'Circle Not Found'));
         return;
     } 
 
@@ -82,9 +80,9 @@ export const GET_userCircleList = async(request: JwtRequest, response: Response,
 export const POST_newCircle =  async(request: JwtRequest, response: Response, next: NextFunction) => {
     const FIELD_LIST:InputField[] = (request.jwtUserRole === RoleEnum.ADMIN) ? CIRCLE_FIELDS_ADMIN : CIRCLE_FIELDS;
 
-    const newCircle:CIRCLE|undefined = createModelFromJSON({currentModel: new CIRCLE(), jsonObj:request.body, fieldList: FIELD_LIST, next:next}) as CIRCLE;
+    const newCircle:CIRCLE|Exception = CIRCLE.constructByJson({jsonObj:request.body, fieldList: FIELD_LIST});
 
-    if(newCircle !== undefined) { //undefined handles next(Exception)
+    if(!(newCircle instanceof Exception)) {
         const leaderID:number = ((request.jwtUserRole === RoleEnum.ADMIN) && request.body['leaderID'] !== undefined) ? request.body['leaderID'] : request.jwtUserID;
         newCircle.leaderID = leaderID;
 
@@ -110,8 +108,8 @@ export const POST_newCircle =  async(request: JwtRequest, response: Response, ne
             } else
                 next(new Exception(404, 'Create Circle  Failed: Circle successfully created; but failed to retrieve circle.', 'Circle Saved'));
         }
-    } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(500, `POST_newCircle - circle Failed to parse new circle and is invalid`)); 
+    } else
+        next(newCircle);
 };
 
 export const PATCH_circle =  async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
@@ -120,9 +118,9 @@ export const PATCH_circle =  async(request: JwtCircleRequest, response: Response
 
     const currentCircle:CIRCLE = await DB_SELECT_CIRCLE(request.circleID);
 
-    const editCircle:CIRCLE|undefined = createModelFromJSON({currentModel: currentCircle, jsonObj:request.body, fieldList: FIELD_LIST, next:next}) as CIRCLE;
+    const editCircle:CIRCLE|Exception = CIRCLE.constructAndEvaluateByJson({currentModel: currentCircle, jsonObj:request.body, fieldList: FIELD_LIST});
 
-    if(currentCircle.isValid && editCircle !== undefined && editCircle.isValid) {  //undefined handles next(Exception)
+    if(currentCircle.isValid && !(editCircle instanceof Exception) && editCircle.isValid) { 
         //Verify leaderID is leader role
         if(editCircle.leaderID !== undefined && editCircle.leaderID !== currentCircle.leaderID 
                 && await DB_IS_USER_ROLE({userID: editCircle.leaderID, userRole: DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER}) === false)
@@ -139,7 +137,8 @@ export const PATCH_circle =  async(request: JwtCircleRequest, response: Response
             response.status(202).send(editCircle.toLeaderJSON());
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(500, `PATCH_circle - circle ${request.circleID} Failed to parse from database and is invalid`)); 
+        next((editCircle instanceof Exception) ? editCircle
+            : new Exception(500, `PATCH_circle - circle ${request.circleID} Failed to parse from database and is invalid`)); 
 };
 
 export const DELETE_circle =  async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
@@ -221,11 +220,19 @@ export const DELETE_flushCircleSearchCache = async (request:JwtRequest, response
 
 export const POST_circleAnnouncement =  async(request: CircleAnnouncementCreateRequest, response: Response, next: NextFunction) => {
     
-    const newCircleAnnouncement:CIRCLE_ANNOUNCEMENT|undefined = createModelFromJSON({currentModel: new CIRCLE_ANNOUNCEMENT(), jsonObj:request.body, fieldList: CIRCLE_ANNOUNCEMENT_FIELDS, next:next}) as CIRCLE_ANNOUNCEMENT;
+    const newCircleAnnouncement:CIRCLE_ANNOUNCEMENT|Exception = CIRCLE_ANNOUNCEMENT.constructByJson({jsonObj:request.body, fieldList: CIRCLE_ANNOUNCEMENT_FIELDS});
 
-    if(newCircleAnnouncement !== undefined) {  //undefined handles next(Exception)
+    if(!(newCircleAnnouncement instanceof Exception)) {
         newCircleAnnouncement.circleID = request.circleID;
 
+
+
+
+
+        const circleAnnouncement:CIRCLE_ANNOUNCEMENT = newCircleAnnouncement.constructByClone()
+
+
+        
         if(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED.every((column) => newCircleAnnouncement[column] !== undefined) === false) 
             next(new Exception(400, `Create Circle Announcement Failed :: Missing Required Fields: ${JSON.stringify(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
@@ -234,7 +241,8 @@ export const POST_circleAnnouncement =  async(request: CircleAnnouncementCreateR
 
         else
             response.status(202).send(newCircleAnnouncement.toJSON());
-    }
+    } else
+        next(newCircleAnnouncement);
 };
 
 export const DELETE_circleAnnouncement =  async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
@@ -259,8 +267,9 @@ export const POST_circleMemberAccept =  async(request: JwtCircleRequest, respons
         next(new Exception(404, `Circle Membership Accept Invite :: Failed to accept membership for user ${request.jwtUserID} to circle ${request.params.circle}.`, 'Acceptance Failed'));
 
     else {
-        const circle:CIRCLE = await DB_SELECT_CIRCLE_DETAIL({userID: request.jwtUserID, circleID: request.circleID});
-        response.status(202).send(circle.toJSON());
+        const circleItem:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
+        circleItem.status = CircleStatusEnum.INVITE;
+        response.status(202).send(circleItem);
     }
 };
 
@@ -279,11 +288,11 @@ export const POST_circleMemberRequest =  async(request: JwtCircleRequest, respon
     if(await DB_INSERT_CIRCLE_USER_STATUS({userID: request.jwtUserID, circleID: request.circleID, status: status}) === false)
         next(new Exception(404, `Circle Membership Request Failed :: Failed to create membership request status for user ${request.jwtUserID} to circle ${request.circleID}.`, 'Request Failed'));
 
-    else if(status === DATABASE_CIRCLE_STATUS_ENUM.MEMBER)
-        response.status(201).send(circle.toJSON());
-
-    else 
-        response.status(202).send(circle.toJSON());
+    else {
+        const circleItem:CircleListItem = circle.toListItem();
+        circleItem.status = CircleStatusEnum.INVITE;
+        response.status(202).send(circleItem);
+    }
 };
 
 export const DELETE_circleMember =  async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
@@ -301,8 +310,11 @@ export const POST_circleLeaderMemberInvite =  async(request: JwtCircleClientRequ
     
     if(await DB_INSERT_CIRCLE_USER_STATUS({userID: request.clientID, circleID: request.circleID, status: DATABASE_CIRCLE_STATUS_ENUM.INVITE}) === false)
         next(new Exception(404, `Circle Membership Leader Invite Failed :: Failed to invite user ${request.params.client} to circle ${request.circleID}.`, 'Invite Failed'));
-    else
-        response.status(202).send(`User ${request.params.client} successfully invited to circle ${request.circleID}`);
+    else {
+        const circleItem:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
+        circleItem.status = CircleStatusEnum.INVITE;
+        response.status(202).send(circleItem);
+    }
 };
 
 //Circle Membership Request Must Exist (Leader Accepts)
@@ -310,21 +322,25 @@ export const POST_circleLeaderAccept =  async(request: JwtCircleClientRequest, r
     
     if(await DB_UPDATE_CIRCLE_USER_STATUS({userID: request.clientID, circleID: request.circleID, status: DATABASE_CIRCLE_STATUS_ENUM.MEMBER}) === false)
         next(new Exception(404, `Circle Membership Leader Accept :: Failed to accept membership for user ${request.params.client} to circle ${request.circleID}.`, 'Accept Failed'));
-    else
-        response.status(202).send(`User ${request.params.client} successfully joined circle ${request.circleID}`);
+
+    else {
+        const circleItem:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
+        circleItem.status = CircleStatusEnum.INVITE;
+        response.status(202).send(circleItem);
+    }
 };
 
 //Admin overrides invite/request process
 export const POST_circleMemberJoinAdmin =  async(request: JwtCircleClientRequest, response: Response, next: NextFunction) => {
-    //First attempt to remove existing invite/request status
-    await DB_DELETE_CIRCLE_USER_STATUS({userID: request.clientID, circleID: request.circleID});
 
     if(await DB_INSERT_CIRCLE_USER_STATUS({userID: request.clientID, circleID: request.circleID, status: DATABASE_CIRCLE_STATUS_ENUM.MEMBER}) === false)
         next(new Exception(404, `Circle Membership Accept Failed :: Failed to accept membership for user ${request.params.client} to circle ${request.params.circle}.`, 'Join Failed'));
 
     else {
-        response.status(202).send(`User ${request.params.client} successfully joined circle ${request.params.circle}`);
-        log.event(`Admin assigning user ${request.params.client} to circle ${request.params.circle}`);
+        const circle:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
+        circle.status = CircleStatusEnum.MEMBER;
+        response.status(202).send(circle);
+        log.event(`Admin assigning user ${request.clientID} to circle ${request.circleID}`);
     }
 };
 

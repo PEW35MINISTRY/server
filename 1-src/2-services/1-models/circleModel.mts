@@ -3,27 +3,22 @@ import { PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/p
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
+import { Exception } from '../../1-api/api-types.mjs';
 import { CIRCLE_TABLE_COLUMNS, DATABASE_CIRCLE } from '../2-database/database-types.mjs';
-import * as log from '../log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
 
 
-/*******************************************
-  UNIVERSAl circle for DATABASE OPERATIONS 
-********************************************/
-export default class CIRCLE implements BASE_MODEL  {
-    modelType = 'CIRCLE';
-    getID = () => this.circleID;
-    setID = (id:number) => this.circleID = id;
-    isValid: boolean = false;
+export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleResponse> {
+    static modelType:string = 'CIRCLE';
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
-    static #databaseIdentifyingPropertyList = ['leaderID', 'name', 'description', 'inviteToken']; //exclude: circleID, complex types, and lists
-    static #publicPropertyList = ['circleID', 'leaderID', 'name', 'description', 'postalCode', 'image', 'requestorID', 'requestorStatus', 'leaderProfile', 'memberList', 'eventList'];
-    static #memberPropertyList = [...CIRCLE.#publicPropertyList, 'announcementList', 'prayerRequestList', 'pendingRequestList', 'pendingInviteList'];
-    static #leaderPropertyList = [...CIRCLE.#memberPropertyList, 'inviteToken'];
-    static #propertyList = [...CIRCLE.#leaderPropertyList, 'notes'];
+    static DATABASE_IDENTIFYING_PROPERTY_LIST = ['leaderID', 'name', 'description', 'inviteToken']; //exclude: circleID, complex types, and lists
+    static PUBLIC_PROPERTY_LIST = ['circleID', 'leaderID', 'name', 'description', 'postalCode', 'image', 'requestorID', 'requestorStatus', 'leaderProfile', 'memberList', 'eventList'];
+    static MEMBER_PROPERTY_LIST = [...CIRCLE.PUBLIC_PROPERTY_LIST, 'announcementList', 'prayerRequestList', 'pendingRequestList', 'pendingInviteList'];
+    static LEADER_PROPERTY_LIST = [...CIRCLE.MEMBER_PROPERTY_LIST, 'inviteToken'];
+    static PROPERTY_LIST = [...CIRCLE.LEADER_PROPERTY_LIST, 'notes'];
 
     circleID: number = -1;
     leaderID: number;
@@ -48,120 +43,64 @@ export default class CIRCLE implements BASE_MODEL  {
 
     //Used as error case or blank
     constructor(id:number = -1) {
-        this.circleID = id;
-        this.isValid = false;
-      }
-
-    static constructByDatabase = (DB:DATABASE_CIRCLE):CIRCLE => {
-        try {
-            if(DB === undefined) throw new Error('Undefined Database Object');
-
-            const newCircle:CIRCLE = new CIRCLE(DB.circleID || -1);
-
-            newCircle.leaderID = DB.leaderID;
-            newCircle.name = DB.name;
-            newCircle.description = DB.description;
-            newCircle.postalCode = DB.postalCode;
-            newCircle.isActive = DB.isActive ? true : false;
-            newCircle.inviteToken = DB.inviteToken;
-            newCircle.image = DB.image;
-            newCircle.notes = DB.notes;
-            newCircle.isValid = true;
-
-            return newCircle;
-
-        } catch(error) {
-            log.db('INVALID Database Object; failed to parse CIRCLE', JSON.stringify(DB), error);
-            return new CIRCLE();
-        }
+        super(id);
     }
 
-    //Clone database model values only (not copying references for ListItems)
-    static constructByClone = (circle:CIRCLE):CIRCLE => {
-        try { //MUST copy primitives properties directly and create new complex types to avoid reference linking
-            if(circle === undefined) throw new Error('Undefined Model Object');
+    override getNewInstance = (id:number = -1) => new CIRCLE(id);
 
-            const newCircle:CIRCLE = new CIRCLE(circle.circleID); 
+   /*********************
+    * DEFINE PROPERTIES *
+    *********************/    
+    override get modelType():string { return CIRCLE.modelType; }
+    override get IDProperty():string { return 'circleID'; }
 
-            if(newCircle.circleID > 0) {
-                newCircle.leaderID = circle.leaderID;
-                newCircle.name = circle.name;
-                newCircle.description = circle.description;
-                newCircle.postalCode = circle.postalCode;
-                newCircle.isActive = circle.isActive;
-                newCircle.inviteToken = circle.inviteToken;
-                newCircle.image = circle.image;
-                newCircle.notes = circle.notes;
-                newCircle.isValid = true;
-            }
+    override get DATABASE_COLUMN_LIST():string[] { return CIRCLE_TABLE_COLUMNS; }
+    override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return CIRCLE.DATABASE_IDENTIFYING_PROPERTY_LIST; }
+    override get PROPERTY_LIST():string[] { return CIRCLE.PROPERTY_LIST; }
+    
+    
+    /**********************************
+    * ADDITIONAL STATIC CONSTRUCTORS *
+    **********************************/
+    static constructByDatabase = (DB:DATABASE_CIRCLE):CIRCLE => 
+        BASE_MODEL.constructByDatabaseUtility<CIRCLE>({DB, newModel: new CIRCLE(DB.circleID || -1), defaultModel: new CIRCLE()});
 
-            return newCircle;
+    static constructByJson = <CIRCLE,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):CIRCLE|Exception => 
+        new CIRCLE().populateFromJson({jsonObj, fieldList}) as CIRCLE|Exception;
 
-        } catch(error) {
-            log.error('INVALID Object; failed to clone CIRCLE', JSON.stringify(circle), error);
-            return new CIRCLE();
-        }
-    }
 
-    /* PROPERTY FIELD UTILITIES */
-    static hasProperty = (field: string) => CIRCLE.#propertyList.includes(field);
-    hasProperty = (field:string) => CIRCLE.#propertyList.includes(field); //Defined in BASE_MODEL; used for JSON parsing
-
-    getValidProperties = (properties:string[] = CIRCLE.#propertyList, includeCircleID:boolean = true):Map<string, any> => {
-        const map = new Map<string, any>();
-        properties.filter((p) => (includeCircleID || (p !== 'circleID'))).forEach((field) => {
-            if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
-              && (!Array.isArray(this[field]) || this[field].length > 0)) {
-                if(field === 'announcementList')
-                    map.set(field, this.announcementList.map(announcement => announcement.toJSON()));
-                else
-                    map.set(field, this[field]);
-              }
-        });
-        return map;
+    /**********************
+    * PROPERTY UTILITIES *
+    **********************/  
+    override getValidProperties = (properties:string[] = CIRCLE.PROPERTY_LIST, includeUserID:boolean = true):Map<string, any> => {
+        const complexFieldMap = new Map();
+        complexFieldMap.set('announcementList', (model:CIRCLE, baseModel:CIRCLE) => model.announcementList.map(announcement => announcement.toJSON()));
+    
+        return BASE_MODEL.getUniquePropertiesUtility<CIRCLE>({fieldList: properties, getModelProperty: (property) => property,
+          model: this, baseModel: undefined, includeID: includeUserID, includeObjects: true, includeNull: false,
+          complexFieldMap});
     }
   
-    getUniqueDatabaseProperties = (circle:CIRCLE):Map<string, any> => {
-        const map = new Map<string, any>();
-        CIRCLE_TABLE_COLUMNS.filter((c) => ((c !== 'circleID'))).forEach((field) => {
-            if(this.hasOwnProperty(field) && this[field] !== undefined && this[field] !== null
-                && ((Array.isArray(this[field]) 
-                    && (JSON.stringify(Array.from(this[field]).sort()) !== JSON.stringify(Array.from(circle[field]).sort()))) 
-                || (this[field] !== circle[field]))) 
-                  map.set(field, this[field]);
-        });
-        return map;
-      }
+    toPublicJSON = ():CircleResponse => Object.fromEntries(this.getValidProperties(CIRCLE.PUBLIC_PROPERTY_LIST)) as CircleResponse;
 
-    getDatabaseProperties = ():Map<string, any> => this.getValidProperties(CIRCLE_TABLE_COLUMNS, false);
+    toMemberJSON = ():CircleResponse => Object.fromEntries(this.getValidProperties(CIRCLE.MEMBER_PROPERTY_LIST)) as CircleResponse;
 
-    getDatabaseIdentifyingProperties = ():Map<string, any> => this.getValidProperties(CIRCLE.#databaseIdentifyingPropertyList, false);
+    toLeaderJSON = ():CircleLeaderResponse => Object.fromEntries(this.getValidProperties(CIRCLE.LEADER_PROPERTY_LIST)) as CircleLeaderResponse;
 
-    toJSON = ():CircleResponse => Object.fromEntries(this.getValidProperties(CIRCLE.#propertyList)) as CircleResponse;
+    override toListItem = ():CircleListItem => ({circleID: this.circleID, name: this.name, image: this.image});
 
-    toPublicJSON = ():CircleResponse => Object.fromEntries(this.getValidProperties(CIRCLE.#publicPropertyList)) as CircleResponse;
 
-    toMemberJSON = ():CircleResponse => Object.fromEntries(this.getValidProperties(CIRCLE.#memberPropertyList)) as CircleResponse;
-
-    toLeaderJSON = ():CircleLeaderResponse => Object.fromEntries(this.getValidProperties(CIRCLE.#leaderPropertyList)) as CircleLeaderResponse;
-
-    toListItem = ():CircleListItem => ({circleID: this.circleID, name: this.name, image: this.image});
-
-    toString = ():string => JSON.stringify(Object.fromEntries(this.getValidProperties()));
-
-    /** Utility methods for createModelFromJSON **/
-    validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:CircleEditRequestBody}):boolean|undefined => {
-        //No Field Match
-        return undefined;
-    }
-
-    parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:CircleEditRequestBody}):boolean|undefined => {
+   /****************************************
+    * constructByJson Model Custom Handling *
+    *****************************************/  
+    override parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:CircleEditRequestBody}):boolean|undefined => {
         //Handle inviteToken for security
         if(field.field === 'inviteToken') {
-            this.inviteToken = jsonObj[field.field];
-            return true;
-        }
-        //No Field Match
-        return undefined;
+            this.inviteToken = (String(jsonObj[field.field]) || '').toLowerCase();
+
+        } else //No Field Match
+            return undefined;
+    
+        return true;
     }
 };

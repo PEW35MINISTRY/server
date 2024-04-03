@@ -7,7 +7,6 @@ import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-fi
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import CONTENT_ARCHIVE from '../../2-services/1-models/contentArchiveModel.mjs';
 import { CONTENT_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
-import createModelFromJSON from '../../2-services/createModelFromJSON.mjs';
 import { ContentSearchRefineEnum, EDIT_CONTENT_FIELDS, EDIT_CONTENT_FIELDS_ADMIN } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
 import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 
@@ -36,9 +35,9 @@ export const GET_ContentRequest = async (request: JwtContentRequest, response: R
 export const POST_newContentArchive =  async(request: JwtRequest, response: Response, next: NextFunction) => {
     const FIELD_LIST:InputField[] = (request.jwtUserRole === RoleEnum.ADMIN) ? EDIT_CONTENT_FIELDS_ADMIN : EDIT_CONTENT_FIELDS;
 
-    const newContentArchive:CONTENT_ARCHIVE|undefined = createModelFromJSON({currentModel: new CONTENT_ARCHIVE(), jsonObj:request.body, fieldList: FIELD_LIST, next:next}) as CONTENT_ARCHIVE;
+    const newContentArchive:CONTENT_ARCHIVE|Exception = CONTENT_ARCHIVE.constructByJson({jsonObj:request.body, fieldList: FIELD_LIST});
 
-    if(newContentArchive !== undefined) { //undefined handles next(Exception)
+    if(!(newContentArchive instanceof Exception)) {
         const recorderID:number = ((request.jwtUserRole === RoleEnum.ADMIN) && request.body['recorderID'] !== undefined) ? request.body['recorderID'] : request.jwtUserID;
         newContentArchive.recorderID = recorderID;
 
@@ -51,8 +50,8 @@ export const POST_newContentArchive =  async(request: JwtRequest, response: Resp
         else               
             response.status(201).send(newContentArchive.toJSON());
 
-    } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(500, `POST_newContentArchive - Content Archive Failed to parse new Content Archive and is invalid`)); 
+    } else
+        next(newContentArchive);
 };
 
 
@@ -61,9 +60,9 @@ export const PATCH_contentArchive =  async(request: JwtContentRequest, response:
 
     const currentContentArchive:CONTENT_ARCHIVE = await DB_SELECT_CONTENT(request.contentID);
 
-    const editContentArchive:CONTENT_ARCHIVE|undefined = createModelFromJSON({currentModel: currentContentArchive, jsonObj:request.body, fieldList: FIELD_LIST, next:next}) as CONTENT_ARCHIVE;
+    const editContentArchive:CONTENT_ARCHIVE|Exception = CONTENT_ARCHIVE.constructAndEvaluateByJson({currentModel: currentContentArchive, jsonObj:request.body, fieldList: FIELD_LIST});
 
-    if(currentContentArchive.isValid && editContentArchive !== undefined && editContentArchive.isValid) {  //undefined handles next(Exception)
+    if(currentContentArchive.isValid && !(editContentArchive instanceof Exception) && editContentArchive.isValid) {  //undefined handles next(Exception)
         
         if((editContentArchive.getUniqueDatabaseProperties(currentContentArchive).size > 0 )
                 && await DB_UPDATE_CONTENT(request.contentID, editContentArchive.getUniqueDatabaseProperties(currentContentArchive)) === false) 
@@ -73,7 +72,8 @@ export const PATCH_contentArchive =  async(request: JwtContentRequest, response:
             response.status(202).send(editContentArchive.toJSON());
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(500, `PATCH_editContentArchive - Content Archive ${request.contentID} Failed to parse from database and is invalid`)); 
+        next((editContentArchive instanceof Exception) ? editContentArchive
+            : new Exception(500, `PATCH_editContentArchive - Content Archive ${request.contentID} Failed to parse from database and is invalid`)); 
 };
 
 

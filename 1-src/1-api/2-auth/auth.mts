@@ -1,11 +1,11 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
-import { JwtResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
+import { JwtResponseBody, LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { DB_SELECT_CREDENTIALS } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
 import { CredentialProfile } from '../3-profile/profile-types.mjs';
 import { Exception } from '../api-types.mjs';
-import { JwtClientRequest, JwtRequest, LoginRequest, LoginResponseBody } from './auth-types.mjs';
+import { JwtClientRequest, JwtRequest, LoginRequest } from './auth-types.mjs';
 import { generateJWT, generateSecretKey, getUserLogin, validateNewRoleTokenList } from './auth-utilities.mjs';
 
 /********************

@@ -34,10 +34,6 @@ export interface LoginRequest extends Request {
     body: LoginRequestBody
 };
 
-export interface LoginResponseBody extends JwtResponseBody {
-    userProfile: ProfileResponse,
-    service:string
-};
 
 export interface JwtPrayerRequest extends JwtRequest {
     params: JwtRequest['params'] & {

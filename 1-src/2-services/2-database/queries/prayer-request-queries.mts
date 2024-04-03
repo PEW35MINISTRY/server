@@ -33,7 +33,7 @@ export const DB_SELECT_PRAYER_REQUEST = async(prayerRequestID:number):Promise<PR
     const rows = await execute(`SELECT * FROM prayer_request WHERE prayerRequestID = ?`, [prayerRequestID]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} PRAYER REQUESTS IDENTIFIED`, prayerRequestID, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} PRAYER REQUESTS IDENTIFIED`, prayerRequestID, JSON.stringify(rows));
         return new PRAYER_REQUEST(undefined);
     }
     
@@ -49,7 +49,7 @@ export const DB_SELECT_PRAYER_REQUEST_DETAIL = async(prayerRequestID:number, inc
     + 'WHERE prayer_request.prayerRequestID = ?;', [prayerRequestID]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} PRAYER REQUESTS  IDENTIFIED BY ID`, prayerRequestID, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} PRAYER REQUESTS  IDENTIFIED BY ID`, prayerRequestID, JSON.stringify(rows));
         return new PRAYER_REQUEST(undefined);
     }
     

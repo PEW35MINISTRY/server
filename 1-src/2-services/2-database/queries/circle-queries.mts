@@ -36,7 +36,7 @@ export const DB_SELECT_CIRCLE = async(circleID:number):Promise<CIRCLE> => {
     const rows = await execute(`SELECT * FROM circle WHERE circleID = ?`, [circleID]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED`, circleID, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED`, circleID, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
@@ -53,7 +53,7 @@ export const DB_SELECT_CIRCLE_DETAIL = async({userID, circleID}:{userID?:number,
     + 'WHERE circle.circleID = ?;', [userID || -1, circleID]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY ID`, circleID, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY ID`, circleID, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
@@ -74,7 +74,7 @@ export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(circleName:string):Promise<
     + 'WHERE circle.name = ?;', [circleName]); 
 
     if(rows.length !== 1) {
-        log.error(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY NAME`, circleName, JSON.stringify(rows));
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY NAME`, circleName, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
@@ -378,7 +378,8 @@ export const DB_IS_CIRCLE_LEADER = async({leaderID, circleID}:{leaderID:number, 
 
 //Create New request or invite; should fail if either exists
 export const DB_INSERT_CIRCLE_USER_STATUS = async({userID, circleID, status}:{userID:number, circleID:number, status:DATABASE_CIRCLE_STATUS_ENUM}):Promise<boolean> => {
-    const response:CommandResponseType = await command(`INSERT INTO circle_user ( circleID, userID, status ) VALUES ( ?, ?, ? );`, [circleID, userID, status]);
+    const response:CommandResponseType = await command('INSERT INTO circle_user ( circleID, userID, status ) VALUES ( ?, ?, ? ) '
+    + 'ON DUPLICATE KEY UPDATE status = ?;', [circleID, userID, status, status]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }

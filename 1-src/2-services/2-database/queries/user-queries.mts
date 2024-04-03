@@ -50,7 +50,7 @@ export const DB_SELECT_USER = async(filterMap:Map<string, any>):Promise<USER> =>
     
     if(rows.length === 1) return USER.constructByDatabase(rows[0] as DATABASE_USER);
     else {
-        log.error(`DB_SELECT_USER ${rows.length ? 'MULTIPLE' : 'NONE'} USERS IDENTIFIED`, JSON.stringify(filterMap), JSON.stringify(rows));
+        log.warn(`DB_SELECT_USER ${rows.length ? 'MULTIPLE' : 'NONE'} USERS IDENTIFIED`, JSON.stringify(filterMap), JSON.stringify(rows));
         return new USER();
     }
 }
@@ -68,7 +68,7 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     const rows = await execute(`SELECT * FROM user WHERE ${preparedColumns};`, Array.from(filterMap.values())); 
     
     if(rows.length !== 1) {
-        log.error(`DB_SELECT_USER_PROFILE ${rows.length ? 'MULTIPLE' : 'NONE'} USERS IDENTIFIED`, JSON.stringify(filterMap), JSON.stringify(rows));
+        log.warn(`DB_SELECT_USER_PROFILE ${rows.length ? 'MULTIPLE' : 'NONE'} USERS IDENTIFIED`, JSON.stringify(filterMap), JSON.stringify(rows));
         return new USER();
     }
     

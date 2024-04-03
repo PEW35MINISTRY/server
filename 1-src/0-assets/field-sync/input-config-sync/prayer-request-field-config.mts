@@ -57,5 +57,5 @@ export const PRAYER_REQUEST_FIELDS_ADMIN:InputField[] = [
 ];
 
 export const PRAYER_REQUEST_COMMENT_FIELDS:InputField[] = [
-    new InputField({title: 'Comment', field: 'message',  required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{10,200}$/), validationMessage: 'Required, 10-200 characters.' }),
+    new InputField({title: 'Comment', field: 'message',  required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{1,200}$/), validationMessage: 'Required, 1-200 characters.' }),
 ];
