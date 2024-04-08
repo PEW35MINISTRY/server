@@ -1,10 +1,11 @@
 import { RowDataPacket } from 'mysql2/promise';
-import { PartnerListItem, ProfileListItem, ProfilePartnerCountListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { NewPartnerListItem, PartnerCountListItem, PartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import USER from '../../1-models/userModel.mjs';
 import * as log from '../../log.mjs';
-import { CommandResponseType, DATABASE_PARTNER_STATUS_ENUM } from '../database-types.mjs';
+import { CommandResponseType, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
 import { query, execute, command, validateColumns, batch } from '../database.mjs';
-import { PartnerStatusEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { GenderEnum, PartnerStatusEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { camelCase } from '../../10-utilities/utilities.mjs';
 
 
 /**********************************************
@@ -121,9 +122,9 @@ export const DB_SELECT_PENDING_PARTNER_LIST = async(userID?:number):Promise<Part
 }
 
 
-export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[PartnerListItem, PartnerListItem][]> => {
-    const rows:RowDataPacket[] = await query('SELECT status, user.userID, user.firstName, user.displayName, user.image, userContractDT, '
-            + 'client.userID as clientID, client.firstName as clientFirstName, client.displayName as clientDisplayName, client.image as clientImage, partnerContractDT '
+export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[NewPartnerListItem, NewPartnerListItem][]> => {
+    const rows:RowDataPacket[] = await query('SELECT status, userContractDT, partnerContractDT, user.*, '
+            + `${USER_TABLE_COLUMNS.map((column:string) => `client.${column} as ${camelCase('client', column)}`).join(', ')} `
             + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID) '
             + 'LEFT JOIN user client ON (partner.partnerID = client.userID) '
@@ -133,8 +134,10 @@ export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[PartnerListI
 
     //Only here does userID match status
     return rows.map(row => ([
-            {userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', contractDT: row.userContractDT, status: PartnerStatusEnum[row.status]},
-            {userID: row.clientID || -1, firstName: row.clientFirstName || '', displayName: row.clientDisplayName || '', image: row.clientImage || '', contractDT: row.partnerContractDT, 
+            {...USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem(),
+                 contractDT: row.userContractDT, status: PartnerStatusEnum[row.status]},
+            {...USER.constructByDatabase(row as DATABASE_USER, 'client').toNewPartnerListItem(),
+                contractDT: row.partnerContractDT, 
                 status: (PartnerStatusEnum[row.status] === PartnerStatusEnum.PENDING_CONTRACT_USER) ? PartnerStatusEnum.PENDING_CONTRACT_PARTNER
                         : (PartnerStatusEnum[row.status] === PartnerStatusEnum.PENDING_CONTRACT_PARTNER) ? PartnerStatusEnum.PENDING_CONTRACT_USER
                         : PartnerStatusEnum[row.status]}
@@ -176,7 +179,7 @@ export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, stat
  *  NEW PARTNER SEARCH     *
  * (Requires STUDENT role) *
  ***************************/
-export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<ProfileListItem[]> => {
+export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<NewPartnerListItem[]> => {
     const matchGender:boolean = (process.env.PARTNER_GENDER_MATCH !== undefined) ? (process.env.PARTNER_GENDER_MATCH === 'true') : true;
     const ageYearRange: number = (process.env.PARTNER_AGE_RANGE !== undefined) ? parseInt(process.env.PARTNER_AGE_RANGE) : 2;
     const minDateOfBirth:Date = new Date(user.dateOfBirth);
@@ -186,7 +189,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<Profil
     const walkLevelRange: number = (process.env.PARTNER_WALK_RANGE !== undefined) ? parseInt(process.env.PARTNER_WALK_RANGE) : 2;
 
     const rows:RowDataPacket[] = await execute(
-        'SELECT DISTINCT user.userID, user.firstName, user.displayName, user.image '
+        'SELECT DISTINCT user.* '
         + 'FROM user '
         + 'LEFT JOIN user_role ON user.userID = user_role.userID '
         + 'LEFT JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
@@ -200,7 +203,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<Profil
         + ') AS partnerCounts ON user.userID = partnerCounts.userID '
         + 'WHERE user.userID != ? '
         + 'AND partner.userID IS NULL AND partner.partnerID IS NULL '
-        + 'AND ( ? = true OR user.gender = ? ) '
+        + 'AND ( ? = false OR user.gender = ? ) '
         + `AND user.dateOfBirth BETWEEN ? AND ? `
         + 'AND user.walkLevel BETWEEN ? AND ? '
         + 'AND ( user.maxPartners > ( '
@@ -227,7 +230,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<Profil
         user.walkLevel + walkLevelRange,
     ]);
 
-    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
+    return [...rows.map(row => (USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem()))];
 }
 
 
@@ -235,31 +238,32 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<Profil
  *  ADMIN PARTNER STATUS QUERIES *
  *********************************/
 //Only Student Role and top 100 oldest users w/o active partners
-export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async():Promise<ProfileListItem[]> => {
+export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async():Promise<NewPartnerListItem[]> => {
     const rows:RowDataPacket[] = await query(
-        'SELECT DISTINCT user.userID, user.firstName, user.displayName, user.image ' 
+        'SELECT DISTINCT user.* ' 
         + 'FROM user '
         + 'LEFT JOIN user_role ON user.userID = user_role.userID '
         + 'LEFT JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
         + 'LEFT JOIN partner ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
         + `WHERE (user_role_defined.userRole = 'STUDENT' OR user_role.userID IS NULL) `
+        + '    AND user.maxPartners > 0 '
         + '    AND ((partner.userID IS NULL AND partner.partnerID IS NULL) '
         + `        OR (partner.status IN ('FAILED', 'ENDED') `
         + `            AND user.userID NOT IN (SELECT userID FROM partner WHERE status NOT IN ('FAILED', 'ENDED')))) `
         + 'ORDER BY user.createdDT ASC ' //Oldest Users
         + 'LIMIT 100;');
 
-    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
+    return [...rows.map(row => USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem())];
 }
 
 //Latest 100 Users with Student Role
-export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = false):Promise<ProfilePartnerCountListItem[]> => {
+export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = false):Promise<PartnerCountListItem[]> => {
 
     const totalByStatus:string = Object.values(PartnerStatusEnum)
         .map((status) => `COALESCE(SUM(CASE WHEN partner.status = '${status}' THEN 1 ELSE 0 END), 0) ${status}`).join(', ');
 
     const rows:RowDataPacket[] = await query(
-            `SELECT user.userID, user.firstName, user.displayName, user.image, user.maxPartners, ${totalByStatus} ` 
+            `SELECT user.*, ${totalByStatus} ` 
             + 'FROM user '
             + 'LEFT JOIN user_role ON user.userID = user_role.userID '
             + 'LEFT JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
@@ -272,7 +276,6 @@ export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = 
             + 'LIMIT 100;');
 
     //Note: Express can't serialize Maps, so returning a [key, value] pair array
-    return rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
-                                maxPartners: row.maxPartners, 
+    return rows.map(row => ({...USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem(),
                                 partnerCountMap: Object.values(PartnerStatusEnum).map(status => [status, parseInt(row[status] || '0')])}));
 }

@@ -95,7 +95,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
     const profile:USER = await DB_SELECT_USER_PROFILE(new Map([['userID', request.clientID]]));
 
     if(profile.isValid) {
-        response.status(200).send(profile.toPartnerJSON())   
+        response.status(200).send(profile.toNewPartnerListItem())   
         log.event('Returning partner profile for userID: ', request.clientID);
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
         next(new Exception(500, `GET_partnerProfile - user  ${request.clientID} failed to parse from database and is invalid.`)); 

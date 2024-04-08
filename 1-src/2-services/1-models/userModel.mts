@@ -1,6 +1,6 @@
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
-import { PartnerListItem, ProfileListItem, ProfilePartnerResponse, ProfilePublicResponse, ProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { NewPartnerListItem, PartnerListItem, PROFILE_NEW_PARTNER_PROPERTY_LIST, PROFILE_PROPERTY_LIST, PROFILE_PUBLIC_PROPERTY_LIST, ProfileListItem, ProfilePublicResponse, ProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import InputField, { InputSelectionField, InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { GenderEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import BiDirectionalMap from '../../0-assets/modules/BiDirectionalMap.mjs';
@@ -11,6 +11,7 @@ import * as log from '../log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
+import { camelCase } from '../10-utilities/utilities.mjs';
 
 
 
@@ -19,11 +20,10 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
 
   //Static list of class property fields | (This is display-responses; NOT edit-access -> see: profile-field-config.mts)
   static DATABASE_IDENTIFYING_PROPERTY_LIST = ['firstName', 'lastName', 'displayName', 'email']; //exclude: usedID, complex types, and lists
-  static PUBLIC_PROPERTY_LIST = ['userID', 'firstName', 'lastName', 'displayName', 'postalCode', 'dateOfBirth', 'gender', 'image', 'circleList', 'userRole'];
-  static PARTNER_PROPERTY_LIST = [...USER.PUBLIC_PROPERTY_LIST, 'walkLevel'];
-  static USER_PROPERTY_LIST = [...USER.PARTNER_PROPERTY_LIST, 'email', 'isActive', 'maxPartners', 'notes', 'userRoleList', 'circleInviteList', 'circleInviteList', 'circleRequestList',
-                                'partnerList', 'partnerPendingUserList', 'partnerPendingPartnerList', 'prayerRequestList', 'contactList', 'profileAccessList'];
-  static PROPERTY_LIST = USER.USER_PROPERTY_LIST.filter(property => !property.endsWith('List'));
+  static PUBLIC_PROPERTY_LIST = PROFILE_PUBLIC_PROPERTY_LIST;
+  static NEW_PARTNER_PROPERTY_LIST = PROFILE_NEW_PARTNER_PROPERTY_LIST;
+  static USER_PROPERTY_LIST = PROFILE_PROPERTY_LIST;
+  static PROPERTY_LIST = [...USER_TABLE_COLUMNS, 'userRole', 'userRoleList']; //Fields Cloned
 
   userID: number = -1;
   firstName?: string;
@@ -42,6 +42,8 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
 
   //Query separate Tables
   userRoleList: RoleEnum[] = [RoleEnum.STUDENT];
+  get userRole():RoleEnum { return this.getHighestRole(); }
+
   circleList: CircleListItem[] = [];                 //Includes: MEMBER|LEADER
   circleInviteList: CircleListItem[] = [];
   circleRequestList: CircleListItem[] = [];
@@ -85,7 +87,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   override get modelType():string { return USER.modelType; }
   override get IDProperty():string { return 'userID'; }
 
-  override get DATABASE_COLUMN_LIST():string[] { return [...USER_TABLE_COLUMNS, 'userRole']; }
+  override get DATABASE_COLUMN_LIST():string[] { return USER_TABLE_COLUMNS; }
   override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return USER.DATABASE_IDENTIFYING_PROPERTY_LIST; }
   override get PROPERTY_LIST():string[] { return USER.PROPERTY_LIST; }
 
@@ -100,13 +102,23 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
 /**********************************
  * ADDITIONAL STATIC CONSTRUCTORS *
  **********************************/
- static constructByDatabase = (DB:DATABASE_USER):USER => 
-    BASE_MODEL.constructByDatabaseUtility<USER>({DB, newModel: new USER(DB.userID || -1), defaultModel: new USER(),
-      complexColumnMap: new Map([
-        ['gender', (DB:DATABASE_USER, newUser:USER) => {newUser.gender = GenderEnum[DB.gender]}],
-        ['userRole', (DB:DATABASE_USER, newUser:USER) => {newUser.userRoleList = [RoleEnum[DB.userRole] || RoleEnum.STUDENT];}],
-        ['passwordHash', (DB:DATABASE_USER, newUser:USER) => {newUser.passwordHash = DB.passwordHash;}],
-      ])});
+ static constructByDatabase = (DB:DATABASE_USER, columnPrefix?:string):USER => {
+    const defaultModel = new USER();
+    const complexFieldMap = new Map();
+    if(columnPrefix !== undefined)
+      defaultModel.DATABASE_COLUMN_LIST.forEach((column:string) => complexFieldMap.set(camelCase(columnPrefix, column), (DB:DATABASE_USER, newUser:USER) => {newUser[column] = DB[camelCase(columnPrefix, column)]}));
+      
+    complexFieldMap.set(camelCase(columnPrefix, 'gender'), (DB:DATABASE_USER, newUser:USER) => {newUser.gender = GenderEnum[DB[camelCase(columnPrefix, 'gender')]]});
+    complexFieldMap.set(camelCase(columnPrefix, 'passwordHash'), (DB:DATABASE_USER, newUser:USER) => {newUser.passwordHash = DB[camelCase(columnPrefix, 'passwordHash')];});
+
+    const user:USER = BASE_MODEL.constructByDatabaseUtility<USER>({DB, newModel: new USER(DB.userID || -1), defaultModel: defaultModel, 
+      columnList: (columnPrefix !== undefined) ? defaultModel.DATABASE_COLUMN_LIST.map((column:string) => camelCase(columnPrefix, column)) : undefined,
+      complexColumnMap: complexFieldMap});
+
+    user.userRoleList = [RoleEnum[DB[camelCase(columnPrefix, 'userRole')]] || RoleEnum.STUDENT];
+    
+    return user;
+  }
 
   //override | Clone database model values only (not copying references for ListItems)
   static constructByClone = (profile: USER):USER => 
@@ -114,6 +126,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
       complexPropertyMap: new Map([
         ['gender', (currentUser:USER, newUser:USER) => {newUser.gender = GenderEnum[currentUser.gender]}],
         ['passwordHash', (currentUser:USER, newUser:USER) => {newUser.passwordHash = currentUser.passwordHash;}],
+        ['userRole', (currentUser:USER, newUser:USER) => { /*Clone userRoleList*/ }],
       ])});
 
    override constructByClone = <USER,>():USER => USER.constructByClone(this) as USER;
@@ -127,9 +140,8 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   **********************/  
   override getValidProperties = (properties:string[] = USER.USER_PROPERTY_LIST, includeUserID:boolean = true):Map<string, any> => {
     const complexFieldMap = new Map();
-    complexFieldMap.set('userRole', (model:USER, baseModel:USER) => model.getHighestRole());
     complexFieldMap.set('userRoleList', (model:USER, baseModel:USER) => (model.userRoleList.length === 0) ? [model.getHighestRole()] : model.userRoleList);
-    complexFieldMap.set('dateOfBirth', (model:USER, baseModel:USER) => model.dateOfBirth.toISOString());
+    complexFieldMap.set('dateOfBirth', (model:USER, baseModel:USER) => model.dateOfBirth?.toISOString());
     complexFieldMap.set('passwordHash', (model:USER, baseModel:USER) => model.passwordHash);
 
     return BASE_MODEL.getUniquePropertiesUtility<USER>({fieldList: properties, getModelProperty: (property) => property,
@@ -147,7 +159,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
 
   toPublicJSON = ():ProfilePublicResponse => Object.fromEntries(this.getValidProperties(USER.PUBLIC_PROPERTY_LIST)) as ProfilePublicResponse;
 
-  toPartnerJSON = ():ProfilePartnerResponse => Object.fromEntries(this.getValidProperties(USER.PARTNER_PROPERTY_LIST)) as ProfilePartnerResponse;
+  toNewPartnerListItem = ():NewPartnerListItem => Object.fromEntries(this.getValidProperties(USER.NEW_PARTNER_PROPERTY_LIST)) as NewPartnerListItem;
 
   override  toListItem = ():ProfileListItem => ({userID: this.userID, firstName: this.firstName, displayName: this.displayName, image: this.image});
 
