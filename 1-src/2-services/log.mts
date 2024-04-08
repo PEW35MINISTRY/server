@@ -12,9 +12,9 @@ dotenv.config();
 /*********************************/
 const ENVIRONMENT = process.env.ENVIRONMENT || 'DEVELOPMENT';
 
-const SAVE_LOGS_LOCALLY = process.env.SAVE_LOGS_LOCALLY || true;
-const SAVE_LOGS_DATABASE = process.env.SAVE_LOGS_DATABASE || false;
-const SEND_EMAILS = process.env.SEND_EMAILS || false;
+const SAVE_LOGS_LOCALLY = (process.env.SAVE_LOGS_LOCALLY !== undefined) ? (process.env.SAVE_LOGS_LOCALLY === 'true') : true;
+const SAVE_LOGS_DATABASE = (process.env.SAVE_LOGS_DATABASE !== undefined) ? (process.env.SAVE_LOGS_DATABASE === 'true') : false;
+const SEND_EMAILS = (process.env.SEND_EMAILS !== undefined) ? (process.env.SEND_EMAILS === 'true') : false;
 
 
 /*********************************/

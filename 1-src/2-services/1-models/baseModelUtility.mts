@@ -13,12 +13,12 @@ export default {
     *********************************************/
     //MUST copy primitives properties directly and create new complex types to avoid reference linking
     //Use 'complexColumnMap' to skip columns:()=>{}
-    constructByDatabaseUtility: <M extends BASE_MODEL<any, any, any>>({ DB, newModel, defaultModel, complexColumnMap = new Map() }
-        :{ DB:any; newModel:M; defaultModel:M; complexColumnMap?:Map<string, (DB:any, newModel:M) => void | Error> }):M => {
+    constructByDatabaseUtility: <M extends BASE_MODEL<any, any, any>>({ DB, newModel, defaultModel, complexColumnMap = new Map(), columnList}
+        :{ DB:any; newModel:M; defaultModel:M; complexColumnMap?:Map<string, (DB:any, newModel:M) => void | Error>, columnList?:string[] }):M => {
         try {
             if (DB === undefined) throw new Error('Undefined Database Object');
 
-            for (const column of newModel.prioritySortFieldList(newModel.DATABASE_COLUMN_LIST)) {
+            for (const column of (columnList || newModel.prioritySortFieldList(newModel.DATABASE_COLUMN_LIST))) {
                 const property:string | undefined = newModel.getPropertyFromDatabaseColumn(column, true);
 
                 if (property === undefined && !complexColumnMap.has(column))

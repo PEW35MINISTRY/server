@@ -13,7 +13,7 @@ export interface CommandResponseType extends SQL.ResultSetHeader {
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
 export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
-    'userID', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes'
+    'userID', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes', 'maxPartners'
 ];
 
 export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
@@ -30,6 +30,7 @@ export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
     walkLevel?: number,
     image?: string,
     notes?: string,
+    maxPartners: number,
     userRole?: DATABASE_USER_ROLE_ENUM, //Top role from table user_role_defined
 };
 
@@ -45,6 +46,35 @@ export enum DATABASE_USER_ROLE_ENUM {
     DEVELOPER = 'DEVELOPER',                   //Full access to features; but not user data.
     ADMIN = 'ADMIN',                           //All access and privileges.
 }
+
+
+/******************************************************************* 
+*           Database `partner` Table Created: 11/11/2023 
+********************************************************************/
+export const PARTNER_TABLE_COLUMNS_REQUIRED:string[] = [ 'userID', 'partnerID' ];
+
+export const PARTNER_TABLE_COLUMNS:string[] = [ ...PARTNER_TABLE_COLUMNS_REQUIRED,
+    'status', 'userContractDT', 'partnerContractDT', 'partnershipDT'
+];
+
+export type DATABASE_PARTNER = {
+    userID: number, 
+    partnerID: number,
+    status: DATABASE_PARTNER_STATUS_ENUM,
+    userContractDT?: string,
+    partnerContractDT?: string, 
+    partnershipDT?: boolean,
+};
+
+export enum DATABASE_PARTNER_STATUS_ENUM {
+    PARTNER = 'PARTNER',
+    PENDING_CONTRACT_BOTH = 'PENDING_CONTRACT_BOTH',
+    PENDING_CONTRACT_USER = 'PENDING_CONTRACT_USER',
+    PENDING_CONTRACT_PARTNER = 'PENDING_CONTRACT_PARTNER',
+    ENDED = 'ENDED',
+    FAILED = 'FAILED'
+}
+
 
 /******************************************************************* 
 *           Database `circle` Table Created: 6/25/2023 

@@ -1,12 +1,15 @@
-import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
+import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
+import { PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { CredentialProfile } from '../../../1-api/3-profile/profile-types.mjs';
 import USER from '../../1-models/userModel.mjs';
 import * as log from '../../log.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
 import { DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
-import { DB_SELECT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST } from './prayer-request-queries.mjs';
+import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
+import { DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST } from './prayer-request-queries.mjs';
 
 
 /**************************************************************************
@@ -75,9 +78,19 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     //Append Full Profile 
     const user = USER.constructByDatabase(rows[0] as DATABASE_USER);
     user.userRoleList = await DB_SELECT_USER_ROLES(user.userID);
-    user.circleList = await DB_SELECT_USER_CIRCLES(user.userID);  //Includes all statuses
-    user.partnerList = await DB_SELECT_USER_PARTNERS(user.userID);
-    user.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID);
+
+    const allCircleList:CircleListItem[] = await DB_SELECT_USER_CIRCLES(user.userID);  //Includes all statuses
+    user.circleList = allCircleList.filter(circle => circle.status === CircleStatusEnum.MEMBER || circle.status === CircleStatusEnum.LEADER);
+    user.circleRequestList = allCircleList.filter(circle => circle.status === CircleStatusEnum.REQUEST);
+    user.circleInviteList = allCircleList.filter(circle => circle.status === CircleStatusEnum.INVITE);
+
+    const allPartnerList:PartnerListItem[] = await DB_SELECT_PARTNER_LIST(user.userID);
+    user.partnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PARTNER));
+    user.partnerPendingUserList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PENDING_CONTRACT_USER || partner.status === PartnerStatusEnum.PENDING_CONTRACT_BOTH));
+    user.partnerPendingPartnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PENDING_CONTRACT_PARTNER));
+
+    user.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID, false);
+
     user.contactList = await DB_SELECT_CONTACTS(user.userID);
     if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_CIRCLES(user.userID);
 
@@ -160,16 +173,18 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
 /**********************
  *  USER ROLE QUERIES
  **********************/
-export const DB_IS_USER_ROLE = async({userID, userRole}:{userID:number, userRole:DATABASE_USER_ROLE_ENUM}):Promise<Boolean> => {   
+export const DB_IS_USER_ROLE = async(userID:number, userRole:DATABASE_USER_ROLE_ENUM, defaultStudent:boolean = false):Promise<Boolean> => {   
     const rows = await execute('SELECT * ' + 'FROM user '
     + 'LEFT JOIN user_role ON user_role.userID = user.userID '
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
-    + `WHERE user.userID = ? AND user_role_defined.userRole = ?;`, [userID, userRole]); 
+    + 'WHERE user.userID = ? '
+    + `AND (user_role_defined.userRole = ? OR (user_role.userRoleID IS NULL AND ? = TRUE AND ? = 'STUDENT'));`, 
+        [userID, userRole, defaultStudent, userRole]); 
 
     return (rows.length === 1);
 }
 
-export const DB_IS_ANY_USER_ROLE = async({userID, userRoleList}:{userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<Boolean> => {   
+export const DB_IS_ANY_USER_ROLE = async(userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[], defaultStudent:boolean = true):Promise<Boolean> => {   
 
     if(userRoleList === undefined || userRoleList.length === 0) return false;
 
@@ -178,12 +193,14 @@ export const DB_IS_ANY_USER_ROLE = async({userID, userRoleList}:{userID:number, 
     const rows = await execute('SELECT * ' + 'FROM user '
     + 'LEFT JOIN user_role ON user_role.userID = user.userID '
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
-    + `WHERE user.userID = ? AND ${preparedColumns}`, [userID, ...userRoleList]); 
+    + 'WHERE user.userID = ? '
+    + `AND (${preparedColumns} OR (user_role.userRoleID IS NULL AND ? = TRUE));`,
+        [userID, ...userRoleList, defaultStudent]); 
 
     return (rows.length >= 1);
 }
 
-export const DB_SELECT_USER_ROLES = async(userID:number):Promise<RoleEnum[]> => {
+export const DB_SELECT_USER_ROLES = async(userID:number, defaultStudent:boolean = true):Promise<RoleEnum[]> => {
     const rows = await execute('SELECT user_role_defined.userRole ' 
         + 'FROM user_role, user_role_defined '
         + 'WHERE user_role.userRoleID = user_role_defined.userRoleID '
@@ -195,7 +212,7 @@ export const DB_SELECT_USER_ROLES = async(userID:number):Promise<RoleEnum[]> => 
         if(Object.values(RoleEnum).includes(row.userRole)) validRoles.push(RoleEnum[row.userRole]);
         else log.db('Invalid Role, Not in Server Types', userID, row, JSON.stringify(Object.values(RoleEnum)));        
     });
-    return validRoles;
+    return ((validRoles.length === 0) && defaultStudent) ? [RoleEnum.STUDENT] : validRoles;
 }
 
 export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:number, email?:string, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {
@@ -219,17 +236,6 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
         + ' );', [userID, ...userRoleList]);
 
     return (response !== undefined);  //Success on non-error
-}
-
-
-/********************
- *  PARTNER QUERIES
- ********************/
-
-export const DB_SELECT_USER_PARTNERS = async(userID:number):Promise<ProfileListItem[]> => { //TODO Query partner table
-    const rows = await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user ORDER BY modifiedDT DESC LIMIT 3;', []);
-
-    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
 
 

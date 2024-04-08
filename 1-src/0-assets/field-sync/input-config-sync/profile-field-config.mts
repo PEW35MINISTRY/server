@@ -38,6 +38,16 @@ export enum UserSearchRefineEnum {
     LOCATION = 'LOCATION'
 }
 
+//Sync with DATABASE_PARTNER_STATUS_ENUM
+export enum PartnerStatusEnum {
+    PARTNER = 'PARTNER',
+    PENDING_CONTRACT_BOTH = 'PENDING_CONTRACT_BOTH',
+    PENDING_CONTRACT_USER = 'PENDING_CONTRACT_USER',
+    PENDING_CONTRACT_PARTNER = 'PENDING_CONTRACT_PARTNER',
+    ENDED = 'ENDED',
+    FAILED = 'FAILED'
+}
+
 export const getDateYearsAgo = (years: number = 13):Date => {
     let date = new Date();
     date.setFullYear(date.getFullYear() - years);
@@ -67,6 +77,7 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX, validationMessage: '5-20 characters.' }),
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX, validationMessage: 'Must match password field.' }),
     new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{5,15}$/), validationMessage: 'Required, 5-15 characters.' }),
+    new InputRangeField({title: 'Max Partners', field: 'maxPartners', required: true, minValue: 0, maxValue: 10, type: InputType.RANGE_SLIDER, validationRegex: new RegExp(/[0-9]+/), validationMessage: 'Required, between 0-10.'}),
 ];
 
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
@@ -98,3 +109,5 @@ export const SIGNUP_PROFILE_FIELDS:InputField[] = [
     new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: false, selectOptionList: Object.values(RoleEnum), validationMessage: 'Authorization token is required.'}),
     ...SIGNUP_PROFILE_FIELDS_STUDENT,
 ];
+
+export const PARTNERSHIP_CONTRACT = (userName:string, partnerName:string):string => `I ${userName} promise to pray for ${partnerName} every day, as agreed upon in this contract, while ensuring our conversations remain private. This daily commitment remains in place until our partnership ends. By signing this agreement, I confirm my dedication to our prayer partnership and look forward to the positive impact it will have on both of us.`;

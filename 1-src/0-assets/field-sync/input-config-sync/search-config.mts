@@ -25,6 +25,7 @@ export type DisplayItemType = LabelListItem | ProfileListItem | CircleListItem |
 export enum ListItemTypesEnum {
     LABEL = 'LABEL',
     USER = 'USER',
+    PARTNER = 'PARTNER',
     CIRCLE = 'CIRCLE',
     CIRCLE_ANNOUNCEMENT = 'CIRCLE_ANNOUNCEMENT',
     CIRCLE_EVENT = 'CIRCLE_EVENT',
