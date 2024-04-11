@@ -3,7 +3,7 @@ import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtAdminRequest, JwtClientPartnerRequest, JwtClientRequest, JwtClientStatusFilterRequest, JwtClientStatusRequest } from '../2-auth/auth-types.mjs';
 import { PartnerStatusEnum, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP,  DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PENDING_PARTNER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
+import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP,  DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PARTNERSHIP, DB_SELECT_PENDING_PARTNER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_IS_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_ROLES } from '../../2-services/2-database/queries/user-queries.mjs';
@@ -81,9 +81,10 @@ export const POST_PartnerContractAccept = async(request:JwtClientRequest, respon
         return  next(new Exception(400, `Partnership is not PENDING between user ${request.jwtUserID} and partner ${request.clientID}, unable to accept partnership contract.`, 'Partnership not found'));
 
     //Assign new status
-    if(await DB_ASSIGN_PARTNER_STATUS(request.jwtUserID, request.clientID, DATABASE_PARTNER_STATUS_ENUM[newStatus]))
-        response.status(200).send(`User ${request.jwtUserID} and partner ${request.clientID} are now ${newStatus}`);
-    else
+    if(await DB_ASSIGN_PARTNER_STATUS(request.jwtUserID, request.clientID, DATABASE_PARTNER_STATUS_ENUM[newStatus])) {
+        log.event(`User ${request.jwtUserID} and partner ${request.clientID} are now ${newStatus}`);
+        response.status(200).send(await DB_SELECT_PARTNERSHIP(request.jwtUserID, request.clientID));
+    } else
         return next(new Exception(500, `Failed to save partnership status for user ${request.jwtUserID} and partner ${request.clientID} as ${newStatus}`, 'Save Failed'));
 };
 
@@ -119,9 +120,10 @@ export const POST_PartnerStatusAdmin = async(status:PartnerStatusEnum|undefined,
         if(status === undefined) return next(new Exception(400, `Failed to parse partner status filter :: missing 'status' parameter :: ${request.params.status}`, 'Missing Status Filter'));
     }
 
-    if(await DB_ASSIGN_PARTNER_STATUS(request.clientID, request.partnerID, DATABASE_PARTNER_STATUS_ENUM[status]))
-        response.status(200).send(`User ${request.clientID} and partner ${request.partnerID} are now ${status}`);
-    else
+    if(await DB_ASSIGN_PARTNER_STATUS(request.clientID, request.partnerID, DATABASE_PARTNER_STATUS_ENUM[status])) {
+        log.event(`ADMIN: User ${request.clientID} and partner ${request.partnerID} are now ${status}`);
+        response.status(200).send(await DB_SELECT_PARTNERSHIP(request.clientID, request.partnerID));
+    } else
         return next(new Exception(500, `Failed to save partnership status for user ${request.clientID} and partner ${request.partnerID} as ${status}`, 'Save Failed'));
 };
 

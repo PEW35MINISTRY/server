@@ -31,7 +31,7 @@ export const getUserID = (userID:number, partnerID:number):number => (userID < p
 export const getPartnerID = (userID:number, partnerID:number):number => (userID > partnerID) ? userID : partnerID;
 
 //From userID's perspective
-const convertPartnershipPerspective = (userID:number, itemUserID, itemPartnerID, item:PartnerListItem):PartnerListItem => 
+const convertPartnershipPerspective = (userID:number, itemUserID:number, itemPartnerID:number, item:PartnerListItem):PartnerListItem => 
     ({ ...item,
         status: (userID === itemPartnerID 
                     && (item.status === PartnerStatusEnum.PENDING_CONTRACT_USER 
@@ -70,6 +70,21 @@ export const DB_SELECT_PARTNER_STATUS = async(userID:number, clientID:number):Pr
     return (rows.length > 0) ? rows[0].status : undefined;
 }
 
+//Perspective of userID and PartnerListItem includes profile of partnerID
+export const DB_SELECT_PARTNERSHIP = async(userID:number, partnerID:number):Promise<PartnerListItem|undefined> => {
+    const rows = await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT ' 
+    + 'FROM partner '
+    + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
+    + 'WHERE user.userID = ? AND partner.userID = ? AND partner.partnerID = ?;'
+    , [partnerID, getUserID(userID, partnerID), getPartnerID(userID, partnerID)]);
+
+    if(rows.length !== 1) log.db(`DB_SELECT_PARTNERSHIP ${(rows.length > 1) ? 'MULTIPLE' : 'NONE'} RECORDS for partnership IDENTIFIED`, userID, partnerID, JSON.stringify(rows));
+
+    return (rows.length === 0) ? undefined
+        : convertPartnershipPerspective(userID, rows[0].userID, rows[0].partnerID,
+            {userID: -1, firstName: rows[0].firstName || '', displayName: rows[0].displayName || '', image: rows[0].image || '',
+                status: PartnerStatusEnum[rows[0].status], contractDT: (partnerID === getPartnerID(userID, partnerID)) ? rows[0].partnerContractDT : rows[0].userContractDT, partnershipDT: rows[0].partnershipDT});
+}
 
 export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PARTNER_STATUS_ENUM):Promise<PartnerListItem[]> => {
 
@@ -117,7 +132,7 @@ export const DB_SELECT_PENDING_PARTNER_LIST = async(userID?:number):Promise<Part
             + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
             );
 
-    return [...rows.map(row => convertPartnershipPerspective(row.userID, row.userID, row.partnerID,
+    return [...rows.map(row => convertPartnershipPerspective(userID || -1, row.userID, row.partnerID,
         {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', status: PartnerStatusEnum[row.status]}))];
 }
 
