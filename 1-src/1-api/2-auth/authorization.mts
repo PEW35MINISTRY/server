@@ -51,7 +51,7 @@ export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: 
 /* Authenticate Recipient to Prayer Request | cache: request.prayerRequestID */
 export const authenticatePrayerRequestRecipientMiddleware = async(request: JwtPrayerRequest, response: Response, next: NextFunction):Promise<void> => {
     //Verify Prayer Parameter Exist
-    if(request.params.prayer === undefined || isNaN(parseInt(request.params.prayer))) 
+    if(request.params.prayer === undefined || isNaN(parseInt(request.params.prayer)) || parseInt(request.params.prayer) <= 0) 
         next(new Exception(400, `FAILED AUTHENTICATED :: PRAYER REQUEST RECIPIENT :: missing prayer-id parameter :: ${request.params.prayer}`, 'Missing Prayer Request'));
 
     else {
@@ -74,7 +74,7 @@ export const authenticatePrayerRequestRecipientMiddleware = async(request: JwtPr
 /* Authenticate Requestor to Prayer Request | cache: request.prayerRequestID */
 export const authenticatePrayerRequestRequestorMiddleware = async(request: JwtPrayerRequest, response: Response, next: NextFunction):Promise<void> => {
     //Verify Prayer Parameter Exist
-    if(request.params.prayer === undefined || isNaN(parseInt(request.params.prayer))) 
+    if(request.params.prayer === undefined || isNaN(parseInt(request.params.prayer)) || parseInt(request.params.prayer) <= 0) 
         next(new Exception(400, `FAILED AUTHENTICATED :: PRAYER REQUEST REQUESTOR :: missing prayer-id parameter :: ${request.params.prayer}`, 'Missing Prayer Request'));
 
     else {
@@ -96,7 +96,7 @@ export const authenticatePrayerRequestRequestorMiddleware = async(request: JwtPr
 /* Extract Client Parameter | cache: request.clientID */
 export const extractClientMiddleware = async(request: JwtClientRequest, response: Response, next: NextFunction):Promise<void> => {
     //Verify Client Parameter Exist
-    if(request.params.client === undefined || isNaN(parseInt(request.params.client))) 
+    if(request.params.client === undefined || isNaN(parseInt(request.params.client)) || parseInt(request.params.client) <= 0) 
         next(new Exception(400, `FAILED AUTHENTICATED :: CLIENT :: missing client-id parameter :: ${request.params.client}`, 'Missing Client'));
 
     else {
@@ -109,7 +109,7 @@ export const extractClientMiddleware = async(request: JwtClientRequest, response
 /* Extract Partner Parameter | cache: request.partnerID */
 export const extractPartnerMiddleware = async(request: JwtClientPartnerRequest, response: Response, next: NextFunction):Promise<void> => {
     //Verify Partner Parameter Exist
-    if(request.params.partner === undefined || isNaN(parseInt(request.params.partner))) 
+    if(request.params.partner === undefined || isNaN(parseInt(request.params.partner)) || parseInt(request.params.partner) <= 0) 
         next(new Exception(400, `FAILED AUTHENTICATED :: PARTNER :: missing partner-id parameter :: ${request.params.partner}`, 'Missing Partner'));
 
     else {
@@ -176,7 +176,7 @@ export const authenticateClientAccessMiddleware = async(request: JwtClientReques
 /* Extract Circle Parameter | cache: request.circleID */
 export const extractCircleMiddleware = async(request: JwtCircleRequest, response: Response, next: NextFunction):Promise<void> => {
     //Verify Circle Parameter Exist
-    if(request.params.circle === undefined || isNaN(parseInt(request.params.circle))) 
+    if(request.params.circle === undefined || isNaN(parseInt(request.params.circle)) || parseInt(request.params.circle) <= 0) 
         next(new Exception(400, `FAILED AUTHENTICATED :: CIRCLE :: missing circle-id parameter :: ${request.params.circle}`, 'Missing Circle'));
 
     else {
@@ -233,7 +233,7 @@ export const authenticateLeaderMiddleware = async(request: JwtRequest, response:
 /* Extract Content Parameter | cache: request.contentID */
 export const extractContentMiddleware = async(request: JwtContentRequest, response: Response, next: NextFunction):Promise<void> => {
     //Verify Content Parameter Exist
-    if(request.params.content === undefined || isNaN(parseInt(request.params.content))) 
+    if(request.params.content === undefined || isNaN(parseInt(request.params.content)) || parseInt(request.params.content) <= 0) 
         next(new Exception(400, `FAILED AUTHENTICATED :: CONTENT :: missing content-id parameter :: ${request.params.content}`, 'Missing Content'));
 
     else {

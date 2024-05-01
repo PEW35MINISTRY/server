@@ -179,7 +179,7 @@ export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, stat
     log.db(`DELETE PARTNERSHIP attempted: userID:${userID} and clientID:${clientID} with status:${(clientID === undefined) ? 'ALL PARTNER CONNECTIONS' : 'Single Partnership'}`);
 
     const response:CommandResponseType = (status !== undefined)
-        ? await command('DELETE FROM partner WHERE userID = ? AND status = ?;', [userID, status])
+        ? await command('DELETE FROM partner WHERE userID = ? OR partnerID = ? AND status = ?;', [userID, userID, status])
 
         : (clientID === undefined) //Delete all partnership connections
             ? await command('DELETE FROM partner WHERE userID = ? OR partnerID = ?;', [userID, userID])
