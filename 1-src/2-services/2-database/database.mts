@@ -18,22 +18,12 @@ interface SecretsManagerRDSConfig {
     dbname: string,
     dbInstanceIdentifier: string
 }
-/* Secrets manager stores the following:
-
-* username -
-* password -
-* engine
-* host (endpoint) -
-* port -
-* database name -
-* instance identifier
-*/
 
 const client = new SecretsManagerClient({
     region: "us-east-1",
   });
 
-const GET_SecretsManagerDbConfig = async ():Promise<SecretsManagerRDSConfig> => {
+const GetRDSCredentials = async ():Promise<SecretsManagerRDSConfig> => {
     var response:GetSecretValueResponse;
     try {
         response = await client.send(
@@ -48,8 +38,8 @@ const GET_SecretsManagerDbConfig = async ():Promise<SecretsManagerRDSConfig> => 
     return response.SecretString as unknown as SecretsManagerRDSConfig;
 }
 
-const generateDB = async () => {
-    const RDScredentials = await GET_SecretsManagerDbConfig();
+const generateDBConfiguration = async () => {
+    const RDScredentials = await GetRDSCredentials();
 
     const CONFIGURATIONS:PoolOptions = {
         host: RDScredentials.host,
@@ -64,19 +54,19 @@ const generateDB = async () => {
         idleTimeout: (process.env.DATABASE_IDLE_TIME_MS as unknown as number) || 60000, 
         timezone: 'Z',
     }; 
-
-    const DATABASE:Pool = SQL.createPool(CONFIGURATIONS)
-
-    await DATABASE.query('SELECT COUNT(*) FROM `user`')
-        .then(([rows, fields]) => {
-                if(rows[0] !== undefined && rows[0]['COUNT(*)'] > 0) console.info(`DATABASE CONNECTED with ${rows[0]['COUNT(*)']} Identified Users`);
-                else throw `Connected, but Query Failed: ${JSON.stringify(rows)}`;})
-        .catch((error) => log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(CONFIGURATIONS), error))
-    
-    return DATABASE;
+    return CONFIGURATIONS;
 }
 
-const DATABASE:Pool = generateDB();
+const DB_CONFIGURATIONS = await generateDBConfiguration();
+const DATABASE:Pool = SQL.createPool(DB_CONFIGURATIONS);
+
+/* Test & Log Connection Success */
+setTimeout(async()=> await DATABASE.query('SELECT COUNT(*) FROM `user`')
+    .then(([rows, fields]) => {
+            if(rows[0] !== undefined && rows[0]['COUNT(*)'] > 0) console.info(`DATABASE CONNECTED with ${rows[0]['COUNT(*)']} Identified Users`);
+            else throw `Connected, but Query Failed: ${JSON.stringify(rows)}`;})
+    .catch((error) => log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(DB_CONFIGURATIONS), error))
+, 5000);
     
     /* Test & Log Connection Success */
 
