@@ -57,7 +57,7 @@ export const getJWTData = (jwt:string):JwtData => {
     else 
         return {
             jwtUserID: 0,
-            jwtUserRole: RoleEnum.STUDENT,
+            jwtUserRole: RoleEnum.USER,
         };
 }
 
@@ -68,7 +68,7 @@ export const validateNewRoleTokenList = async({newRoleList, jsonRoleTokenList, e
             return true;
         else if(currentRoleList !== undefined && currentRoleList.includes(role)) 
             return true;
-        else if(role === RoleEnum.STUDENT)
+        else if(role === RoleEnum.USER)
             return true;
         else {
             try {
@@ -84,14 +84,14 @@ export const validateNewRoleTokenList = async({newRoleList, jsonRoleTokenList, e
         }
     });
 
-//Create Account token required for non student accounts (Not required for )
-const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.STUDENT, token:string, email:string):Promise<boolean> => {
+//Create Account token required for non 'USER' accounts
+const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.USER, token:string, email:string):Promise<boolean> => {
     log.auth('New Account Authorized attempted: ', userRole, token, email);
 
     if(userRole === undefined || token === undefined || email === undefined) return false;
 
     switch(userRole as RoleEnum) {
-        case RoleEnum.STUDENT:
+        case RoleEnum.USER:
             return true;
 
         //Universal Token Codes

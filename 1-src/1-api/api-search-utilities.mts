@@ -82,7 +82,7 @@ export const SearchDetailServer:Record<SearchType, SearchTypeInfoServer<any, BAS
                           searchByIDMap: new Map([[UserSearchRefineEnum.ID, (ID:number) => DB_SELECT_USER(new Map([['userID', ID]])).then((model) => [model.toListItem()])]]),
                           fetchDefaultList: DB_SELECT_CONTACTS,
                           searchCache: (searchTerm:string, searchRefine:string) => DB_SELECT_USER_SEARCH_CACHE(searchTerm, UserSearchRefineEnum[searchRefine]),
-                          executeSearch: (searchTerm:string, columnList:string[]) => DB_SELECT_USER_SEARCH({searchTerm, columnList, excludeStudent: false, searchInactive: false}),
+                          executeSearch: (searchTerm:string, columnList:string[]) => DB_SELECT_USER_SEARCH({searchTerm, columnList, excludeGeneralUsers: false, searchInactive: false}),
                           saveCache: (searchTerm:string, searchRefine:string, resultList:any[]) => DB_INSERT_USER_SEARCH_CACHE({searchTerm, searchRefine: UserSearchRefineEnum[searchRefine], userList: resultList as ProfileListItem[]}),
                           adminFlushCache: DB_FLUSH_USER_SEARCH_CACHE_ADMIN,
                         }),

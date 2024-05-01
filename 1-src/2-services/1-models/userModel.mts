@@ -41,7 +41,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   notes?: string;
 
   //Query separate Tables
-  userRoleList: RoleEnum[] = [RoleEnum.STUDENT];
+  userRoleList: RoleEnum[] = [RoleEnum.USER];
   get userRole():RoleEnum { return this.getHighestRole(); }
 
   circleList: CircleListItem[] = [];                 //Includes: MEMBER|LEADER
@@ -65,11 +65,11 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   * MODEL UTILITIES *
   *******************/  
   /* USER ROLE UTILITIES */
-  isRole = (userRole:RoleEnum):boolean => this.userRoleList.includes(userRole) || (this.userRoleList.length === 0 && userRole === RoleEnum.STUDENT);
+  isRole = (userRole:RoleEnum):boolean => this.userRoleList.includes(userRole) || (this.userRoleList.length === 0 && userRole === RoleEnum.USER);
 
   getHighestRole = ():RoleEnum => Object.values(RoleEnum).reverse()
                      .find((userRole) => (this.isRole(userRole as RoleEnum)))
-                     || RoleEnum.STUDENT; //default
+                     || RoleEnum.USER; //default
     
   /* List Utilities */
   getCircleIDList = ():number[] => this.circleList.map(c => c.circleID);
@@ -115,7 +115,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
       columnList: (columnPrefix !== undefined) ? defaultModel.DATABASE_COLUMN_LIST.map((column:string) => camelCase(columnPrefix, column)) : undefined,
       complexColumnMap: complexFieldMap});
 
-    user.userRoleList = [RoleEnum[DB[camelCase(columnPrefix, 'userRole')]] || RoleEnum.STUDENT];
+    user.userRoleList = [RoleEnum[DB[camelCase(columnPrefix, 'userRole')]] || RoleEnum.USER];
     
     return user;
   }
@@ -183,7 +183,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
           if(roleTokenObj.role === undefined
             || (roleTokenObj.role.length === 0)
             || !Object.values(RoleEnum).includes(roleTokenObj.role as RoleEnum)
-            || roleTokenObj.token === undefined) { //token allowed to be empty string for STUDENT
+            || roleTokenObj.token === undefined) { //token allowed to be empty string for USER
 
             log.warn(`Validating error for userRoleTokenList:`, JSON.stringify(roleTokenObj), JSON.stringify(field.selectOptionList));
             return false;
@@ -204,7 +204,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
         return true;
 
     } else if(field.field === 'userRoleTokenList') {
-        this.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string] || RoleEnum.STUDENT);
+        this.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string] || RoleEnum.USER);
 
     } else if(field.field === 'userRoleList') {
         this.userRoleList = Array.from(jsonObj[field.field] as string[]).map(role => RoleEnum[role as string]);

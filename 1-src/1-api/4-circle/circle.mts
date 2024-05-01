@@ -249,10 +249,10 @@ export const DELETE_circleAnnouncement =  async(request: JwtCircleRequest, respo
 };
 
 /***************************************
- *  CIRCLE MEMBERSHIP | STUDENT ROUTES
+ *  CIRCLE MEMBERSHIP | USER ROUTES
  ***************************************/
 
-//Circle Membership Invite Must Exist (Student Accepts)
+//Circle Membership Invite Must Exist (User Accepts)
 export const POST_circleMemberAccept =  async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
 
     if(await DB_UPDATE_CIRCLE_USER_STATUS({userID: request.jwtUserID, circleID: request.circleID, currentStatus: DATABASE_CIRCLE_STATUS_ENUM.INVITE, status: DATABASE_CIRCLE_STATUS_ENUM.MEMBER}) === false)
