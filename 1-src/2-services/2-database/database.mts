@@ -2,31 +2,83 @@ import SQL, { Pool, PoolOptions, ResultSetHeader, RowDataPacket } from 'mysql2/p
 import * as log from './../log.mjs';
 import dotenv from 'dotenv';
 import { CommandResponseType } from './database-types.mjs';
+import {
+    SecretsManagerClient,
+    GetSecretValueCommand,
+    GetSecretValueResponse,
+  } from "@aws-sdk/client-secrets-manager";
 dotenv.config(); 
 
-const CONFIGURATIONS:PoolOptions = {
-    host: process.env.DATABASE_END_POINT,
-    database: process.env.DATABASE_NAME,
-    port: (process.env.DATABASE_PORT as unknown as number) || 3306,
-    user: process.env.DATABASE_USER,
-    password: process.env.DATABASE_PASSWORD,
-    connectTimeout: (process.env.DATABASE_CONNECTION_TIMEOUT_MS as unknown as number) || 30000, 
-    waitForConnections: true,
-    connectionLimit: (process.env.DATABASE_CONNECTION_MAX as unknown as number) || 10,
-    maxIdle: (process.env.DATABASE_CONNECTION_MIN as unknown as number) || 5,
-    idleTimeout: (process.env.DATABASE_IDLE_TIME_MS as unknown as number) || 60000, 
-    timezone: 'Z',
-  };
+interface SecretsManagerRDSConfig {
+    username: string,
+    password: string,
+    engine: string,
+    host: string,
+    port: number,
+    dbname: string,
+    dbInstanceIdentifier: string
+}
+/* Secrets manager stores the following:
 
-const DATABASE:Pool = SQL.createPool(CONFIGURATIONS);
+* username -
+* password -
+* engine
+* host (endpoint) -
+* port -
+* database name -
+* instance identifier
+*/
 
-/* Test & Log Connection Success */
-setTimeout(async()=> await DATABASE.query('SELECT COUNT(*) FROM `user`')
-    .then(([rows, fields]) => {
-            if(rows[0] !== undefined && rows[0]['COUNT(*)'] > 0) console.info(`DATABASE CONNECTED with ${rows[0]['COUNT(*)']} Identified Users`);
-            else throw `Connected, but Query Failed: ${JSON.stringify(rows)}`;})
-    .catch((error) => log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(CONFIGURATIONS), error))
-, 5000);
+const client = new SecretsManagerClient({
+    region: "us-east-1",
+  });
+
+const GET_SecretsManagerDbConfig = async ():Promise<SecretsManagerRDSConfig> => {
+    var response:GetSecretValueResponse;
+    try {
+        response = await client.send(
+            new GetSecretValueCommand({
+                SecretId: process.env.RDS_SECRET_NAME
+            })
+        );
+    } catch(error) {
+        throw(error);
+    }
+    
+    return response.SecretString as unknown as SecretsManagerRDSConfig;
+}
+
+const generateDB = async () => {
+    const RDScredentials = await GET_SecretsManagerDbConfig();
+
+    const CONFIGURATIONS:PoolOptions = {
+        host: RDScredentials.host,
+        database: RDScredentials.dbname,
+        port: (process.env.DATABASE_PORT as unknown as number) || 3306,
+        user: RDScredentials.username,
+        password: RDScredentials.password,
+        connectTimeout: (process.env.DATABASE_CONNECTION_TIMEOUT_MS as unknown as number) || 30000, 
+        waitForConnections: true,
+        connectionLimit: (process.env.DATABASE_CONNECTION_MAX as unknown as number) || 10,
+        maxIdle: (process.env.DATABASE_CONNECTION_MIN as unknown as number) || 5,
+        idleTimeout: (process.env.DATABASE_IDLE_TIME_MS as unknown as number) || 60000, 
+        timezone: 'Z',
+    }; 
+
+    const DATABASE:Pool = SQL.createPool(CONFIGURATIONS)
+
+    await DATABASE.query('SELECT COUNT(*) FROM `user`')
+        .then(([rows, fields]) => {
+                if(rows[0] !== undefined && rows[0]['COUNT(*)'] > 0) console.info(`DATABASE CONNECTED with ${rows[0]['COUNT(*)']} Identified Users`);
+                else throw `Connected, but Query Failed: ${JSON.stringify(rows)}`;})
+        .catch((error) => log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(CONFIGURATIONS), error))
+    
+    return DATABASE;
+}
+
+const DATABASE:Pool = generateDB();
+    
+    /* Test & Log Connection Success */
 
 /* Prevent SQL Injection Protocol:
 * 1) Use Prepared Statements, auto escape input strings
