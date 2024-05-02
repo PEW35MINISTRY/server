@@ -22,8 +22,8 @@ export enum GenderEnum {
 }
 
 export enum RoleEnum {
-    STUDENT = 'STUDENT',                       //General user only access to mobile app.
-    CIRCLE_LEADER = 'CIRCLE_LEADER',           //Allowed to create and manage small groups of students.
+    USER = 'USER',                             //General user only access to mobile app.
+    CIRCLE_LEADER = 'CIRCLE_LEADER',           //Allowed to create and manage small groups of users.
     CONTENT_APPROVER = 'CONTENT_APPROVER',     //Special access to content overview.
     DEVELOPER = 'DEVELOPER',                   //Full access to features; but not user data.
     ADMIN = 'ADMIN',                           //All access and privileges.
@@ -56,8 +56,8 @@ export const getDateYearsAgo = (years: number = 13):Date => {
 
 //HTML date input supports: 'YYYY-MM-DD'
 export const getShortDate = (dateISO:string):string => dateISO ? dateISO.split('T')[0] : getDateYearsAgo(13).toISOString().toString().split('T')[0];
-export const getDOBMinDate = (role:RoleEnum = RoleEnum.STUDENT):Date => (role === RoleEnum.STUDENT) ? getDateYearsAgo(19) : getDateYearsAgo(100); //Max Age
-export const getDOBMaxDate = (role:RoleEnum = RoleEnum.STUDENT):Date => (role === RoleEnum.STUDENT) ? getDateYearsAgo(13) : getDateYearsAgo(18); //Min Age
+export const getDOBMinDate = (role:RoleEnum = RoleEnum.USER):Date => (role === RoleEnum.USER) ? getDateYearsAgo(19) : getDateYearsAgo(100); //Max Age
+export const getDOBMaxDate = (role:RoleEnum = RoleEnum.USER):Date => (role === RoleEnum.USER) ? getDateYearsAgo(13) : getDateYearsAgo(18); //Min Age
 
 /*****************************************
 *   FIELD LISTS: LOGIN | SIGNUP | EDIT
@@ -65,9 +65,9 @@ export const getDOBMaxDate = (role:RoleEnum = RoleEnum.STUDENT):Date => (role ==
 ******************************************/
 
 export const LOGIN_PROFILE_FIELDS:InputField[] = [
-    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true,  validationRegex: EMAIL_REGEX, validationMessage: 'Please complete email.' }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: new RegExp(/^.{5,20}$/), validationMessage: 'Please complete password.' }),
-];
+    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true,  validationRegex: EMAIL_REGEX, validationMessage: 'Required, invalid email format.' }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: new RegExp(/^.{5,20}$/), validationMessage: 'Required, 5-20 characters.' }),
+]
 
 //Note: extending list forces the order, may need a sortID or duplicating for now
 export const EDIT_PROFILE_FIELDS:InputField[] = [
@@ -92,7 +92,7 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
     new InputField({title: 'Profile Notes', field: 'notes', type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{0,3000}$/), validationMessage: 'Max 3000 characters.'}),
 ];
 
-export const SIGNUP_PROFILE_FIELDS_STUDENT:InputField[] = [
+export const SIGNUP_PROFILE_FIELDS_USER:InputField[] = [
     new InputField({title: 'First Name', field: 'firstName', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{1,30}$/), validationMessage: 'Required, max 30 characters.' }),
     new InputField({title: 'Last Name', field: 'lastName', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{1,30}$/), validationMessage: 'Required, max 30 characters.' }),
     new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, unique: true, validationRegex: new RegExp(/^[a-z][a-z0-9_-]{3,13}[a-z0-9]$/), validationMessage: 'Unique, start/end with letter/numbers, 5-15 chars, lowercase, numbers, dashes, underscores.' }),
@@ -107,7 +107,7 @@ export const SIGNUP_PROFILE_FIELDS_STUDENT:InputField[] = [
 //SIGNUP all other roles
 export const SIGNUP_PROFILE_FIELDS:InputField[] = [    
     new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: false, selectOptionList: Object.values(RoleEnum), validationMessage: 'Authorization token is required.'}),
-    ...SIGNUP_PROFILE_FIELDS_STUDENT,
+    ...SIGNUP_PROFILE_FIELDS_USER,
 ];
 
 export const PARTNERSHIP_CONTRACT = (userName:string, partnerName:string):string => `I ${userName} promise to pray for ${partnerName} every day, as agreed upon in this contract, while ensuring our conversations remain private. This daily commitment remains in place until our partnership ends. By signing this agreement, I confirm my dedication to our prayer partnership and look forward to the positive impact it will have on both of us.`;

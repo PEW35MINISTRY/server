@@ -38,8 +38,8 @@ export const POST_NewPartnerSearch = async(request:JwtClientRequest, response:Re
     if(!profile.isValid)
         return next(new Exception(404, `POST_NewPartnerSearch - user  ${request.clientID} failed to parse from database and is invalid.`, 'Invalid Profile')); 
 
-    else if(await DB_IS_USER_ROLE(request.clientID, DATABASE_USER_ROLE_ENUM.STUDENT, true) === false)
-        return next(new Exception(401, `POST_NewPartnerSearch - user  ${request.clientID} is not a STUDENT role and not eligible for partners.`, 'Student Role Required')); 
+    else if(await DB_IS_USER_ROLE(request.clientID, DATABASE_USER_ROLE_ENUM.USER, true) === false)
+        return next(new Exception(401, `POST_NewPartnerSearch - user  ${request.clientID} is not a USER role and not eligible for partners.`, 'User Role Required')); 
 
     const availableList:ProfileListItem[] = await DB_SELECT_AVAILABLE_PARTNER_LIST(profile);
 
@@ -183,8 +183,8 @@ export const GET_AvailablePartnerList = async(request:JwtClientRequest, response
     if(!profile.isValid)
         next(new Exception(500, `GET_AvailablePartnerList - user ${request.clientID} failed to parse from database and is invalid.`, 'Invalid User')); 
 
-    else if(await DB_IS_USER_ROLE(request.clientID, DATABASE_USER_ROLE_ENUM.STUDENT, true) === false)
-        next(new Exception(400, `GET_AvailablePartnerList - user ${request.clientID} is not a STUDENT and not authorized to have partners.`, 'Student Role Required'))
+    else if(await DB_IS_USER_ROLE(request.clientID, DATABASE_USER_ROLE_ENUM.USER, true) === false)
+        next(new Exception(400, `GET_AvailablePartnerList - user ${request.clientID} is not a USER and not authorized to have partners.`, 'User Role Required'))
 
     else
         response.status(200).send(await DB_SELECT_AVAILABLE_PARTNER_LIST(profile));

@@ -242,7 +242,7 @@ apiServer.get('/api/circle/:circle', GET_circle);  //Handles relevant circle sta
 apiServer.get('/api/circle/:circle/image', GET_circleImage);
 
 apiServer.post('/api/circle/:circle/request', POST_circleMemberRequest);
-apiServer.post('/api/circle/:circle/accept', POST_circleMemberAccept); //Existing Circle Membership Invite must exist (Student Accepts)
+apiServer.post('/api/circle/:circle/accept', POST_circleMemberAccept); //Existing Circle Membership Invite must exist (User Accepts)
 apiServer.delete('/api/circle/:circle/leave', DELETE_circleMember);
 
 

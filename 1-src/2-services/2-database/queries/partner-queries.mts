@@ -192,7 +192,7 @@ export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, stat
 
 /***************************
  *  NEW PARTNER SEARCH     *
- * (Requires STUDENT role) *
+ * (Requires USER role) *
  ***************************/
 export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<NewPartnerListItem[]> => {
     const matchGender:boolean = (process.env.PARTNER_GENDER_MATCH !== undefined) ? (process.env.PARTNER_GENDER_MATCH === 'true') : true;
@@ -224,7 +224,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<NewPar
         + 'AND ( user.maxPartners > ( '
         + `    SELECT COUNT(*) FROM partner WHERE (userID = user.userID OR partnerID = user.userID) AND status NOT IN ('FAILED', 'ENDED') `
         + ')) '
-        + `AND ( user_role_defined.userRole = 'STUDENT' OR user_role.userID IS NULL ) ` //Student user role
+        + `AND ( user_role_defined.userRole = 'USER' OR user_role.userID IS NULL ) ` //USER role only
         + 'AND NOT EXISTS ( '
         + '    SELECT 1 '
         + '    FROM user_role '
@@ -252,7 +252,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<NewPar
 /*********************************
  *  ADMIN PARTNER STATUS QUERIES *
  *********************************/
-//Only Student Role and top 100 oldest users w/o active partners
+//Only USER Role and top 100 oldest users w/o active partners
 export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async():Promise<NewPartnerListItem[]> => {
     const rows:RowDataPacket[] = await query(
         'SELECT DISTINCT user.* ' 
@@ -260,7 +260,7 @@ export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async():Promise<NewPartner
         + 'LEFT JOIN user_role ON user.userID = user_role.userID '
         + 'LEFT JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
         + 'LEFT JOIN partner ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-        + `WHERE (user_role_defined.userRole = 'STUDENT' OR user_role.userID IS NULL) `
+        + `WHERE (user_role_defined.userRole = 'USER' OR user_role.userID IS NULL) `
         + '    AND user.maxPartners > 0 '
         + '    AND ((partner.userID IS NULL AND partner.partnerID IS NULL) '
         + `        OR (partner.status IN ('FAILED', 'ENDED') `
@@ -271,7 +271,7 @@ export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async():Promise<NewPartner
     return [...rows.map(row => USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem())];
 }
 
-//Latest 100 Users with Student Role
+//Latest 100 Users with USER Role
 export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = false):Promise<PartnerCountListItem[]> => {
 
     const totalByStatus:string = Object.values(PartnerStatusEnum)
@@ -283,7 +283,7 @@ export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = 
             + 'LEFT JOIN user_role ON user.userID = user_role.userID '
             + 'LEFT JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
             + 'LEFT JOIN partner ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-            + `WHERE (user_role_defined.userRole = 'STUDENT' OR user_role.userID IS NULL) `
+            + `WHERE (user_role_defined.userRole = 'USER' OR user_role.userID IS NULL) `
             + 'GROUP BY user.userID '
             + `${filterFewerPartners ?
                 `HAVING SUM(CASE WHEN partner.status NOT IN ('FAILED', 'ENDED') THEN 1 ELSE 0 END) < user.maxPartners ` : ''}`

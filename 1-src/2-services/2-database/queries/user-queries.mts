@@ -173,18 +173,18 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
 /**********************
  *  USER ROLE QUERIES
  **********************/
-export const DB_IS_USER_ROLE = async(userID:number, userRole:DATABASE_USER_ROLE_ENUM, defaultStudent:boolean = false):Promise<Boolean> => {   
+export const DB_IS_USER_ROLE = async(userID:number, userRole:DATABASE_USER_ROLE_ENUM, useDefaultUser:boolean = false):Promise<Boolean> => {   
     const rows = await execute('SELECT * ' + 'FROM user '
     + 'LEFT JOIN user_role ON user_role.userID = user.userID '
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
     + 'WHERE user.userID = ? '
-    + `AND (user_role_defined.userRole = ? OR (user_role.userRoleID IS NULL AND ? = TRUE AND ? = 'STUDENT'));`, 
-        [userID, userRole, defaultStudent, userRole]); 
+    + `AND (user_role_defined.userRole = ? OR (user_role.userRoleID IS NULL AND ? = TRUE AND ? = 'USER'));`, 
+        [userID, userRole, useDefaultUser, userRole]); 
 
     return (rows.length === 1);
 }
 
-export const DB_IS_ANY_USER_ROLE = async(userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[], defaultStudent:boolean = true):Promise<Boolean> => {   
+export const DB_IS_ANY_USER_ROLE = async(userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[], useDefaultUser:boolean = true):Promise<Boolean> => {   
 
     if(userRoleList === undefined || userRoleList.length === 0) return false;
 
@@ -195,12 +195,12 @@ export const DB_IS_ANY_USER_ROLE = async(userID:number, userRoleList:DATABASE_US
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
     + 'WHERE user.userID = ? '
     + `AND (${preparedColumns} OR (user_role.userRoleID IS NULL AND ? = TRUE));`,
-        [userID, ...userRoleList, defaultStudent]); 
+        [userID, ...userRoleList, useDefaultUser]); 
 
     return (rows.length >= 1);
 }
 
-export const DB_SELECT_USER_ROLES = async(userID:number, defaultStudent:boolean = true):Promise<RoleEnum[]> => {
+export const DB_SELECT_USER_ROLES = async(userID:number, defaultUserRole:boolean = true):Promise<RoleEnum[]> => {
     const rows = await execute('SELECT user_role_defined.userRole ' 
         + 'FROM user_role, user_role_defined '
         + 'WHERE user_role.userRoleID = user_role_defined.userRoleID '
@@ -212,7 +212,7 @@ export const DB_SELECT_USER_ROLES = async(userID:number, defaultStudent:boolean 
         if(Object.values(RoleEnum).includes(row.userRole)) validRoles.push(RoleEnum[row.userRole]);
         else log.db('Invalid Role, Not in Server Types', userID, row, JSON.stringify(Object.values(RoleEnum)));        
     });
-    return ((validRoles.length === 0) && defaultStudent) ? [RoleEnum.STUDENT] : validRoles;
+    return ((validRoles.length === 0) && defaultUserRole) ? [RoleEnum.USER] : validRoles;
 }
 
 export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:number, email?:string, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {
@@ -263,7 +263,7 @@ export const DB_SELECT_CREDENTIALS = async():Promise<CredentialProfile[]> => {
 
     return [...rows.map(row => ({userID: row.userID || -1, 
             displayName: row.displayName || '', 
-            userRole: row.userRole || RoleEnum.STUDENT,
+            userRole: row.userRole || RoleEnum.USER,
             email: row.email || '',
             passwordHash: row.passwordHash || '',
         }))];
@@ -275,12 +275,12 @@ export const DB_SELECT_CREDENTIALS = async():Promise<CredentialProfile[]> => {
  *  USER SEARCH & CACHE QUERIES
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
-export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeStudent = false, searchInactive = false}:{searchTerm:string, columnList:string[], excludeStudent?:boolean, searchInactive?:boolean}):Promise<ProfileListItem[]> => {
-    const rows = excludeStudent ?
+export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean}):Promise<ProfileListItem[]> => {
+    const rows = excludeGeneralUsers ?
         await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
             + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
             + `WHERE ${searchInactive ? 'userInfo.isActive = false AND' : ''} `
-            + `user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'STUDENT' ) AND `
+            + `user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'USER' ) AND `
             + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
             + 'LIMIT 30;', [`%${searchTerm}%`])
             
@@ -310,7 +310,7 @@ export const DB_SELECT_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine
     }
 }
 
-//Updates on Duplicate | Only caches searches including students
+//Updates on Duplicate | Only caches searches including users with 'USER' Role
 export const DB_INSERT_USER_SEARCH_CACHE = async({searchTerm, searchRefine: searchRefine, userList}:{searchTerm:string, searchRefine:UserSearchRefineEnum, userList:ProfileListItem[]}):Promise<boolean> => {
 
     const response:CommandResponseType = await command(`INSERT INTO user_search_cache ( searchTerm, searchRefine, stringifiedProfileItemList ) `

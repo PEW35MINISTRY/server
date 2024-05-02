@@ -40,8 +40,8 @@ export enum DATABASE_GENDER_ENUM {
 }
 
 export enum DATABASE_USER_ROLE_ENUM {
-    STUDENT = 'STUDENT',                       //General user only access to mobile app.
-    CIRCLE_LEADER = 'CIRCLE_LEADER',           //Allowed to create and manage small groups of students.
+    USER = 'USER',                             //General user only access to mobile app.
+    CIRCLE_LEADER = 'CIRCLE_LEADER',           //Allowed to create and manage small groups of users.
     CONTENT_APPROVER = 'CONTENT_APPROVER',     //Special access to content overview.
     DEVELOPER = 'DEVELOPER',                   //Full access to features; but not user data.
     ADMIN = 'ADMIN',                           //All access and privileges.

@@ -1,4 +1,4 @@
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
 
@@ -11,8 +11,8 @@ export const editProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean
 }
 
 export const signupProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
-    if(userRole === RoleEnum.STUDENT)
-        return SIGNUP_PROFILE_FIELDS_STUDENT.some(inputField => inputField.field === field);
+    if(userRole === RoleEnum.USER)
+        return SIGNUP_PROFILE_FIELDS_USER.some(inputField => inputField.field === field);
     else
         return SIGNUP_PROFILE_FIELDS.some(inputField => inputField.field === field);
 }

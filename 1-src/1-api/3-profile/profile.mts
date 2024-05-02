@@ -1,7 +1,6 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import URL, { URLSearchParams } from 'url';
-import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_STUDENT, UserSearchRefineEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER, UserSearchRefineEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
@@ -26,10 +25,10 @@ export const GET_RoleList = (request: Request, response: Response, next: NextFun
 //Public URL | UI Helper to get list of fields user allowed to  edit 
 export const GET_SignupProfileFields = async(request: JwtRequest, response: Response, next: NextFunction) => {
 
-    const role: string = request.params.role || 'student';
+    const role: string = request.params.role || 'user';
     
-    if(role.toLowerCase() === 'student')
-        response.status(200).send(SIGNUP_PROFILE_FIELDS_STUDENT.map(field => field.toJSON()));
+    if(role.toLowerCase() === 'user')
+        response.status(200).send(SIGNUP_PROFILE_FIELDS_USER.map(field => field.toJSON()));
     else
         response.status(200).send(SIGNUP_PROFILE_FIELDS.map(field => field.toJSON()));
 }
@@ -121,8 +120,8 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
         //New Account Success -> Auto Login Response
         else { 
             //Add user roles, already verified permission above
-            const saveStudentRole:boolean = newProfile.userRoleList.length > 1; //Only save student role for multi role users
-            const insertRoleList:DATABASE_USER_ROLE_ENUM[] = newProfile.userRoleList.filter((role) => (role !== RoleEnum.STUDENT || saveStudentRole)).map((role) => DATABASE_USER_ROLE_ENUM[role]);
+            const saveUserRole:boolean = newProfile.userRoleList.length > 1; //Only save 'USER' role for multi role users
+            const insertRoleList:DATABASE_USER_ROLE_ENUM[] = newProfile.userRoleList.filter((role) => (role !== RoleEnum.USER || saveUserRole)).map((role) => DATABASE_USER_ROLE_ENUM[role]);
             if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
                 log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
 
@@ -164,8 +163,8 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
             if(deleteRoleList.length > 0 && !DB_DELETE_USER_ROLE({userID:editProfile.userID, userRoleList: deleteRoleList}))
                 log.error(`Edit Profile Failed :: Error removing userRoles ${JSON.stringify(deleteRoleList)} to ${editProfile.userID}`);
 
-            const saveStudentRole:boolean = editProfile.userRoleList.length > 1; //Only save student role for multi role users
-            const insertRoleList:DATABASE_USER_ROLE_ENUM[] = editProfile.userRoleList?.filter((role) => ((role !== RoleEnum.STUDENT || saveStudentRole) && !currentRoleList.includes(role))).map((role) => DATABASE_USER_ROLE_ENUM[role]);
+            const saveUserRole:boolean = editProfile.userRoleList.length > 1; //Only save 'USER' role for multi role users
+            const insertRoleList:DATABASE_USER_ROLE_ENUM[] = editProfile.userRoleList?.filter((role) => ((role !== RoleEnum.USER || saveUserRole) && !currentRoleList.includes(role))).map((role) => DATABASE_USER_ROLE_ENUM[role]);
             if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({userID:editProfile.userID, userRoleList: insertRoleList}))
                 log.error(`Edit Profile Failed :: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${editProfile.userID}`);
 

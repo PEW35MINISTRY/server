@@ -293,7 +293,7 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || '', status: (row.leaderID === userID) ? CircleStatusEnum.LEADER : (row.status === undefined) ? undefined : CircleStatusEnum[row.status]}))];
 }
 
-//Select list of leader IDs where student is a member of their circle | (leader has access to student profile)
+//Select list of leader IDs where 'user' is a member of their circle | (leader has access to 'user' profile)
 export const DB_SELECT_CIRCLE_LEADER_IDS = async(userID:number):Promise<number[]> => {
     const rows = await execute('SELECT DISTINCT circle.leaderID ' + 'FROM circle, circle_user '
         + 'WHERE circle.circleID = circle_user.circleID AND circle_user.userID = ? AND circle_user.status = ? '
