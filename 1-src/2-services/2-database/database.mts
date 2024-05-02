@@ -20,8 +20,8 @@ interface SecretsManagerRDSConfig {
 }
 
 const client = new SecretsManagerClient({
-    region: "us-east-1",
-  });
+    region: process.env.RDS_SECRET_REGION,
+});
 
 const GetRDSCredentials = async ():Promise<SecretsManagerRDSConfig> => {
     var response:GetSecretValueResponse;
@@ -35,10 +35,10 @@ const GetRDSCredentials = async ():Promise<SecretsManagerRDSConfig> => {
         throw(error);
     }
     
-    return response.SecretString as unknown as SecretsManagerRDSConfig;
+    return JSON.parse(response.SecretString) as unknown as SecretsManagerRDSConfig;
 }
 
-const generateDBConfiguration = async () => {
+const generateProductionDBConfiguration = async ():Promise<PoolOptions> => {
     const RDScredentials = await GetRDSCredentials();
 
     const CONFIGURATIONS:PoolOptions = {
@@ -57,7 +57,24 @@ const generateDBConfiguration = async () => {
     return CONFIGURATIONS;
 }
 
-const DB_CONFIGURATIONS = await generateDBConfiguration();
+const generateDevelopmentDBConfiguration = async ():Promise<PoolOptions> => {
+    const CONFIGURATIONS:PoolOptions = {
+        host: process.env.DATABASE_END_POINT,
+        database: process.env.DATABASE_NAME,
+        port: (process.env.DATABASE_PORT as unknown as number) || 3306,
+        user: process.env.DATABASE_USER,
+        password: process.env.DATABASE_PASSWORD,
+        connectTimeout: (process.env.DATABASE_CONNECTION_TIMEOUT_MS as unknown as number) || 30000, 
+        waitForConnections: true,
+        connectionLimit: (process.env.DATABASE_CONNECTION_MAX as unknown as number) || 10,
+        maxIdle: (process.env.DATABASE_CONNECTION_MIN as unknown as number) || 5,
+        idleTimeout: (process.env.DATABASE_IDLE_TIME_MS as unknown as number) || 60000, 
+        timezone: 'Z',
+    }; 
+    return CONFIGURATIONS;
+}
+
+const DB_CONFIGURATIONS = (process.env.ENVIRONMENT === "PRODUCTION") ? await generateProductionDBConfiguration() : await generateDevelopmentDBConfiguration();
 const DATABASE:Pool = SQL.createPool(DB_CONFIGURATIONS);
 
 /* Test & Log Connection Success */
