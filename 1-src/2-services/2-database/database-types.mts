@@ -1,5 +1,15 @@
 import SQL from 'mysql2';
-import { GenderEnum, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+
+
+export interface AWSDatabaseSecrets {
+    host: string,
+    dbname: string,
+    username: string,
+    password: string,
+    port: number,
+    engine: string,
+    dbInstanceIdentifier: string
+}
 
 
 export interface CommandResponseType extends SQL.ResultSetHeader {
