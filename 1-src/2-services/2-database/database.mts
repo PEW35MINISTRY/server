@@ -1,32 +1,90 @@
 import SQL, { Pool, PoolOptions, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as log from './../log.mjs';
+import { CommandResponseType, AWSDatabaseSecrets } from './database-types.mjs';
+import { SecretsManagerClient, GetSecretValueCommand, GetSecretValueResponse } from '@aws-sdk/client-secrets-manager';
 import dotenv from 'dotenv';
-import { CommandResponseType } from './database-types.mjs';
 dotenv.config(); 
 
-const CONFIGURATIONS:PoolOptions = {
-    host: process.env.DATABASE_END_POINT,
-    database: process.env.DATABASE_NAME,
-    port: (process.env.DATABASE_PORT as unknown as number) || 3306,
-    user: process.env.DATABASE_USER,
-    password: process.env.DATABASE_PASSWORD,
-    connectTimeout: (process.env.DATABASE_CONNECTION_TIMEOUT_MS as unknown as number) || 30000, 
-    waitForConnections: true,
-    connectionLimit: (process.env.DATABASE_CONNECTION_MAX as unknown as number) || 10,
-    maxIdle: (process.env.DATABASE_CONNECTION_MIN as unknown as number) || 5,
-    idleTimeout: (process.env.DATABASE_IDLE_TIME_MS as unknown as number) || 60000, 
-    timezone: 'Z',
-  };
 
-const DATABASE:Pool = SQL.createPool(CONFIGURATIONS);
+/*********************************************
+ *  DATABASE CONFIGURATION & INITIALIZATION  *
+ *********************************************/
+let DATABASE:SQL.Pool|undefined; 
 
-/* Test & Log Connection Success */
-setTimeout(async()=> await DATABASE.query('SELECT COUNT(*) FROM `user`')
-    .then(([rows, fields]) => {
-            if(rows[0] !== undefined && rows[0]['COUNT(*)'] > 0) console.info(`DATABASE CONNECTED with ${rows[0]['COUNT(*)']} Identified Users`);
-            else throw `Connected, but Query Failed: ${JSON.stringify(rows)}`;})
-    .catch((error) => log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(CONFIGURATIONS), error))
-, 5000);
+const GetRDSSecretCredentials = async():Promise<AWSDatabaseSecrets> => {
+    try {
+        const client = new SecretsManagerClient({ region: process.env.RDS_SECRET_REGION });
+        const response:GetSecretValueResponse = await client.send(new GetSecretValueCommand({
+            SecretId: process.env.RDS_SECRET_NAME
+        }));
+        return JSON.parse(response.SecretString) as AWSDatabaseSecrets;
+    } catch (error) {
+        await log.alert(`DATABASE | AWS Secret Manager failed to connect to RDS Secret: ${process.env.RDS_SECRET_NAME} in Region: ${process.env.RDS_SECRET_REGION}.`, error);
+        throw error;
+    }
+}
+
+
+const initializeDatabase = async():Promise<SQL.Pool> => {
+    console.log(`Initializing Database in ${process.env.ENVIRONMENT} Environment...`);
+
+    if(DATABASE) {
+        console.log('DATABASE | initializeDatabase - Terminating existing instance.');
+        await DATABASE.end();
+        DATABASE = undefined;
+    }
+
+    /* Database Configurations */
+    let DB_CONFIGURATIONS: PoolOptions = {
+        host: process.env.DATABASE_END_POINT,
+        database: process.env.DATABASE_NAME,
+        user: process.env.DATABASE_USER,
+        password: process.env.DATABASE_PASSWORD,
+    
+        port: parseInt(process.env.DATABASE_PORT || '3306'),
+        connectTimeout: parseInt(process.env.DATABASE_CONNECTION_TIMEOUT_MS || '30000'),
+        waitForConnections: true,
+        connectionLimit: parseInt(process.env.DATABASE_CONNECTION_MAX || '10'),
+        maxIdle: parseInt(process.env.DATABASE_CONNECTION_MIN || '5'),
+        idleTimeout: parseInt(process.env.DATABASE_IDLE_TIME_MS || '60000'),
+        timezone: 'Z',
+    };
+    
+    /* Production Environment overwrites with AWS Secrets Manager */
+    if(process.env.ENVIRONMENT === 'PRODUCTION') {
+        const RDScredentials:AWSDatabaseSecrets = await GetRDSSecretCredentials();        
+    
+        DB_CONFIGURATIONS = {
+            ...DB_CONFIGURATIONS,
+            host: RDScredentials.host,
+            database: RDScredentials.dbname,
+            user: RDScredentials.username,
+            password: RDScredentials.password,
+        };
+    }
+
+    DATABASE = SQL.createPool(DB_CONFIGURATIONS);
+
+    /* Test & Log Connection Success */
+    try {
+        const [rows] = await DATABASE.query('SELECT COUNT(*) AS count FROM `user`');
+        if(rows[0] !== undefined && parseInt(rows[0]['count']) > 0) 
+            console.info(`DATABASE CONNECTED with ${rows[0]['count']} Identified Users`);
+        else 
+            throw `Connected, but Query Failed: ${JSON.stringify(rows)}`;
+
+    } catch (error) {
+        await DATABASE.end();
+        await log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(DB_CONFIGURATIONS), error);
+        throw error;
+    }
+
+    return DATABASE;
+}
+
+ /*  Initialize Database  & Wait*/
+await initializeDatabase();   
+
 
 /* Prevent SQL Injection Protocol:
 * 1) Use Prepared Statements, auto escape input strings
