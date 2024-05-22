@@ -17,7 +17,6 @@ import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_INSERT_CIRCLE_SEARCH_CACHE, DB_S
 import { ContentSearchRefineEnum } from '../0-assets/field-sync/input-config-sync/content-field-config.mjs';
 import { DB_SELECT_CONTENT, DB_SELECT_CONTENT_SEARCH, DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES } from '../2-services/2-database/queries/content-queries.mjs';
 import { DATABASE_USER_ROLE_ENUM } from '../2-services/2-database/database-types.mjs';
-import { filterContentList } from './11-content/content-utilities.mjs';
 
 
 
@@ -113,7 +112,6 @@ export const SearchDetailServer:Record<SearchType, SearchTypeInfoServer<any, BAS
                                                     [ContentSearchRefineEnum.RECORDER_ID, (ID:number) => DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES(ID, true)]]),
                             fetchDefaultList: DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES,
                             executeSearch: DB_SELECT_CONTENT_SEARCH,
-                            filterResultList: filterContentList,
                         }),
 };
 

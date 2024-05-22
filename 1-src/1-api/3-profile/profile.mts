@@ -46,7 +46,7 @@ export const GET_EditProfileFields = async(request: JwtClientRequest, response: 
 //Uses Query Parameters: GET localhost:5000/resources/available-account?email=ethan@encouragingprayer.org&displayName=ethan
 export const GET_AvailableAccount =  async (request: Request, response: Response, next: NextFunction) => { //(ALL fields and values are case insensitive)
     if(URL.parse(request.originalUrl).query === '')
-        new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`);
+        new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`, 'Invalid Account');
 
     const fieldMap:Map<string, string> = new Map(new URLSearchParams(URL.parse(request.originalUrl).query).entries());
     const result:Boolean|undefined = await DB_UNIQUE_USER_EXISTS(fieldMap, true);
@@ -97,7 +97,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
         response.status(200).send(profile.toNewPartnerListItem())   
         log.event('Returning partner profile for userID: ', request.clientID);
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(500, `GET_partnerProfile - user  ${request.clientID} failed to parse from database and is invalid.`)); 
+        next(new Exception(500, `GET_partnerProfile - user  ${request.clientID} failed to parse from database and is invalid.`, 'Invalid Partner')); 
 };
 
 
@@ -115,7 +115,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             next(new Exception(401, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
 
         else if(await DB_INSERT_USER(newProfile.getDatabaseProperties()) === false) 
-                next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Save Failed'));
+                next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Signup Save Failed'));
 
         //New Account Success -> Auto Login Response
         else { 
@@ -172,31 +172,31 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
         next((editProfile instanceof Exception) ? editProfile
-            : new Exception(500, `PATCH_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`));
+            : new Exception(500, `PATCH_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`, 'Profile Save Failed'));
 };
 
 /* Delete Profiles */
 export const DELETE_userProfile = async (request: JwtClientRequest, response: Response, next: NextFunction) => {
 
     if(await DB_DELETE_CIRCLE_USER_STATUS({userID: request.clientID, circleID: undefined}) === false) //Leader must delete circle manually
-        next(new Exception(500, `Failed to delete all circle membership of user ${request.clientID}`, 'Circle Membership Exists'));
+        next(new Exception(500, `Failed to delete all circle membership of user ${request.clientID}`, 'Linked Circle Membership Exists'));
 
     else if(await DB_DELETE_PARTNERSHIP(request.clientID) === false)
-        next(new Exception(500, `Failed to delete all partnerships of user ${request.clientID}`, 'Partnerships Exists'));
+        next(new Exception(500, `Failed to delete all partnerships of user ${request.clientID}`, 'Linked Partnerships Exists'));
 
     else if(await DB_DELETE_ALL_USER_PRAYER_REQUEST(request.clientID) === false)
-        next(new Exception(500, `Failed to delete all prayer requests of user ${request.clientID}`, 'Prayer Requests Exists'));
+        next(new Exception(500, `Failed to delete all prayer requests of user ${request.clientID}`, 'Linked Prayer Requests Exists'));
 
     else if(await DB_DELETE_USER_ROLE({userID: request.clientID, userRoleList: undefined}) === false)
-        next(new Exception(500, `Failed to delete all user roles of user ${request.clientID}`, 'User Roles Exists'));
+        next(new Exception(500, `Failed to delete all user roles of user ${request.clientID}`, 'Linked User Roles Exists'));
 
     else if(await clearImageCombinations({id: request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) === false)
-        next(new Exception(500, `Failed to delete profile image for user ${request.clientID}`, 'Profile Image Exists'));
+        next(new Exception(500, `Failed to delete profile image for user ${request.clientID}`, 'Linked Profile Image Exists'));
 
     else if(await DB_DELETE_USER(request.clientID))
         response.status(204).send(`User ${request.clientID} deleted successfully`);
     else
-        next(new Exception(404, `Profile Delete Failed :: Failed to delete user ${request.clientID} account.`, 'Delete Failed'));
+        next(new Exception(500, `Profile Delete Failed :: Failed to delete user ${request.clientID} account.`, 'Profile Delete Failed'));
 };
 
 /* Profile Images */

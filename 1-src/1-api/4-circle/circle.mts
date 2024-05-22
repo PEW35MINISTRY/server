@@ -67,7 +67,7 @@ export const GET_circle =  async(request: JwtCircleRequest, response: Response, 
         response.status(200).send(circle.toLeaderJSON());
 
     else //Never should reach
-        next(new Exception(500, `GET_circle - circle ${request.circleID} Failed to identify requestor: ${circle.requestorID} with circle requestorStatus: ${circle.requestorStatus}`));
+        next(new Exception(500, `GET_circle - circle ${request.circleID} Failed to identify requestor: ${circle.requestorID} with circle requestorStatus: ${circle.requestorStatus}`, 'Circle Missing'));
 };
 
 
@@ -339,7 +339,7 @@ export const POST_circleMemberJoinAdmin =  async(request: JwtCircleClientRequest
 export const DELETE_circleLeaderMember =  async(request: JwtCircleClientRequest, response: Response, next: NextFunction) => {
     
     if(await DB_DELETE_CIRCLE_USER_STATUS({userID: request.clientID, circleID: request.circleID}) === false)
-        next(new Exception(404, `Circle Membership Leader Delete Failed :: Failed to delete membership for user ${request.params.client} to circle ${request.circleID}.`, 'Delete Failed'));
+        next(new Exception(404, `Circle Membership Leader Delete Failed :: Failed to delete membership for user ${request.params.client} to circle ${request.circleID}.`, 'Circle Delete Failed'));
     else
         response.status(204).send(`User ${request.params.client} successfully removed from circle ${request.circleID}`);
 };
