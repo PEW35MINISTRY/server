@@ -37,7 +37,7 @@ export const updateCircleListCache = async(updatedFields:Map<string, any>):Promi
 
 
 //TODO: User current circleIDs list could be cached short-term (5min); since runs for each letter of a search
-export const filterListByCircleStatus = async(request:JwtSearchRequest, circleList:CircleListItem[], circleStatus:CircleStatusEnum) => {
+export const filterListByCircleStatus = async(request:JwtSearchRequest, circleList:CircleListItem[], circleStatus:CircleStatusEnum):Promise<CircleListItem[]> => {
     const userID = request.jwtUserID;
     let excludeCircleIDList:number[] = [];
     let includeCircleIDList:number[] = [];
