@@ -15,7 +15,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = [ 'recorderID', 'type', 'source', 'url' ]; //exclude: contentID, complex types, and lists
-    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'description', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes' ];
+    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'description', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile' ];
 
     contentID: number = -1;
     recorderID: number; //user that recorded
@@ -90,6 +90,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
             ['source', (currentContent:CONTENT_ARCHIVE, newContent:CONTENT_ARCHIVE) => {newContent.gender = ContentSourceEnum[currentContent.gender]}],
             ['gender', (currentContent:CONTENT_ARCHIVE, newContent:CONTENT_ARCHIVE) => {newContent.gender = GenderSelectionEnum[currentContent.gender]}],
             ['keywordList', (currentPrayerRequest:CONTENT_ARCHIVE, newPrayerRequest:CONTENT_ARCHIVE) => {newPrayerRequest.keywordList = CONTENT_ARCHIVE.contentArchiveParseKeywordList(JSON.stringify(currentPrayerRequest.keywordList))}],
+            ['recorderProfile', (currentPrayerRequest:CONTENT_ARCHIVE, newPrayerRequest:CONTENT_ARCHIVE) => { /* Skipping */ }],
          ])});
  
     override constructByClone = <CONTENT_ARCHIVE,>():CONTENT_ARCHIVE => CONTENT_ARCHIVE.constructByClone(this) as CONTENT_ARCHIVE;

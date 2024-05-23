@@ -18,7 +18,7 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
     static PUBLIC_PROPERTY_LIST = ['circleID', 'leaderID', 'name', 'description', 'postalCode', 'image', 'requestorID', 'requestorStatus', 'leaderProfile', 'memberList', 'eventList'];
     static MEMBER_PROPERTY_LIST = [...CIRCLE.PUBLIC_PROPERTY_LIST, 'announcementList', 'prayerRequestList', 'pendingRequestList', 'pendingInviteList'];
     static LEADER_PROPERTY_LIST = [...CIRCLE.MEMBER_PROPERTY_LIST, 'inviteToken'];
-    static PROPERTY_LIST = [...CIRCLE.LEADER_PROPERTY_LIST, 'notes'];
+    static PROPERTY_LIST = [...CIRCLE.LEADER_PROPERTY_LIST, 'isActive','notes'];
 
     circleID: number = -1;
     leaderID: number;
@@ -68,16 +68,23 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
     static constructByJson = <CIRCLE,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):CIRCLE|Exception => 
         new CIRCLE().populateFromJson({jsonObj, fieldList}) as CIRCLE|Exception;
 
+    static constructByClone = (circle:CIRCLE):CIRCLE =>
+        BASE_MODEL.constructByCloneUtility<CIRCLE>({currentModel: circle, newModel: new CIRCLE(circle.circleID || -1), defaultModel: new CIRCLE(), propertyList: CIRCLE.PROPERTY_LIST,
+         complexPropertyMap: new Map([
+            ['leaderProfile', (currentPrayerRequest:CIRCLE, newPrayerRequest:CIRCLE) => { /* Skipping */ }],
+         ])});
+ 
+    override constructByClone = <CIRCLE,>():CIRCLE => CIRCLE.constructByClone(this) as CIRCLE;
 
     /**********************
     * PROPERTY UTILITIES *
     **********************/  
-    override getValidProperties = (properties:string[] = CIRCLE.PROPERTY_LIST, includeUserID:boolean = true):Map<string, any> => {
+    override getValidProperties = (properties:string[] = CIRCLE.PROPERTY_LIST, includeCircleID:boolean = true):Map<string, any> => {
         const complexFieldMap = new Map();
         complexFieldMap.set('announcementList', (model:CIRCLE, baseModel:CIRCLE) => model.announcementList.map(announcement => announcement.toJSON()));
     
         return BASE_MODEL.getUniquePropertiesUtility<CIRCLE>({fieldList: properties, getModelProperty: (property) => property,
-          model: this, baseModel: undefined, includeID: includeUserID, includeObjects: true, includeNull: false,
+          model: this, baseModel: undefined, includeID: includeCircleID, includeObjects: true, includeNull: false,
           complexFieldMap});
     }
   

@@ -126,14 +126,14 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
         next((editPrayerRequest instanceof Exception) ? editPrayerRequest
-            : new Exception(500, `PATCH_prayerRequest - prayer request ${request.prayerRequestID} failed to parse from database and is invalid.`));
+            : new Exception(500, `PATCH_prayerRequest - prayer request ${request.prayerRequestID} failed to parse from database and is invalid.`, 'Invalid Prayer Request'));
 };
 
 
 export const POST_prayerRequestIncrementPrayerCount = async (request: JwtPrayerRequest, response: Response, next: NextFunction) => {
     
     if(await DB_UPDATE_INCREMENT_PRAYER_COUNT(request.prayerRequestID) === false)
-        next(new Exception(500, `Failed to Incremented Prayer Count for prayer request ${request.prayerRequestID}`));
+        next(new Exception(500, `Failed to Incremented Prayer Count for prayer request ${request.prayerRequestID}`, 'Failed to Save'));
 
     else {
         response.status(200).send(`Prayer Count Incremented for prayer request ${request.prayerRequestID}`);
@@ -149,7 +149,7 @@ export const POST_prayerRequestResolved = async (request: JwtPrayerRequest, resp
         
     //Clear Recipient List; but keep comments
     else if(await DB_DELETE_RECIPIENT_PRAYER_REQUEST({prayerRequestID: request.prayerRequestID}) === false)
-        next(new Exception(500, `Failed to Delete Recipients for prayer request ${request.prayerRequestID}`));
+        next(new Exception(500, `Failed to Delete Recipients for prayer request ${request.prayerRequestID}`, 'Failed to clear recipients'));
 
     else {
         response.status(200).send(`Prayer Request ${request.prayerRequestID} resolved.`);
@@ -162,13 +162,13 @@ export const DELETE_prayerRequest = async (request: JwtPrayerRequest, response: 
     log.event(`User ${request.jwtUserID} is deleting prayer request ${request.prayerRequestID}`);
 
     if(await DB_DELETE_RECIPIENT_PRAYER_REQUEST({prayerRequestID: request.prayerRequestID}) === false)
-        next(new Exception(500, `Delete Prayer Request | Failed to Delete Recipients for prayer request ${request.prayerRequestID}`));
+        next(new Exception(500, `Delete Prayer Request | Failed to Delete Recipients for prayer request ${request.prayerRequestID}`, 'Linked recipients exist'));
     
     else if(await DB_DELETE_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID}) === false)
-        next(new Exception(500, `Delete Prayer Request | Failed to Delete Comments for prayer request ${request.prayerRequestID}`));
+        next(new Exception(500, `Delete Prayer Request | Failed to Delete Comments for prayer request ${request.prayerRequestID}`, 'Linked comments exist'));
     
     else if(await DB_DELETE_PRAYER_REQUEST(request.prayerRequestID) === false)
-        next(new Exception(500, `Delete Prayer Request | Failed to Delete prayer request ${request.prayerRequestID}`));
+        next(new Exception(500, `Delete Prayer Request | Failed to Delete prayer request ${request.prayerRequestID}`, 'Failed to delete'));
 
     else
         response.status(200).send('Prayer Request has been deleted.');
@@ -190,7 +190,7 @@ export const POST_prayerRequestComment = async (request: PrayerRequestCommentReq
         response.status(200).send(
             await DB_SELECT_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID, commenterID: request.jwtUserID, message})); //Returns undefined in error
     else {
-        next(new Exception(500, `Comment failed validation for prayer request ${request.prayerRequestID}`));
+        next(new Exception(500, `Comment failed validation for prayer request ${request.prayerRequestID}`, 'Failed Validation'));
     }
 };
 
@@ -201,7 +201,7 @@ export const POST_prayerRequestCommentIncrementLikeCount = async (request: JwtPr
         next(new Exception(400, `Failed to parse commentID :: missing comment-id parameter :: ${request.params.comment}`, 'Missing Prayer Request'));
 
     else if(await DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT(parseInt(request.params.comment)) === false)
-        next(new Exception(500, `Failed to Incremented Like Count for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`));
+        next(new Exception(500, `Failed to Incremented Like Count for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`, 'Failed to Save'));
 
     else {
         response.status(200).send(`Like Count Incremented for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`);
@@ -215,7 +215,7 @@ export const DELETE_prayerRequestComment = async (request: JwtPrayerRequest, res
         next(new Exception(400, `Failed to parse commentID :: missing comment-id parameter :: ${request.params.comment}`, 'Missing Prayer Request'));
 
     else if(await DB_DELETE_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID, commentID: parseInt(request.params.comment)}) === false)
-        next(new Exception(500, `Failed to Delete comment for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`));
+        next(new Exception(500, `Failed to Delete comment for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`, 'Failed to Delete'));
 
     else {
         response.status(200).send(`Comment ${request.params.comment} deleted for prayer request ${request.prayerRequestID}.`);

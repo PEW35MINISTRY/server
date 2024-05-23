@@ -70,10 +70,11 @@ export default {
                 else if ((typeof currentValue === 'string') || (typeof currentValue === 'number') || (typeof currentValue === 'boolean'))
                     newModel[property] = currentValue;
 
-                else if (Array.isArray(currentValue) && (Array.from(currentValue).length > 0))
-                    newModel[property] = Array.from(currentValue);
+                else if (Array.isArray(currentValue)) {
+                    if(Array.from(currentValue).length > 0)
+                        newModel[property] = Array.from(currentValue);
 
-                else if (currentValue instanceof Date)
+                } else if (currentValue instanceof Date)
                     newModel[property] = new Date(currentValue.getTime());
 
                 else //(typeof currentValue === 'object'

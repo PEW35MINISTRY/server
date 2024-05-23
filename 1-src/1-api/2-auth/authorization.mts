@@ -35,7 +35,7 @@ export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: 
         if(!token_data || token_data['jwtUserID'] === undefined || token_data['jwtUserID'] <= 0 || token_data['jwtUserRole'] === undefined) {
             log.auth(`Failed to parse JWT for user: ${request.headers['user-id']}`, `UserID from token: ${token_data['jwtUserID']}`, 
                         `User Role from token: ${token_data['jwtUserRole']}`, 'JWT: ', client_token);
-            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Failed to parse JWT: ${request.headers['jwt']}`));
+            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Failed to parse JWT: ${request.headers['jwt']}`, 'Invalid Token'));
 
         } else {
             request.jwt = client_token
@@ -65,7 +65,7 @@ export const authenticatePrayerRequestRecipientMiddleware = async(request: JwtPr
             next();
 
         } else {
-            next(new Exception(401, `FAILED AUTHENTICATED :: PRAYER REQUEST RECIPIENT :: User: ${request.jwtUserID} is not a recipient of prayer request: ${prayerRequestID}`));
+            next(new Exception(401, `FAILED AUTHENTICATED :: PRAYER REQUEST RECIPIENT :: User: ${request.jwtUserID} is not a recipient of prayer request: ${prayerRequestID}`, 'Not Recipient'));
         }
     }
 }
@@ -226,7 +226,7 @@ export const authenticateLeaderMiddleware = async(request: JwtRequest, response:
         next();
 
     } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.jwtUserID} is not a Leader Role.`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.jwtUserID} is not a Leader Role.`, 'Leader Required'));
     }
 }
 
@@ -250,7 +250,7 @@ export const authenticateContentApproverMiddleware = async(request: JwtRequest, 
         next();
 
     } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: CONTENT_APPROVER :: User: ${request.jwtUserID} is not an CONTENT_APPROVER.`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: CONTENT_APPROVER :: User: ${request.jwtUserID} is not an CONTENT_APPROVER.`, 'Content Approver Required'));
     }
 }
 
@@ -262,6 +262,6 @@ export const authenticateAdminMiddleware = async(request: JwtRequest, response: 
         next();
 
     } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.jwtUserID} is not an ADMIN.`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.jwtUserID} is not an ADMIN.`, 'Admin Required'));
     }
 }

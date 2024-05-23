@@ -19,7 +19,7 @@ export const POST_login =  async(request: LoginRequest, response: Response, next
     if(loginDetails)
         response.status(202).send(loginDetails);
     else
-        next(new Exception(404, `Login Failed: Credentials do not match our records.`));
+        next(new Exception(404, `Login Failed: Credentials do not match our records.`, 'Invalid Credentials'));
 };
 
 

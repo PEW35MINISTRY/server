@@ -24,7 +24,7 @@ export const GET_ContentRequest = async (request: JwtContentRequest, response: R
         log.event('Returning specific Content Archive:', request.contentID);
 
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
-        next(new Exception(404, `GET_ContentRequest - Content Archive ${request.contentID} Failed to parse from database and is invalid`));
+        next(new Exception(404, `GET_ContentRequest - Content Archive ${request.contentID} Failed to parse from database and is invalid`, 'Missing Content'));
 };
 
 
@@ -73,7 +73,7 @@ export const PATCH_contentArchive =  async(request: JwtContentRequest, response:
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
         next((editContentArchive instanceof Exception) ? editContentArchive
-            : new Exception(500, `PATCH_editContentArchive - Content Archive ${request.contentID} Failed to parse from database and is invalid`)); 
+            : new Exception(500, `PATCH_editContentArchive - Content Archive ${request.contentID} Failed to parse from database and is invalid`, 'Invalid Content')); 
 };
 
 
