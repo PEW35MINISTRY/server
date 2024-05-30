@@ -1,16 +1,22 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
-import { JwtContentRequest, JwtRequest } from '../2-auth/auth-types.mjs';
+import { JwtClientRequest, JwtContentRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception } from '../api-types.mjs';
 import * as log from '../../2-services/log.mjs';
-import { DB_DELETE_CONTENT, DB_INSERT_CONTENT, DB_SELECT_CONTENT, DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES, DB_UPDATE_CONTENT } from '../../2-services/2-database/queries/content-queries.mjs';
+import { DB_DELETE_CONTENT, DB_INSERT_CONTENT, DB_SELECT_CONTENT, DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES, DB_SELECT_USER_CONTENT_LIST, DB_UPDATE_CONTENT, DB_UPDATE_INCREMENT_CONTENT_LIKE_COUNT } from '../../2-services/2-database/queries/content-queries.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import CONTENT_ARCHIVE from '../../2-services/1-models/contentArchiveModel.mjs';
 import { CONTENT_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
-import { ContentSearchRefineEnum, EDIT_CONTENT_FIELDS, EDIT_CONTENT_FIELDS_ADMIN } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
-import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
+import { EDIT_CONTENT_FIELDS, EDIT_CONTENT_FIELDS_ADMIN } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
 
 
+
+/*******************************
+ *  USER CURATED CONTENT LIST  *
+ *******************************/
+export const GET_UserContentList = async(request:JwtClientRequest, response:Response, next:NextFunction) => {
+    response.status(200).send(await DB_SELECT_USER_CONTENT_LIST(request.clientID));
+};
 
 
 /***************************************
@@ -27,6 +33,17 @@ export const GET_ContentRequest = async (request: JwtContentRequest, response: R
         next(new Exception(404, `GET_ContentRequest - Content Archive ${request.contentID} Failed to parse from database and is invalid`, 'Missing Content'));
 };
 
+
+export const POST_contentIncrementLikeCount = async (request: JwtContentRequest, response: Response, next: NextFunction) => {
+    
+    if(await DB_UPDATE_INCREMENT_CONTENT_LIKE_COUNT(request.contentID) === false)
+        next(new Exception(500, `Failed to Incremented Content Like Count ${request.contentID}`, 'Failed to Save'));
+
+    else {
+        response.status(200).send(`Content Like Count Incremented for content ${request.contentID}`);
+        log.event(`Incremented like count for content: ${request.contentID}`);
+    }
+};
 
 
 /*************************

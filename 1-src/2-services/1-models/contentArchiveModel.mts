@@ -15,7 +15,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = [ 'recorderID', 'type', 'source', 'url' ]; //exclude: contentID, complex types, and lists
-    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'description', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile' ];
+    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'title', 'description', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile' ];
 
     contentID: number = -1;
     recorderID: number; //user that recorded
@@ -25,7 +25,9 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
     customSource: string|undefined;
     url: string;
     keywordList: string[];
+    title?: string;
     description?: string;
+    likeCount: number;
     gender: GenderSelectionEnum;
     minimumAge: number;
     maximumAge: number; 
@@ -122,7 +124,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
     override toListItem = ():ContentListItem => ({contentID: this.contentID, 
         type: this.type === ContentTypeEnum.CUSTOM ? this.customType : this.type, 
         source: this.source === ContentSourceEnum.CUSTOM ? this.customSource : this.source,  
-        url: this.url, keywordList: this.keywordList, description: this.description});
+        url: this.url, keywordList: this.keywordList, title: this.title, description: this.description, likeCount: this.likeCount});
 
 
    /*****************************************

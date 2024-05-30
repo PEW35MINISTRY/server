@@ -33,6 +33,20 @@ export enum ContentSourceEnum {
     CUSTOM = 'CUSTOM'
 }
 
+export const MOBILE_SUPPORTED_CONTENT_SOURCES:ContentSourceEnum[] = [
+    ContentSourceEnum.YOUTUBE, 
+    ContentSourceEnum.GOT_QUESTIONS, 
+    ContentSourceEnum.BIBLE_PROJECT,
+    ContentSourceEnum.THROUGH_THE_WORLD
+];
+
+//TS can't extend enum, but object operates similar
+export const ContentSearchFilterEnum = {
+    ...ContentSourceEnum,
+    NONE: 'NONE',
+    MOBILE: 'MOBILE',
+}
+
 export enum GenderSelectionEnum {
     BOTH = 'BOTH',
     MALE = 'MALE',

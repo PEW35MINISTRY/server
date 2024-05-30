@@ -14,7 +14,6 @@ import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
 import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest } from './1-api/2-auth/auth-types.mjs';
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
-import { SearchType } from './0-assets/field-sync/input-config-sync/search-config.mjs';
 
 //Import Routes
 import logRoutes from './1-api/1-log/log.mjs';
@@ -25,7 +24,7 @@ import { GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_au
 import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
-import { DELETE_contentArchive, GET_ContentRequest, PATCH_contentArchive, POST_newContentArchive } from './1-api/11-content/content.mjs';
+import { DELETE_contentArchive, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentIncrementLikeCount, POST_newContentArchive } from './1-api/11-content/content.mjs';
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
 
@@ -228,6 +227,11 @@ apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerReques
 apiServer.get('/api/user/:client/partner-list', (request:JwtClientStatusFilterRequest, response:Response, next:NextFunction) => GET_PartnerList(undefined, request, response, next));
 apiServer.get('/api/user/:client/partner-pending-list', GET_PendingPartnerList);
 apiServer.post('/api/user/:client/new-partner', POST_NewPartnerSearch);
+
+apiServer.get('/api/user/:client/content-list', GET_UserContentList);
+
+apiServer.use('/api/user/:client/content/:content', (request:JwtContentRequest, response:Response, next:NextFunction) => extractContentMiddleware(request, response, next));
+apiServer.post('/api/user/:client/content/:content/like', POST_contentIncrementLikeCount);
 
 apiServer.use(bodyParser.raw({type: ['image/png', 'image/jpg', 'image/jpeg'], limit: process.env.IMAGE_UPLOAD_SIZE || '5mb'}));
 apiServer.post('/api/user/:client/image/:file', POST_profileImage);

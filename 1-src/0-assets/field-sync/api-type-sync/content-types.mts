@@ -1,6 +1,6 @@
 /*********** ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ ***********/
 
-import { GenderSelectionEnum } from '../input-config-sync/content-field-config.mjs';
+import { ContentSourceEnum, ContentTypeEnum, GenderSelectionEnum } from '../input-config-sync/content-field-config.mjs';
 import { ProfileListItem } from './profile-types.mjs';
 
 
@@ -14,11 +14,13 @@ import { ProfileListItem } from './profile-types.mjs';
 
 export interface ContentListItem {
     contentID: number,
-    type: string,
-    source: string,
+    type: ContentTypeEnum|string, //Custom field populates
+    source: ContentSourceEnum|string,  //Custom field populates
     url: string,
     keywordList: string[],
+    title?: string,
     description?: string, 
+    likeCount: number,
 }
 
 
@@ -26,8 +28,8 @@ export interface ContentResponseBody {
     contentID: number,
     recorderID: number,
     recorderProfile: ProfileListItem, 
-    type: string,
-    source: string,
+    type: ContentTypeEnum,
+    source: ContentSourceEnum,
     url: string,
     keywordList: string,
     description?: string, 
