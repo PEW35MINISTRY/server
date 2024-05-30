@@ -33,3 +33,9 @@ export interface ProfileImageRequest extends JwtClientRequest {
     }
     body: Blob
 }
+
+export interface ProfileEditWalkLevelRequest extends JwtClientRequest {
+    body: {
+        walkLevel:number
+    }
+}
