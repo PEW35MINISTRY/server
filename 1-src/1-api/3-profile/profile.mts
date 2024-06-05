@@ -11,9 +11,10 @@ import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
-import { ProfileEditRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
+import { ProfileEditRequest, ProfileEditWalkLevelRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { DB_DELETE_PARTNERSHIP } from '../../2-services/2-database/queries/partner-queries.mjs';
+import { InputRangeField } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 
 
 
@@ -239,6 +240,26 @@ export const DELETE_profileImage = async(request: JwtClientRequest, response: Re
         next(new Exception(500, `Profile image deletion failed for ${request.clientID}`, 'Delete Failed'));
 }
 
+
+/* walkLevel set via Flow Quiz | range defined in EDIT_PROFILE_FIELDS_ADMIN config */
+export const PATCH_profileWalkLevel = async(request: ProfileEditWalkLevelRequest, response: Response, next: NextFunction) => {
+    const walkLevel:number = request.body.walkLevel;
+    const walkLevelConfig:InputRangeField = EDIT_PROFILE_FIELDS_ADMIN.find(field => field.field === 'walkLevel') as InputRangeField;
+
+    if(walkLevelConfig === undefined)
+        next(new Exception(500, `PATCH_profileWalkLevel | Server Configuration Error: Failed to find walkLevel in EDIT_PROFILE_FIELDS_ADMIN`, 'Configuration Error'));
+
+    else if(walkLevel === undefined || isNaN(walkLevel) || !walkLevelConfig.validationRegex.test(String(walkLevel))
+        || walkLevel < (walkLevelConfig.minValue as number)
+        || walkLevel > (walkLevelConfig.maxValue as number))
+        next(new Exception(400, `Profile Walk Level Bad Input: ${walkLevel}`, 'Invalid Walk Level'));
+
+    else if(await DB_UPDATE_USER(request.clientID, new Map([['walkLevel', walkLevel]])) === false)
+        next(new Exception(500, `Profile Walk Level Save Failed: ${walkLevel}`, 'Save Failed'));
+
+    else
+        response.status(202).send(`Saved Profile Walk Level to ${walkLevel}`);
+}
 
 
 /***********************
