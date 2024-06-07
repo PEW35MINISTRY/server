@@ -21,7 +21,7 @@ import apiRoutes from './1-api/api.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { GET_allUserCredentials, GET_jwtVerify, POST_login, POST_logout, POST_authorization_reset, POST_emailSubscribe } from './1-api/2-auth/auth.mjs';
-import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup } from './1-api/3-profile/profile.mjs';
+import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
@@ -221,6 +221,7 @@ apiServer.get('/api/user/:client', GET_userProfile);
 apiServer.patch('/api/user/:client', PATCH_userProfile);
 apiServer.delete('/api/user/:client', DELETE_userProfile);
 apiServer.delete('/api/user/:client/image', DELETE_profileImage);
+apiServer.patch('/api/user/:client/walk-level', PATCH_profileWalkLevel);
 
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
