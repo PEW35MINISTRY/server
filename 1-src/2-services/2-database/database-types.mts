@@ -159,7 +159,7 @@ export type DATABASE_PRAYER_REQUEST = {
 export const CONTENT_TABLE_COLUMNS_REQUIRED:string[] = [ 'recorderID', 'type', 'source', 'url' ];
 
 export const CONTENT_TABLE_COLUMNS:string[] = [ ...CONTENT_TABLE_COLUMNS_REQUIRED,
-    'contentID', 'customType', 'customSource', 'keywordListStringified', 'title', 'description', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes'
+    'contentID', 'customType', 'customSource', 'keywordListStringified', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes'
 ];
 
 export enum DATABASE_GENDER_SELECTION_ENUM {

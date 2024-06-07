@@ -14,12 +14,13 @@ import { ProfileListItem } from './profile-types.mjs';
 
 export interface ContentListItem {
     contentID: number,
-    type: ContentTypeEnum|string, //Custom field populates
-    source: ContentSourceEnum|string,  //Custom field populates
+    type: ContentTypeEnum,
+    source: ContentSourceEnum,
     url: string,
     keywordList: string[],
     title?: string,
     description?: string, 
+    image?: string,
     likeCount: number,
 }
 
@@ -32,7 +33,10 @@ export interface ContentResponseBody {
     source: ContentSourceEnum,
     url: string,
     keywordList: string,
-    description?: string, 
+    title?: string,
+    description?: string,
+    image?: string,
+    likeCount: number,
     gender: GenderSelectionEnum,
     minimumAge: number,
     maximumAge: number,
@@ -41,3 +45,14 @@ export interface ContentResponseBody {
     notes?: string
 }
 
+export interface ContentMetaDataRequestBody {
+    url:string,
+    type: ContentTypeEnum
+    source: ContentSourceEnum
+}
+
+export type ContentMetaDataResponseBody = {
+    title:string|undefined,
+    description:string|undefined,
+    imageURL:string|undefined,
+}

@@ -15,7 +15,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = [ 'recorderID', 'type', 'source', 'url' ]; //exclude: contentID, complex types, and lists
-    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'title', 'description', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile' ];
+    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile' ];
 
     contentID: number = -1;
     recorderID: number; //user that recorded
@@ -27,6 +27,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
     keywordList: string[];
     title?: string;
     description?: string;
+    image?: string; //thumbnail link to S3 
     likeCount: number;
     gender: GenderSelectionEnum;
     minimumAge: number;
@@ -59,6 +60,17 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
         }
         return keywordList;
     }
+
+    //Verify properties displayed
+    static verifyDisplayProperties = (item:ContentListItem):boolean => 
+           item.type && Object.keys(ContentTypeEnum).includes(item.type)
+        && item.source && Object.keys(ContentSourceEnum).includes(item.source)
+        && item.url && item.url.length > 5 //site URL
+        && item.title && item.title.length > 5
+        && item.description && item.description.length > 5
+        && item.image && item.image.length > 5; //thumbnail URL
+    
+    verifyDisplayProperties = ():boolean => CONTENT_ARCHIVE.verifyDisplayProperties(this.toListItem());    
 
 
    /*********************
@@ -122,9 +134,11 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
             ])});
 
     override toListItem = ():ContentListItem => ({contentID: this.contentID, 
-        type: this.type === ContentTypeEnum.CUSTOM ? this.customType : this.type, 
-        source: this.source === ContentSourceEnum.CUSTOM ? this.customSource : this.source,  
-        url: this.url, keywordList: this.keywordList, title: this.title, description: this.description, likeCount: this.likeCount});
+        type: this.type, 
+        source: this.source,  
+        url: this.url, image: this.image,
+        title: this.title, description: this.description, 
+        keywordList: this.keywordList, likeCount: this.likeCount});
 
 
    /*****************************************

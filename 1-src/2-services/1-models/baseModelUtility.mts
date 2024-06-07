@@ -1,6 +1,7 @@
 import InputField, { InputType, isListType, InputSelectionField } from "../../0-assets/field-sync/input-config-sync/inputField.mjs";
 import { JwtClientRequest } from "../../1-api/2-auth/auth-types.mjs";
 import { Exception } from "../../1-api/api-types.mjs";
+import { isURLValid } from "../10-utilities/utilities.mjs";
 import * as log from "../log.mjs";
 import BASE_MODEL from "./baseModel.mjs";
 
@@ -298,6 +299,10 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
             } else return true;
         }))) {
             log.warn(`Validating input for ${field.field};  multi selection; mismatched multiple select option list`, JSON.stringify(value), JSON.stringify(field.selectOptionList));
+        return false;
+
+    } else if((field.type === InputType.TEXT) && ['url', 'image'].includes(field.field.toLowerCase()) && !isURLValid(value)) {
+        log.warn(`Validating input for ${field.field}; failed: isURLValid`, value);
         return false;
     }
 
