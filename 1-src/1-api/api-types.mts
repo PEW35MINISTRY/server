@@ -22,7 +22,8 @@ export class Exception extends Error {
   export enum ImageTypeEnum {
     USER_PROFILE = 'USER_PROFILE',
     CIRCLE_PROFILE = 'CIRCLE_PROFILE',
-    CIRCLE_EVENT = 'CIRCLE_EVENT'
+    CIRCLE_EVENT = 'CIRCLE_EVENT',
+    CONTENT_THUMBNAIL = 'CONTENT_THUMBNAIL',
   }
 
   export interface JwtSearchRequest extends JwtRequest {

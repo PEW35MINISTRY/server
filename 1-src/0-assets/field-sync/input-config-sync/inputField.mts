@@ -125,7 +125,8 @@ export class InputRangeField extends InputField {
  *************/
 
 //Converts underscores to spaces and capitalizes each word
-export const makeDisplayList = (list:string[]):string[] => list.map(value => value.toLowerCase().split('_'||' ').map((s) => s.charAt(0).toUpperCase() + s.substring(1)).join(' '));
+export const makeDisplayText = (text:string = ''):string => text.toLowerCase().split('_'||' ').map((s) => s.charAt(0).toUpperCase() + s.substring(1)).join(' ');
+export const makeDisplayList = (list:string[]):string[] => list.map(value => makeDisplayText(value));
 
 //For parsing JSON Response vs FIELD_LIST and optional field properties
 export const checkFieldName = (FIELD_LIST:InputField[], fieldName:string, required?:boolean, unique?:boolean, hide?:boolean):boolean =>

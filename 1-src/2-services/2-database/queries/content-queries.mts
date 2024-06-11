@@ -1,4 +1,5 @@
 import { ContentListItem } from '../../../0-assets/field-sync/api-type-sync/content-types.mjs';
+import { MOBILE_CONTENT_SUPPORTED_SOURCES } from '../../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
 import CONTENT_ARCHIVE from '../../1-models/contentArchiveModel.mjs';
 import * as log from '../../log.mjs';
 import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT } from '../database-types.mjs';
@@ -42,20 +43,32 @@ export const DB_SELECT_CONTENT = async(contentID:number):Promise<CONTENT_ARCHIVE
     return content;
 }
 
+export const DB_SELECT_CONTENT_BY_URL = async(url:string):Promise<CONTENT_ARCHIVE> => {
+    const rows = await execute('SELECT content.* ' + 'FROM content ' + 'WHERE url = ?', [url]); 
+
+    if(rows.length !== 1) {
+        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CONTENT MATCHING IDS IDENTIFIED`, url, JSON.stringify(rows));
+        return new CONTENT_ARCHIVE(undefined);
+    }    
+    return CONTENT_ARCHIVE.constructByDatabase(rows[0] as DATABASE_CONTENT); 
+}
+
 //Priority sort by recorderID (created) then latest modified
 export const DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES = async(recorderID:number = -1, onlyOwned:boolean = false):Promise<ContentListItem[]> => {
     const rows = onlyOwned ?
-        await execute('SELECT contentID, type, customType, source, customSource, url, description, keywordListStringified ' + 'FROM content '
+        await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
             + 'WHERE recorderID = ? '
             + 'ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT 50;', [recorderID, recorderID])
     
-        : await execute('SELECT contentID, type, source, url, description, keywordListStringified ' + 'FROM content '
+        : await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
             + 'ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT 50;', [recorderID]);
  
     return [...rows.map(row => ({contentID: row.contentID || -1, 
-        type: (row.type === 'CUSTOM' ? row.customType : row.type) || '', 
-        source: (row.source === 'CUSTOM' ? row.customSource : row.source) || '', 
-        url: row.url || '', description: row.description || '', keywordList: CONTENT_ARCHIVE.contentArchiveParseKeywordList(row.keywordListStringified)}))];
+        type: row.type, 
+        source: row.source, 
+        url: row.url || '', image: row.image,
+        title: row.title, description: row.description, likeCount: row.likeCount || 0,
+        keywordList: CONTENT_ARCHIVE.contentArchiveParseKeywordList(row.keywordListStringified)}))];
 }
 
 
@@ -105,15 +118,42 @@ export const DB_DELETE_CONTENT = async(contentID:number):Promise<boolean> => { /
  ***************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:string[]):Promise<ContentListItem[]> => {
-    const rows = await execute('SELECT contentID, type, customType, source, customSource, url, description, keywordListStringified ' + 'FROM content '
+    const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
     + `WHERE ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
     + 'LIMIT 30;', [`%${searchTerm}%`]);
  
     return [...rows.map(row => ({contentID: row.contentID || -1, 
-        type: (row.type === 'CUSTOM' ? row.customType : row.type) || '', 
-        source: (row.source === 'CUSTOM' ? row.customSource : row.source) || '', 
-        url: row.url || '', description: row.description || '', 
+        type: row.type, 
+        source: row.source, 
+        url: row.url || '', image: row.image || '',
+        title: row.title || '', description: row.description || '', likeCount: row.likeCount || 0,
         keywordList: CONTENT_ARCHIVE.contentArchiveParseKeywordList(row.keywordListStringified)}))];
 }
 
+export const DB_UPDATE_INCREMENT_CONTENT_LIKE_COUNT = async(contentID:number):Promise<boolean> => {
 
+    const response:CommandResponseType = await command(`UPDATE content SET likeCount = (likeCount + 1) WHERE contentID = ?;`, [contentID]); 
+
+    return ((response !== undefined) && (response.affectedRows === 1));
+}
+
+/*************************
+ *  TARGETED USER CONTENT
+ *************************/
+//TODO Develop Algorithm to refine content to each User
+export const DB_SELECT_USER_CONTENT_LIST = async(userID:number):Promise<ContentListItem[]> => {
+
+    const preparedSourceFilter:string = MOBILE_CONTENT_SUPPORTED_SOURCES.map(source => `source = ?`).join(' OR ');
+
+    const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' 
+    + 'FROM content '
+    + `WHERE ( ${preparedSourceFilter} ) `
+    + 'LIMIT 50;', [...MOBILE_CONTENT_SUPPORTED_SOURCES]);
+ 
+    return [...rows.map(row => ({contentID: row.contentID || -1, 
+        type: row.type, 
+        source: row.source,  
+        url: row.url || '', image: row.image,
+        title: row.title, description: row.description, likeCount: row.likeCount || 0,
+        keywordList: CONTENT_ARCHIVE.contentArchiveParseKeywordList(row.keywordListStringified)}))];
+}
