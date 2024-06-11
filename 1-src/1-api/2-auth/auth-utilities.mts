@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import { NextFunction, Request, Response } from 'express';
-import JWT_PKG, { JwtPayload } from 'jsonwebtoken';
+import jwtPackage, { JwtPayload } from 'jsonwebtoken';
 import { createHash } from 'node:crypto';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
@@ -8,19 +8,36 @@ import { DB_SELECT_USER, DB_SELECT_USER_PROFILE } from '../../2-services/2-datab
 import * as log from '../../2-services/log.mjs';
 import { JwtData } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
+import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 dotenv.config(); 
-const {sign, verify, decode} = JWT_PKG;
 
 /********************
    Create secret key
 ********************/
-var APP_SECRET_KEY;
+let APP_SECRET_KEY:string | undefined;
 
-export const generateSecretKey = () => {
-   const time = new Date().getTime();
-   APP_SECRET_KEY = createHash('sha256').update(time + process.env.SECRET_KEY).digest('base64');
+const getJWTSecretValue = async ():Promise<string> => {
+    try {
+        const client = new SecretsManagerClient({ region: process.env.JWT_SECRET_REGION });
+        const response:GetSecretValueResponse = await client.send(new GetSecretValueCommand({
+            SecretId: process.env.JWT_SECRET_NAME
+        }));
+        return JSON.parse(response.SecretString);
+    } catch (error) {
+        await log.alert(`JWT | AWS Secret Manager failed to connect to JWT Secret: ${process.env.JWT_SECRET_NAME} in Region: ${process.env.JWT_SECRET_REGION}.`, error);
+        throw error;
+    }
 }
-generateSecretKey();
+
+export const InitializeJWTSecretKey = async ():Promise<string> => {
+    if(process.env.ENVIRONMENT === 'PRODUCTION') {
+        APP_SECRET_KEY = await getJWTSecretValue();
+    }
+    else APP_SECRET_KEY = process.env.SECRET_KEY;
+    return APP_SECRET_KEY;
+}
+
+await InitializeJWTSecretKey();
 
 /* *******************
  JWT Token Management
@@ -28,7 +45,8 @@ generateSecretKey();
 export const generateJWT = (userID:number, userRole:RoleEnum):string => {
     //generate JWT as type JWTData
     if(userID > 0 && userRole as RoleEnum !== undefined)
-        return sign({jwtUserID: userID, jwtUserRole: userRole}, APP_SECRET_KEY, {expiresIn: '2 days'});
+        // default config generates signature with HS256 - https://www.npmjs.com/package/jsonwebtoken
+        return jwtPackage.sign({jwtUserID: userID, jwtUserRole: userRole}, APP_SECRET_KEY, {expiresIn: '2 days'});
     else {
         log.error(`JWT Generation Failed: INVALID userID: ${userID} or userRole: ${userRole}`);
         return '';
@@ -37,7 +55,7 @@ export const generateJWT = (userID:number, userRole:RoleEnum):string => {
 
 export const verifyJWT = (jwt:string):Boolean => {
     try {
-        verify(jwt, APP_SECRET_KEY);
+        jwtPackage.verify(jwt, APP_SECRET_KEY);
         return true;
     } catch(err) {
         log.auth('Failed to verify JWT', err);
@@ -46,7 +64,7 @@ export const verifyJWT = (jwt:string):Boolean => {
 }
 
 export const getJWTData = (jwt:string):JwtData => {
-    const tokenObject:JwtPayload|string|null = decode(jwt); //Does not verify
+    const tokenObject:JwtPayload|string|null = jwtPackage.decode(jwt); //Does not verify
     if('jwtUserID' in (tokenObject as JwtData)) { //Must use type predicates
         return {
             jwtUserID: (tokenObject as JwtData).jwtUserID,
