@@ -46,7 +46,7 @@ export const generateJWT = (userID:number, userRole:RoleEnum):string => {
     //generate JWT as type JWTData
     if(userID > 0 && userRole as RoleEnum !== undefined)
         // default config generates signature with HS256 - https://www.npmjs.com/package/jsonwebtoken
-        return jwtPackage.sign({jwtUserID: userID, jwtUserRole: userRole}, APP_SECRET_KEY, {expiresIn: '2 days'});
+        return jwtPackage.sign({jwtUserID: userID, jwtUserRole: userRole}, APP_SECRET_KEY, {expiresIn: process.env.JWT_DURATION || '15 minutes'});
     else {
         log.error(`JWT Generation Failed: INVALID userID: ${userID} or userRole: ${userRole}`);
         return '';
