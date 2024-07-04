@@ -228,7 +228,7 @@ export const DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT = async(circleID:number):Prom
 export const DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES = async(userID:number):Promise<CIRCLE_ANNOUNCEMENT[]> => {
     const currentDate:Date = new Date();
     const rows = await execute('SELECT * ' + 'FROM circle_announcement '
-        + 'WHERE circleID = ? '
+        + 'LEFT JOIN circle ON circle_announcement.circleID = circle.circleID '
         + 'LEFT JOIN circle_user ON circle_announcement.circleID = circle_user.circleID '
         + 'WHERE (( circle_user.userID = ? AND circle_user.status = ? ) OR circle.leaderID = ? ) '
         + 'AND circle_announcement.startDate < ? '

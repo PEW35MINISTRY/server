@@ -6,7 +6,7 @@ import * as log from '../../2-services/log.mjs';
 import { CredentialProfile } from '../3-profile/profile-types.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtClientRequest, JwtRequest, LoginRequest, SubscribePost } from './auth-types.mjs';
-import { generateJWT, generateSecretKey, getUserLogin, validateNewRoleTokenList } from './auth-utilities.mjs';
+import { generateJWT, getUserLogin, validateNewRoleTokenList } from './auth-utilities.mjs';
 import { DB_INSERT_EMAIL_SUBSCRIPTION } from '../../2-services/2-database/queries/queries.mjs';
 
 /********************
@@ -65,9 +65,3 @@ export const POST_emailSubscribe = async(request:SubscribePost, response:Respons
     
     log.auth(`User ${userID} has been logged out of Encouraging Prayer.`);
 };
-
-export const POST_authorization_reset = async (request:JwtRequest, response:Response, next: NextFunction) => {
-    generateSecretKey();
-    response.status(202).send(`App secret key has been reset`);
-    log.auth(`User ${request.jwtUserID} has reset the server's secret key`);
-}

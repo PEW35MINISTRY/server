@@ -148,8 +148,8 @@ export const DB_SELECT_USER_CONTENT_LIST = async(userID:number, limit:number = 5
     const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' 
     + 'FROM content '
     + `WHERE ( ${preparedSourceFilter} ) `
-    + 'ORDER BY RANDOM() '
-    + 'LIMIT ?;', [...MOBILE_CONTENT_SUPPORTED_SOURCES, limit]);
+    + 'ORDER BY RAND() '
+    + `LIMIT ${limit};`, [...MOBILE_CONTENT_SUPPORTED_SOURCES]);
  
     return [...rows.map(row => ({contentID: row.contentID || -1, 
         type: row.type, 

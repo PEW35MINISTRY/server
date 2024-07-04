@@ -179,7 +179,7 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:num
     + 'LEFT JOIN circle_user ON circle_user.circleID = prayer_request_recipient.circleID '
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
     + 'WHERE prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? '
-    + 'ORDER BY prayer_request.modifiedDT ASC LIMIT ?;', [userID, userID, userID, limit]); 
+    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID]); 
  
     return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
             requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage}}))];
