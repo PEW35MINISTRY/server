@@ -141,14 +141,15 @@ export const DB_UPDATE_INCREMENT_CONTENT_LIKE_COUNT = async(contentID:number):Pr
  *  TARGETED USER CONTENT
  *************************/
 //TODO Develop Algorithm to refine content to each User
-export const DB_SELECT_USER_CONTENT_LIST = async(userID:number):Promise<ContentListItem[]> => {
+export const DB_SELECT_USER_CONTENT_LIST = async(userID:number, limit:number = 50):Promise<ContentListItem[]> => {
 
     const preparedSourceFilter:string = MOBILE_CONTENT_SUPPORTED_SOURCES.map(source => `source = ?`).join(' OR ');
 
     const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' 
     + 'FROM content '
     + `WHERE ( ${preparedSourceFilter} ) `
-    + 'LIMIT 50;', [...MOBILE_CONTENT_SUPPORTED_SOURCES]);
+    + 'ORDER BY RANDOM() '
+    + 'LIMIT ?;', [...MOBILE_CONTENT_SUPPORTED_SOURCES, limit]);
  
     return [...rows.map(row => ({contentID: row.contentID || -1, 
         type: row.type, 

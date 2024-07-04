@@ -363,6 +363,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     const notification = error.notification || ((status == 400) ? 'Missing details'
                             : (status == 401) ? 'Sorry not permitted'
                             : (status == 404) ? 'Not found'
+                            : (status == 413) ? 'File larger than 5mb'
                             : 'Unknown error has occurred');
 
     const errorResponse:ServerErrorResponse = {

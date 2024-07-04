@@ -12,6 +12,8 @@ import BASE_MODEL from './baseModel.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
 import { camelCase } from '../10-utilities/utilities.mjs';
+import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
+import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
 
 
 
@@ -47,10 +49,12 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   circleList: CircleListItem[] = [];                 //Includes: MEMBER|LEADER
   circleInviteList: CircleListItem[] = [];
   circleRequestList: CircleListItem[] = [];
+  circleAnnouncementList: CIRCLE_ANNOUNCEMENT[] = [];
   partnerList: PartnerListItem[] = [];
   partnerPendingUserList: PartnerListItem[] = [];    //Transformed in DB to USER perspective | Includes: PENDING_CONTRACT_USER, PENDING_CONTRACT_BOTH
   partnerPendingPartnerList: PartnerListItem[] = []; //Transformed in DB to USER perspective | Includes: PENDING_CONTRACT_PARTNER
-  prayerRequestList: PrayerRequestListItem[] = [];   //Owned & active Prayer Requests
+  newPrayerRequestList: PrayerRequestListItem[] = [];   //Recipient for dashboard preview
+  recommendedContentList: ContentListItem[] = [];
   contactList: ProfileListItem[] = [];
   profileAccessList: ProfileListItem[] = []; //Leaders
 

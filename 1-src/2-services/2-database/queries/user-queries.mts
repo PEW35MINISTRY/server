@@ -7,9 +7,10 @@ import USER from '../../1-models/userModel.mjs';
 import * as log from '../../log.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
-import { DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
+import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
+import { DB_SELECT_USER_CONTENT_LIST } from './content-queries.mjs';
 import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
-import { DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST } from './prayer-request-queries.mjs';
+import { DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
 
 
 /**************************************************************************
@@ -83,13 +84,15 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     user.circleList = allCircleList.filter(circle => circle.status === CircleStatusEnum.MEMBER || circle.status === CircleStatusEnum.LEADER);
     user.circleRequestList = allCircleList.filter(circle => circle.status === CircleStatusEnum.REQUEST);
     user.circleInviteList = allCircleList.filter(circle => circle.status === CircleStatusEnum.INVITE);
+    user.circleAnnouncementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES(user.userID);
 
     const allPartnerList:PartnerListItem[] = await DB_SELECT_PARTNER_LIST(user.userID);
     user.partnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PARTNER));
     user.partnerPendingUserList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PENDING_CONTRACT_USER || partner.status === PartnerStatusEnum.PENDING_CONTRACT_BOTH));
     user.partnerPendingPartnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PENDING_CONTRACT_PARTNER));
 
-    user.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID, false);
+    user.newPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_USER_LIST(user.userID, 7); //recipient, dashboard preview
+    user.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(user.userID, 5);
 
     user.contactList = await DB_SELECT_CONTACTS(user.userID);
     if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_CIRCLES(user.userID);
