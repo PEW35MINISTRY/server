@@ -65,8 +65,3 @@ export const POST_emailSubscribe = async(request:SubscribePost, response:Respons
     
     log.auth(`User ${userID} has been logged out of Encouraging Prayer.`);
 };
-
-export const POST_authorization_reset = async (request:JwtRequest, response:Response, next: NextFunction) => {
-    response.status(202).send(`App secret key has been reset`);
-    log.auth(`User ${request.jwtUserID} has reset the server's secret key`);
-}

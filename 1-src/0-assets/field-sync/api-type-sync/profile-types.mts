@@ -1,7 +1,8 @@
 /************* ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ *************/
 
 import { GenderEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
-import { CircleListItem } from './circle-types.mjs'
+import { CircleAnnouncementListItem, CircleListItem } from './circle-types.mjs'
+import { ContentListItem } from './content-types.mjs';
 import { PrayerRequestListItem } from './prayer-request-types.mjs'
 
 /**************************************************************************
@@ -63,9 +64,9 @@ export interface ProfilePublicResponse extends ProfileListItem {
 export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
     'userID', 'displayName', 'firstName', 'lastName', 'email', 'gender', 'postalCode', 'dateOfBirth', 'isActive', 'maxPartners', 'walkLevel', 'notes', 'image',
     'userRole', 'userRoleList',
-    'circleList', 'circleInviteList', 'circleRequestList',
+    'circleList', 'circleInviteList', 'circleRequestList', 'circleAnnouncementList',
     'partnerList', 'partnerPendingUserList', 'partnerPendingPartnerList',
-    'prayerRequestList', 'contactList', 'profileAccessList'
+    'newPrayerRequestList', 'recommendedContentList', 'contactList', 'profileAccessList'
 ];
 
 export interface ProfileResponse {
@@ -87,10 +88,12 @@ export interface ProfileResponse {
     circleList?: CircleListItem[],
     circleInviteList?: CircleListItem[],
     circleRequestList?: CircleListItem[],
+    circleAnnouncementList?: CircleAnnouncementListItem[],
     partnerList?: PartnerListItem[],
     partnerPendingUserList?: PartnerListItem[],
     partnerPendingPartnerList?: PartnerListItem[],
-    prayerRequestList?: PrayerRequestListItem[],
+    newPrayerRequestList?: PrayerRequestListItem[], //Recipient for dashboard
+    recommendedContentList?: ContentListItem[],
     contactList?: ProfileListItem[],
     profileAccessList?: ProfileListItem[], //Leaders
 };
