@@ -22,7 +22,7 @@ const getJWTSecretValue = async ():Promise<string> => {
         const response:GetSecretValueResponse = await client.send(new GetSecretValueCommand({
             SecretId: process.env.JWT_SECRET_NAME
         }));
-        return JSON.parse(response.SecretString);
+        return response.SecretString;
     } catch (error) {
         await log.alert(`JWT | AWS Secret Manager failed to connect to JWT Secret: ${process.env.JWT_SECRET_NAME} in Region: ${process.env.JWT_SECRET_REGION}.`, error);
         throw error;
