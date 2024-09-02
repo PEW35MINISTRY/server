@@ -81,7 +81,7 @@ const uploadImageDevelopment = async(fileName:string, imageBlob:Blob|Buffer):Pro
             { headers: { 'x-api-key': process.env.IMAGE_BUCKET_KEY }})
         .then((response) => {
             log.event('Successful - Development S3 Image Upload', fileName, response.status, response.data);
-            return `http://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+            return `https://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
         })
         .catch(function (error) {
             log.error('Failed - Development S3 Image Upload', fileName, error);
@@ -122,7 +122,7 @@ const uploadImageProduction = async(fileName:string, imageBlog:Blob|Buffer):Prom
 
         if (response?.$metadata?.httpStatusCode === 200) {
             log.event('Successful - Production S3 Image Upload', fileName);
-            return `http://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+            return `https://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
         }
 
         log.error('Failed - Production S3 Image Upload', JSON.stringify(response));
