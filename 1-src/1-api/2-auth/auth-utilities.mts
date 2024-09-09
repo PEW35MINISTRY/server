@@ -9,6 +9,7 @@ import * as log from '../../2-services/log.mjs';
 import { JwtData } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { DB_SELECT_USER_CONTENT_LIST } from '../../2-services/2-database/queries/content-queries.mjs';
 dotenv.config(); 
 
 /********************
@@ -136,6 +137,10 @@ export const getUserLogin = async(email:string = '', password: string = '', deta
     const passwordHash:string = getPasswordHash(password);
     const userProfile:USER = detailed ? await DB_SELECT_USER_PROFILE(new Map([['email', email], ['passwordHash', passwordHash]]))
     : await DB_SELECT_USER(new Map([['email', email], ['passwordHash', passwordHash]]));
+
+    //Always include default content for dashboard
+    if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
+        userProfile.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(userProfile.userID, 5);
 
     if(userProfile.userID > 0) {
         log.auth('Successfully logged in user: ', userProfile.userID);
