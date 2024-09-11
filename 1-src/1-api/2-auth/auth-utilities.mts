@@ -10,6 +10,7 @@ import { JwtData } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { DB_SELECT_USER_CONTENT_LIST } from '../../2-services/2-database/queries/content-queries.mjs';
+import { argon2d, hash, verify } from 'argon2';
 dotenv.config(); 
 
 /********************
@@ -134,9 +135,11 @@ const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.USER, token:str
 //Login Operation
 export const getUserLogin = async(email:string = '', password: string = '', detailed = true):Promise<LoginResponseBody|undefined> => {
     //Query Database
-    const passwordHash:string = getPasswordHash(password);
-    const userProfile:USER = detailed ? await DB_SELECT_USER_PROFILE(new Map([['email', email], ['passwordHash', passwordHash]]))
-    : await DB_SELECT_USER(new Map([['email', email], ['passwordHash', passwordHash]]));
+    const userProfile:USER = detailed ? await DB_SELECT_USER_PROFILE(new Map([['email', email]]))
+    : await DB_SELECT_USER(new Map([['email', email]]));
+
+    // Verify user credentials
+    if (!verifyPassword(userProfile.passwordHash, password)) return undefined;
 
     //Always include default content for dashboard
     if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
@@ -168,6 +171,10 @@ export const getUserLogin = async(email:string = '', password: string = '', deta
 export const isMaxRoleGreaterThan = ({testUserRole, currentMaxUserRole}:{testUserRole:RoleEnum, currentMaxUserRole:RoleEnum}):boolean => 
     Object.values(RoleEnum).indexOf(testUserRole) <= Object.values(RoleEnum).indexOf(currentMaxUserRole);
 
-export const getPasswordHash = (password:string):string => {
-    return password;
+export const verifyPassword = async (password:string, passwordHash:string):Promise<boolean> => {
+    return verify(passwordHash, password)
+}
+
+export const generatePasswordHash = async (password:string):Promise<string> => {
+    return hash(password);
 }
