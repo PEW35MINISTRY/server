@@ -8,7 +8,7 @@ import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/q
 import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
-import { getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
+import { generatePasswordHash, getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ProfileEditRequest, ProfileEditWalkLevelRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
@@ -111,11 +111,15 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
         if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
             next(new Exception(400, `Signup Failed :: Missing Required Fields: ${JSON.stringify(USER_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
-        //Verify user roles and verify account type tokens
         else if(await validateNewRoleTokenList({newRoleList:newProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: newProfile.email}) === false)
             next(new Exception(401, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
 
-        else if(await DB_INSERT_USER(newProfile.getDatabaseProperties()) === false) 
+         // Generate password hash
+         const passwordHash = await generatePasswordHash(newProfile.passwordHash);
+         newProfile.passwordHash = passwordHash;
+
+         //Verify user roles and verify account type tokens
+        if(await DB_INSERT_USER(newProfile.getDatabaseProperties()) === false) 
                 next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Signup Save Failed'));
 
         //New Account Success -> Auto Login Response
