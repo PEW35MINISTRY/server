@@ -92,6 +92,7 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     user.partnerPendingPartnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PENDING_CONTRACT_PARTNER));
 
     user.newPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_USER_LIST(user.userID, 7); //recipient, dashboard preview
+    user.ownedPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID, false); //Not resolved (pending) for which user is the Requestor
     user.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(user.userID, 5);
 
     user.contactList = await DB_SELECT_CONTACTS(user.userID);
