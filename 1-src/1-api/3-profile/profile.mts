@@ -158,6 +158,7 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
         if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: currentRoleList, adminOverride: (request.jwtUserRole === RoleEnum.ADMIN)}) === false)
             next(new Exception(401, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
 
+        // TODO - re-hash user's password if it is included in the request
         else if((USER.getUniqueDatabaseProperties(editProfile, currentProfile).size > 0 )
                 && await DB_UPDATE_USER(request.clientID, USER.getUniqueDatabaseProperties(editProfile, currentProfile)) === false) 
             next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
