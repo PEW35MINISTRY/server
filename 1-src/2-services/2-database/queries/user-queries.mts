@@ -2,7 +2,6 @@ import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circl
 import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { CredentialProfile } from '../../../1-api/3-profile/profile-types.mjs';
 import USER from '../../1-models/userModel.mjs';
 import * as log from '../../log.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
@@ -267,30 +266,6 @@ export const DB_SELECT_CONTACTS = async(userID:number):Promise<ProfileListItem[]
 
     return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
-
-
-//TODO TEMPORARY FOR FRONT-END DEBUGGING
-export const DB_SELECT_CREDENTIALS = async():Promise<CredentialProfile[]> => {
-    //Query User and max userRole
-    const rows = await query('SELECT tbl.userID, tbl.displayName, tbl.email, tbl.passwordHash, userRole ' + 'FROM ( '
-        + '( SELECT user.userID, user.displayName, user.email, user.passwordHash ' + 'FROM user '
-        + 'WHERE user.userID < 10 ) '
-        + 'UNION ALL '
-        + '( SELECT user.userID, user.displayName, user.email, user.passwordHash ' + 'FROM user '
-        + 'WHERE user.userID > 10 ' + 'ORDER BY modifiedDT DESC ' + 'LIMIT 10 ) '
-        + ') as tbl '
-        + 'LEFT JOIN user_role ON user_role.userID = tbl.userID '
-        + 'AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE tbl.userID = user_role.userID ) '
-        + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID;');
-
-    return [...rows.map(row => ({userID: row.userID || -1, 
-            displayName: row.displayName || '', 
-            userRole: row.userRole || RoleEnum.USER,
-            email: row.email || '',
-            passwordHash: row.passwordHash || '',
-        }))];
-}
-
 
 
 /**********************************
