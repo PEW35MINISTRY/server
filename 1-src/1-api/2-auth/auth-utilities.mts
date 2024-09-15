@@ -4,7 +4,7 @@ import jwtPackage, { JwtPayload } from 'jsonwebtoken';
 import { createHash } from 'node:crypto';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { DB_SELECT_USER, DB_SELECT_USER_PROFILE } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_POPULATE_USER_PROFILE, DB_SELECT_USER, DB_SELECT_USER_PROFILE } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtData } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
@@ -135,8 +135,7 @@ const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.USER, token:str
 //Login Operation
 export const getUserLogin = async(email:string = '', password: string = '', detailed = true):Promise<LoginResponseBody|undefined> => {
     //Query Database
-    const userProfile:USER = detailed ? await DB_SELECT_USER_PROFILE(new Map([['email', email]]))
-    : await DB_SELECT_USER(new Map([['email', email]]));
+    const userProfile:USER = await DB_SELECT_USER(new Map([['email', email]]));
 
     // Verify user credentials
     if(userProfile.isValid && userProfile.userID > 0 
@@ -144,8 +143,11 @@ export const getUserLogin = async(email:string = '', password: string = '', deta
         && await verifyPassword(userProfile.passwordHash, password)) {
             log.auth('Successfully logged in user: ', userProfile.userID);
 
+        if(detailed) 
+            DB_POPULATE_USER_PROFILE(userProfile);
+
         //Always include default content for dashboard
-        if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
+        else if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
             userProfile.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(userProfile.userID, 5);
 
         return {
@@ -172,7 +174,12 @@ export const isMaxRoleGreaterThan = ({testUserRole, currentMaxUserRole}:{testUse
     Object.values(RoleEnum).indexOf(testUserRole) <= Object.values(RoleEnum).indexOf(currentMaxUserRole);
 
 export const verifyPassword = async (passwordHash:string, password:string):Promise<boolean> => {
-    return verify(passwordHash, password)
+    try {
+        return await verify(passwordHash, password);
+
+    } catch (error) { //Intentionally do not log
+        return false;
+    }
 }
 
 export const generatePasswordHash = async (password:string):Promise<string> => {
