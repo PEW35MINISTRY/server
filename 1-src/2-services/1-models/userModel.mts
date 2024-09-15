@@ -171,7 +171,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   /****************************************
   * constructByJson Model Custom Handling *
   *****************************************/  
-  override validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ProfileEditRequest['body']}):boolean|undefined => {
+  override validateModelSpecificField = async({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ProfileEditRequest['body']}):Promise<boolean|undefined> => {
     /* DATES | dateOfBirth */
     if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)     
       const currentDate:Date = new Date(value);
@@ -199,7 +199,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
     return undefined;
   }
 
-  override parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body'] }):boolean|undefined => {
+  override parseModelSpecificField = async({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body'] }):Promise<boolean|undefined> => {
     //Special Handling: Password Hash
     if(field.field === 'password' && jsonObj['password'] === jsonObj['passwordVerify']) {
         this.passwordHash = getPasswordHash(jsonObj['password']);

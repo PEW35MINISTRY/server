@@ -93,8 +93,8 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     override constructByClone = <PRAYER_REQUEST,>():PRAYER_REQUEST => PRAYER_REQUEST.constructByClone(this) as PRAYER_REQUEST;
 
-    static constructByJson = <PRAYER_REQUEST,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):PRAYER_REQUEST|Exception => 
-        new PRAYER_REQUEST().populateFromJson({jsonObj, fieldList}) as PRAYER_REQUEST|Exception;
+    static constructByJson = async<PRAYER_REQUEST,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):Promise<PRAYER_REQUEST|Exception> => 
+        new PRAYER_REQUEST().populateFromJson({jsonObj, fieldList}) as Promise<PRAYER_REQUEST|Exception>;
 
 
    /**********************

@@ -146,7 +146,7 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
 
     const currentProfile:USER = await DB_SELECT_USER(new Map([['userID', request.clientID]]));
 
-    const editProfile:USER|Exception = USER.constructAndEvaluateByJson({currentModel: currentProfile, jsonObj:request.body, fieldList: (request.jwtUserRole === RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS});
+    const editProfile:USER|Exception = await USER.constructAndEvaluateByJson({currentModel: currentProfile, jsonObj:request.body, fieldList: (request.jwtUserRole === RoleEnum.ADMIN) ? EDIT_PROFILE_FIELDS_ADMIN : EDIT_PROFILE_FIELDS});
 
     if(currentProfile.isValid && !(editProfile instanceof Exception) && editProfile.isValid) {
         //Verify user roles and verify account type tokens

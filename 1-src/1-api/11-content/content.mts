@@ -57,7 +57,7 @@ export const POST_contentIncrementLikeCount = async (request: JwtContentRequest,
 export const POST_newContentArchive =  async(request: JwtRequest, response: Response, next: NextFunction) => {
     const FIELD_LIST:InputField[] = (request.jwtUserRole === RoleEnum.ADMIN) ? EDIT_CONTENT_FIELDS_ADMIN : EDIT_CONTENT_FIELDS;
 
-    const newContentArchive:CONTENT_ARCHIVE|Exception = CONTENT_ARCHIVE.constructByJson({jsonObj:request.body, fieldList: FIELD_LIST});
+    const newContentArchive:CONTENT_ARCHIVE|Exception = await CONTENT_ARCHIVE.constructByJson({jsonObj:request.body, fieldList: FIELD_LIST});
 
     if(!(newContentArchive instanceof Exception)) {
         const recorderID:number = ((request.jwtUserRole === RoleEnum.ADMIN) && request.body['recorderID'] !== undefined) ? request.body['recorderID'] : request.jwtUserID;
@@ -85,7 +85,7 @@ export const PATCH_contentArchive =  async(request: JwtContentRequest, response:
 
     const currentContentArchive:CONTENT_ARCHIVE = await DB_SELECT_CONTENT(request.contentID);
 
-    const editContentArchive:CONTENT_ARCHIVE|Exception = CONTENT_ARCHIVE.constructAndEvaluateByJson({currentModel: currentContentArchive, jsonObj:request.body, fieldList: FIELD_LIST});
+    const editContentArchive:CONTENT_ARCHIVE|Exception = await CONTENT_ARCHIVE.constructAndEvaluateByJson({currentModel: currentContentArchive, jsonObj:request.body, fieldList: FIELD_LIST});
 
     if(currentContentArchive.isValid && !(editContentArchive instanceof Exception) && editContentArchive.isValid) {  //undefined handles next(Exception)
         
