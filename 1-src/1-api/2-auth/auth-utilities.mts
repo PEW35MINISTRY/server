@@ -139,14 +139,14 @@ export const getUserLogin = async(email:string = '', password: string = '', deta
     : await DB_SELECT_USER(new Map([['email', email]]));
 
     // Verify user credentials
-    if (!await verifyPassword(userProfile.passwordHash, password)) return undefined;
+    if(userProfile.isValid && userProfile.userID > 0 
+        && password !== undefined && password.length > 0 
+        && await verifyPassword(userProfile.passwordHash, password)) {
+            log.auth('Successfully logged in user: ', userProfile.userID);
 
-    //Always include default content for dashboard
-    if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
-        userProfile.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(userProfile.userID, 5);
-
-    if(userProfile.userID > 0) {
-        log.auth('Successfully logged in user: ', userProfile.userID);
+        //Always include default content for dashboard
+        if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
+            userProfile.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(userProfile.userID, 5);
 
         return {
             jwt: generateJWT(userProfile.userID, userProfile.getHighestRole()),
@@ -163,9 +163,9 @@ export const getUserLogin = async(email:string = '', password: string = '', deta
 }
 
 
-/* *******************
- Utility Methods
-******************* */
+/*******************
+ * Utility Methods *
+ *******************/
 
 //Since request.jwtUserRole is max role; this utility tests if userRole is possible
 export const isMaxRoleGreaterThan = ({testUserRole, currentMaxUserRole}:{testUserRole:RoleEnum, currentMaxUserRole:RoleEnum}):boolean => 

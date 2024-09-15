@@ -111,10 +111,11 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
         if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
             next(new Exception(400, `Signup Failed :: Missing Required Fields: ${JSON.stringify(USER_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
+        //Verify user roles and verify account type tokens
         else if(await validateNewRoleTokenList({newRoleList:newProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: newProfile.email}) === false)
             next(new Exception(401, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
 
-        //Verify user roles and verify account type tokens
+        //Create 'user' database entry
         else if(await DB_INSERT_USER(newProfile.getDatabaseProperties()) === false) 
                 next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Signup Save Failed'));
 
