@@ -139,7 +139,7 @@ export const getUserLogin = async(email:string = '', password: string = '', deta
     : await DB_SELECT_USER(new Map([['email', email]]));
 
     // Verify user credentials
-    if (!verifyPassword(userProfile.passwordHash, password)) return undefined;
+    if (!await verifyPassword(userProfile.passwordHash, password)) return undefined;
 
     //Always include default content for dashboard
     if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
@@ -171,7 +171,7 @@ export const getUserLogin = async(email:string = '', password: string = '', deta
 export const isMaxRoleGreaterThan = ({testUserRole, currentMaxUserRole}:{testUserRole:RoleEnum, currentMaxUserRole:RoleEnum}):boolean => 
     Object.values(RoleEnum).indexOf(testUserRole) <= Object.values(RoleEnum).indexOf(currentMaxUserRole);
 
-export const verifyPassword = async (password:string, passwordHash:string):Promise<boolean> => {
+export const verifyPassword = async (passwordHash:string, password:string):Promise<boolean> => {
     return verify(passwordHash, password)
 }
 
