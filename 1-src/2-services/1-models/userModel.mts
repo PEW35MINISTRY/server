@@ -54,6 +54,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   partnerPendingUserList: PartnerListItem[] = [];    //Transformed in DB to USER perspective | Includes: PENDING_CONTRACT_USER, PENDING_CONTRACT_BOTH
   partnerPendingPartnerList: PartnerListItem[] = []; //Transformed in DB to USER perspective | Includes: PENDING_CONTRACT_PARTNER
   newPrayerRequestList: PrayerRequestListItem[] = [];   //Recipient for dashboard preview
+  ownedPrayerRequestList: PrayerRequestListItem[] = []; //Not resolved (pending) for which user is the Requestor
   recommendedContentList: ContentListItem[] = [];
   contactList: ProfileListItem[] = [];
   profileAccessList: ProfileListItem[] = []; //Leaders
