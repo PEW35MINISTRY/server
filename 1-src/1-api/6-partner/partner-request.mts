@@ -1,12 +1,12 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
-import { JwtAdminRequest, JwtClientPartnerRequest, JwtClientRequest, JwtClientStatusFilterRequest, JwtClientStatusRequest } from '../2-auth/auth-types.mjs';
+import { JwtAdminRequest, JwtClientPartnerRequest, JwtClientRequest, JwtClientStatusFilterRequest } from '../2-auth/auth-types.mjs';
 import { PartnerStatusEnum, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP,  DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PARTNERSHIP, DB_SELECT_PENDING_PARTNER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { DB_IS_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_ROLES } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_DELETE_CONTACT_CACHE, DB_DELETE_CONTACT_CACHE_BATCH, DB_IS_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_ROLES } from '../../2-services/2-database/queries/user-queries.mjs';
 import { PartnerListItem, ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 
 
@@ -82,6 +82,9 @@ export const POST_PartnerContractAccept = async(request:JwtClientRequest, respon
 
     //Assign new status
     if(await DB_ASSIGN_PARTNER_STATUS(request.jwtUserID, request.clientID, DATABASE_PARTNER_STATUS_ENUM[newStatus])) {
+        if(newStatus === PartnerStatusEnum.PARTNER) 
+            await DB_DELETE_CONTACT_CACHE_BATCH([request.jwtUserID, request.clientID]);
+
         log.event(`User ${request.jwtUserID} and partner ${request.clientID} are now ${newStatus}`);
         response.status(200).send(await DB_SELECT_PARTNERSHIP(request.jwtUserID, request.clientID));
     } else
@@ -103,9 +106,11 @@ export const DELETE_PartnershipLeave = async(request:JwtClientRequest, response:
 
     if(await DB_ASSIGN_PARTNER_STATUS(request.jwtUserID, request.clientID, DATABASE_PARTNER_STATUS_ENUM.ENDED) === false)
         return next(new Exception(500, `Failed to save ENDED partnership between user ${request.jwtUserID} and partner ${request.clientID}`, 'Save Failed'));
-    
-    else
+
+    else {
+        await DB_DELETE_CONTACT_CACHE_BATCH([request.jwtUserID, request.clientID]);
         response.status(200).send(`User ${request.jwtUserID} and partner ${request.clientID} partnership has now ENDED.`);
+    }
 };
 
 
@@ -121,6 +126,7 @@ export const POST_PartnerStatusAdmin = async(status:PartnerStatusEnum|undefined,
     }
 
     if(await DB_ASSIGN_PARTNER_STATUS(request.clientID, request.partnerID, DATABASE_PARTNER_STATUS_ENUM[status])) {
+        await DB_DELETE_CONTACT_CACHE_BATCH([request.clientID, request.partnerID]);
         log.event(`ADMIN: User ${request.clientID} and partner ${request.partnerID} are now ${status}`);
         response.status(200).send(await DB_SELECT_PARTNERSHIP(request.clientID, request.partnerID));
     } else
@@ -129,9 +135,11 @@ export const POST_PartnerStatusAdmin = async(status:PartnerStatusEnum|undefined,
 
 
 export const DELETE_PartnershipAdmin = async(request:JwtClientPartnerRequest, response:Response, next:NextFunction) => {
-    if(await DB_DELETE_PARTNERSHIP(request.clientID, request.partnerID))
+    if(await DB_DELETE_PARTNERSHIP(request.clientID, request.partnerID)) {
+        await DB_DELETE_CONTACT_CACHE_BATCH([request.clientID, request.partnerID]);
         response.status(202).send('Partnership cleared');
-    else
+
+    } else
         next(new Exception(500, `Failed to delete partnership between user ${request.clientID} and partner ${request.partnerID}`, 'Delete Failed'));
 };
 
@@ -143,9 +151,11 @@ export const DELETE_PartnershipByTypeAdmin = async(status:PartnerStatusEnum|unde
         if(status === undefined) return next(new Exception(400, `Failed to parse status filter :: missing 'status' parameter :: ${request.params.status}`, 'Missing Status Filter'));
     }
 
-    if(await DB_DELETE_PARTNERSHIP(request.clientID, undefined, status))
+    if(await DB_DELETE_PARTNERSHIP(request.clientID, undefined, status)) {
+        await DB_DELETE_CONTACT_CACHE(request.clientID); //TODO we don't know the other partners whose partnership has now been cleared
         response.status(202).send(`All ${status} partnerships deleted for user ${request.clientID}`);
-    else
+        
+    } else
         next(new Exception(500, `Failed to delete all ${status} partnerships of user ${request.clientID}`, 'Partnerships Exists'));
 };
 

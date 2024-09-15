@@ -37,10 +37,12 @@ export enum ListItemTypesEnum {
 /* SEARCH CONFIGURATION */
 
 export const SEARCH_MIN_CHARS:number = 3;
+export const SEARCH_LIMIT:number = 200;
 
 export enum SearchType {
     NONE = 'NONE',
     USER = 'USER',
+    CONTACT = 'CONTACT',
     CIRCLE = 'CIRCLE',
     CONTENT_ARCHIVE = 'CONTENT_ARCHIVE',
   }
@@ -90,6 +92,10 @@ export enum SearchType {
                                                 getID:(item:ProfileListItem) => item.userID, IDProperty:'userID', cacheAvailable:true,
                                                 searchRefineList: [...Object.values(UserSearchRefineEnum)]
                                                 }),
+
+    [SearchType.CONTACT]: new SearchTypeInfo<ProfileListItem>({ searchType:SearchType.CONTACT, displayTitle:'Contact Search', roleList:Object.values(RoleEnum), itemType:ListItemTypesEnum.USER, 
+                                                  getID:(item:ProfileListItem) => item.userID, IDProperty:'userID', cacheAvailable:true,
+                                                  }),
   
     [SearchType.CIRCLE]: new SearchTypeInfo<CircleListItem>({ searchType:SearchType.CIRCLE, displayTitle:'Circle Search', roleList:Object.values(RoleEnum), itemType:ListItemTypesEnum.CIRCLE, 
                                                 getID:(item:CircleListItem) => item.circleID, IDProperty:'circleID', searchFilterList:Object.values(CircleStatusEnum), cacheAvailable:true,

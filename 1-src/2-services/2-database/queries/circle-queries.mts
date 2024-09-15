@@ -1,6 +1,7 @@
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleSearchRefineEnum, CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
+import { SEARCH_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
 import * as log from '../../log.mjs';
@@ -330,16 +331,54 @@ export const DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES = async({leaderID, userID}:
     return (rows.length > 0);
 }
 
-export const DB_SELECT_MEMBERS_OF_ALL_CIRCLES = async(leaderID:number):Promise<ProfileListItem[]> => {
-    const rows = await execute('SELECT DISTINCT circle.circleID, circle.name, user.userID, user.firstName, user.displayName, user.image ' 
-        + 'FROM user, circle, circle_user '
-        + 'WHERE circle.circleID = circle_user.circleID AND circle_user.userID = user.userID AND circle_user.status = ? '
-        + 'AND circle.leaderID = ? '
-        + 'ORDER BY user.userID < 10 DESC, user.modifiedDT DESC LIMIT 15;', [DATABASE_CIRCLE_STATUS_ENUM.MEMBER, leaderID]);
+export const DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES = async(leaderID:number, onlyGeneralUsers = true, limit = SEARCH_LIMIT):Promise<ProfileListItem[]> => {
+    const rows = onlyGeneralUsers ? 
+        await execute('SELECT DISTINCT circle.circleID, circle.name, user.userID, user.firstName, user.displayName, user.image ' 
+            + 'FROM user '
+            + 'LEFT JOIN circle_user ON circle_user.userID = user.userID '
+            + 'LEFT JOIN circle ON circle.circleID = circle_user.circleID '
+            + 'LEFT JOIN user_role ON user_role.userID = user.userID '
+            + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
+            + 'WHERE circle_user.status = ? AND circle.leaderID = ? '
+            + 'AND (user_role_defined.userRole = ? OR user_role_defined.userRole IS NULL) '
+            + 'ORDER BY user.modifiedDT DESC '
+            + `LIMIT ${limit};`, [DATABASE_CIRCLE_STATUS_ENUM.MEMBER, leaderID, DATABASE_USER_ROLE_ENUM.USER])
+
+        : await execute('SELECT DISTINCT circle.circleID, circle.name, user.userID, user.firstName, user.displayName, user.image ' 
+            + 'FROM user '
+            + 'LEFT JOIN circle_user ON circle_user.userID = user.userID '
+            + 'LEFT JOIN circle ON circle.circleID = circle_user.circleID '
+            + 'WHERE circle_user.status = ? AND circle.leaderID = ? '
+            + 'ORDER BY user.modifiedDT DESC '
+            + `LIMIT ${limit};`, [DATABASE_CIRCLE_STATUS_ENUM.MEMBER, leaderID]);
 
     return [...rows.reverse().map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
 
+
+//Selects list of Circle Member ID's
+export const DB_SELECT_CIRCLE_USER_IDS = async(circleID:number, status?:DATABASE_CIRCLE_STATUS_ENUM, includeLeader:boolean = true):Promise<number[]> => {
+    const rows = await execute(
+        'SELECT user.userID, user.firstName, user.displayName, user.image, circle_user.status '
+        + 'FROM user '
+        + 'JOIN circle_user ON user.userID = circle_user.userID '
+        + 'LEFT JOIN circle ON circle_user.circleID = circle.circleID '
+        + 'WHERE circle_user.circleID = ? '
+        + (includeLeader ? 'OR (circle.leaderID = user.userID AND circle.circleID = ? ) ' : '')
+        + (status !== undefined ? 'AND circle_user.status = ? ' : '')
+        + 'ORDER BY user.userID ASC;',
+        [
+            circleID,
+            ...(includeLeader ? [circleID] : []),
+            ...(status !== undefined ? [status] : [])
+        ]
+    );
+
+    return [...rows.reverse().map(row => row.userID)];
+}
+
+
+//Selects list Circle members by status (excludes leader)
 export const DB_SELECT_CIRCLE_USER_LIST = async(circleID:number, status?:DATABASE_CIRCLE_STATUS_ENUM):Promise<ProfileListItem[]> => {
     //undefined status ignores field
     const rows = (status === undefined) ?

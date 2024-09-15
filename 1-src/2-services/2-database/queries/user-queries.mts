@@ -1,13 +1,16 @@
+import * as log from '../../log.mjs';
+import USER from '../../1-models/userModel.mjs';
+import { generateJWTRequest, JwtSearchRequest } from '../../../1-api/api-types.mjs';
+import { SEARCH_LIMIT, SearchType } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
+import { searchList } from '../../../1-api/api-search-utilities.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { CredentialProfile } from '../../../1-api/3-profile/profile-types.mjs';
-import USER from '../../1-models/userModel.mjs';
-import * as log from '../../log.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
-import { command, execute, query, validateColumns } from '../database.mjs';
-import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
+import { batch, command, execute, query, validateColumns } from '../database.mjs';
+import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
 import { DB_SELECT_USER_CONTENT_LIST } from './content-queries.mjs';
 import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
@@ -95,8 +98,9 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     user.ownedPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID, false); //Not resolved (pending) for which user is the Requestor
     user.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(user.userID, 5);
 
-    user.contactList = await DB_SELECT_CONTACTS(user.userID);
-    if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_CIRCLES(user.userID);
+    //Query via Search to use cached list
+    user.contactList = await searchList(SearchType.CONTACT, generateJWTRequest(user.userID, user.getHighestRole()) as JwtSearchRequest) as ProfileListItem[];
+    if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES(user.userID, true);
 
     return user;
 }
@@ -243,13 +247,6 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
 }
 
 
-/* SELECT ALL USERS */
-export const DB_SELECT_CONTACTS = async(userID:number):Promise<ProfileListItem[]> => { //TODO Query: Filter accordingly to include: Partners, members of circles, circle leader of circles, all admin
-    const rows = await execute('SELECT DISTINCT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user ORDER BY userID < 10 DESC, modifiedDT DESC LIMIT 15;', []);
-
-    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
-}
-
 
 //TODO TEMPORARY FOR FRONT-END DEBUGGING
 export const DB_SELECT_CREDENTIALS = async():Promise<CredentialProfile[]> => {
@@ -347,5 +344,131 @@ export const DB_DELETE_USER_SEARCH_REVERSE_CACHE = async(filterList:UserSearchRe
     + 'WHERE ' + `${`CONCAT_WS( ${valueList.join(`, ' ', `)} )`} LIKE ? `, 
     []);
  
+    return ((response !== undefined) && (response.affectedRows > 0));
+}
+
+
+
+/**********************************
+ *  contact SEARCH & CACHE QUERIES
+ **********************************/
+/* SELECT Partners, Co-Circle Members, Circle Leaders */
+export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments = false, limit:number = SEARCH_LIMIT):Promise<ProfileListItem[]> => {
+   
+    const rows = await execute(
+        'WITH CIRCLE_ID_LIST AS ( '
+        + '    SELECT circle_user.circleID '
+        + '    FROM circle_user '
+        + '    WHERE circle_user.userID = ? '
+        + '    UNION '
+        + '    SELECT circle.circleID '
+        + '    FROM circle '
+        + '    WHERE circle.leaderID = ? '
+        + ') '
+        + 'SELECT DISTINCT user.userID, user.firstName, user.displayName, user.image '
+        + 'FROM user '
+        + `LEFT JOIN circle_user ON user.userID = circle_user.userID AND circle_user.status = 'MEMBER' `
+        + 'LEFT JOIN circle ON circle_user.circleID = circle.circleID '
+        + 'LEFT JOIN partner ON ( '
+        + '    (user.userID = partner.userID AND partner.partnerID = ? ) '
+        + '    OR (user.userID = partner.partnerID AND partner.userID = ? ) '
+        + `) AND partner.status = 'PARTNER' `
+        + 'WHERE user.userID != ? '
+        + 'AND ( '
+        + '    circle_user.circleID IN ( '
+        + '        SELECT circleID '
+        + '        FROM CIRCLE_ID_LIST '
+        + '    ) '
+        + '    OR user.userID IN ( '
+        + '        SELECT circle.leaderID '
+        + '        FROM circle '
+        + '        WHERE circle.circleID IN ( '
+        + '            SELECT circleID '
+        + '            FROM CIRCLE_ID_LIST '
+        + '        ) '
+        + '    ) '
+        + '    OR ( '
+        + '        user.userID = partner.userID '
+        + '        OR user.userID = partner.partnerID '
+        + '    ) '
+        + ') '
+        + 'ORDER BY '
+        + '    CASE '
+        + '        WHEN partner.userID IS NOT NULL OR partner.partnerID IS NOT NULL THEN 1 '
+        + '        WHEN user.userID IN ( '
+        + '            SELECT circle.leaderID '
+        + '            FROM circle '
+        + '            WHERE circle.circleID IN ( '
+        + '                SELECT circleID '
+        + '                FROM CIRCLE_ID_LIST '
+        + '            ) '
+        + '        ) THEN 2 '
+        + '        ELSE 3 '
+        + '    END ASC, '
+        + '    user.modifiedDT DESC '
+        + `LIMIT ${limit};`
+
+    , [userID, userID, userID, userID, userID]);
+
+    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
+}
+
+
+//Supports saving empty lists, returns undefined on error or not found
+export const DB_SELECT_CONTACT_CACHE = async(userID:number):Promise<ProfileListItem[]|undefined> => {
+
+    const rows = await execute('SELECT stringifiedProfileItemList ' + 'FROM user_contact_cache '
+        + 'WHERE userID = ?;', [userID]);
+
+    if(rows.length === 0) return undefined;
+
+    try {
+        const stringifiedList:string = rows[0].stringifiedProfileItemList;    
+        return JSON.parse(stringifiedList);
+        
+    } catch(error) {
+        log.db('DB_SELECT_CONTACT_CACHE :: Failed to Parse JSON List', rows[0]);
+        return undefined;
+    }
+}
+
+//Updates on Duplicate | Only caches searches including users with 'USER' Role
+export const DB_INSERT_CONTACT_CACHE = async({userID, userList}:{userID:number, userList:ProfileListItem[]}):Promise<boolean> => {
+
+    const response:CommandResponseType = await command(`INSERT INTO user_contact_cache ( userID, stringifiedProfileItemList ) `
+        + `VALUES ( ?, ? ) ON DUPLICATE KEY UPDATE userID=VALUES(userID), stringifiedProfileItemList=VALUES(stringifiedProfileItemList);`,
+     [userID, JSON.stringify(userList)]); 
+    
+    return ((response !== undefined) && (response.affectedRows === 1));
+}
+
+export const DB_DELETE_CONTACT_CACHE = async(userID:number):Promise<boolean> => {
+
+    const response:CommandResponseType = await command('DELETE FROM user_contact_cache WHERE userID = ?;', [ userID ]);
+
+    return ((response !== undefined) && (response.affectedRows === 1));
+}
+
+export const DB_DELETE_CONTACT_CACHE_BATCH = async(userIDList:number[]):Promise<boolean> => {
+
+    const batchList = userIDList.map((userID:number) => ([userID]));
+
+    const response:boolean|undefined = await batch(`DELETE FROM user_contact_cache WHERE userID = ?;`, batchList);
+
+    return (response === true);
+}
+
+export const DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS = async(circleID:number):Promise<boolean> => {
+
+    const memberIDList = await DB_SELECT_CIRCLE_USER_IDS(circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, true);
+
+    return DB_DELETE_CONTACT_CACHE_BATCH(memberIDList);
+}
+
+export const DB_FLUSH_CONTACT_CACHE_ADMIN = async():Promise<boolean> => {
+    log.db('Flushing user_contact_cache Table');
+
+    const response:CommandResponseType = await command('DELETE FROM user_contact_cache;', []);
+
     return ((response !== undefined) && (response.affectedRows > 0));
 }
