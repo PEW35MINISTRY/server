@@ -9,16 +9,6 @@ import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs'
 * Server: Additional Types Declared in: 0-assets\field-sync\api-type-sync\profile-types.ts *
 *****************************************************************************************/
 
-/* [TEMPORARY] Credentials fetched for Debugging */
-export type CredentialProfile = { 
-    userID: number,
-    displayName: string,
-    userRole: string,
-    email: string,
-    passwordHash: string,
-}
-
-
 export interface ProfileEditRequest extends JwtClientRequest {
     body: ProfileEditRequestBody
 }

@@ -65,8 +65,8 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
     static constructByDatabase = (DB:DATABASE_CIRCLE):CIRCLE => 
         BASE_MODEL.constructByDatabaseUtility<CIRCLE>({DB, newModel: new CIRCLE(DB.circleID || -1), defaultModel: new CIRCLE()});
 
-    static constructByJson = <CIRCLE,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):CIRCLE|Exception => 
-        new CIRCLE().populateFromJson({jsonObj, fieldList}) as CIRCLE|Exception;
+    static constructByJson = async<CIRCLE,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):Promise<CIRCLE|Exception> => 
+        new CIRCLE().populateFromJson({jsonObj, fieldList}) as Promise<CIRCLE|Exception>;
 
     static constructByClone = (circle:CIRCLE):CIRCLE =>
         BASE_MODEL.constructByCloneUtility<CIRCLE>({currentModel: circle, newModel: new CIRCLE(circle.circleID || -1), defaultModel: new CIRCLE(), propertyList: CIRCLE.PROPERTY_LIST,
@@ -100,7 +100,7 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
    /****************************************
     * constructByJson Model Custom Handling *
     *****************************************/  
-    override parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:CircleEditRequestBody}):boolean|undefined => {
+    override parseModelSpecificField = async({field, jsonObj}:{field:InputField, jsonObj:CircleEditRequestBody}):Promise<boolean|undefined> => {
         //Handle inviteToken for security
         if(field.field === 'inviteToken') {
             this.inviteToken = (String(jsonObj[field.field]) || '').toLowerCase();

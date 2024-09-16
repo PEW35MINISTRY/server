@@ -151,7 +151,7 @@ export default {
     * constructByJson => populateFromJson                       *
     * Returns: modified model or undefined with Express Exception *
     ***************************************************************/
-    constructByJson: <M extends BASE_MODEL<any, any, any>>({currentModel, jsonObj, fieldList}:{currentModel:M, jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):M|Exception => {
+    constructByJson: async<M extends BASE_MODEL<any, any, any>>({currentModel, jsonObj, fieldList}:{currentModel:M, jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):Promise<M | Exception> => {
         const model:M = currentModel.constructByClone();
 
         if(model === undefined) {
@@ -168,7 +168,7 @@ export default {
 
             }
 
-            const modelValidateResult:boolean|undefined = model.validateModelSpecificField({field, value: jsonObj[field.field], jsonObj});
+            const modelValidateResult:boolean|undefined = await model.validateModelSpecificField({field, value: jsonObj[field.field], jsonObj});
             if(modelValidateResult === false) {
                 log.warn(`${model.modelType} | ${field.field} failed model specific validations.`);
 
@@ -177,7 +177,7 @@ export default {
 
             } else {
                 try {
-                    const modelParseResult:boolean|undefined = model.parseModelSpecificField({field, jsonObj: jsonObj});
+                    const modelParseResult:boolean|undefined = await model.parseModelSpecificField({field, jsonObj: jsonObj});
                     if(modelParseResult === true)
                         continue;
                         

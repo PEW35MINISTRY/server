@@ -109,7 +109,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
  
     override constructByClone = <CONTENT_ARCHIVE,>():CONTENT_ARCHIVE => CONTENT_ARCHIVE.constructByClone(this) as CONTENT_ARCHIVE;
  
-    static constructByJson = <CONTENT_ARCHIVE,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):CONTENT_ARCHIVE|Exception => 
+    static constructByJson = async<CONTENT_ARCHIVE,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):Promise<CONTENT_ARCHIVE|Exception> => 
          new CONTENT_ARCHIVE().populateFromJson({jsonObj, fieldList}) as CONTENT_ARCHIVE|Exception;
 
 
@@ -144,7 +144,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
    /*****************************************
     * constructByJson Model Custom Handling *
     *****************************************/  
-    validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ContentResponseBody}):boolean|undefined => {
+    validateModelSpecificField = async({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ContentResponseBody}):Promise<boolean|undefined> => {
         if(field.field === 'minimumAge' || field.field === 'maximumAge') {
             return (parseInt(jsonObj['minimumAge'] as unknown as string) <= parseInt(jsonObj['maximumAge'] as unknown as string));
 
@@ -155,7 +155,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
         return undefined;
     }
 
-    parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ContentResponseBody}):boolean|undefined => {
+    parseModelSpecificField = async({field, jsonObj}:{field:InputField, jsonObj:ContentResponseBody}):Promise<boolean|undefined> => {
         if(field.field === 'type' && jsonObj['type'] === 'CUSTOM' && field.customField !== undefined) {
             this.type = ContentTypeEnum.CUSTOM;
             this.customType = (jsonObj['customType'] || '').replace(/^[a-zA-Z0-9_ ]$/g, '').replace(/ /g, '_').toUpperCase();

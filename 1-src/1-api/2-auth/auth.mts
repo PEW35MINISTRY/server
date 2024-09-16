@@ -1,12 +1,10 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
+import * as log from '../../2-services/log.mjs';
 import { JwtResponseBody, LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { EMAIL_REGEX, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { DB_SELECT_CREDENTIALS } from '../../2-services/2-database/queries/user-queries.mjs';
-import * as log from '../../2-services/log.mjs';
-import { CredentialProfile } from '../3-profile/profile-types.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtClientRequest, JwtRequest, LoginRequest, SubscribePost } from './auth-types.mjs';
-import { generateJWT, getUserLogin, validateNewRoleTokenList } from './auth-utilities.mjs';
+import { generateJWT, getUserLogin } from './auth-utilities.mjs';
 import { DB_INSERT_EMAIL_SUBSCRIPTION } from '../../2-services/2-database/queries/queries.mjs';
 
 /********************
@@ -21,13 +19,6 @@ export const POST_login =  async(request: LoginRequest, response: Response, next
     else
         next(new Exception(404, `Login Failed: Credentials do not match our records.`, 'Invalid Credentials'));
 };
-
-
-//Temporary for easy debugging
-export const GET_allUserCredentials =  async (request: Request, response: Response, next: NextFunction) => { 
-    const userList:CredentialProfile[] = await DB_SELECT_CREDENTIALS();
-    response.status(200).send(userList);
-}
 
 
 //Website Email Subscribe for Updates | Note: request.role is NOT RoleEnum | [USER, LEADER, FINANCIAL SUPPORTER]
