@@ -16,6 +16,12 @@ export const fetchName = async (userID:number):Promise<string> => {
     return userProfile.displayName;
 }
 
+export const fetchNames = async (userIDList:number[]):Promise<ProfileListItem[]> => {
+    const userList:ProfileListItem[] =  [];
+
+    return userList;
+}
+
 export const formatMessageNames = async (content:SocketMessage, isCircle=false):Promise<SocketMessage> =>  ({
         ...content,
         time: new Date().getTime(),

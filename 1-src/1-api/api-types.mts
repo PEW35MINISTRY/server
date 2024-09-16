@@ -92,7 +92,7 @@ export class SearchTypeInfoServer<ListItemType, ModelType> extends SearchTypeInf
     readonly defaultPromiseList = () => Promise.resolve([] as ListItemType[]);
 
     constructor(props: {searchTypeInfo:SearchTypeInfo<ListItemType>, refineDatabaseMapping?:Map<string, string[]>,
-      searchByIDMap:Map<string, (ID:number) => Promise<ListItemType[]>>,
+      searchByIDMap?:Map<string, (ID:number) => Promise<ListItemType[]>>,
       fetchDefaultList?:(userID:number) => Promise<ListItemType[]>, 
       searchCache?: (request:JwtSearchRequest, searchTerm:string, searchRefine:string) => Promise<ListItemType[]>,
       executeSearch?:(request:JwtSearchRequest, searchTerm:string, columnList:string[]) => Promise<ListItemType[]>,
@@ -113,7 +113,6 @@ export class SearchTypeInfoServer<ListItemType, ModelType> extends SearchTypeInf
 
          /* Validations */
          if((this.searchRefineList.length !== (this.refineDatabaseMapping.size + this.searchByIDMap.size)) || this.searchRefineList.some(f => !(this.refineDatabaseMapping.has(f) || this.searchByIDMap.has(f)))) throw new Error(`Server Search Type:${this.searchType} contains mismatch between searchRefineList ${this.searchRefineList.length} and refineDatabaseMapping ${this.refineDatabaseMapping.size} + searchByIDMap ${this.searchByIDMap.size}.`);
-        //  if(!this.searchByIDMap.has('ID')) throw new Error(`Server Search Type:${this.searchType} must contain searchByID of type 'ID'.`);
          if(this.cacheAvailable && ((this.adminFlushCacheRoute.trim() !== '') && (this.saveCache === this.defaultPromiseBoolean) || (this.adminFlushCache === this.defaultPromiseBoolean))) throw new Error(`Server Search Type:${this.searchType} cacheAvailable: TRUE; but missing references.`);
          if(!this.cacheAvailable && ((this.saveCache !== this.defaultPromiseBoolean) || (this.adminFlushCache !== this.defaultPromiseBoolean))) throw new Error(`Server Search Type:${this.searchType} cacheAvailable: FALSE; but still contains references.`);
     }
@@ -137,9 +136,6 @@ export const SearchDetailServer:Record<SearchType, SearchTypeInfoServer<any, BAS
                         }),
 
   [SearchType.CONTACT]: new SearchTypeInfoServer<ProfileListItem, USER>({ searchTypeInfo: SearchDetail[SearchType.CONTACT], 
-                            refineDatabaseMapping: new Map(),
-                            searchByIDMap: new Map(),
-                            // fetchDefaultList: DB_SELECT_CONTACT_LIST,
                             searchCache: (request:JwtSearchRequest, searchTerm:string, searchRefine:string) => DB_SELECT_CONTACT_CACHE(request.jwtUserID),
                             executeSearch: (request:JwtSearchRequest, searchTerm:string, columnList:string[]) => DB_SELECT_CONTACT_LIST(request.jwtUserID, (request.jwtUserRole === RoleEnum.ADMIN), SEARCH_LIMIT),
                             saveCache: (request:JwtSearchRequest, searchTerm:string, searchRefine:string, resultList:any[]) => DB_INSERT_CONTACT_CACHE({userID: request.jwtUserID, userList: resultList as ProfileListItem[]}),
