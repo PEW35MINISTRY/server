@@ -7,7 +7,6 @@ import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circl
 import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { CredentialProfile } from '../../../1-api/3-profile/profile-types.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import { batch, command, execute, query, validateColumns } from '../database.mjs';
 import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
@@ -38,7 +37,7 @@ const validateUserColumns = (inputMap:Map<string, any>, includesRequired:boolean
 /*************************
  *  USER PROFILE QUERIES
  *************************/
-export const DB_SELECT_USER = async(filterMap:Map<string, any>):Promise<USER> => {
+export const DB_SELECT_USER = async(filterMap:Map<string, any>, includeUserRole:boolean = true):Promise<USER> => {
     //Validate Columns prior to Query
     if(filterMap.size === 0 || !validateUserColumns(filterMap)) {
         log.db('Query Rejected: DB_SELECT_USER; invalid column names', JSON.stringify(Array.from(filterMap.keys())));
@@ -49,11 +48,15 @@ export const DB_SELECT_USER = async(filterMap:Map<string, any>):Promise<USER> =>
     const preparedColumns:string = Array.from(filterMap.keys()).map((key, field)=> `user.${key} = ?`).join(' AND ');
 
     //Query User and max userRole
-    const rows = await execute('SELECT user.*, user_role_defined.userRole ' + 'FROM user '
-        + 'LEFT JOIN user_role ON user_role.userID = user.userID '
-        + 'AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
-        + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
-        + `WHERE ${preparedColumns};`, Array.from(filterMap.values()));
+    const rows = includeUserRole ?
+        await execute('SELECT user.*, user_role_defined.userRole ' + 'FROM user '
+            + 'LEFT JOIN user_role ON user_role.userID = user.userID '
+            + 'AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
+            + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
+            + `WHERE ${preparedColumns};`, Array.from(filterMap.values()))
+        
+        : await execute('SELECT user.* ' + 'FROM user '
+            + `WHERE ${preparedColumns};`, Array.from(filterMap.values()));
     
     if(rows.length === 1) return USER.constructByDatabase(rows[0] as DATABASE_USER);
     else {
@@ -79,21 +82,33 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
         return new USER();
     }
     
-    //Append Full Profile 
-    const user = USER.constructByDatabase(rows[0] as DATABASE_USER);
+    //Append Full Profile   
+    return await DB_POPULATE_USER_PROFILE(USER.constructByDatabase(rows[0] as DATABASE_USER));
+}
+
+
+//POPULATE FULL USER PROFILE: including roleList, circleList, partnerList, prayerRequestList, contactList
+export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
+    if(!user.isValid || user.userID <= 0)
+        return user;
+
+    /* Role List */
     user.userRoleList = await DB_SELECT_USER_ROLES(user.userID);
 
+    /* Circle Memberships */
     const allCircleList:CircleListItem[] = await DB_SELECT_USER_CIRCLES(user.userID);  //Includes all statuses
     user.circleList = allCircleList.filter(circle => circle.status === CircleStatusEnum.MEMBER || circle.status === CircleStatusEnum.LEADER);
     user.circleRequestList = allCircleList.filter(circle => circle.status === CircleStatusEnum.REQUEST);
     user.circleInviteList = allCircleList.filter(circle => circle.status === CircleStatusEnum.INVITE);
     user.circleAnnouncementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES(user.userID);
 
+    /* Partnerships */
     const allPartnerList:PartnerListItem[] = await DB_SELECT_PARTNER_LIST(user.userID);
     user.partnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PARTNER));
     user.partnerPendingUserList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PENDING_CONTRACT_USER || partner.status === PartnerStatusEnum.PENDING_CONTRACT_BOTH));
     user.partnerPendingPartnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PENDING_CONTRACT_PARTNER));
 
+    /* Prayer Requests */
     user.newPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_USER_LIST(user.userID, 7); //recipient, dashboard preview
     user.ownedPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID, false); //Not resolved (pending) for which user is the Requestor
     user.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(user.userID, 5);
@@ -104,6 +119,7 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
 
     return user;
 }
+
 
 //Insert New Profile
 export const DB_INSERT_USER = async(fieldMap:Map<string, any>):Promise<boolean> => {
@@ -247,29 +263,12 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
 }
 
 
+/* SELECT ALL USERS */
+export const DB_SELECT_CONTACTS = async(userID:number):Promise<ProfileListItem[]> => { //TODO Query: Filter accordingly to include: Partners, members of circles, circle leader of circles, all admin
+    const rows = await execute('SELECT DISTINCT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user ORDER BY userID < 10 DESC, modifiedDT DESC LIMIT 15;', []);
 
-//TODO TEMPORARY FOR FRONT-END DEBUGGING
-export const DB_SELECT_CREDENTIALS = async():Promise<CredentialProfile[]> => {
-    //Query User and max userRole
-    const rows = await query('SELECT tbl.userID, tbl.displayName, tbl.email, tbl.passwordHash, userRole ' + 'FROM ( '
-        + '( SELECT user.userID, user.displayName, user.email, user.passwordHash ' + 'FROM user '
-        + 'WHERE user.userID < 10 ) '
-        + 'UNION ALL '
-        + '( SELECT user.userID, user.displayName, user.email, user.passwordHash ' + 'FROM user '
-        + 'WHERE user.userID > 10 ' + 'ORDER BY modifiedDT DESC ' + 'LIMIT 10 ) '
-        + ') as tbl '
-        + 'LEFT JOIN user_role ON user_role.userID = tbl.userID '
-        + 'AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE tbl.userID = user_role.userID ) '
-        + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID;');
-
-    return [...rows.map(row => ({userID: row.userID || -1, 
-            displayName: row.displayName || '', 
-            userRole: row.userRole || RoleEnum.USER,
-            email: row.email || '',
-            passwordHash: row.passwordHash || '',
-        }))];
+    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
-
 
 
 /**********************************

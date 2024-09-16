@@ -81,7 +81,7 @@ export const GET_userCircleList = async(request: JwtRequest, response: Response,
 export const POST_newCircle =  async(request: JwtRequest, response: Response, next: NextFunction) => {
     const FIELD_LIST:InputField[] = (request.jwtUserRole === RoleEnum.ADMIN) ? CIRCLE_FIELDS_ADMIN : CIRCLE_FIELDS;
 
-    const newCircle:CIRCLE|Exception = CIRCLE.constructByJson({jsonObj:request.body, fieldList: FIELD_LIST});
+    const newCircle:CIRCLE|Exception = await CIRCLE.constructByJson({jsonObj:request.body, fieldList: FIELD_LIST});
 
     if(!(newCircle instanceof Exception)) {
         const leaderID:number = ((request.jwtUserRole === RoleEnum.ADMIN) && request.body['leaderID'] !== undefined) ? request.body['leaderID'] : request.jwtUserID;
@@ -119,7 +119,7 @@ export const PATCH_circle =  async(request: JwtCircleRequest, response: Response
 
     const currentCircle:CIRCLE = await DB_SELECT_CIRCLE(request.circleID);
 
-    const editCircle:CIRCLE|Exception = CIRCLE.constructAndEvaluateByJson({currentModel: currentCircle, jsonObj:request.body, fieldList: FIELD_LIST});
+    const editCircle:CIRCLE|Exception = await CIRCLE.constructAndEvaluateByJson({currentModel: currentCircle, jsonObj:request.body, fieldList: FIELD_LIST});
 
     if(currentCircle.isValid && !(editCircle instanceof Exception) && editCircle.isValid) { 
         //Verify leaderID is leader role
@@ -224,7 +224,7 @@ export const DELETE_flushCircleSearchCache = async (request:JwtRequest, response
 
 export const POST_circleAnnouncement =  async(request: CircleAnnouncementCreateRequest, response: Response, next: NextFunction) => {
     
-    const newCircleAnnouncement:CIRCLE_ANNOUNCEMENT|Exception = CIRCLE_ANNOUNCEMENT.constructByJson({jsonObj:request.body, fieldList: CIRCLE_ANNOUNCEMENT_FIELDS});
+    const newCircleAnnouncement:CIRCLE_ANNOUNCEMENT|Exception = await CIRCLE_ANNOUNCEMENT.constructByJson({jsonObj:request.body, fieldList: CIRCLE_ANNOUNCEMENT_FIELDS});
 
     if(!(newCircleAnnouncement instanceof Exception)) {
         newCircleAnnouncement.circleID = request.circleID;

@@ -91,16 +91,16 @@ export default abstract class BASE_MODEL<Model, ListItem, JsonResponse> {
 
     static constructAndEvaluateByJson = BASE_MODEL_UTILITY.constructByJson; //Checks required field in currentModel
 
-    populateFromJson = <T extends BASE_MODEL<any, any, any>>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):T|Exception => 
-        BASE_MODEL_UTILITY.constructByJson({currentModel: this, jsonObj, fieldList}) as T|Exception;
+    populateFromJson = async<T extends BASE_MODEL<any, any, any>>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):Promise<Exception | T> => 
+        BASE_MODEL_UTILITY.constructByJson({currentModel: this, jsonObj, fieldList}) as Promise<Exception | T>;
      
 
     /****************************************
     * constructByJson Model Custom Handling *
     *****************************************/  
-    validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:JwtRequest['body']}):boolean|undefined => undefined;
+    validateModelSpecificField = async({field, value, jsonObj}:{field:InputField, value:string, jsonObj:JwtRequest['body']}):Promise<boolean|undefined> => undefined;
     
-    parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:JwtRequest['body']}):boolean|undefined => undefined;
+    parseModelSpecificField = async({field, jsonObj}:{field:InputField, jsonObj:JwtRequest['body']}):Promise<boolean|undefined> => undefined;
  
 
     /****************************************

@@ -58,7 +58,7 @@ export const GET_PrayerRequest = async (request: JwtPrayerRequest, response: Res
 
 //POST includes sharing to circle/partners/leaders recipients
 export const POST_prayerRequest = async (request: PrayerRequestPostRequest, response: Response, next: NextFunction) => {
-    const newPrayerRequest:PRAYER_REQUEST|Exception = PRAYER_REQUEST.constructByJson({jsonObj:request.body, fieldList: CREATE_PRAYER_REQUEST_FIELDS});
+    const newPrayerRequest:PRAYER_REQUEST|Exception = await PRAYER_REQUEST.constructByJson({jsonObj:request.body, fieldList: CREATE_PRAYER_REQUEST_FIELDS});
 
     if(!(newPrayerRequest instanceof Exception)) {
         const requestorID:number = ((request.jwtUserRole === RoleEnum.ADMIN) && request.body['requestorID'] !== undefined) ? request.body['requestorID'] : request.jwtUserID;
@@ -91,7 +91,7 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
 
     const currentPrayerRequest:PRAYER_REQUEST = await DB_SELECT_PRAYER_REQUEST_DETAIL(request.prayerRequestID, true);
 
-    const editPrayerRequest:PRAYER_REQUEST|Exception = PRAYER_REQUEST.constructAndEvaluateByJson({currentModel: currentPrayerRequest, jsonObj:request.body, fieldList: FIELD_LIST});
+    const editPrayerRequest:PRAYER_REQUEST|Exception = await PRAYER_REQUEST.constructAndEvaluateByJson({currentModel: currentPrayerRequest, jsonObj:request.body, fieldList: FIELD_LIST});
 
     if(currentPrayerRequest.isValid && !(editPrayerRequest instanceof Exception) && editPrayerRequest.isValid) {  //undefined handles next(Exception)
         
