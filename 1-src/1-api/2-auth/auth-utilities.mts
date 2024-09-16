@@ -142,9 +142,9 @@ export const getUserLogin = async(email:string = '', password: string = '', deta
         && password !== undefined && password.length > 0 
         && await verifyPassword(userProfile.passwordHash, password)) {
             log.auth('Successfully logged in user: ', userProfile.userID);
-
+    
         if(detailed) 
-            DB_POPULATE_USER_PROFILE(userProfile);
+            await DB_POPULATE_USER_PROFILE(userProfile);
 
         //Always include default content for dashboard
         else if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
