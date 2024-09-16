@@ -216,7 +216,7 @@ export const DB_DELETE_CIRCLE_SEARCH_REVERSE_CACHE = async(filterList:CircleSear
  *******************************/
 export const DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT = async(circleID:number):Promise<CIRCLE_ANNOUNCEMENT[]> => {
     const currentDate:Date = new Date();
-    const rows = await execute('SELECT * ' + 'FROM circle_announcement '
+    const rows = await execute('SELECT circle_announcement.* ' + 'FROM circle_announcement '
         + 'WHERE circleID = ? '
         + 'AND circle_announcement.startDate < ? '
         // + 'AND circle_announcement.endDate > ? ' //TODO enable once we have auto delete routines
@@ -227,7 +227,7 @@ export const DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT = async(circleID:number):Prom
 
 export const DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES = async(userID:number):Promise<CIRCLE_ANNOUNCEMENT[]> => {
     const currentDate:Date = new Date();
-    const rows = await execute('SELECT * ' + 'FROM circle_announcement '
+    const rows = await execute('SELECT DISTINCT circle_announcement.* ' + 'FROM circle_announcement '
         + 'LEFT JOIN circle ON circle_announcement.circleID = circle.circleID '
         + 'LEFT JOIN circle_user ON circle_announcement.circleID = circle_user.circleID '
         + 'WHERE (( circle_user.userID = ? AND circle_user.status = ? ) OR circle.leaderID = ? ) '

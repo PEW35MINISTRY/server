@@ -53,14 +53,14 @@ export default class CIRCLE_ANNOUNCEMENT extends BASE_MODEL<CIRCLE_ANNOUNCEMENT,
     static constructByDatabase = (DB:DATABASE_CIRCLE_ANNOUNCEMENT):CIRCLE_ANNOUNCEMENT => 
         BASE_MODEL.constructByDatabaseUtility<CIRCLE_ANNOUNCEMENT>({DB, newModel: new CIRCLE_ANNOUNCEMENT(DB.circleID || -1), defaultModel: new CIRCLE_ANNOUNCEMENT()});
 
-    static constructByJson = <CIRCLE_ANNOUNCEMENT,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):CIRCLE_ANNOUNCEMENT|Exception => 
-        new CIRCLE_ANNOUNCEMENT().populateFromJson({jsonObj, fieldList}) as CIRCLE_ANNOUNCEMENT|Exception;
+    static constructByJson = async<CIRCLE_ANNOUNCEMENT,>({jsonObj, fieldList}:{jsonObj:JwtClientRequest['body'], fieldList:InputField[]}):Promise<CIRCLE_ANNOUNCEMENT|Exception> => 
+        new CIRCLE_ANNOUNCEMENT().populateFromJson({jsonObj, fieldList}) as Promise<CIRCLE_ANNOUNCEMENT|Exception>;
 
     
    /****************************************
     * constructByJson Model Custom Handling *
     *****************************************/  
-    validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:CircleAnnouncementCreateRequest['body']}):boolean|undefined => {
+    validateModelSpecificField = async({field, value, jsonObj}:{field:InputField, value:string, jsonObj:CircleAnnouncementCreateRequest['body']}):Promise<boolean|undefined> => {
         if(field.type === InputType.DATE && field.field === 'endDate') {
             const currentDate = new Date();
             const endDate = new Date(value);

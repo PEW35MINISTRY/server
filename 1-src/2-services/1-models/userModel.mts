@@ -4,7 +4,6 @@ import { NewPartnerListItem, PartnerListItem, PROFILE_NEW_PARTNER_PROPERTY_LIST,
 import InputField, { InputSelectionField, InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { GenderEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import BiDirectionalMap from '../../0-assets/modules/BiDirectionalMap.mjs';
-import { getPasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
 import { ProfileEditRequest } from '../../1-api/3-profile/profile-types.mjs';
 import { DATABASE_USER, USER_TABLE_COLUMNS } from '../2-database/database-types.mjs';
 import * as log from '../log.mjs';
@@ -14,6 +13,7 @@ import { Exception } from '../../1-api/api-types.mjs';
 import { camelCase } from '../10-utilities/utilities.mjs';
 import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
+import { generatePasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
 
 
 
@@ -54,6 +54,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   partnerPendingUserList: PartnerListItem[] = [];    //Transformed in DB to USER perspective | Includes: PENDING_CONTRACT_USER, PENDING_CONTRACT_BOTH
   partnerPendingPartnerList: PartnerListItem[] = []; //Transformed in DB to USER perspective | Includes: PENDING_CONTRACT_PARTNER
   newPrayerRequestList: PrayerRequestListItem[] = [];   //Recipient for dashboard preview
+  ownedPrayerRequestList: PrayerRequestListItem[] = []; //Not resolved (pending) for which user is the Requestor
   recommendedContentList: ContentListItem[] = [];
   contactList: ProfileListItem[] = [];
   profileAccessList: ProfileListItem[] = []; //Leaders
@@ -171,7 +172,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   /****************************************
   * constructByJson Model Custom Handling *
   *****************************************/  
-  override validateModelSpecificField = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ProfileEditRequest['body']}):boolean|undefined => {
+  override validateModelSpecificField = async({field, value, jsonObj}:{field:InputField, value:string, jsonObj:ProfileEditRequest['body']}):Promise<boolean|undefined> => {
     /* DATES | dateOfBirth */
     if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)     
       const currentDate:Date = new Date(value);
@@ -199,10 +200,10 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
     return undefined;
   }
 
-  override parseModelSpecificField = ({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body'] }):boolean|undefined => {
+  override parseModelSpecificField = async({field, jsonObj}:{field:InputField, jsonObj:ProfileEditRequest['body'] }):Promise<boolean|undefined> => {
     //Special Handling: Password Hash
     if(field.field === 'password' && jsonObj['password'] === jsonObj['passwordVerify']) {
-        this.passwordHash = getPasswordHash(jsonObj['password']);
+        this.passwordHash = await generatePasswordHash(jsonObj['password']);
 
     } else if(field.field === 'passwordVerify') { //valid Skip without error
         return true;
