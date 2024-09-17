@@ -2,7 +2,7 @@ import { Exception, JwtSearchRequest } from '../api-types.mjs';
 import * as log from '../../2-services/log.mjs';
 import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { SEARCH_LIMIT, SEARCH_MIN_CHARS } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
+import { LIST_LIMIT, SEARCH_MIN_CHARS } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { DB_SELECT_USER_SEARCH } from '../../2-services/2-database/queries/user-queries.mjs';
 
 
@@ -32,8 +32,8 @@ export const filterContactList = async(request:JwtSearchRequest, contactList:Pro
         const resultList = contactList.filter((contact:ProfileListItem) => `${contact.displayName} ${contact.firstName}`.includes(searchTerm));
 
         //Indicates hit cache limit -> redirect to USER database search
-        if(resultList.length === 0 && contactList.length === SEARCH_LIMIT) {
-            log.warn(`Contact Search for user ${request.jwtUserID} exceeded limit of ${SEARCH_LIMIT}, redirecting to USER search which is global.`, searchTerm);
+        if(resultList.length === 0 && contactList.length === LIST_LIMIT) {
+            log.warn(`Contact Search for user ${request.jwtUserID} exceeded limit of ${LIST_LIMIT}, redirecting to USER search which is global.`, searchTerm);
 
             return DB_SELECT_USER_SEARCH({searchTerm,  columnList: ['firstName', 'lastName', 'displayName'], excludeGeneralUsers: false, searchInactive: false});
         } else 

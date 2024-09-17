@@ -37,7 +37,7 @@ export enum ListItemTypesEnum {
 /* SEARCH CONFIGURATION */
 
 export const SEARCH_MIN_CHARS:number = 3;
-export const SEARCH_LIMIT:number = 200;
+export const LIST_LIMIT:number = 100;
 
 export enum SearchType {
     NONE = 'NONE',

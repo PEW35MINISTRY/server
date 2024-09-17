@@ -1,7 +1,7 @@
 import * as log from '../../log.mjs';
 import USER from '../../1-models/userModel.mjs';
 import { generateJWTRequest, JwtSearchRequest } from '../../../1-api/api-types.mjs';
-import { SEARCH_LIMIT, SearchType } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
+import { LIST_LIMIT, SearchType } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { searchList } from '../../../1-api/api-search-utilities.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
@@ -275,19 +275,19 @@ export const DB_SELECT_CONTACTS = async(userID:number):Promise<ProfileListItem[]
  *  USER SEARCH & CACHE QUERIES
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
-export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean}):Promise<ProfileListItem[]> => {
+export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean, limit?:number}):Promise<ProfileListItem[]> => {
     const rows = excludeGeneralUsers ?
         await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
             + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
             + `WHERE ${searchInactive ? 'userInfo.isActive = false AND' : ''} `
             + `user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'USER' ) AND `
             + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
-            + 'LIMIT 30;', [`%${searchTerm}%`])
+            + `LIMIT ${limit};`, [`%${searchTerm}%`])
             
         : await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
             + `WHERE ${searchInactive ? 'userInfo.isActive = false AND' : ''} `
             + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
-            + 'LIMIT 30;', [`%${searchTerm}%`]);
+            + `LIMIT ${limit};`, [`%${searchTerm}%`]);
  
     return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
@@ -352,7 +352,7 @@ export const DB_DELETE_USER_SEARCH_REVERSE_CACHE = async(filterList:UserSearchRe
  *  contact SEARCH & CACHE QUERIES
  **********************************/
 /* SELECT Partners, Co-Circle Members, Circle Leaders */
-export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments = false, limit:number = SEARCH_LIMIT):Promise<ProfileListItem[]> => {
+export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments = false, limit:number = LIST_LIMIT):Promise<ProfileListItem[]> => {
    
     const rows = await execute(
         'WITH CIRCLE_ID_LIST AS ( '

@@ -1,6 +1,7 @@
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import * as log from '../../log.mjs';
 import { CommandResponseType, DATABASE_PRAYER_REQUEST, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
@@ -170,7 +171,7 @@ export const DB_DELETE_ALL_USER_PRAYER_REQUEST = async(userID:number):Promise<bo
  ******************************************/
 
 //List for user including circle members, and leader; of all prayer requests where they are the intended recipient
-export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:number = 30):Promise<PrayerRequestListItem[]> => {
+export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
     const rows = await execute('SELECT DISTINCT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
     + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
     + 'FROM prayer_request '
@@ -178,43 +179,44 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:num
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
     + 'LEFT JOIN circle_user ON circle_user.circleID = prayer_request_recipient.circleID '
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
-    + 'WHERE prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? '
-    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID]); 
+    + 'WHERE prayer_request.requestorID != ? '
+    + 'AND ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ) '
+    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]); 
  
     return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
             requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage}}))];
 }
 
 //List for circle of all prayer requests where they are the intended recipient
-export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number):Promise<PrayerRequestListItem[]> => {
+export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
     const rows = await execute('SELECT DISTINCT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
     + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
     + 'FROM prayer_request '
     + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
     + 'WHERE prayer_request_recipient.circleID = ? '
-    + 'ORDER BY prayer_request.modifiedDT ASC LIMIT 30;', [circleID]); 
+    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [circleID]); 
  
     return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
             requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage}}))];
 }
 
 //List of all prayer request created by user | optional filters: isResolved
-export const DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST = async(userID:number, isResolved?:boolean):Promise<PrayerRequestListItem[]> => {
+export const DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST = async(userID:number, isResolved?:boolean, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
     const rows = (isResolved !== undefined)
         ? await execute('SELECT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
             + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
             + 'FROM prayer_request '
             + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
             + 'WHERE requestorID = ? AND isResolved = ? '
-            + 'ORDER BY prayer_request.modifiedDT ASC LIMIT 30;', [userID, isResolved])
+            + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, isResolved])
         
         : await execute('SELECT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
             + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
             + 'FROM prayer_request '
             + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
             + 'WHERE requestorID = ? '
-            + 'ORDER BY prayer_request.modifiedDT ASC LIMIT 30;', [userID]); 
+            + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID]); 
  
     return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
             requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage}}))];

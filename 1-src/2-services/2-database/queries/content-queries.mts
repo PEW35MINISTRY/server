@@ -1,5 +1,6 @@
 import { ContentListItem } from '../../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import { MOBILE_CONTENT_SUPPORTED_SOURCES } from '../../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
+import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import CONTENT_ARCHIVE from '../../1-models/contentArchiveModel.mjs';
 import * as log from '../../log.mjs';
 import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT } from '../database-types.mjs';
@@ -54,14 +55,14 @@ export const DB_SELECT_CONTENT_BY_URL = async(url:string):Promise<CONTENT_ARCHIV
 }
 
 //Priority sort by recorderID (created) then latest modified
-export const DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES = async(recorderID:number = -1, onlyOwned:boolean = false):Promise<ContentListItem[]> => {
+export const DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES = async(recorderID:number = -1, onlyOwned:boolean = false, limit:number = LIST_LIMIT):Promise<ContentListItem[]> => {
     const rows = onlyOwned ?
         await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
             + 'WHERE recorderID = ? '
-            + 'ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT 50;', [recorderID, recorderID])
+            + `ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT ${limit};`, [recorderID, recorderID])
     
         : await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
-            + 'ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT 50;', [recorderID]);
+            + `ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT ${limit};`, [recorderID]);
  
     return [...rows.map(row => ({contentID: row.contentID || -1, 
         type: row.type, 
@@ -117,10 +118,10 @@ export const DB_DELETE_CONTENT = async(contentID:number):Promise<boolean> => { /
  *  CONTENT SEARCH QUERIES
  ***************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
-export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:string[]):Promise<ContentListItem[]> => {
+export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<ContentListItem[]> => {
     const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
     + `WHERE ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
-    + 'LIMIT 30;', [`%${searchTerm}%`]);
+    + `LIMIT ${limit};`, [`%${searchTerm}%`]);
  
     return [...rows.map(row => ({contentID: row.contentID || -1, 
         type: row.type, 
@@ -141,7 +142,7 @@ export const DB_UPDATE_INCREMENT_CONTENT_LIKE_COUNT = async(contentID:number):Pr
  *  TARGETED USER CONTENT
  *************************/
 //TODO Develop Algorithm to refine content to each User
-export const DB_SELECT_USER_CONTENT_LIST = async(userID:number, limit:number = 50):Promise<ContentListItem[]> => {
+export const DB_SELECT_USER_CONTENT_LIST = async(userID:number, limit:number = LIST_LIMIT):Promise<ContentListItem[]> => {
 
     const preparedSourceFilter:string = MOBILE_CONTENT_SUPPORTED_SOURCES.map(source => `source = ?`).join(' OR ');
 

@@ -1,7 +1,7 @@
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleSearchRefineEnum, CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
-import { SEARCH_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
+import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
 import * as log from '../../log.mjs';
@@ -85,9 +85,9 @@ export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(circleName:string):Promise<
     return circle;
 }
 
-export const DB_SELECT_LATEST_CIRCLES = async():Promise<CircleListItem[]> => {
+export const DB_SELECT_LATEST_CIRCLES = async(limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
     const rows = await query('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
-    + 'ORDER BY circle.modifiedDT DESC LIMIT 30;');
+    + `ORDER BY circle.modifiedDT DESC LIMIT ${limit};`);
  
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
@@ -149,11 +149,11 @@ export const DB_DELETE_CIRCLE = async(circleID:number):Promise<boolean> => { //N
  *  CIRCLE SEARCH & CACHE QUERIES
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
-export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[]):Promise<CircleListItem[]> => {
+export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
     const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
     + `${(columnList.includes('firstName')) ? 'LEFT JOIN user ON user.userID = circle.leaderID ' : ''}`
     + `WHERE ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
-    + 'LIMIT 30;', [`%${searchTerm}%`]);
+    + `LIMIT ${limit};`, [`%${searchTerm}%`]);
  
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
@@ -331,7 +331,7 @@ export const DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES = async({leaderID, userID}:
     return (rows.length > 0);
 }
 
-export const DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES = async(leaderID:number, onlyGeneralUsers = true, limit = SEARCH_LIMIT):Promise<ProfileListItem[]> => {
+export const DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES = async(leaderID:number, onlyGeneralUsers = true, limit = LIST_LIMIT):Promise<ProfileListItem[]> => {
     const rows = onlyGeneralUsers ? 
         await execute('SELECT DISTINCT circle.circleID, circle.name, user.userID, user.firstName, user.displayName, user.image ' 
             + 'FROM user '

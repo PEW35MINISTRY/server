@@ -6,6 +6,7 @@ import { CommandResponseType, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATAB
 import { query, execute, command, validateColumns, batch } from '../database.mjs';
 import { GenderEnum, PartnerStatusEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { camelCase } from '../../10-utilities/utilities.mjs';
+import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 
 
 /**********************************************
@@ -253,7 +254,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<NewPar
  *  ADMIN PARTNER STATUS QUERIES *
  *********************************/
 //Only USER Role and top 100 oldest users w/o active partners
-export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async():Promise<NewPartnerListItem[]> => {
+export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async(limit:number = LIST_LIMIT):Promise<NewPartnerListItem[]> => {
     const rows:RowDataPacket[] = await query(
         'SELECT DISTINCT user.* ' 
         + 'FROM user '
@@ -266,13 +267,13 @@ export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async():Promise<NewPartner
         + `        OR (partner.status IN ('FAILED', 'ENDED') `
         + `            AND user.userID NOT IN (SELECT userID FROM partner WHERE status NOT IN ('FAILED', 'ENDED')))) `
         + 'ORDER BY user.createdDT ASC ' //Oldest Users
-        + 'LIMIT 100;');
+        + `LIMIT ${limit};`);
 
     return [...rows.map(row => USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem())];
 }
 
-//Latest 100 Users with USER Role
-export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = false):Promise<PartnerCountListItem[]> => {
+//Latest Users with USER Role
+export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = false, limit:number = LIST_LIMIT):Promise<PartnerCountListItem[]> => {
 
     const totalByStatus:string = Object.values(PartnerStatusEnum)
         .map((status) => `COALESCE(SUM(CASE WHEN partner.status = '${status}' THEN 1 ELSE 0 END), 0) ${status}`).join(', ');
@@ -288,7 +289,7 @@ export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = 
             + `${filterFewerPartners ?
                 `HAVING SUM(CASE WHEN partner.status NOT IN ('FAILED', 'ENDED') THEN 1 ELSE 0 END) < user.maxPartners ` : ''}`
             + 'ORDER BY user.createdDT DESC ' //Newest Users
-            + 'LIMIT 100;');
+            + `LIMIT ${LIST_LIMIT};`);
 
     //Note: Express can't serialize Maps, so returning a [key, value] pair array
     return rows.map(row => ({...USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem(),

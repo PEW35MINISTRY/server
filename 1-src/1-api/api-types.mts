@@ -3,7 +3,7 @@ import { CircleListItem } from '../0-assets/field-sync/api-type-sync/circle-type
 import { ContentListItem } from '../0-assets/field-sync/api-type-sync/content-types.mjs';
 import { ProfileListItem } from '../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { RoleEnum, UserSearchRefineEnum } from '../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import SearchDetail, { SearchTypeInfo, SearchType, LabelListItem, SEARCH_LIMIT } from '../0-assets/field-sync/input-config-sync/search-config.mjs';
+import SearchDetail, { SearchTypeInfo, SearchType, LabelListItem, LIST_LIMIT } from '../0-assets/field-sync/input-config-sync/search-config.mjs';
 import BASE_MODEL from '../2-services/1-models/baseModel.mjs';
 import CIRCLE from '../2-services/1-models/circleModel.mjs';
 import CONTENT_ARCHIVE from '../2-services/1-models/contentArchiveModel.mjs';
@@ -137,7 +137,7 @@ export const SearchDetailServer:Record<SearchType, SearchTypeInfoServer<any, BAS
 
   [SearchType.CONTACT]: new SearchTypeInfoServer<ProfileListItem, USER>({ searchTypeInfo: SearchDetail[SearchType.CONTACT], 
                             searchCache: (request:JwtSearchRequest, searchTerm:string, searchRefine:string) => DB_SELECT_CONTACT_CACHE(request.jwtUserID),
-                            executeSearch: (request:JwtSearchRequest, searchTerm:string, columnList:string[]) => DB_SELECT_CONTACT_LIST(request.jwtUserID, (request.jwtUserRole === RoleEnum.ADMIN), SEARCH_LIMIT),
+                            executeSearch: (request:JwtSearchRequest, searchTerm:string, columnList:string[]) => DB_SELECT_CONTACT_LIST(request.jwtUserID, (request.jwtUserRole === RoleEnum.ADMIN), LIST_LIMIT),
                             saveCache: (request:JwtSearchRequest, searchTerm:string, searchRefine:string, resultList:any[]) => DB_INSERT_CONTACT_CACHE({userID: request.jwtUserID, userList: resultList as ProfileListItem[]}),
                             filterResultList: filterContactList,
                             adminFlushCache: DB_FLUSH_CONTACT_CACHE_ADMIN,
