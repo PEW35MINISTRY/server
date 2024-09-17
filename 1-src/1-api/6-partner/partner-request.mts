@@ -197,5 +197,5 @@ export const GET_AvailablePartnerList = async(request:JwtClientRequest, response
         next(new Exception(400, `GET_AvailablePartnerList - user ${request.clientID} is not a USER and not authorized to have partners.`, 'User Role Required'))
 
     else
-        response.status(200).send(await DB_SELECT_AVAILABLE_PARTNER_LIST(profile));
+        response.status(200).send(await DB_SELECT_AVAILABLE_PARTNER_LIST(profile, 15));
 };

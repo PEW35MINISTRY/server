@@ -13,15 +13,6 @@ import { PrayerRequestListItem } from './prayer-request-types.mjs'
 * Mobile:                                                                 *
 ***************************************************************************/
 
-/* [TEMPORARY] Credentials fetched for Debugging */
-export type CredentialProfile = { 
-    userID: number,
-    displayName: string,
-    userRole: RoleEnum,
-    email: string,
-    passwordHash: string,
-}
-
 export interface ProfileListItem {
     userID: number,
     firstName: string,
@@ -62,7 +53,7 @@ export interface ProfilePublicResponse extends ProfileListItem {
 };
 
 export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
-    'userID', 'displayName', 'firstName', 'lastName', 'email', 'gender', 'postalCode', 'dateOfBirth', 'isActive', 'maxPartners', 'walkLevel', 'notes', 'image',
+    'userID', 'modelSourceEnvironment', 'displayName', 'firstName', 'lastName', 'email', 'gender', 'postalCode', 'dateOfBirth', 'isActive', 'maxPartners', 'walkLevel', 'notes', 'image',
     'userRole', 'userRoleList',
     'circleList', 'circleInviteList', 'circleRequestList', 'circleAnnouncementList',
     'partnerList', 'partnerPendingUserList', 'partnerPendingPartnerList',

@@ -16,6 +16,13 @@ export const PASSWORD_REGEX = new RegExp(/^.{5,20}$/);
 *    PROFILE TYPES AND DEPENDENCIES
 ****************************************/
 //Note: enums must have matching values to cast (string as Enum) or define (Enum[string]) equally
+export enum ModelSourceEnvironmentEnum { //Allowed Interactions:
+    DEVELOPMENT = 'DEVELOPMENT',         //DEVELOPMENT, MOCK
+    MOCK = 'MOCK',                       //DEVELOPMENT, MOCK, INTERNAL
+    INTERNAL = 'INTERNAL',               //MOCK, INTERNAL
+    PRODUCTION = 'PRODUCTION'            //PRODUCTION
+}
+
 export enum GenderEnum {
     MALE = 'MALE',
     FEMALE = 'FEMALE'
@@ -83,6 +90,7 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
     new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: false, selectOptionList: Object.values(RoleEnum), validationMessage: 'Authorization token is required.'}),
     new InputSelectionField({title: 'Active Account', field: 'isActive', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
+    new InputSelectionField({title: 'Source Environment', field: 'modelSourceEnvironment', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(ModelSourceEnvironmentEnum)}),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, unique: true,  validationRegex: EMAIL_REGEX, validationMessage: 'Required, invalid email format.' }),
     ...EDIT_PROFILE_FIELDS,
     new InputSelectionField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),

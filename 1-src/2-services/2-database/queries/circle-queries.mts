@@ -5,8 +5,8 @@ import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/searc
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
 import * as log from '../../log.mjs';
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
-import { command, execute, query, validateColumns } from '../database.mjs';
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
+import { command, execute, getDatabaseModelSourceEnvironment, query, validateColumns } from '../database.mjs';
 
 
 /***********************************************
@@ -85,9 +85,26 @@ export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(circleName:string):Promise<
     return circle;
 }
 
+//Used as default circle Search; TODO replace with location based eventually
 export const DB_SELECT_LATEST_CIRCLES = async(limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
-    const rows = await query('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
-    + `ORDER BY circle.modifiedDT DESC LIMIT ${limit};`);
+
+    const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
+        + 'LEFT JOIN user on user.userID = circle.leaderID '
+        + 'WHERE ( '
+            + '        user.modelSourceEnvironment = ? '
+            + '        OR ( '
+            + '            CASE '
+            + `                WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+            + `                WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+            + `                WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' `
+            + '                ELSE false '
+            + '            END '
+            + '        ) '
+            + '    ) '
+            + ') '
+        + `ORDER BY circle.modifiedDT DESC LIMIT ${limit};`,
+
+        [getDatabaseModelSourceEnvironment(), getDatabaseModelSourceEnvironment(), getDatabaseModelSourceEnvironment(), getDatabaseModelSourceEnvironment()]);
  
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
@@ -151,9 +168,23 @@ export const DB_DELETE_CIRCLE = async(circleID:number):Promise<boolean> => { //N
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
     const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
-    + `${(columnList.includes('firstName')) ? 'LEFT JOIN user ON user.userID = circle.leaderID ' : ''}`
-    + `WHERE ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
-    + `LIMIT ${limit};`, [`%${searchTerm}%`]);
+        + 'LEFT JOIN user on user.userID = circle.leaderID '
+        + 'WHERE ( '
+        + '        user.modelSourceEnvironment = ? '
+        + '        OR ( '
+        + '            CASE '
+        + `                WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+        + `                WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+        + `                WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' `
+        + '                ELSE false '
+        + '            END '
+        + '        ) '
+        + '    ) '
+        + ') '
+        + `AND ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
+        + `LIMIT ${limit};`,
+    
+    [getDatabaseModelSourceEnvironment(), getDatabaseModelSourceEnvironment(), getDatabaseModelSourceEnvironment(), getDatabaseModelSourceEnvironment(), `%${searchTerm}%`]);
  
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
@@ -161,7 +192,7 @@ export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:strin
 export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<CircleListItem[]|undefined> => {
 
     const rows = await execute('SELECT stringifiedCircleItemList ' + 'FROM circle_search_cache '
-        + 'WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
+        + 'WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getDatabaseModelSourceEnvironment()]);
 
     if(rows.length === 0) return undefined;
 
@@ -178,16 +209,16 @@ export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefi
 //Updates on Duplicate
 export const DB_INSERT_CIRCLE_SEARCH_CACHE = async({searchTerm, searchRefine, circleList}:{searchTerm:string, searchRefine:CircleSearchRefineEnum, circleList:CircleListItem[]}):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`INSERT INTO circle_search_cache ( searchTerm, searchRefine, stringifiedCircleItemList ) `
+    const response:CommandResponseType = await command(`INSERT INTO circle_search_cache ( searchTerm, searchRefine, modelSourceEnvironment, stringifiedCircleItemList ) `
     + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), stringifiedCircleItemList=VALUES(stringifiedCircleItemList);`,
-     [searchTerm, searchRefine, JSON.stringify(circleList)]); 
+     [searchTerm, searchRefine, getDatabaseModelSourceEnvironment(), JSON.stringify(circleList)]); 
     
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
 export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<boolean> => {
 
-    const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
+    const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getDatabaseModelSourceEnvironment()]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }

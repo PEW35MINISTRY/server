@@ -7,8 +7,8 @@ import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circl
 import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
-import { batch, command, execute, query, validateColumns } from '../database.mjs';
+import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
+import { batch, command, execute, validateColumns } from '../database.mjs';
 import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
 import { DB_SELECT_USER_CONTENT_LIST } from './content-queries.mjs';
 import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
@@ -160,6 +160,8 @@ export const DB_DELETE_USER = async(userID:number):Promise<boolean> => { //Note:
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
+
+//Checks all users in database, regardless of user.modelSourceEnvironment
 export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateAllFields:boolean = true):Promise<Boolean|undefined> => { //(ALL columns and values are case insensitive)
     //Validate Columns prior to Query | filter to only test valid columns
     const columnsLowerCase:string[] = USER_TABLE_COLUMNS.map(c => c.toLowerCase());
@@ -263,30 +265,33 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
 }
 
 
-/* SELECT ALL USERS */
-export const DB_SELECT_CONTACTS = async(userID:number):Promise<ProfileListItem[]> => { //TODO Query: Filter accordingly to include: Partners, members of circles, circle leader of circles, all admin
-    const rows = await execute('SELECT DISTINCT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user ORDER BY userID < 10 DESC, modifiedDT DESC LIMIT 15;', []);
-
-    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
-}
-
-
 /**********************************
  *  USER SEARCH & CACHE QUERIES
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
-export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean, limit?:number}):Promise<ProfileListItem[]> => {
-    const rows = excludeGeneralUsers ?
-        await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
+export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false, allSourceEnvironments = false, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean, allSourceEnvironments?:boolean, limit?:number}):Promise<ProfileListItem[]> => {
+    
+    const rows = await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
             + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
             + `WHERE ${searchInactive ? 'userInfo.isActive = false AND' : ''} `
-            + `user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'USER' ) AND `
-            + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
-            + `LIMIT ${limit};`, [`%${searchTerm}%`])
-            
-        : await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
-            + `WHERE ${searchInactive ? 'userInfo.isActive = false AND' : ''} `
-            + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
+                + `${allSourceEnvironments ? '' :
+                    `${'    AND ( '
+                        + '        user.modelSourceEnvironment = (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) '
+                        + '        OR ( '
+                        + '            CASE '
+                        + `                WHEN (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+                        + `                WHEN (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+                        + `                WHEN (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' `
+                        + '                ELSE false '
+                        + '            END '
+                        + '        ) '
+                        + '    ) '
+                        + ') '
+                    }`
+                }`
+                + `${excludeGeneralUsers ? `AND user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'USER' ) ` : ''}`
+                + `AND ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
+            + `ORDER BY FIELD( user.modelSourceEnvironment, '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' ), `
             + `LIMIT ${limit};`, [`%${searchTerm}%`]);
  
     return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
@@ -355,14 +360,15 @@ export const DB_DELETE_USER_SEARCH_REVERSE_CACHE = async(filterList:UserSearchRe
 export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments = false, limit:number = LIST_LIMIT):Promise<ProfileListItem[]> => {
    
     const rows = await execute(
-        'WITH CIRCLE_ID_LIST AS ( '
+        'WITH USER_MODEL_SOURCE AS ( '
+        + '    SELECT modelSourceEnvironment '
+        + '    FROM user '
+        + '    WHERE userID = ? '
+        + '), '
+        + 'CIRCLE_ID_LIST AS ( '
         + '    SELECT circle_user.circleID '
         + '    FROM circle_user '
         + '    WHERE circle_user.userID = ? '
-        + '    UNION '
-        + '    SELECT circle.circleID '
-        + '    FROM circle '
-        + '    WHERE circle.leaderID = ? '
         + ') '
         + 'SELECT DISTINCT user.userID, user.firstName, user.displayName, user.image '
         + 'FROM user '
@@ -390,7 +396,21 @@ export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments
         + '        user.userID = partner.userID '
         + '        OR user.userID = partner.partnerID '
         + '    ) '
-        + ') '
+        + `${allSourceEnvironments ? '' :
+            `${'    AND ( '
+                + '        user.modelSourceEnvironment = (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) '
+                + '        OR ( '
+                + '            CASE '
+                + `                WHEN (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+                + `                WHEN (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+                + `                WHEN (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' `
+                + '                ELSE false '
+                + '            END '
+                + '        ) '
+                + '    ) '
+                + ') '
+            }`
+        }`
         + 'ORDER BY '
         + '    CASE '
         + '        WHEN partner.userID IS NOT NULL OR partner.partnerID IS NOT NULL THEN 1 '
@@ -404,6 +424,7 @@ export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments
         + '        ) THEN 2 '
         + '        ELSE 3 '
         + '    END ASC, '
+        + `    FIELD( user.modelSourceEnvironment, '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' ), `
         + '    user.modifiedDT DESC '
         + `LIMIT ${limit};`
 

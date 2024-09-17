@@ -177,7 +177,7 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:num
     + 'FROM prayer_request '
     + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-    + 'LEFT JOIN circle_user ON circle_user.circleID = prayer_request_recipient.circleID '
+    + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = 'MEMBER') `
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
     + 'WHERE prayer_request.requestorID != ? '
     + 'AND ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ) '
@@ -250,7 +250,7 @@ export const DB_IS_RECIPIENT_PRAYER_REQUEST = async({prayerRequestID, userID}:{p
     const rows = await execute('SELECT prayer_request.prayerRequestID ' //search specified recipient
     + 'FROM prayer_request '
     + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
-    + 'LEFT JOIN circle_user ON circle_user.circleID = prayer_request_recipient.circleID '
+    + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = 'MEMBER') `
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
     + 'WHERE prayer_request.prayerRequestID = ? AND ( prayer_request.requestorID = ? OR prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? );',
     [ prayerRequestID, userID, userID, userID, userID ]);
