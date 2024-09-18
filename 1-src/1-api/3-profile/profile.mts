@@ -109,7 +109,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
  /* Unauthenticated Route */
  export const POST_signup =  async(request: ProfileSignupRequest, response: Response, next: NextFunction) => {
     
-    const newProfile:USER|Exception = USER.constructByJson({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
+    const newProfile:USER|Exception = await USER.constructByJson({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
 
     if(!(newProfile instanceof Exception)) {
         if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
