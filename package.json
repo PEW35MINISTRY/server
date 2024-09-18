@@ -37,7 +37,7 @@
     "metascraper-description": "^5.45.9",
     "metascraper-image": "^5.45.9",
     "metascraper-title": "^5.45.9",
-    "mysql2": "^3.4.1",
+    "mysql2": "3.11.3",
     "path": "^0.12.7",
     "rimraf": "^3.0.2",
     "socket.io": "^4.5.4",
