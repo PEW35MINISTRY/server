@@ -1,10 +1,10 @@
 import { DeleteObjectCommand, DeleteObjectCommandOutput, PutObjectCommand, PutObjectCommandOutput , S3Client } from '@aws-sdk/client-s3';
 import axios from 'axios';
-import dotenv from 'dotenv';
 import * as log from '../log.mjs';
-import { SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ImageTypeEnum } from '../../1-api/api-types.mjs';
-import { isEnumValue, isURLValid } from './utilities.mjs';
+import { getEnvironment, isEnumValue, isURLValid } from './utilities.mjs';
+import dotenv from 'dotenv';
 dotenv.config(); 
 
 
@@ -52,12 +52,12 @@ export const uploadImage = async({id, imageType, fileName, imageBlob: imageBlob}
     const imageFileName = getImageFileName({id, imageType, fileName});
 
     return (imageFileName === undefined) ? undefined
-        : (process.env.ENVIRONMENT === 'PRODUCTION') ? uploadImageProduction(imageFileName, imageBlob) : uploadImageDevelopment(imageFileName, imageBlob);
+        : (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) ? uploadImageProduction(imageFileName, imageBlob) : uploadImageDevelopment(imageFileName, imageBlob);
 }
 
 //return true for non-error responses
 export const clearImage = async(fileName:string):Promise<boolean> => 
-    (process.env.ENVIRONMENT === 'PRODUCTION') ? clearImageProduction(fileName) : clearImageDevelopment(fileName);
+    (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) ? clearImageProduction(fileName) : clearImageDevelopment(fileName);
 
 
 //Attempts all supported image extensions and return false for any error responses

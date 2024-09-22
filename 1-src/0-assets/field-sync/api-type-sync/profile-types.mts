@@ -1,6 +1,6 @@
 /************* ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ *************/
 
-import { GenderEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
+import { GenderEnum, ModelSourceEnvironmentEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
 import { CircleAnnouncementListItem, CircleListItem } from './circle-types.mjs'
 import { ContentListItem } from './content-types.mjs';
 import { PrayerRequestListItem } from './prayer-request-types.mjs'
@@ -12,15 +12,6 @@ import { PrayerRequestListItem } from './prayer-request-types.mjs'
 * Portal:                                                                 *
 * Mobile:                                                                 *
 ***************************************************************************/
-
-/* [TEMPORARY] Credentials fetched for Debugging */
-export type CredentialProfile = { 
-    userID: number,
-    displayName: string,
-    userRole: RoleEnum,
-    email: string,
-    passwordHash: string,
-}
 
 export interface ProfileListItem {
     userID: number,
@@ -62,7 +53,7 @@ export interface ProfilePublicResponse extends ProfileListItem {
 };
 
 export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
-    'userID', 'displayName', 'firstName', 'lastName', 'email', 'gender', 'postalCode', 'dateOfBirth', 'isActive', 'maxPartners', 'walkLevel', 'notes', 'image',
+    'userID', 'modelSourceEnvironment', 'displayName', 'firstName', 'lastName', 'email', 'gender', 'postalCode', 'dateOfBirth', 'isActive', 'maxPartners', 'walkLevel', 'notes', 'image',
     'userRole', 'userRoleList',
     'circleList', 'circleInviteList', 'circleRequestList', 'circleAnnouncementList',
     'partnerList', 'partnerPendingUserList', 'partnerPendingPartnerList',
@@ -71,6 +62,7 @@ export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
 
 export interface ProfileResponse {
     userID: number, 
+    modelSourceEnvironment: ModelSourceEnvironmentEnum,
     userRole: RoleEnum,
     displayName: string,
     firstName: string,    
@@ -114,5 +106,6 @@ export interface ProfileEditRequestBody {
     walkLevel?: number,
     image?: string,
     notes?: string,
+    modelSourceEnvironmentEnum?: string,
     userRoleTokenList?: [{role: RoleEnum, token: string}]
 }

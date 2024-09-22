@@ -221,7 +221,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
         this.walkLevel = parseInt(jsonObj[String(field.field)]);
 
     } else if(['displayName', 'email'].includes(field.field)) { //Lowercase
-        this[field.field] = (String(jsonObj[field.field]) || '').toLowerCase();
+        this[field.field] = (String(jsonObj[field.field]) ?? '').toLowerCase();
 
     } else //No Field Match
         return undefined;

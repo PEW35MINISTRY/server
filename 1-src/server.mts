@@ -10,6 +10,7 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 
 //Import Types
+import { ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
 import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest } from './1-api/2-auth/auth-types.mjs';
@@ -351,11 +352,11 @@ apiServer.delete('/api/admin/partnership/client/:client/partner/:partner', DELET
 /* Error Handling  */
 /*******************/
 apiServer.use('/error', (request: Request, response:Response, next: NextFunction) => {
-    next(new Exception(500, 'EXPECTED ERROR - UI Defined', 'Report Error'));
+    next(new Exception(500, 'EXPECTED ERROR - UI Defined Issue', 'Please Report Error'));
 });
 
 apiServer.use((request: Request, response:Response, next: NextFunction) => {
-    next(new Exception(404, 'Invalid Request'));
+    next(new Exception(404, `Invalid Request: ${request.originalUrl}`));
 });
 
 apiServer.use((error: Exception, request: Request, response:Response, next: NextFunction) => {
@@ -388,17 +389,3 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     else if(status === 404) log.warn('API | 404 | Request Not Found:', message);
     else log.error(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
 });
-
-//Must match Portal in app-types.tsx
-export type ServerErrorResponse = {
-    status: number, 
-    notification: string,
-    message: string,
-    action: string,
-    type: string,
-    url: string,
-    params: string,
-    query: string,
-    header: string | object,
-    body: string | object
-};

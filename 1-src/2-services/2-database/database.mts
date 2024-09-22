@@ -2,6 +2,8 @@ import SQL, { Pool, PoolOptions, ResultSetHeader, RowDataPacket } from 'mysql2/p
 import * as log from './../log.mjs';
 import { CommandResponseType, AWSDatabaseSecrets } from './database-types.mjs';
 import { SecretsManagerClient, GetSecretValueCommand, GetSecretValueResponse } from '@aws-sdk/client-secrets-manager';
+import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { getEnvironment, getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
 import dotenv from 'dotenv';
 dotenv.config(); 
 
@@ -26,7 +28,7 @@ const GetRDSSecretCredentials = async():Promise<AWSDatabaseSecrets> => {
 
 
 const initializeDatabase = async():Promise<SQL.Pool> => {
-    console.log(`Initializing Database in ${process.env.ENVIRONMENT} Environment...`);
+    console.log(`Initializing Database in ${getEnvironment()} Environment...`);
 
     if(DATABASE) {
         console.log('DATABASE | initializeDatabase - Terminating existing instance.');
@@ -51,7 +53,7 @@ const initializeDatabase = async():Promise<SQL.Pool> => {
     };
     
     /* Production Environment overwrites with AWS Secrets Manager */
-    if(process.env.ENVIRONMENT === 'PRODUCTION') {
+    if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) {
         const RDScredentials:AWSDatabaseSecrets = await GetRDSSecretCredentials();        
     
         DB_CONFIGURATIONS = {
@@ -79,6 +81,7 @@ const initializeDatabase = async():Promise<SQL.Pool> => {
         throw error;
     }
 
+    log.warn(`Database initialized in ${getEnvironment()} Environment with Default Model Source Environment as ${getModelSourceEnvironment()}.`);
     return DATABASE;
 }
 

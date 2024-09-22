@@ -1,5 +1,3 @@
-import dotenv from 'dotenv';
-import { NextFunction, Request, Response } from 'express';
 import jwtPackage, { JwtPayload } from 'jsonwebtoken';
 import { createHash } from 'node:crypto';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
@@ -11,6 +9,9 @@ import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-
 import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { DB_SELECT_USER_CONTENT_LIST } from '../../2-services/2-database/queries/content-queries.mjs';
 import { argon2d, hash, verify } from 'argon2';
+import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import dotenv from 'dotenv';
 dotenv.config(); 
 
 /********************
@@ -32,7 +33,7 @@ const getJWTSecretValue = async ():Promise<string> => {
 }
 
 export const InitializeJWTSecretKey = async ():Promise<string> => {
-    if(process.env.ENVIRONMENT === 'PRODUCTION') {
+    if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) {
         APP_SECRET_KEY = await getJWTSecretValue();
     }
     else APP_SECRET_KEY = process.env.SECRET_KEY;
@@ -175,7 +176,7 @@ export const isMaxRoleGreaterThan = ({testUserRole, currentMaxUserRole}:{testUse
 
 export const verifyPassword = async (passwordHash:string, password:string):Promise<boolean> => {
     try {
-        return await verify(passwordHash, password);
+        return await verify(passwordHash, (password ?? '').toLowerCase());
 
     } catch (error) { //Intentionally do not log
         return false;
@@ -183,5 +184,5 @@ export const verifyPassword = async (passwordHash:string, password:string):Promi
 }
 
 export const generatePasswordHash = async (password:string):Promise<string> => {
-    return hash(password);
+    return hash((password ?? '').toLowerCase());
 }

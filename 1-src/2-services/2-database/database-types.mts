@@ -17,17 +17,27 @@ export interface CommandResponseType extends SQL.ResultSetHeader {
 };
 
 
+/* Determines the type and source model was created for filtering within the same database */
+export enum DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM {   //Allowed Interactions:
+    DEVELOPMENT = 'DEVELOPMENT',                       //DEVELOPMENT, MOCK
+    MOCK = 'MOCK',                                     //MOCK, INTERNAL
+    INTERNAL = 'INTERNAL',                             //PRODUCTION
+    PRODUCTION = 'PRODUCTION'
+}
+
+
 /******************************************************************* 
 *           Database `user` Table Created: 6/25/2023 
 ********************************************************************/
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
 export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
-    'userID', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes', 'maxPartners'
+    'userID', 'modelSourceEnvironment', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes', 'maxPartners'
 ];
 
 export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
     userID: number, 
+    modelSourceEnvironment: DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM,
     firstName?: string,
     lastName?: string,
     displayName?: string,  //Unique
