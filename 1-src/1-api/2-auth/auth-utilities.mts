@@ -176,7 +176,7 @@ export const isMaxRoleGreaterThan = ({testUserRole, currentMaxUserRole}:{testUse
 
 export const verifyPassword = async (passwordHash:string, password:string):Promise<boolean> => {
     try {
-        return await verify(passwordHash, (password ?? '').toLowerCase());
+        return await verify(passwordHash, password);
 
     } catch (error) { //Intentionally do not log
         return false;
@@ -184,5 +184,5 @@ export const verifyPassword = async (passwordHash:string, password:string):Promi
 }
 
 export const generatePasswordHash = async (password:string):Promise<string> => {
-    return hash((password ?? '').toLowerCase());
+    return hash(password);
 }
