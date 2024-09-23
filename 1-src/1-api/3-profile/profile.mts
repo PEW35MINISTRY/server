@@ -1,20 +1,22 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import URL, { URLSearchParams } from 'url';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER, UserSearchRefineEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import USER from '../../2-services/1-models/userModel.mjs';
-import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
-import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
-import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import { DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_CONTACTS, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
+import USER from '../../2-services/1-models/userModel.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
+import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
+import { DB_DELETE_CONTACT_CACHE, DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { generatePasswordHash, getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
-import { Exception, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
+import { Exception, generateJWTRequest, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ProfileEditRequest, ProfileEditWalkLevelRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { DB_DELETE_PARTNERSHIP } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { InputRangeField } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { searchList } from '../api-search-utilities.mjs';
+import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 
 
 
@@ -73,11 +75,13 @@ export const GET_publicProfile =  async (request: JwtClientRequest, response: Re
 
 export const GET_profileAccessUserList =  async (request: JwtRequest, response: Response, next: NextFunction) => { 
 
-    if(request.jwtUserRole === RoleEnum.ADMIN)
-        response.status(200).send(await DB_SELECT_CONTACTS(request.jwtUserID));
-
-    else if(isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole:request.jwtUserRole}))
-        response.status(200).send(await DB_SELECT_MEMBERS_OF_ALL_CIRCLES(request.jwtUserID));
+    if(isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole:request.jwtUserRole}))
+        response.status(200).send(await DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES(request.jwtUserID, true));
+    
+    else {
+        log.warn(`Unauthorized profile access attempt: User: ${request.jwtUserID} with userRole: ${request.jwtUserRole} asked for profile access list`);
+        next(new Exception(401, `GET_profileAccessUserList - user  ${request.jwtUserID} is not authorized to access other profiles.`, 'Not Authorized')); 
+    }
 }
 
 
@@ -260,6 +264,23 @@ export const PATCH_profileWalkLevel = async(request: ProfileEditWalkLevelRequest
 
     else
         response.status(202).send(`Saved Profile Walk Level to ${walkLevel}`);
+}
+
+
+/* CONTACTS */
+/* Partnerships, Co-Circle Members and leaders | (SearchType also available) */
+export const GET_contactList = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
+    response.status(200).send(await searchList(SearchType.CONTACT, generateJWTRequest(request.clientID, request.jwtUserRole) as JwtSearchRequest)); //Uses Search Cache
+}
+
+
+export const DELETE_contactCache = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
+    if(await DB_DELETE_CONTACT_CACHE(request.clientID)) {
+        response.status(202).send(`Successfully flushed contact cache`);
+        log.event(`User ${request.jwtUserID} has flushed the contact cache for user ${request.clientID}.`);
+
+    } else
+        next(new Exception(500, `Failed to flush user ${request.clientID} contact cache.`, 'Flush failed'));
 }
 
 

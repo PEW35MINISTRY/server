@@ -3,9 +3,10 @@ import * as log from '../../2-services/log.mjs';
 import { JwtResponseBody, LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { EMAIL_REGEX, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { Exception } from '../api-types.mjs';
-import { JwtClientRequest, JwtRequest, LoginRequest, SubscribePost } from './auth-types.mjs';
+import { JwtAdminRequest, JwtClientRequest, JwtRequest, LoginRequest, SubscribePost } from './auth-types.mjs';
 import { generateJWT, getUserLogin } from './auth-utilities.mjs';
 import { DB_INSERT_EMAIL_SUBSCRIPTION } from '../../2-services/2-database/queries/queries.mjs';
+import { DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 
 /********************
  Unauthenticated Routes
@@ -56,3 +57,14 @@ export const POST_emailSubscribe = async(request:SubscribePost, response:Respons
     
     log.auth(`User ${userID} has been logged out of Encouraging Prayer.`);
 };
+
+
+export const POST_resetPasswordAdmin =  async(request:JwtClientRequest, response: Response, next: NextFunction) => {
+    const defaultPassword:string = process.env.DEFAULT_PASSWORD_HASH ?? '';
+
+    if((defaultPassword.length === 0)
+        || await DB_UPDATE_USER(request.clientID, new Map([['passwordHash', defaultPassword]])) === false)
+            next(new Exception(500, `Password Reset Failed, verify hash defined in ENV.`, 'Saving Reset Failed'));
+    else 
+        response.send('Password Reset Successful.');
+}

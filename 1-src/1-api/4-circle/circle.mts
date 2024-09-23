@@ -5,16 +5,17 @@ import InputField from '../../0-assets/field-sync/input-config-sync/inputField.m
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../2-services/1-models/circleAnnouncementModel.mjs';
 import CIRCLE from '../../2-services/1-models/circleModel.mjs';
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE, DB_DELETE_CIRCLE_ANNOUNCEMENT, DB_DELETE_CIRCLE_USER_STATUS, DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_INSERT_CIRCLE, DB_INSERT_CIRCLE_ANNOUNCEMENT, DB_INSERT_CIRCLE_USER_STATUS, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_CIRCLE_DETAIL, DB_SELECT_CIRCLE_DETAIL_BY_NAME, DB_SELECT_CIRCLE_USER_LIST, DB_SELECT_USER_CIRCLES, DB_UPDATE_CIRCLE, DB_UPDATE_CIRCLE_USER_STATUS } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import { DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtCircleRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest } from './circle-types.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
+import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 
 
 /******************
@@ -143,6 +144,9 @@ export const PATCH_circle =  async(request: JwtCircleRequest, response: Response
 
 export const DELETE_circle =  async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
 
+    //Flush cache for contacts of current circle members
+    await DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS(request.circleID);
+
     if(await DB_DELETE_CIRCLE_ANNOUNCEMENT({announcementID: undefined, circleID: request.circleID}) === false)
         next(new Exception(500, `Failed to delete all announcements for circle ${request.circleID}`, 'Deleting Announcements Failed'));
 
@@ -259,6 +263,7 @@ export const POST_circleMemberAccept =  async(request: JwtCircleRequest, respons
         next(new Exception(404, `Circle Membership Accept Invite :: Failed to accept membership for user ${request.jwtUserID} to circle ${request.params.circle}.`, 'Acceptance Failed'));
 
     else {
+        await DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS(request.circleID);
         const circleItem:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
         circleItem.status = CircleStatusEnum.INVITE;
         response.status(202).send(circleItem);
@@ -281,8 +286,10 @@ export const POST_circleMemberRequest =  async(request: JwtCircleRequest, respon
         next(new Exception(404, `Circle Membership Request Failed :: Failed to create membership request status for user ${request.jwtUserID} to circle ${request.circleID}.`, 'Request Failed'));
 
     else {
+        if(status === DATABASE_CIRCLE_STATUS_ENUM.MEMBER) await DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS(request.circleID);
+
         const circleItem:CircleListItem = circle.toListItem();
-        circleItem.status = CircleStatusEnum.INVITE;
+        circleItem.status = CircleStatusEnum[status];
         response.status(202).send(circleItem);
     }
 };
@@ -291,8 +298,11 @@ export const DELETE_circleMember =  async(request: JwtCircleRequest, response: R
 
     if(await DB_DELETE_CIRCLE_USER_STATUS({userID: request.jwtUserID, circleID: request.circleID}) === false)
         next(new Exception(404, `Circle Membership Delete Failed :: Failed to delete membership for user ${request.jwtUserID} to circle ${request.circleID}.`, 'Delete Failed'));
-    else
+    
+    else {
+        await DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS(request.circleID);
         response.status(204).send(`User ${request.jwtUserID} successfully removed from circle ${request.circleID}`);
+    }
 };
 
 /*************************************
@@ -316,6 +326,7 @@ export const POST_circleLeaderAccept =  async(request: JwtCircleClientRequest, r
         next(new Exception(404, `Circle Membership Leader Accept :: Failed to accept membership for user ${request.params.client} to circle ${request.circleID}.`, 'Accept Failed'));
 
     else {
+        await DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS(request.circleID);
         const circleItem:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
         circleItem.status = CircleStatusEnum.INVITE;
         response.status(202).send(circleItem);
@@ -329,6 +340,7 @@ export const POST_circleMemberJoinAdmin =  async(request: JwtCircleClientRequest
         next(new Exception(404, `Circle Membership Accept Failed :: Failed to accept membership for user ${request.params.client} to circle ${request.params.circle}.`, 'Join Failed'));
 
     else {
+        await DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS(request.circleID);
         const circle:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
         circle.status = CircleStatusEnum.MEMBER;
         response.status(202).send(circle);
@@ -340,7 +352,9 @@ export const DELETE_circleLeaderMember =  async(request: JwtCircleClientRequest,
     
     if(await DB_DELETE_CIRCLE_USER_STATUS({userID: request.clientID, circleID: request.circleID}) === false)
         next(new Exception(404, `Circle Membership Leader Delete Failed :: Failed to delete membership for user ${request.params.client} to circle ${request.circleID}.`, 'Circle Delete Failed'));
-    else
+    else {
+        await DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS(request.circleID);
         response.status(204).send(`User ${request.params.client} successfully removed from circle ${request.circleID}`);
+    }
 };
 

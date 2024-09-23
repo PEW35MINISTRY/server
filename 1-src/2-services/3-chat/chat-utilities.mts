@@ -1,12 +1,12 @@
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import USER from '../1-models/userModel.mjs';
-import { DB_SELECT_CONTACTS, DB_SELECT_USER } from '../2-database/queries/user-queries.mjs';
 import * as log from '../log.mjs';
+import { DB_SELECT_CONTACT_LIST, DB_SELECT_USER } from '../2-database/queries/user-queries.mjs';
 import { SocketMessage } from './chat-types.mjs';
 
 /* Socket Direct Messaging */
 export const fetchContacts = async (userID:number):Promise<ProfileListItem[]> => {
-    const userList:ProfileListItem[] =  await DB_SELECT_CONTACTS(userID); 
+    const userList:ProfileListItem[] =  await DB_SELECT_CONTACT_LIST(userID); 
 
     return userList;
 }
@@ -17,7 +17,7 @@ export const fetchName = async (userID:number):Promise<string> => {
 }
 
 export const fetchNames = async (userIDList:number[]):Promise<ProfileListItem[]> => {
-    const userList:ProfileListItem[] =  await DB_SELECT_CONTACTS(-1);
+    const userList:ProfileListItem[] =  [];
 
     return userList;
 }

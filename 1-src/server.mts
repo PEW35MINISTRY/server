@@ -10,6 +10,7 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 
 //Import Types
+import { ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
 import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest } from './1-api/2-auth/auth-types.mjs';
@@ -20,8 +21,8 @@ import logRoutes from './1-api/1-log/log.mjs';
 import apiRoutes from './1-api/api.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
-import { GET_jwtVerify, POST_login, POST_logout, POST_emailSubscribe } from './1-api/2-auth/auth.mjs';
-import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel } from './1-api/3-profile/profile.mjs';
+import { GET_jwtVerify, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
+import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
@@ -220,6 +221,9 @@ apiServer.delete('/api/user/:client', DELETE_userProfile);
 apiServer.delete('/api/user/:client/image', DELETE_profileImage);
 apiServer.patch('/api/user/:client/walk-level', PATCH_profileWalkLevel);
 
+apiServer.get('/api/user/:client/contact-list', GET_contactList);
+apiServer.delete('/api/user/:client/contact-list-cache', DELETE_contactCache);
+
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
 
@@ -321,6 +325,9 @@ apiServer.use(express.text());
 apiServer.use('/api/admin/log', logRoutes);
 apiServer.delete('/api/admin/flush-search-cache/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => DELETE_flushSearchCacheAdmin(undefined, request, response, next)); //(Handles authentication)
 
+apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
+apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdmin);
+
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.post('/api/admin/circle/:circle/join/:client', POST_circleMemberJoinAdmin);
@@ -345,11 +352,11 @@ apiServer.delete('/api/admin/partnership/client/:client/partner/:partner', DELET
 /* Error Handling  */
 /*******************/
 apiServer.use('/error', (request: Request, response:Response, next: NextFunction) => {
-    next(new Exception(500, 'EXPECTED ERROR - UI Defined', 'Report Error'));
+    next(new Exception(500, 'EXPECTED ERROR - UI Defined Issue', 'Please Report Error'));
 });
 
 apiServer.use((request: Request, response:Response, next: NextFunction) => {
-    next(new Exception(404, 'Invalid Request'));
+    next(new Exception(404, `Invalid Request: ${request.originalUrl}`));
 });
 
 apiServer.use((error: Exception, request: Request, response:Response, next: NextFunction) => {
@@ -382,17 +389,3 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     else if(status === 404) log.warn('API | 404 | Request Not Found:', message);
     else log.error(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
 });
-
-//Must match Portal in app-types.tsx
-export type ServerErrorResponse = {
-    status: number, 
-    notification: string,
-    message: string,
-    action: string,
-    type: string,
-    url: string,
-    params: string,
-    query: string,
-    header: string | object,
-    body: string | object
-};
