@@ -5,6 +5,11 @@
 * Sync across all repositories: server, portal, mobile *
 ********************************************************/
 
+export enum ENVIRONMENT_TYPE {
+    DEVELOPMENT = 'DEVELOPMENT',
+    PRODUCTION = 'PRODUCTION'
+}
+
 export const SUPPORTED_IMAGE_EXTENSION_LIST = ['png', 'jpg', 'jpeg'];  //Sync with AWS settings
 
 export enum InputType {
@@ -32,6 +37,7 @@ export type FieldInput = { //For toJSON() response
     required: boolean,
     validationRegex: string,
     validationMessage: string,
+    environmentList:ENVIRONMENT_TYPE[],
 }
 
 export default class InputField {
@@ -45,9 +51,10 @@ export default class InputField {
     hide: boolean;
     validationRegex: RegExp;
     validationMessage: string;
+    environmentList: ENVIRONMENT_TYPE[];
 
-    constructor({title, field, customField, value, type=InputType.TEXT, required=false, unique=false, hide=false, validationRegex=new RegExp(/.+/), validationMessage='Invalid Input' }
-        : {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string}) {
+    constructor({title, field, customField, value, type=InputType.TEXT, required=false, unique=false, hide=false, validationRegex=new RegExp(/.+/), validationMessage='Invalid Input', environmentList=Object.values(ENVIRONMENT_TYPE) }
+        : {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, environmentList?:ENVIRONMENT_TYPE[]}) {
         this.title = title;
         this.field = field;
         this.customField = customField;
@@ -58,6 +65,7 @@ export default class InputField {
         this.hide = hide;
         this.validationRegex = validationRegex;
         this.validationMessage = validationMessage;
+        this.environmentList = environmentList ?? Object.values(ENVIRONMENT_TYPE);
     };
 
     setValue(value: string): void {this.value = value; }
@@ -71,7 +79,8 @@ export default class InputField {
             type: this.type,
             required: this.required,
             validationRegex: this.validationRegex.source,
-            validationMessage: this.validationMessage
+            validationMessage: this.validationMessage,
+            environmentList: this.environmentList,
         };
     }
 }
@@ -80,12 +89,12 @@ export class InputSelectionField extends InputField {
     selectOptionList: string[];
     displayOptionList: string[];
 
-    constructor({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage,  
+    constructor({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage, environmentList,
         selectOptionList } :
-        {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, 
+        {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, environmentList?:ENVIRONMENT_TYPE[],
             selectOptionList:string[] }) {
 
-        super({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage});
+        super({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage, environmentList});
 
         this.selectOptionList = selectOptionList;
         this.displayOptionList = makeDisplayList(selectOptionList);
@@ -105,12 +114,12 @@ export class InputRangeField extends InputField {
     maxValue: number | Date;
     maxField?: string; //If supplied, implies 'field' is minField and using MAX_MIN_SLIDER
 
-    constructor({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage,
+    constructor({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage, environmentList,
             minValue, maxValue, maxField } :
-        {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, 
+        {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, environmentList?:ENVIRONMENT_TYPE[],
             minValue: number|Date, maxValue: number|Date, maxField?: string }) {
 
-        super({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage});
+        super({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage, environmentList});
 
         this.minValue = minValue;
         this.maxValue = maxValue;
@@ -125,7 +134,7 @@ export class InputRangeField extends InputField {
  *************/
 
 //Converts underscores to spaces and capitalizes each word
-export const makeDisplayText = (text:string = ''):string => text.toLowerCase().split('_'||' ').map((s) => s.charAt(0).toUpperCase() + s.substring(1)).join(' ');
+export const makeDisplayText = (text:string = ''):string => text.toLowerCase().split(/[_\s]+/).map((s) => s.charAt(0).toUpperCase() + s.substring(1)).join(' ');
 export const makeDisplayList = (list:string[]):string[] => list.map(value => makeDisplayText(value));
 
 //For parsing JSON Response vs FIELD_LIST and optional field properties
