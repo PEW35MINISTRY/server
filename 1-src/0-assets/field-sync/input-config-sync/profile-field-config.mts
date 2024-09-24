@@ -1,5 +1,5 @@
 /***** ONLY DEPENDENCY: ./inputField - Define all other types locally *****/
-import InputField, { InputRangeField, InputSelectionField, InputType } from './inputField.mjs';
+import InputField, { ENVIRONMENT_TYPE, InputRangeField, InputSelectionField, InputType } from './inputField.mjs';
 
 /*******************************************************
 *        PROFILE FIELD CONFIGURATION FILE
@@ -8,14 +8,17 @@ import InputField, { InputRangeField, InputSelectionField, InputType } from './i
 
 export const EMAIL_REGEX = new RegExp(/^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/);
 export const DATE_REGEX = new RegExp(/^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)$/); //1970-01-01T00:00:00.013Z
-export const PASSWORD_REGEX = new RegExp(/^.{5,20}$/);
-// PASSWORD_REGEX: One uppercase, one lowercase, one digit, one special character, 8+ chars in length
-// export const PASSWORD_REGEX = new RegExp(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-_]).{8,}$/);
-    
+
+export const PASSWORD_REGEX_DEV = new RegExp(/^.{5,}$/);
+export const PASSWORD_VALIDATION_MESSAGE_DEV = "Required, minimum 5 characters.";
+
+export const PASSWORD_REGEX_PROD = new RegExp(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-_]).{8,}$/);
+export const PASSWORD_VALIDATION_MESSAGE_PROD = "Required, one uppercase, lowercase, digit, special character (#?!@$%^&*-_), 8+ in length"
+
+
 /***************************************
 *    PROFILE TYPES AND DEPENDENCIES
 ****************************************/
-//Note: enums must have matching values to cast (string as Enum) or define (Enum[string]) equally
 export enum ModelSourceEnvironmentEnum { //Allowed Interactions:
     DEVELOPMENT = 'DEVELOPMENT',         //DEVELOPMENT, MOCK
     MOCK = 'MOCK',                       //DEVELOPMENT, MOCK, INTERNAL
@@ -72,17 +75,19 @@ export const getDOBMaxDate = (role:RoleEnum = RoleEnum.USER):Date => (role === R
 ******************************************/
 
 export const LOGIN_PROFILE_FIELDS:InputField[] = [
-    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true,  validationRegex: EMAIL_REGEX, validationMessage: 'Required, invalid email format.' }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: new RegExp(/^.{5,20}$/), validationMessage: 'Required, 5-20 characters.' }),
-]
+    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true,  validationRegex: EMAIL_REGEX, validationMessage: 'Required, invalid format.' }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Required, invalid.' }),
+];
 
 //Note: extending list forces the order, may need a sortID or duplicating for now
 export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'First Name', field: 'firstName', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{1,30}$/), validationMessage: 'Required, max 30 characters.' }),
     new InputField({title: 'Last Name', field: 'lastName', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{1,30}$/), validationMessage: 'Required, max 30 characters.' }),
-    new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, unique: true, validationRegex: new RegExp(/^[a-z][a-z0-9_-]{3,13}[a-z0-9]$/), validationMessage: 'Unique, start/end with letter/numbers, 5-15 chars, lowercase, numbers, dashes, underscores.' }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX, validationMessage: '5-20 characters.' }),
-    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX, validationMessage: 'Must match password field.' }),
+    new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, unique: true, validationRegex: new RegExp(/^[a-zA-Z0-9_-]{5,15}$/), validationMessage: 'Unique, 5-15 chars, letters, numbers, dashes, underscores.' }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_DEV, validationMessage: PASSWORD_VALIDATION_MESSAGE_DEV, environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT] }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_PROD, validationMessage: PASSWORD_VALIDATION_MESSAGE_PROD, environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
+    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT] }),
+    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_PROD, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
     new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{5,15}$/), validationMessage: 'Required, 5-15 characters.' }),
     new InputRangeField({title: 'Max Partners', field: 'maxPartners', required: true, minValue: 0, maxValue: 10, type: InputType.RANGE_SLIDER, validationRegex: new RegExp(/[0-9]+/), validationMessage: 'Required, between 0-10.'}),
 ];
@@ -90,7 +95,7 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
     new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: false, selectOptionList: Object.values(RoleEnum), validationMessage: 'Authorization token is required.'}),
     new InputSelectionField({title: 'Active Account', field: 'isActive', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
-    new InputSelectionField({title: 'Source Environment', field: 'modelSourceEnvironment', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(ModelSourceEnvironmentEnum)}),
+    new InputSelectionField({title: 'Source Environment', field: 'modelSourceEnvironment', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(ModelSourceEnvironmentEnum), environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT]}),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, unique: true,  validationRegex: EMAIL_REGEX, validationMessage: 'Required, invalid email format.' }),
     ...EDIT_PROFILE_FIELDS,
     new InputSelectionField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),
@@ -103,13 +108,15 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
 export const SIGNUP_PROFILE_FIELDS_USER:InputField[] = [
     new InputField({title: 'First Name', field: 'firstName', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{1,30}$/), validationMessage: 'Required, max 30 characters.' }),
     new InputField({title: 'Last Name', field: 'lastName', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{1,30}$/), validationMessage: 'Required, max 30 characters.' }),
-    new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, unique: true, validationRegex: new RegExp(/^[a-z][a-z0-9_-]{3,13}[a-z0-9]$/), validationMessage: 'Unique, start/end with letter/numbers, 5-15 chars, lowercase, numbers, dashes, underscores.' }),
+    new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, unique: true, validationRegex: new RegExp(/^[a-zA-Z0-9_-]{5,15}$/), validationMessage: 'Unique, 5-15 chars, letters, numbers, dashes, underscores.' }),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, unique: true,  validationRegex: EMAIL_REGEX, validationMessage: 'Required, invalid email format.' }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: new RegExp(/^.{5,20}$/), validationMessage: 'Required, 5-20 characters.' }),
-    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: true, validationRegex: new RegExp(/.{5,20}/), validationMessage: 'Required, must match password field.' }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_DEV, validationMessage: PASSWORD_VALIDATION_MESSAGE_DEV, environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT] }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_PROD, validationMessage: PASSWORD_VALIDATION_MESSAGE_PROD, environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
+    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT] }),
+    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_PROD, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
     new InputField({title: 'Postal Code', field: 'postalCode', required: true, validationRegex: new RegExp(/^.{5,15}$/), validationMessage: 'Required, 5-15 characters.' }),
     new InputSelectionField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),
-    new InputField({title: 'Date of Birth', field: 'dateOfBirth', type: InputType.DATE, value: getDateYearsAgo().toISOString(), required: true, validationRegex: DATE_REGEX, validationMessage: 'Required, must be valid age.' }),
+    new InputField({title: 'Date of Birth', field: 'dateOfBirth', type: InputType.DATE, value: getDateYearsAgo().toISOString(), required: true, validationRegex: DATE_REGEX, validationMessage: 'Required, must be age 13 or older.' }),
 ];
 
 //SIGNUP all other roles

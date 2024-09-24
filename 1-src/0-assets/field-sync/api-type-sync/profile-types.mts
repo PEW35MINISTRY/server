@@ -1,6 +1,6 @@
 /************* ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ *************/
 
-import { GenderEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
+import { GenderEnum, ModelSourceEnvironmentEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
 import { CircleAnnouncementListItem, CircleListItem } from './circle-types.mjs'
 import { ContentListItem } from './content-types.mjs';
 import { PrayerRequestListItem } from './prayer-request-types.mjs'
@@ -62,6 +62,7 @@ export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
 
 export interface ProfileResponse {
     userID: number, 
+    modelSourceEnvironment: ModelSourceEnvironmentEnum,
     userRole: RoleEnum,
     displayName: string,
     firstName: string,    
@@ -105,5 +106,6 @@ export interface ProfileEditRequestBody {
     walkLevel?: number,
     image?: string,
     notes?: string,
+    modelSourceEnvironmentEnum?: string,
     userRoleTokenList?: [{role: RoleEnum, token: string}]
 }
