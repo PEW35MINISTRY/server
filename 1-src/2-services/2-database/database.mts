@@ -1,19 +1,11 @@
 import SQL, { Pool, PoolOptions, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import * as log from './../log.mjs';
-import { CommandResponseType, AWSDatabaseSecrets, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from './database-types.mjs';
+import { CommandResponseType, AWSDatabaseSecrets } from './database-types.mjs';
 import { SecretsManagerClient, GetSecretValueCommand, GetSecretValueResponse } from '@aws-sdk/client-secrets-manager';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { getEnvironment, getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
 import dotenv from 'dotenv';
 dotenv.config(); 
-
-
-/**************************************************************
- * ENVIRONMENT MODEL SOURCE SETTINGS                          *
- *  - Effects new models & search cache                       *
- *  - Only applies to user table; circles inherit from leader *
- **************************************************************/
-export const getDatabaseModelSourceEnvironment = ():DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM => DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM[process.env.DEFAULT_MODEL_SOURCE_ENVIRONMENT as keyof typeof DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM] ?? DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION;
 
 
 /*********************************************

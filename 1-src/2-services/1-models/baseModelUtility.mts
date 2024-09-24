@@ -1,7 +1,7 @@
 import InputField, { InputType, isListType, InputSelectionField } from "../../0-assets/field-sync/input-config-sync/inputField.mjs";
 import { JwtClientRequest } from "../../1-api/2-auth/auth-types.mjs";
 import { Exception } from "../../1-api/api-types.mjs";
-import { isURLValid } from "../10-utilities/utilities.mjs";
+import { getEnvironment, isURLValid } from "../10-utilities/utilities.mjs";
 import * as log from "../log.mjs";
 import BASE_MODEL from "./baseModel.mjs";
 
@@ -159,7 +159,9 @@ export default {
             return new Exception(500, 'Unexpected model type; unable to parse JSON.');
         }
 
-        for(let field of fieldList) {
+        const relevantFields:InputField[] = fieldList.filter((field: InputField) => field.environmentList.includes(getEnvironment()));
+
+        for(let field of relevantFields) {
             if(field.required && jsonObj[field.field] === undefined && currentModel[currentModel.getPropertyFromJsonField(field.field)] === undefined ) {
                 return new Exception(400, `${model.modelType} | ${field.title} is Required.`, `${field.title} is Required.`);
 

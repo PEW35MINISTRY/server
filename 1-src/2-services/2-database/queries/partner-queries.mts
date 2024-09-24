@@ -1,11 +1,11 @@
 import { RowDataPacket } from 'mysql2/promise';
-import { NewPartnerListItem, PartnerCountListItem, PartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import USER from '../../1-models/userModel.mjs';
 import * as log from '../../log.mjs';
+import { query, execute, command } from '../database.mjs';
+import USER from '../../1-models/userModel.mjs';
+import { NewPartnerListItem, PartnerCountListItem, PartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
-import { query, execute, command, validateColumns, batch, getDatabaseModelSourceEnvironment } from '../database.mjs';
-import { GenderEnum, PartnerStatusEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { camelCase } from '../../10-utilities/utilities.mjs';
+import { PartnerStatusEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { camelCase, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 
 
@@ -205,13 +205,24 @@ export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, stat
  ***************************/
 export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Promise<NewPartnerListItem[]> => {
     const matchGender:boolean = (process.env.PARTNER_GENDER_MATCH !== undefined) ? (process.env.PARTNER_GENDER_MATCH === 'true') : true;
-    const ageYearRange: number = (process.env.PARTNER_AGE_RANGE !== undefined) ? parseInt(process.env.PARTNER_AGE_RANGE) : 2;
-    const minDateOfBirth:Date = new Date(user.dateOfBirth);
-    minDateOfBirth.setFullYear(user.dateOfBirth.getFullYear() - ageYearRange);
-    const maxDateOfBirth:Date = new Date(user.dateOfBirth);
-    maxDateOfBirth.setFullYear(user.dateOfBirth.getFullYear() + ageYearRange);
-    const walkLevelRange: number = (process.env.PARTNER_WALK_RANGE !== undefined) ? parseInt(process.env.PARTNER_WALK_RANGE) : 2;
+    const ageYearRange:number = (process.env.PARTNER_AGE_RANGE !== undefined) ? parseInt(process.env.PARTNER_AGE_RANGE) : 2;
+    const walkLevelRange:number = (process.env.PARTNER_WALK_RANGE !== undefined) ? parseInt(process.env.PARTNER_WALK_RANGE) : 2;
 
+    /* Validations */
+    if (isNaN(ageYearRange) || isNaN(walkLevelRange) || process.env.PARTNER_GENDER_MATCH === undefined) {
+        log.error('Partner Search: Invalid environment variables', process.env.PARTNER_GENDER_MATCH, process.env.PARTNER_AGE_RANGE, process.env.PARTNER_WALK_RANGE);
+        return [];
+    } else if (user.userID <= 0 || !user.dateOfBirth || !user.gender || user.walkLevel === undefined) {
+        log.error('Partner Search: Invalid USER', user.userID, user.dateOfBirth, user.gender, user.walkLevel, user.toString());
+        return [];
+    }
+
+    const minDateOfBirth:Date = new Date(user.dateOfBirth);
+        minDateOfBirth.setFullYear(user.dateOfBirth.getFullYear() - ageYearRange);
+    const maxDateOfBirth:Date = new Date(user.dateOfBirth);
+        maxDateOfBirth.setFullYear(user.dateOfBirth.getFullYear() + ageYearRange);
+
+    /* Execute Search */
     const rows:RowDataPacket[] = await execute(
         'SELECT DISTINCT user.* '
         + 'FROM user '
@@ -230,13 +241,11 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
             + `AND (( user.modelSourceEnvironment = ? ) `
                 + 'OR ( '
                 + '  CASE '
-                + `    WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
-                + `    WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+                + `    WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
                 + `    WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
                 + '    ELSE false '
                 + '  END '
                 + ')) '
-            + 'AND partner.userID IS NULL AND partner.partnerID IS NULL '
             + 'AND ( ? = false OR user.gender = ? ) '
             + `AND user.dateOfBirth BETWEEN ? AND ? `
             + 'AND user.walkLevel BETWEEN ? AND ? '
@@ -258,7 +267,6 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
     , [ user.userID,
         user.userID,
         user.userID,
-        user.modelSourceEnvironment,
         user.modelSourceEnvironment,
         user.modelSourceEnvironment,
         user.modelSourceEnvironment,
@@ -294,7 +302,7 @@ export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async(limit:number = LIST_
         + 'ORDER BY user.createdDT ASC ' //Oldest Users
         + `LIMIT ${limit};`,
     
-    [getDatabaseModelSourceEnvironment()]);
+    [getModelSourceEnvironment()]);
 
     return [...rows.map(row => USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem())];
 }
@@ -318,12 +326,10 @@ export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = 
             + 'ORDER BY '
                 + `${filterFewerPartners ?
                     `${'CASE '
-                        + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}' OR user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' `
-                            + `OR client.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}' OR client.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' `
-                            +'THEN 1 '
-                        + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' OR client.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' `
-                            + 'THEN 2 '
-                        + 'ELSE 3 '
+                        + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}' THEN 1 `
+                        + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN 2 `
+                        + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN 3 `
+                        + 'ELSE 4 '
                     + 'END, '}`
                 : `user.modelSourceEnvironment != '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}', `
                 }`

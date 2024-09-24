@@ -13,6 +13,7 @@ import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, D
 import { DB_SELECT_USER_CONTENT_LIST } from './content-queries.mjs';
 import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
+import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 
 
 /**************************************************************************
@@ -245,7 +246,8 @@ export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:
     const response:CommandResponseType = await command('INSERT INTO user_role ( userID, userRoleID ) VALUES '
     + userRoleList.map(() => `( ${(userID === undefined) ? '(SELECT user.userID FROM user WHERE user.email = ? )' : '?'} , `
     + '(SELECT user_role_defined.userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))').join(', ')
-    + ';', userRoleList.flatMap((role) => [userID || email, role]));
+    + ' ON DUPLICATE KEY UPDATE userRoleID = VALUES(userRoleID);',
+    userRoleList.flatMap((role) => [userID || email, role]));
 
     return ((response !== undefined) && (response.affectedRows > 0));
 }
@@ -273,25 +275,27 @@ export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGener
     
     const rows = await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
             + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
-            + `WHERE ${searchInactive ? 'userInfo.isActive = false AND' : ''} `
+            + `WHERE ${searchInactive ? 'userInfo.isActive = false ' : ''} `
                 + `${allSourceEnvironments ? '' :
-                    `${'    AND ( '
-                        + '        user.modelSourceEnvironment = (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) '
+                    `${`${searchInactive ? 'AND' : ''} ( `
+                        + `        user.modelSourceEnvironment = '${getModelSourceEnvironment()}' `
                         + '        OR ( '
                         + '            CASE '
-                        + `                WHEN (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
-                        + `                WHEN (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
-                        + `                WHEN (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' `
+                        + `                WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+                        + `                WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+                        + `                WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
                         + '                ELSE false '
                         + '            END '
                         + '        ) '
                         + '    ) '
-                        + ') '
                     }`
                 }`
-                + `${excludeGeneralUsers ? `AND user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'USER' ) ` : ''}`
-                + `AND ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
+                + `${(searchInactive || allSourceEnvironments) ? ' AND ' : ''}`
+                + `${excludeGeneralUsers ? `user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'USER' ) ` : ''}`
+                + `${(searchInactive || !allSourceEnvironments || excludeGeneralUsers) ? ' AND ' : ''}`
+                + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(', ')} )`} LIKE ? `
             + `ORDER BY FIELD( user.modelSourceEnvironment, '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' ), `
+            + 'user.modifiedDT DESC '
             + `LIMIT ${limit};`, [`%${searchTerm}%`]);
  
     return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
@@ -301,7 +305,7 @@ export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGener
 export const DB_SELECT_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine:UserSearchRefineEnum):Promise<ProfileListItem[]|undefined> => {
 
     const rows = await execute('SELECT stringifiedProfileItemList ' + 'FROM user_search_cache '
-        + 'WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
+        + 'WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getModelSourceEnvironment()]);
 
     if(rows.length === 0) return undefined;
 
@@ -318,16 +322,16 @@ export const DB_SELECT_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine
 //Updates on Duplicate | Only caches searches including users with 'USER' Role
 export const DB_INSERT_USER_SEARCH_CACHE = async({searchTerm, searchRefine: searchRefine, userList}:{searchTerm:string, searchRefine:UserSearchRefineEnum, userList:ProfileListItem[]}):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`INSERT INTO user_search_cache ( searchTerm, searchRefine, stringifiedProfileItemList ) `
-    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), stringifiedProfileItemList=VALUES(stringifiedProfileItemList);`,
-     [searchTerm, searchRefine, JSON.stringify(userList)]); 
+    const response:CommandResponseType = await command(`INSERT INTO user_search_cache ( searchTerm, searchRefine, stringifiedProfileItemList, modelSourceEnvironment ) `
+    + `VALUES ( ?, ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), stringifiedProfileItemList=VALUES(stringifiedProfileItemList), modelSourceEnvironment=VALUES(modelSourceEnvironment);`,
+     [searchTerm, searchRefine, JSON.stringify(userList), getModelSourceEnvironment()]); 
     
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
 export const DB_DELETE_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine:UserSearchRefineEnum):Promise<boolean> => {
 
-    const response:CommandResponseType = await command('DELETE FROM user_search_cache WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
+    const response:CommandResponseType = await command('DELETE FROM user_search_cache WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getModelSourceEnvironment()]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }
@@ -369,10 +373,11 @@ export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments
         + '    SELECT circle_user.circleID '
         + '    FROM circle_user '
         + '    WHERE circle_user.userID = ? '
+        + `      AND circle_user.status = 'MEMBER'`
         + ') '
         + 'SELECT DISTINCT user.userID, user.firstName, user.displayName, user.image '
         + 'FROM user '
-        + `LEFT JOIN circle_user ON user.userID = circle_user.userID AND circle_user.status = 'MEMBER' `
+        + `LEFT JOIN circle_user ON user.userID = circle_user.userID `
         + 'LEFT JOIN circle ON circle_user.circleID = circle.circleID '
         + 'LEFT JOIN partner ON ( '
         + '    (user.userID = partner.userID AND partner.partnerID = ? ) '
@@ -393,8 +398,9 @@ export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments
         + '        ) '
         + '    ) '
         + '    OR ( '
-        + '        user.userID = partner.userID '
-        + '        OR user.userID = partner.partnerID '
+        + '        ( user.userID = partner.userID '
+        + '          OR user.userID = partner.partnerID ) '
+        + `        AND partner.status = 'PARTNER' `
         + '    ) '
         + `${allSourceEnvironments ? '' :
             `${'    AND ( '
@@ -408,9 +414,8 @@ export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments
                 + '            END '
                 + '        ) '
                 + '    ) '
-                + ') '
             }`
-        }`
+        } ) `
         + 'ORDER BY '
         + '    CASE '
         + '        WHEN partner.userID IS NOT NULL OR partner.partnerID IS NOT NULL THEN 1 '
@@ -455,34 +460,44 @@ export const DB_SELECT_CONTACT_CACHE = async(userID:number):Promise<ProfileListI
 //Updates on Duplicate | Only caches searches including users with 'USER' Role
 export const DB_INSERT_CONTACT_CACHE = async({userID, userList}:{userID:number, userList:ProfileListItem[]}):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`INSERT INTO user_contact_cache ( userID, stringifiedProfileItemList ) `
-        + `VALUES ( ?, ? ) ON DUPLICATE KEY UPDATE userID=VALUES(userID), stringifiedProfileItemList=VALUES(stringifiedProfileItemList);`,
-     [userID, JSON.stringify(userList)]); 
+    const response:CommandResponseType = await command(`INSERT INTO user_contact_cache ( userID, stringifiedProfileItemList, modelSourceEnvironment ) `
+        + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE userID=VALUES(userID), stringifiedProfileItemList=VALUES(stringifiedProfileItemList), modelSourceEnvironment=VALUES(modelSourceEnvironment);`,
+     [userID, JSON.stringify(userList), getModelSourceEnvironment()]); 
     
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
 export const DB_DELETE_CONTACT_CACHE = async(userID:number):Promise<boolean> => {
 
-    const response:CommandResponseType = await command('DELETE FROM user_contact_cache WHERE userID = ?;', [ userID ]);
+    const response:CommandResponseType = await command('DELETE FROM user_contact_cache WHERE userID = ? AND modelSourceEnvironment = ?;', [ userID, getModelSourceEnvironment() ]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
 export const DB_DELETE_CONTACT_CACHE_BATCH = async(userIDList:number[]):Promise<boolean> => {
+    const placeholderList = userIDList.map(() => '?').join(', ');
 
-    const batchList = userIDList.map((userID:number) => ([userID]));
+    const response:CommandResponseType = await command(`DELETE FROM user_contact_cache WHERE modelSourceEnvironment = ? AND userID IN (${placeholderList});`, [getModelSourceEnvironment(), ...userIDList]);
 
-    const response:boolean|undefined = await batch(`DELETE FROM user_contact_cache WHERE userID = ?;`, batchList);
-
-    return (response === true);
+    return ((response !== undefined) && (response.affectedRows > 0));
 }
 
 export const DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS = async(circleID:number):Promise<boolean> => {
 
     const memberIDList = await DB_SELECT_CIRCLE_USER_IDS(circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, true);
 
-    return DB_DELETE_CONTACT_CACHE_BATCH(memberIDList);
+    return await DB_DELETE_CONTACT_CACHE_BATCH(memberIDList);
+}
+
+export const DB_DELETE_CONTACT_CACHE_BY_CIRCLE_BATCH = async(circleIDList:number[], userIDList:number[] = []): Promise<boolean> => {
+
+    const allMemberIDLists = await Promise.all(
+        circleIDList.map((circleID: number) => DB_SELECT_CIRCLE_USER_IDS(circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, true))
+    );
+
+    const uniqueUserIDs = Array.from(new Set([...allMemberIDLists.flat(), ...userIDList])); //Filter duplicates
+
+    return await DB_DELETE_CONTACT_CACHE_BATCH(uniqueUserIDs);
 }
 
 export const DB_FLUSH_CONTACT_CACHE_ADMIN = async():Promise<boolean> => {
@@ -491,4 +506,28 @@ export const DB_FLUSH_CONTACT_CACHE_ADMIN = async():Promise<boolean> => {
     const response:CommandResponseType = await command('DELETE FROM user_contact_cache;', []);
 
     return ((response !== undefined) && (response.affectedRows > 0));
+}
+
+
+/*****************************
+ * MOCK USER UTILITY QUERIES *
+ *****************************/
+export const DB_SELECT_USER_LIST_BY_SOURCE_ENVIRONMENT = async(sourceEnvironment:DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, limit:number = LIST_LIMIT, maxCircleMemberships:number = LIST_LIMIT, maxSharedPrayerRequest = LIST_LIMIT):Promise<ProfileListItem[]> => {   
+    const rows = await execute('SELECT user.*, ' 
+        + 'COUNT(DISTINCT circle_user.circleID) AS circleCount, '
+        + 'COUNT(DISTINCT prayer_request_recipient.prayerRequestID) AS requestCount '
+        + 'FROM user '
+        + 'LEFT JOIN circle_user ON user.userID = circle_user.userID '
+        + 'LEFT JOIN prayer_request_recipient ON user.userID = prayer_request_recipient.userID '
+        + 'WHERE modelSourceEnvironment = ? '
+        + 'GROUP BY user.userID '
+        + 'HAVING circleCount < ? '
+        + '  AND requestCount < ? '
+        + `ORDER BY ${(maxCircleMemberships <= maxSharedPrayerRequest) ? 'circleCount' : 'requestCount'} ASC, `
+        + `${(maxCircleMemberships > maxSharedPrayerRequest) ? 'circleCount' : 'requestCount'} ASC, `
+        + 'user.createdDT DESC '
+        + `LIMIT ${limit};`,
+    [sourceEnvironment, maxCircleMemberships, maxSharedPrayerRequest]); 
+
+    return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }

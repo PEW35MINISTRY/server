@@ -98,7 +98,7 @@ export const POST_newCircle =  async(request: JwtRequest, response: Response, ne
                 next(new Exception(500, 'Create Circle  Failed :: Failed to save new circle to database.', 'Save Failed'));
 
         else {
-            const circle:CIRCLE|undefined = await DB_SELECT_CIRCLE_DETAIL_BY_NAME(newCircle.name);
+            const circle:CIRCLE|undefined = await DB_SELECT_CIRCLE_DETAIL_BY_NAME(newCircle.leaderID, newCircle.name);
 
             if(circle !== undefined) {
                 circle.requestorID = request.jwtUserID;

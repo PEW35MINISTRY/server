@@ -10,11 +10,10 @@ import * as log from '../log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
-import { camelCase } from '../10-utilities/utilities.mjs';
+import { camelCase, getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
 import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
 import { generatePasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
-import { getDatabaseModelSourceEnvironment } from '../2-database/database.mjs';
 
 
 
@@ -29,7 +28,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   static PROPERTY_LIST = [...USER_TABLE_COLUMNS, 'userRole', 'userRoleList']; //Fields Cloned
 
   userID: number = -1;
-  modelSourceEnvironment:ModelSourceEnvironmentEnum = ModelSourceEnvironmentEnum[getDatabaseModelSourceEnvironment() as keyof typeof ModelSourceEnvironmentEnum];
+  modelSourceEnvironment:ModelSourceEnvironmentEnum = ModelSourceEnvironmentEnum[getModelSourceEnvironment() as keyof typeof ModelSourceEnvironmentEnum];
   firstName?: string;
   lastName?: string;
   displayName?: string;  //Unique
@@ -103,7 +102,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
           ['password', 'passwordHash']
         ]);}
 
-  override get priorityInputList():string[] { return ['modelSourceEnvironment', 'userID', 'userRole', 'userRoleList', 'dateOfBirth', 'password', 'passwordVerify', 'passwordHash']; }
+  override get priorityInputList():string[] { return ['userID', 'modelSourceEnvironment', 'userRole', 'userRoleList', 'dateOfBirth', 'password', 'passwordVerify', 'passwordHash']; }
 
   
 /**********************************

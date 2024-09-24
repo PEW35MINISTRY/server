@@ -1,11 +1,12 @@
+import * as log from '../../log.mjs';
+import { batch, command, execute, validateColumns } from '../database.mjs';
+import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PRAYER_REQUEST, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
+import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
-import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
-import * as log from '../../log.mjs';
-import { CommandResponseType, DATABASE_PRAYER_REQUEST, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
-import { batch, command, execute, query, validateColumns } from '../database.mjs';
+import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 
 
 /*****************************************************************************
@@ -373,9 +374,9 @@ export const DB_INSERT_PRAYER_REQUEST_COMMENT = async({prayerRequestID, commente
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
-export const DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT = async(commentID:number):Promise<boolean> => {
+export const DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT = async(commentID:number, increment:number = 1):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`UPDATE prayer_request_comment SET likeCount = (likeCount + 1) WHERE commentID = ?;`, [commentID]); 
+    const response:CommandResponseType = await command(`UPDATE prayer_request_comment SET likeCount = (likeCount + ?) WHERE commentID = ?;`, [increment, commentID]); 
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }
@@ -388,4 +389,30 @@ export const DB_DELETE_PRAYER_REQUEST_COMMENT = async({commentID, prayerRequestI
      : await command('DELETE FROM prayer_request_comment WHERE prayerRequestID = ? ;', [prayerRequestID]);
 
     return (response !== undefined);
+}
+
+
+/*****************************
+ * MOCK USER UTILITY QUERIES *
+ *****************************/
+export const DB_SELECT_PRAYER_REQUEST_LIST_BY_USER_SOURCE_ENVIRONMENT = async(sourceEnvironment:DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM = getModelSourceEnvironment(), limit:number = LIST_LIMIT, maxUserShares:number = LIST_LIMIT, maxCircleShares:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {   
+    const rows = await execute('SELECT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
+        + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage, '
+        + 'COUNT(DISTINCT prayer_request_recipient.userID) AS userCount, '
+        + 'COUNT(DISTINCT prayer_request_recipient.circleID) AS circleCount '
+        + 'FROM prayer_request '
+        + 'JOIN user on user.userID = prayer_request.requestorID '
+        + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
+        + 'WHERE user.modelSourceEnvironment = ? '
+        + 'GROUP BY prayer_request.prayerRequestID '
+        + 'HAVING userCount < ? '
+        + '  AND circleCount < ? '
+        + `ORDER BY ${(maxUserShares <= maxCircleShares) ? 'userCount' : 'circleCount'} ASC, `
+        + `${(maxUserShares > maxCircleShares) ? 'userCount' : 'circleCount'} ASC, `
+        + 'prayer_request.createdDT DESC '
+        + `LIMIT ${limit};`,
+    [sourceEnvironment, maxUserShares, maxCircleShares]); 
+
+    return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
+        requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage}}))];
 }

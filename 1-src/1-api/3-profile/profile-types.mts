@@ -13,8 +13,17 @@ export interface ProfileEditRequest extends JwtClientRequest {
     body: ProfileEditRequestBody
 }
 
-export interface ProfileSignupRequest extends Request  {
+export interface CreateDemoRequest extends JwtRequest {
+    query: {
+        populate?:string
+    }
+}
+
+export interface ProfileSignupRequest extends CreateDemoRequest {
     body: Request['body'] & ProfileEditRequestBody
+    query: {
+        populate?:string
+    }
 }
 
 export interface ProfileImageRequest extends JwtClientRequest {
