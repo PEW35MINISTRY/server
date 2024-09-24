@@ -194,7 +194,7 @@ export default {
                         model[field.field] = parseInput({field:field, value:jsonObj[field.field]});
 
                 } catch(error) {
-                    log.error(`Failed to parse profile field: ${field.field} with value:`, JSON.stringify(jsonObj[field.field]), error);
+                    log.warn(`Failed to parse profile field: ${field.field} with value:`, JSON.stringify(jsonObj[field.field]), error);
                     model[field.field] = undefined;
 
                     if(field.required) {
@@ -244,7 +244,7 @@ const parseInput = ({field, value}:{field:InputField, value:any}):any => {
             return value;
 
     } catch(error) {
-        log.error(`Failed to parse profile field: ${field.field} with value: ${value}`, error);
+        log.warn(`Failed to parse profile field: ${field.field} with value: ${value}`, error);
         return undefined;
     }
 }

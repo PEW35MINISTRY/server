@@ -218,6 +218,7 @@ export const DB_INSERT_CIRCLE_SEARCH_CACHE = async({searchTerm, searchRefine, ci
 }
 
 export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<boolean> => {
+    log.event(`Deleting Search Circle Cache for searchTerm: ${searchTerm}`);
 
     const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getModelSourceEnvironment()]);
 

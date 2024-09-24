@@ -363,7 +363,7 @@ export const DB_SELECT_PRAYER_REQUEST_COMMENT = async({prayerRequestID, commente
                 commenterProfile: {userID: rows[0].commenterID, firstName: rows[0].commenterFirstName, displayName: rows[0].commenterDisplayName, image: rows[0].commenterImage}});
 
     else {
-        log.error(`DB_SELECT_PRAYER_REQUEST_COMMENT ${rows.length ? 'MULTIPLE' : 'NONE'} COMMENTS IDENTIFIED`, prayerRequestID, commenterID, message, JSON.stringify(rows));
+        log.warn(`DB_SELECT_PRAYER_REQUEST_COMMENT ${rows.length ? 'MULTIPLE' : 'NONE'} COMMENTS IDENTIFIED`, prayerRequestID, commenterID, message, JSON.stringify(rows));
         return undefined;
     }
 }

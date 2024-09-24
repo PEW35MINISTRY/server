@@ -15,7 +15,7 @@ import { GenderEnum, getDateYearsAgo, ModelSourceEnvironmentEnum } from '../../.
 import { generatePasswordHash } from '../../../1-api/2-auth/auth-utilities.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-database/database-types.mjs';
 import { DB_INSERT_CIRCLE, DB_INSERT_CIRCLE_ANNOUNCEMENT, DB_INSERT_CIRCLE_USER_STATUS,  DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_CIRCLE_DETAIL_BY_NAME, DB_SELECT_CIRCLE_LIST_BY_USER_SOURCE_ENVIRONMENT } from '../../2-database/queries/circle-queries.mjs';
-import { DB_ASSIGN_PARTNER_STATUS, DB_SELECT_AVAILABLE_PARTNER_LIST } from '../../2-database/queries/partner-queries.mjs';
+import { DB_ASSIGN_PARTNER_STATUS, DB_SELECT_AVAILABLE_PARTNER_LIST, getPartnerID, getUserID } from '../../2-database/queries/partner-queries.mjs';
 import { DB_INSERT_AND_SELECT_PRAYER_REQUEST, DB_INSERT_CIRCLE_RECIPIENT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST_COMMENT, DB_INSERT_USER_RECIPIENT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_COMMENT_LIST, DB_SELECT_PRAYER_REQUEST_LIST_BY_USER_SOURCE_ENVIRONMENT, DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT } from '../../2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_CONTACT_CACHE_BATCH, DB_DELETE_CONTACT_CACHE_BY_CIRCLE_BATCH, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_POPULATE_USER_PROFILE, DB_SELECT_USER, DB_SELECT_USER_LIST_BY_SOURCE_ENVIRONMENT, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-database/queries/user-queries.mjs';
 
@@ -102,7 +102,7 @@ export const createMockPrayerRequest = async(userID:number):Promise<PRAYER_REQUE
     request = await DB_INSERT_AND_SELECT_PRAYER_REQUEST(request.getDatabaseProperties());
 
     if(!request.isValid || request.prayerRequestID <= 0) {
-        log.error('Error Saving Mock Prayer Request', request.toString());
+        log.warn('Error Saving Mock Prayer Request', request.toString());
         return new PRAYER_REQUEST();
     }
 
@@ -160,7 +160,7 @@ export const createMockCircle = async(leaderID:number, leaderRoleVerified:boolea
     circle = await DB_SELECT_CIRCLE_DETAIL_BY_NAME(circle.leaderID, circle.name);
 
     if(!circle.isValid || circle.circleID <= 0) {
-        log.error('Error Saving Mock Prayer Request', circle.toString());
+        log.warn('Error Saving Mock Prayer Request', circle.toString());
         return new CIRCLE();
     }
 
@@ -198,7 +198,7 @@ export const createMockCircle = async(leaderID:number, leaderRoleVerified:boolea
 *******************************************/
 export const populateDemoRelations = async(user:USER):Promise<USER> => {
     if(user.userID <= 0 || !user.isValid) {
-        log.error('Error populating profile relations with invalid USER', user.userID, user.toString());
+        log.warn('Error populating profile relations with invalid USER', user.userID, user.toString());
         return user;
     }
 
@@ -208,8 +208,12 @@ export const populateDemoRelations = async(user:USER):Promise<USER> => {
     if(user.walkLevel === undefined) user.walkLevel = 5;  //DB default; not assigned yet on /signup
     const availablePartnerList:NewPartnerListItem[] = await DB_SELECT_AVAILABLE_PARTNER_LIST(user, 4);
     for(let i=0; i<availablePartnerList.length; i++) {
-        await DB_ASSIGN_PARTNER_STATUS(user.userID, availablePartnerList[i].userID, ((i % 2) === 0) ? DATABASE_PARTNER_STATUS_ENUM.PARTNER : DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER);
         modifiedUserIDList.push(availablePartnerList[i].userID);
+        const userID:number = getUserID(user.userID, availablePartnerList[i].userID);
+        const partnerID:number = getPartnerID(user.userID, availablePartnerList[i].userID);
+
+        await DB_ASSIGN_PARTNER_STATUS(userID, partnerID, ((i % 2) === 0) ? DATABASE_PARTNER_STATUS_ENUM.PARTNER 
+            : (userID === user.userID) ? DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER : DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER);
     }
 
     for(let i=availablePartnerList.length; i<4; i++) {

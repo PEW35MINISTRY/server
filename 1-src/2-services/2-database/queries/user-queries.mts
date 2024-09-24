@@ -192,7 +192,7 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
 
     if(result === undefined) return true;    
     else if(result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 1)
-        log.error(`Multiple Accounts Detected with matching fields`, JSON.stringify(validFieldMap));
+        log.warn(`Multiple Accounts Detected with matching fields`, JSON.stringify(validFieldMap));
 
     return (result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 0);
 }
@@ -330,6 +330,7 @@ export const DB_INSERT_USER_SEARCH_CACHE = async({searchTerm, searchRefine: sear
 }
 
 export const DB_DELETE_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine:UserSearchRefineEnum):Promise<boolean> => {
+    log.event(`Deleting Search User Cache for searchTerm: ${searchTerm}`);
 
     const response:CommandResponseType = await command('DELETE FROM user_search_cache WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getModelSourceEnvironment()]);
 
@@ -468,6 +469,7 @@ export const DB_INSERT_CONTACT_CACHE = async({userID, userList}:{userID:number, 
 }
 
 export const DB_DELETE_CONTACT_CACHE = async(userID:number):Promise<boolean> => {
+    log.event(`Contact Cache Delete for user: ${userID}`);
 
     const response:CommandResponseType = await command('DELETE FROM user_contact_cache WHERE userID = ? AND modelSourceEnvironment = ?;', [ userID, getModelSourceEnvironment() ]);
 
@@ -475,6 +477,7 @@ export const DB_DELETE_CONTACT_CACHE = async(userID:number):Promise<boolean> => 
 }
 
 export const DB_DELETE_CONTACT_CACHE_BATCH = async(userIDList:number[]):Promise<boolean> => {
+    log.event('Contact Cache Batch Delete: ', `userIDList: ${JSON.stringify(userIDList)}`);
     const placeholderList = userIDList.map(() => '?').join(', ');
 
     const response:CommandResponseType = await command(`DELETE FROM user_contact_cache WHERE modelSourceEnvironment = ? AND userID IN (${placeholderList});`, [getModelSourceEnvironment(), ...userIDList]);
@@ -486,17 +489,17 @@ export const DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS = async(circleID:number):Pro
 
     const memberIDList = await DB_SELECT_CIRCLE_USER_IDS(circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, true);
 
+    log.event(`Contact Cache Delete for Members of Circle: ${circleID}`, `memberIDList: ${JSON.stringify(memberIDList)}`);
     return await DB_DELETE_CONTACT_CACHE_BATCH(memberIDList);
 }
 
 export const DB_DELETE_CONTACT_CACHE_BY_CIRCLE_BATCH = async(circleIDList:number[], userIDList:number[] = []): Promise<boolean> => {
-
     const allMemberIDLists = await Promise.all(
         circleIDList.map((circleID: number) => DB_SELECT_CIRCLE_USER_IDS(circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, true))
     );
-
     const uniqueUserIDs = Array.from(new Set([...allMemberIDLists.flat(), ...userIDList])); //Filter duplicates
 
+    log.event('Contact Cache Batch Delete Circle: ', `userIDList: ${JSON.stringify(userIDList)}`, `circleIDList: ${JSON.stringify(circleIDList)}`, `allMemberIDList: ${JSON.stringify(allMemberIDLists)}`);
     return await DB_DELETE_CONTACT_CACHE_BATCH(uniqueUserIDs);
 }
 
