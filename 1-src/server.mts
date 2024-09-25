@@ -18,11 +18,11 @@ import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 
 //Import Routes
 import logRoutes from './1-api/1-log/log.mjs';
-import apiRoutes from './1-api/api.mjs';
+import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { GET_jwtVerify, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
-import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache } from './1-api/3-profile/profile.mjs';
+import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
@@ -126,7 +126,7 @@ apiServer.get('/resources/available-account', GET_AvailableAccount);
 
 apiServer.get('/resources/signup-fields/:role?', GET_SignupProfileFields);
 
-apiServer.post('/signup', POST_signup);
+apiServer.post('/signup', POST_signup); //Optional query: populate=true
 
 apiServer.post('/login', POST_login);
 
@@ -213,6 +213,8 @@ apiServer.get('/api/user/:client/image', GET_profileImage);
 /**********************************************/
 apiServer.use('/api/user/:client', async (request:JwtClientRequest, response:Response, next:NextFunction) => await authenticateClientAccessMiddleware(request, response, next));
 
+apiServer.post('/api/user/:client/demo-populate', POST_populateDemoUser);
+
 apiServer.post('/api/user/:client/logout', POST_logout);
 
 apiServer.get('/api/user/:client', GET_userProfile);
@@ -222,6 +224,7 @@ apiServer.delete('/api/user/:client/image', DELETE_profileImage);
 apiServer.patch('/api/user/:client/walk-level', PATCH_profileWalkLevel);
 
 apiServer.get('/api/user/:client/contact-list', GET_contactList);
+apiServer.post('/api/user/:client/update-contacts', POST_refreshContactList);
 apiServer.delete('/api/user/:client/contact-list-cache', DELETE_contactCache);
 
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
@@ -293,6 +296,7 @@ apiServer.get('/api/leader/profile-access', GET_profileAccessUserList);
 
 apiServer.post('/api/leader/circle', POST_newCircle);
 
+apiServer.get('/api/leader/mock-circle', GET_createMockCircle);
 
 
 /**************************************/
@@ -320,12 +324,14 @@ apiServer.post('/api/content-archive/:content/image/:file', POST_contentArchiveI
 /***********************************/
 apiServer.use('/api/admin', (request:JwtAdminRequest, response:Response, next:NextFunction) => authenticateAdminMiddleware(request, response, next));
 
+apiServer.get('/api/admin/mock-user', GET_createMockUser); //Optional query: populate=true
 
 apiServer.use(express.text());
 apiServer.use('/api/admin/log', logRoutes);
 apiServer.delete('/api/admin/flush-search-cache/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => DELETE_flushSearchCacheAdmin(undefined, request, response, next)); //(Handles authentication)
 
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
+apiServer.get('/api/admin/client/:client/mock-prayer-request', GET_createMockPrayerRequest);
 apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdmin);
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));

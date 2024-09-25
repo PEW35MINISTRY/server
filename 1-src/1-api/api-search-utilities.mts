@@ -69,17 +69,19 @@ export const searchList = async(searchType:SearchType, request:JwtSearchRequest)
                 searchTerm = `DEFAULT-${request.jwtUserID}`; //For unique cache save
                 searchResultList = await searchDetail.fetchDefaultList(request.jwtUserID);
 
+                if(searchResultList !== undefined) log.event(`Searching: [Default Result] ${searchDetail.displayTitle} for '${searchTerm}'`, searchResultList.length || 'Zero Matches');
+
             /* Search Cache */
             } else if(searchDetail.cacheAvailable && !ignoreCache && (searchDetail.searchCache !== searchDetail.defaultPromiseList))
                 searchResultList = await searchDetail.searchCache(request, searchTerm, searchRefine);
 
-            if(searchResultList !== undefined) log.event(`Searching: [Cache Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}'`, searchResultList.length || 'Zero Matches');
+                if(searchResultList !== undefined) log.event(`Searching: [Cache Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}'`, searchResultList.length || 'Zero Matches');
 
             /* Execute Search */ 
-            else if(searchDetail.executeSearch === searchDetail.defaultPromiseList)
+            if(searchDetail.executeSearch === searchDetail.defaultPromiseList)
                 throw `executeSearch() is not declared for type ${searchDetail.displayTitle}`;
             
-            else {
+            else if(searchResultList === undefined) {
                 searchResultList = await searchDetail.executeSearch(request, searchTerm, searchDetail.refineDatabaseMapping.get(searchRefine));
 
                 if(searchResultList !== undefined) log.event(`Searching: [Query Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}' | ignoreCache: ${ignoreCache}`, searchResultList.length || 'Zero Matches');

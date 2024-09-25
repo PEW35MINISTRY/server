@@ -31,7 +31,7 @@ const initializeDatabase = async():Promise<SQL.Pool> => {
     console.log(`Initializing Database in ${getEnvironment()} Environment...`);
 
     if(DATABASE) {
-        console.log('DATABASE | initializeDatabase - Terminating existing instance.');
+        log.warn('DATABASE | initializeDatabase - Terminating existing instance.');
         await DATABASE.end();
         DATABASE = undefined;
     }
@@ -173,7 +173,7 @@ export const command = async(query:string, fields:any[]):Promise<CommandResponse
                         else
                             return (result as unknown as SQL.RowDataPacket[])[0];
                     } else {
-                        log.error('DB Command Successful; but NO Response: ', query, JSON.stringify(result));
+                        log.warn('DB Command Successful; but NO Response: ', query, JSON.stringify(result));
                         return undefined;
                     }
                 })
@@ -205,7 +205,7 @@ export const batch = async(query:string, fieldSets:any[][]):Promise<boolean|unde
                         if((result as unknown as SQL.ResultSetHeader[])[0].affectedRows !== undefined)
                             return ((result as unknown as SQL.ResultSetHeader[])[0].affectedRows as number === fieldSets.length);
                     } else {
-                        log.error('DB Batch Successful; but NO Response: ', query, fieldSets.length, JSON.stringify(result));
+                        log.warn('DB Batch Successful; but NO Response: ', query, fieldSets.length, JSON.stringify(result));
                         return undefined;
                     }
                     })
