@@ -1,12 +1,13 @@
+import * as log from '../../log.mjs';
+import { command, execute, validateColumns } from '../database.mjs';
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
+import CIRCLE from '../../1-models/circleModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleSearchRefineEnum, CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
-import CIRCLE from '../../1-models/circleModel.mjs';
-import * as log from '../../log.mjs';
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
-import { command, execute, query, validateColumns } from '../database.mjs';
+import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 
 
 /***********************************************
@@ -67,15 +68,16 @@ export const DB_SELECT_CIRCLE_DETAIL = async({userID, circleID}:{userID?:number,
 }
 
 //For New Circle Response: Includes circle and leader profile
-export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(circleName:string):Promise<CIRCLE> => {
+export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(leaderID:number, circleName:string):Promise<CIRCLE> => {
     const rows = await execute('SELECT circle.*, '
     + 'user.firstName as leaderFirstName, user.displayName as leaderDisplayName, user.image as leaderImage '
     + 'FROM circle '
     + 'LEFT JOIN user ON user.userID = circle.leaderID '
-    + 'WHERE circle.name = ?;', [circleName]); 
+    + 'WHERE circle.leaderID = ? AND circle.name = ? '
+    + 'ORDER BY createdDT DESC;', [leaderID, circleName]); 
 
-    if(rows.length !== 1) {
-        log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CIRCLES IDENTIFIED BY NAME`, circleName, JSON.stringify(rows));
+    if(rows.length === 0) {
+        log.warn(`DB DB_SELECT_CIRCLE_DETAIL_BY_NAME - New Circle not found by leaderID and Name`, leaderID, circleName, JSON.stringify(rows));
         return new CIRCLE(undefined);
     }
     
@@ -85,9 +87,25 @@ export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(circleName:string):Promise<
     return circle;
 }
 
+//Used as default circle Search; TODO replace with location based eventually
 export const DB_SELECT_LATEST_CIRCLES = async(limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
-    const rows = await query('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
-    + `ORDER BY circle.modifiedDT DESC LIMIT ${limit};`);
+
+    const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
+        + 'LEFT JOIN user on user.userID = circle.leaderID '
+        + 'WHERE ( '
+            + '        user.modelSourceEnvironment = ? '
+            + '        OR ( '
+            + '            CASE '
+            + `                WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+            + `                WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+            + `                WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' `
+            + '                ELSE false '
+            + '            END '
+            + '        ) '
+            + '    ) '
+        + `ORDER BY circle.modifiedDT DESC LIMIT ${limit};`,
+
+        [getModelSourceEnvironment(), getModelSourceEnvironment(), getModelSourceEnvironment(), getModelSourceEnvironment()]);
  
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
@@ -150,10 +168,24 @@ export const DB_DELETE_CIRCLE = async(circleID:number):Promise<boolean> => { //N
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
+    
     const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
-    + `${(columnList.includes('firstName')) ? 'LEFT JOIN user ON user.userID = circle.leaderID ' : ''}`
-    + `WHERE ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
-    + `LIMIT ${limit};`, [`%${searchTerm}%`]);
+        + 'LEFT JOIN user on user.userID = circle.leaderID '
+        + 'WHERE ( '
+        + `        user.modelSourceEnvironment = '${getModelSourceEnvironment()}' `
+        + '        OR ( '
+        + '            CASE '
+        + `                WHEN '${getModelSourceEnvironment()}' = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+        + `                WHEN '${getModelSourceEnvironment()}' = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+        + `                WHEN '${getModelSourceEnvironment()}' = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+        + '                ELSE false '
+        + '            END '
+        + '        ) '
+        + '    ) '
+        + `AND ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS(${columnList.join(', ')} )`} LIKE ? `
+        + `LIMIT ${limit};`,
+    
+    [`%${searchTerm}%`]);
  
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
@@ -161,7 +193,7 @@ export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:strin
 export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<CircleListItem[]|undefined> => {
 
     const rows = await execute('SELECT stringifiedCircleItemList ' + 'FROM circle_search_cache '
-        + 'WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
+        + 'WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getModelSourceEnvironment()]);
 
     if(rows.length === 0) return undefined;
 
@@ -178,16 +210,17 @@ export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefi
 //Updates on Duplicate
 export const DB_INSERT_CIRCLE_SEARCH_CACHE = async({searchTerm, searchRefine, circleList}:{searchTerm:string, searchRefine:CircleSearchRefineEnum, circleList:CircleListItem[]}):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`INSERT INTO circle_search_cache ( searchTerm, searchRefine, stringifiedCircleItemList ) `
-    + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), stringifiedCircleItemList=VALUES(stringifiedCircleItemList);`,
-     [searchTerm, searchRefine, JSON.stringify(circleList)]); 
+    const response:CommandResponseType = await command(`INSERT INTO circle_search_cache ( searchTerm, searchRefine, modelSourceEnvironment, stringifiedCircleItemList ) `
+    + `VALUES ( ?, ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), modelSourceEnvironment=VALUES(modelSourceEnvironment), stringifiedCircleItemList=VALUES(stringifiedCircleItemList);`,
+     [searchTerm, searchRefine, getModelSourceEnvironment(), JSON.stringify(circleList)]); 
     
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
 export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<boolean> => {
+    log.event(`Deleting Search Circle Cache for searchTerm: ${searchTerm}`);
 
-    const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchRefine = ?;', [searchTerm, searchRefine]);
+    const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getModelSourceEnvironment()]);
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }
@@ -460,4 +493,28 @@ export const DB_DELETE_CIRCLE_USER_STATUS = async({userID, circleID}:{userID:num
         : await command('DELETE FROM circle_user WHERE userID = ? AND circleID = ?;', [userID, circleID]);
 
     return (response !== undefined);  //Success on non-error
+}
+
+
+/*****************************
+ * MOCK USER UTILITY QUERIES *
+ *****************************/
+export const DB_SELECT_CIRCLE_LIST_BY_USER_SOURCE_ENVIRONMENT = async(sourceEnvironment:DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM = getModelSourceEnvironment(), limit:number = LIST_LIMIT, maxMembers:number = LIST_LIMIT, maxSharedPrayerRequest = LIST_LIMIT):Promise<CircleListItem[]> => {   
+
+    const rows = await execute('SELECT circle.*, ' 
+        + 'COUNT(DISTINCT circle_user.userID) AS memberCount, '
+        + 'COUNT(DISTINCT prayer_request_recipient.prayerRequestID) AS requestCount '
+        + 'FROM circle '
+        + 'JOIN user on user.userID = circle.leaderID '
+        + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
+        + 'LEFT JOIN prayer_request_recipient ON circle.circleID = prayer_request_recipient.circleID '
+        + 'WHERE user.modelSourceEnvironment = ? '
+        + 'GROUP BY circle.circleID '
+        + 'HAVING memberCount < ? '
+        + '  AND requestCount < ? '
+        + 'ORDER BY memberCount ASC, requestCount ASC, circle.createdDT DESC '
+        + `LIMIT ${limit};`,
+    [sourceEnvironment, maxMembers, maxSharedPrayerRequest]); 
+
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }

@@ -1,11 +1,11 @@
 import { RowDataPacket } from 'mysql2/promise';
-import { NewPartnerListItem, PartnerCountListItem, PartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import USER from '../../1-models/userModel.mjs';
 import * as log from '../../log.mjs';
-import { CommandResponseType, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
-import { query, execute, command, validateColumns, batch } from '../database.mjs';
-import { GenderEnum, PartnerStatusEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { camelCase } from '../../10-utilities/utilities.mjs';
+import { query, execute, command } from '../database.mjs';
+import USER from '../../1-models/userModel.mjs';
+import { NewPartnerListItem, PartnerCountListItem, PartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
+import { PartnerStatusEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { camelCase, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 
 
@@ -137,7 +137,7 @@ export const DB_SELECT_PENDING_PARTNER_LIST = async(userID?:number):Promise<Part
         {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', status: PartnerStatusEnum[row.status]}))];
 }
 
-
+/* ADMIN Utility */
 export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[NewPartnerListItem, NewPartnerListItem][]> => {
     const rows:RowDataPacket[] = await query('SELECT status, userContractDT, partnerContractDT, user.*, '
             + `${USER_TABLE_COLUMNS.map((column:string) => `client.${column} as ${camelCase('client', column)}`).join(', ')} `
@@ -145,7 +145,15 @@ export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[NewPartnerLi
             + 'LEFT JOIN user ON (partner.userID = user.userID) '
             + 'LEFT JOIN user client ON (partner.partnerID = client.userID) '
             + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER') `
-            + 'ORDER BY partner.modifiedDT DESC;'
+            + 'ORDER BY CASE '
+                + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}' OR user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' `
+                    + `OR client.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}' OR client.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' `
+                    +'THEN 1 '
+                + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' OR client.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' `
+                    + 'THEN 2 '
+                + 'ELSE 3 '
+            + 'END, '
+            + 'partner.modifiedDT DESC;'
         );
 
     //Only here does userID match status
@@ -195,15 +203,26 @@ export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, stat
  *  NEW PARTNER SEARCH     *
  * (Requires USER role) *
  ***************************/
-export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<NewPartnerListItem[]> => {
+export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Promise<NewPartnerListItem[]> => {
     const matchGender:boolean = (process.env.PARTNER_GENDER_MATCH !== undefined) ? (process.env.PARTNER_GENDER_MATCH === 'true') : true;
-    const ageYearRange: number = (process.env.PARTNER_AGE_RANGE !== undefined) ? parseInt(process.env.PARTNER_AGE_RANGE) : 2;
-    const minDateOfBirth:Date = new Date(user.dateOfBirth);
-    minDateOfBirth.setFullYear(user.dateOfBirth.getFullYear() - ageYearRange);
-    const maxDateOfBirth:Date = new Date(user.dateOfBirth);
-    maxDateOfBirth.setFullYear(user.dateOfBirth.getFullYear() + ageYearRange);
-    const walkLevelRange: number = (process.env.PARTNER_WALK_RANGE !== undefined) ? parseInt(process.env.PARTNER_WALK_RANGE) : 2;
+    const ageYearRange:number = (process.env.PARTNER_AGE_RANGE !== undefined) ? parseInt(process.env.PARTNER_AGE_RANGE) : 2;
+    const walkLevelRange:number = (process.env.PARTNER_WALK_RANGE !== undefined) ? parseInt(process.env.PARTNER_WALK_RANGE) : 2;
 
+    /* Validations */
+    if (isNaN(ageYearRange) || isNaN(walkLevelRange) || process.env.PARTNER_GENDER_MATCH === undefined) {
+        log.error('Partner Search: Invalid environment variables', process.env.PARTNER_GENDER_MATCH, process.env.PARTNER_AGE_RANGE, process.env.PARTNER_WALK_RANGE);
+        return [];
+    } else if (user.userID <= 0 || !user.dateOfBirth || !user.gender || user.walkLevel === undefined) {
+        log.error('Partner Search: Invalid USER', user.userID, user.dateOfBirth, user.gender, user.walkLevel, user.toString());
+        return [];
+    }
+
+    const minDateOfBirth:Date = new Date(user.dateOfBirth);
+        minDateOfBirth.setFullYear(user.dateOfBirth.getFullYear() - ageYearRange);
+    const maxDateOfBirth:Date = new Date(user.dateOfBirth);
+        maxDateOfBirth.setFullYear(user.dateOfBirth.getFullYear() + ageYearRange);
+
+    /* Execute Search */
     const rows:RowDataPacket[] = await execute(
         'SELECT DISTINCT user.* '
         + 'FROM user '
@@ -218,26 +237,39 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<NewPar
         + '    GROUP BY userID '
         + ') AS partnerCounts ON user.userID = partnerCounts.userID '
         + 'WHERE user.userID != ? '
-        + 'AND partner.userID IS NULL AND partner.partnerID IS NULL '
-        + 'AND ( ? = false OR user.gender = ? ) '
-        + `AND user.dateOfBirth BETWEEN ? AND ? `
-        + 'AND user.walkLevel BETWEEN ? AND ? '
-        + 'AND ( user.maxPartners > ( '
-        + `    SELECT COUNT(*) FROM partner WHERE (userID = user.userID OR partnerID = user.userID) AND status NOT IN ('FAILED', 'ENDED') `
-        + ')) '
-        + `AND ( user_role_defined.userRole = 'USER' OR user_role.userID IS NULL ) ` //USER role only
-        + 'AND NOT EXISTS ( '
-        + '    SELECT 1 '
-        + '    FROM user_role '
-        + '    JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
-        + `    WHERE user.userID = user_role.userID AND user_role_defined.userRole IN ('REPORTED', 'INACTIVE')`
-        + ') '
-        + 'ORDER BY COALESCE( partnerCounts.partnerCount, 0 ) ASC ' //Prioritize without any partners
-        + 'LIMIT 10;'
+            + 'AND user.isActive = true '
+            + `AND (( user.modelSourceEnvironment = ? ) `
+                + 'OR ( '
+                + '  CASE '
+                + `    WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+                + `    WHEN ? = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+                + '    ELSE false '
+                + '  END '
+                + ')) '
+            + 'AND ( ? = false OR user.gender = ? ) '
+            + `AND user.dateOfBirth BETWEEN ? AND ? `
+            + 'AND user.walkLevel BETWEEN ? AND ? '
+            + 'AND ( user.maxPartners > ( '
+            + `    SELECT COUNT(*) FROM partner WHERE (userID = user.userID OR partnerID = user.userID) AND status NOT IN ('FAILED', 'ENDED') `
+            + ')) '
+            + `AND ( user_role_defined.userRole = 'USER' OR user_role.userID IS NULL ) ` //USER role only
+            + 'AND NOT EXISTS ( '
+            + '    SELECT 1 '
+            + '    FROM user_role '
+            + '    JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
+            + `    WHERE user.userID = user_role.userID AND user_role_defined.userRole IN ('REPORTED', 'INACTIVE') `
+            + ') '
+        + `ORDER BY (user.modelSourceEnvironment != '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}'), `
+            + 'COALESCE( partnerCounts.partnerCount, 0 ) ASC, ' //Prioritize without any partners
+            + 'RAND() '
+        + `LIMIT ${limit};`
 
     , [ user.userID,
         user.userID,
         user.userID,
+        user.modelSourceEnvironment,
+        user.modelSourceEnvironment,
+        user.modelSourceEnvironment,
         matchGender,
         user.gender,
         minDateOfBirth.toISOString(),
@@ -255,19 +287,22 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER): Promise<NewPar
  *********************************/
 //Only USER Role and top 100 oldest users w/o active partners
 export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async(limit:number = LIST_LIMIT):Promise<NewPartnerListItem[]> => {
-    const rows:RowDataPacket[] = await query(
+    const rows:RowDataPacket[] = await execute(
         'SELECT DISTINCT user.* ' 
         + 'FROM user '
         + 'LEFT JOIN user_role ON user.userID = user_role.userID '
         + 'LEFT JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
         + 'LEFT JOIN partner ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
         + `WHERE (user_role_defined.userRole = 'USER' OR user_role.userID IS NULL) `
+        + '    AND user.modelSourceEnvironment = ? '
         + '    AND user.maxPartners > 0 '
         + '    AND ((partner.userID IS NULL AND partner.partnerID IS NULL) '
         + `        OR (partner.status IN ('FAILED', 'ENDED') `
         + `            AND user.userID NOT IN (SELECT userID FROM partner WHERE status NOT IN ('FAILED', 'ENDED')))) `
         + 'ORDER BY user.createdDT ASC ' //Oldest Users
-        + `LIMIT ${limit};`);
+        + `LIMIT ${limit};`,
+    
+    [getModelSourceEnvironment()]);
 
     return [...rows.map(row => USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem())];
 }
@@ -288,7 +323,17 @@ export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = 
             + 'GROUP BY user.userID '
             + `${filterFewerPartners ?
                 `HAVING SUM(CASE WHEN partner.status NOT IN ('FAILED', 'ENDED') THEN 1 ELSE 0 END) < user.maxPartners ` : ''}`
-            + 'ORDER BY user.createdDT DESC ' //Newest Users
+            + 'ORDER BY '
+                + `${filterFewerPartners ?
+                    `${'CASE '
+                        + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}' THEN 1 `
+                        + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN 2 `
+                        + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN 3 `
+                        + 'ELSE 4 '
+                    + 'END, '}`
+                : `user.modelSourceEnvironment != '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}', `
+                }`
+            + 'user.createdDT DESC ' //Newest Users
             + `LIMIT ${LIST_LIMIT};`);
 
     //Note: Express can't serialize Maps, so returning a [key, value] pair array

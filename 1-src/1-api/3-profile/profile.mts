@@ -17,6 +17,7 @@ import { DB_DELETE_PARTNERSHIP } from '../../2-services/2-database/queries/partn
 import { InputRangeField } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { searchList } from '../api-search-utilities.mjs';
 import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
+import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
 
 
 
@@ -135,6 +136,13 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
 
             if(loginDetails) {
                 if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
+
+                //Optional Demo User Populate
+                if(request.query.populate === 'true') {
+                    newProfile.userID = loginDetails.userID;
+                    newProfile.isValid = true;
+                    loginDetails.userProfile = (await populateDemoRelations(newProfile)).toJSON();
+                }
 
                 response.status(201).send(loginDetails);
                 await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();
@@ -273,6 +281,10 @@ export const GET_contactList = async(request: JwtClientRequest, response: Respon
     response.status(200).send(await searchList(SearchType.CONTACT, generateJWTRequest(request.clientID, request.jwtUserRole) as JwtSearchRequest)); //Uses Search Cache
 }
 
+export const POST_refreshContactList = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
+    await DB_DELETE_CONTACT_CACHE(request.clientID);
+    response.status(200).send(await searchList(SearchType.CONTACT, generateJWTRequest(request.clientID, request.jwtUserRole) as JwtSearchRequest));
+}
 
 export const DELETE_contactCache = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
     if(await DB_DELETE_CONTACT_CACHE(request.clientID)) {

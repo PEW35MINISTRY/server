@@ -2,7 +2,7 @@ import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-t
 import { PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { NewPartnerListItem, PartnerListItem, PROFILE_NEW_PARTNER_PROPERTY_LIST, PROFILE_PROPERTY_LIST, PROFILE_PUBLIC_PROPERTY_LIST, ProfileListItem, ProfilePublicResponse, ProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import InputField, { InputSelectionField, InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { GenderEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { GenderEnum, ModelSourceEnvironmentEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import BiDirectionalMap from '../../0-assets/modules/BiDirectionalMap.mjs';
 import { ProfileEditRequest } from '../../1-api/3-profile/profile-types.mjs';
 import { DATABASE_USER, USER_TABLE_COLUMNS } from '../2-database/database-types.mjs';
@@ -10,7 +10,7 @@ import * as log from '../log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
-import { camelCase } from '../10-utilities/utilities.mjs';
+import { camelCase, getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
 import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
 import { generatePasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
@@ -28,6 +28,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   static PROPERTY_LIST = [...USER_TABLE_COLUMNS, 'userRole', 'userRoleList']; //Fields Cloned
 
   userID: number = -1;
+  modelSourceEnvironment:ModelSourceEnvironmentEnum = ModelSourceEnvironmentEnum[getModelSourceEnvironment() as keyof typeof ModelSourceEnvironmentEnum];
   firstName?: string;
   lastName?: string;
   displayName?: string;  //Unique
@@ -101,7 +102,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
           ['password', 'passwordHash']
         ]);}
 
-  override get priorityInputList():string[] { return ['userID', 'userRole', 'userRoleList', 'dateOfBirth', 'password', 'passwordVerify', 'passwordHash']; }
+  override get priorityInputList():string[] { return ['userID', 'modelSourceEnvironment', 'userRole', 'userRoleList', 'dateOfBirth', 'password', 'passwordVerify', 'passwordHash']; }
 
   
 /**********************************
@@ -113,6 +114,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
     if(columnPrefix !== undefined)
       defaultModel.DATABASE_COLUMN_LIST.forEach((column:string) => complexFieldMap.set(camelCase(columnPrefix, column), (DB:DATABASE_USER, newUser:USER) => {newUser[column] = DB[camelCase(columnPrefix, column)]}));
       
+    complexFieldMap.set(camelCase(columnPrefix, 'modelSourceEnvironment'), (DB:DATABASE_USER, newUser:USER) => {newUser.modelSourceEnvironment = ModelSourceEnvironmentEnum[DB[camelCase(columnPrefix, 'modelSourceEnvironment')]]});
     complexFieldMap.set(camelCase(columnPrefix, 'gender'), (DB:DATABASE_USER, newUser:USER) => {newUser.gender = GenderEnum[DB[camelCase(columnPrefix, 'gender')]]});
     complexFieldMap.set(camelCase(columnPrefix, 'passwordHash'), (DB:DATABASE_USER, newUser:USER) => {newUser.passwordHash = DB[camelCase(columnPrefix, 'passwordHash')];});
 
@@ -129,6 +131,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   static constructByClone = (profile: USER):USER => 
     BASE_MODEL.constructByCloneUtility<USER>({currentModel: profile, newModel: new USER(profile.userID || -1), defaultModel: new USER(), propertyList: USER.PROPERTY_LIST,
       complexPropertyMap: new Map([
+        ['modelSourceEnvironment', (currentUser:USER, newUser:USER) => {newUser.modelSourceEnvironment = ModelSourceEnvironmentEnum[currentUser.modelSourceEnvironment]}],
         ['gender', (currentUser:USER, newUser:USER) => {newUser.gender = GenderEnum[currentUser.gender]}],
         ['passwordHash', (currentUser:USER, newUser:USER) => {newUser.passwordHash = currentUser.passwordHash;}],
         ['userRole', (currentUser:USER, newUser:USER) => { /*Clone userRoleList*/ }],
