@@ -56,8 +56,13 @@ export const uploadImage = async({id, imageType, fileName, imageBlob: imageBlob}
 }
 
 //return true for non-error responses
-export const clearImage = async(fileName:string):Promise<boolean> => 
-    (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) ? clearImageProduction(fileName) : clearImageDevelopment(fileName);
+export const clearImage = async(fileName:string):Promise<boolean> => {
+    if(fileName.includes('demo')) {
+        log.warn('Blocking delete of demo image: ', fileName);
+        return true; //Allow sequential image upload & replacement
+    }
+    return (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) ? clearImageProduction(fileName) : clearImageDevelopment(fileName);
+}
 
 
 //Attempts all supported image extensions and return false for any error responses
