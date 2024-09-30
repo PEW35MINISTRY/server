@@ -47,7 +47,7 @@ export const getDateDaysFuture = (days: number = 14):Date => {
 
 export const CIRCLE_FIELDS:InputField[] = [
     new InputField({title: 'Name', field: 'name',  required: true, type: InputType.TEXT, validationRegex: new RegExp(/^.{1,30}$/), validationMessage: 'Required, max 30 characters.' }),
-    new InputField({title: 'Description', field: 'description',  required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{0,200}$/), validationMessage: 'Max 200 characters.'}),
+    new InputField({title: 'Description', field: 'description',  required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{0,225}$/), validationMessage: 'Max 200 characters.'}),
     new InputField({title: 'Universal Invite Token', field: 'inviteToken', required: true, type: InputType.TEXT, validationRegex: new RegExp(/^.{5,15}$/), validationMessage: 'Required, case-sensitive, 5-15 characters.' }),
     new InputField({title: 'Postal Code', field: 'postalCode', required: true, type: InputType.TEXT, validationRegex: new RegExp(/^.{5,15}$/), validationMessage: 'Required, 5-15 characters.' }),
 ];
