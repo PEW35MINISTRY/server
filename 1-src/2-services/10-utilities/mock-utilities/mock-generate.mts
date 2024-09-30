@@ -11,7 +11,7 @@ import { PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-syn
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { NewPartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { getDateDaysFuture, PrayerRequestTagEnum } from '../../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
-import { GenderEnum, getDateYearsAgo, ModelSourceEnvironmentEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { GenderEnum, getDateYearsAgo, ModelSourceEnvironmentEnum, RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { generatePasswordHash } from '../../../1-api/2-auth/auth-utilities.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-database/database-types.mjs';
 import { DB_INSERT_CIRCLE, DB_INSERT_CIRCLE_ANNOUNCEMENT, DB_INSERT_CIRCLE_USER_STATUS,  DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_CIRCLE_DETAIL_BY_NAME, DB_SELECT_CIRCLE_LIST_BY_USER_SOURCE_ENVIRONMENT } from '../../2-database/queries/circle-queries.mjs';
@@ -200,6 +200,8 @@ export const populateDemoRelations = async(user:USER):Promise<USER> => {
     if(user.userID <= 0 || !user.isValid) {
         log.warn('Error populating profile relations with invalid USER', user.userID, user.toString());
         return user;
+    } else if(!user.isRole(RoleEnum.USER)) {
+        log.warn('Rejected populating profile relations without USER Role', user.userID, JSON.stringify(user.userRoleList), user.toString());
     }
 
     const modifiedUserIDList:number[] = [user.userID];

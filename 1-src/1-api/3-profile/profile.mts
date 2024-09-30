@@ -138,7 +138,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
                 if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
 
                 //Optional Demo User Populate
-                if(request.query.populate === 'true') {
+                if(request.query.populate === 'true' && newProfile.isRole(RoleEnum.USER)) {
                     newProfile.userID = loginDetails.userID;
                     newProfile.isValid = true;
                     loginDetails.userProfile = (await populateDemoRelations(newProfile)).toJSON();
