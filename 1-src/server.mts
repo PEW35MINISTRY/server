@@ -38,6 +38,7 @@ import { SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/field-sync/input-conf
 /********************
     EXPRESS SEVER
  *********************/
+export const SERVER_START_TIMESTAMP:Date = new Date();
 const SERVER_PORT = process.env.SERVER_PORT || 5000;
 const publicServer: Application = express();
 const apiServer: Application = express();
@@ -45,7 +46,7 @@ const apiServer: Application = express();
 /********************
    Socket.IO Chat
  *********************/
-const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT}`));
+const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
 
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
@@ -120,11 +121,11 @@ apiServer.get('/version', (request: Request, response: Response, next:NextFuncti
     try {
         const packageJsonPath:string = join(__dirname, 'package.json');
         const packageJson:{version:string} = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-        response.status(200).send(packageJson.version);
+        response.status(200).send(`${packageJson.version} | ${SERVER_START_TIMESTAMP.toISOString()}`);
 
     } catch(error) {
         log.warn('Failed to Parse Server Version:', error);
-        response.status(200).send('Version Unavailable');
+        response.status(200).send(`Version Unavailable | ${SERVER_START_TIMESTAMP.toISOString()}`);
     }
 });
 
