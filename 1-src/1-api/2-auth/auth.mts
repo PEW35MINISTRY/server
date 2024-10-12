@@ -1,10 +1,10 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import * as log from '../../2-services/log.mjs';
-import { JwtResponseBody, LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
-import { EMAIL_REGEX, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
+import { EMAIL_REGEX } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { Exception } from '../api-types.mjs';
-import { JwtAdminRequest, JwtClientRequest, JwtRequest, LoginRequest, SubscribePost } from './auth-types.mjs';
-import { generateJWT, getUserLogin } from './auth-utilities.mjs';
+import { JwtClientRequest, JwtRequest, LoginRequest, SubscribePost } from './auth-types.mjs';
+import { getJWTLogin, getEmailLogin } from './auth-utilities.mjs';
 import { DB_INSERT_EMAIL_SUBSCRIPTION } from '../../2-services/2-database/queries/queries.mjs';
 import { DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 
@@ -13,7 +13,7 @@ import { DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries
  *********************/
 
 export const POST_login =  async(request: LoginRequest, response: Response, next: NextFunction) => {
-    const loginDetails:LoginResponseBody = await getUserLogin(request.body['email'], request.body['password']);
+    const loginDetails:LoginResponseBody = await getEmailLogin(request.body['email'], request.body['password']);
 
     if(loginDetails)
         response.status(202).send(loginDetails);
@@ -39,13 +39,8 @@ export const POST_emailSubscribe = async(request:SubscribePost, response:Respons
 /********************
  Authenticated Routes
  *********************/
- export const GET_jwtVerify = async (request: JwtRequest, response: Response, next: NextFunction) => { //After jwtAuthenticationMiddleware; already authenticated
-    const body:JwtResponseBody = {
-        jwt: generateJWT(request.jwtUserID, request.jwtUserRole as RoleEnum), //Update Token
-        userID: request.jwtUserID,
-        userRole: request.jwtUserRole as RoleEnum,
-    }
-    response.status(202).send(body);
+ export const POST_JWTLogin = async (request: JwtRequest, response: Response, next: NextFunction) => {
+    response.status(202).send(await getJWTLogin(request.jwtUserID, true));
 };
 
 

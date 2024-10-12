@@ -4,7 +4,7 @@ import { query, execute, command } from '../database.mjs';
 import USER from '../../1-models/userModel.mjs';
 import { NewPartnerListItem, PartnerCountListItem, PartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
-import { PartnerStatusEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { PartnerStatusEnum, RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { camelCase, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 
@@ -214,6 +214,9 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
         return [];
     } else if (user.userID <= 0 || !user.dateOfBirth || !user.gender || user.walkLevel === undefined) {
         log.error('Partner Search: Invalid USER', user.userID, user.dateOfBirth, user.gender, user.walkLevel, user.toString());
+        return [];
+    } else if(!user.isRole(RoleEnum.USER)) {
+        log.error('Partner Search: User Role Required to match partners', user.userID, JSON.stringify(user.userRoleList), user.toString());
         return [];
     }
 

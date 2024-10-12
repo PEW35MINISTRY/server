@@ -8,7 +8,7 @@ import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, 
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_CONTACT_CACHE, DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
-import { generatePasswordHash, getUserLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
+import { getEmailLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, generateJWTRequest, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ProfileEditRequest, ProfileEditWalkLevelRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
@@ -129,16 +129,16 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             //Add user roles, already verified permission above
             const saveUserRole:boolean = newProfile.userRoleList.length > 1; //Only save 'USER' role for multi role users
             const insertRoleList:DATABASE_USER_ROLE_ENUM[] = newProfile.userRoleList.filter((role) => (role !== RoleEnum.USER || saveUserRole)).map((role) => DATABASE_USER_ROLE_ENUM[role]);
-            if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList}))
+            if(insertRoleList.length > 0 && !(await DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList})))
                 log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
 
-            const loginDetails:LoginResponseBody = await getUserLogin(newProfile.email, request.body['password'], false);
+            const loginDetails:LoginResponseBody = await getEmailLogin(newProfile.email, request.body['password'], false);
 
             if(loginDetails) {
                 if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
 
                 //Optional Demo User Populate
-                if(request.query.populate === 'true') {
+                if(request.query.populate === 'true' && newProfile.isRole(RoleEnum.USER)) {
                     newProfile.userID = loginDetails.userID;
                     newProfile.isValid = true;
                     loginDetails.userProfile = (await populateDemoRelations(newProfile)).toJSON();

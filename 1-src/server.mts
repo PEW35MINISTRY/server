@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config(); 
-import fs from 'fs';
-import path from 'path';
+import fs, { readFileSync } from 'fs';
+import path, { join } from 'path';
 const __dirname = path.resolve();
 import { createServer, request } from 'http';
 import express, { Application , Request, Response, NextFunction, response} from 'express';
@@ -21,7 +21,7 @@ import logRoutes from './1-api/1-log/log.mjs';
 import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
-import { GET_jwtVerify, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
+import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
 import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
@@ -38,6 +38,7 @@ import { SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/field-sync/input-conf
 /********************
     EXPRESS SEVER
  *********************/
+export const SERVER_START_TIMESTAMP:Date = new Date();
 const SERVER_PORT = process.env.SERVER_PORT || 5000;
 const publicServer: Application = express();
 const apiServer: Application = express();
@@ -45,7 +46,7 @@ const apiServer: Application = express();
 /********************
    Socket.IO Chat
  *********************/
-const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT}`));
+const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
 
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
@@ -116,6 +117,19 @@ apiServer.get('/signup', (request: Request, response: Response) => {
     response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
+apiServer.get('/version', (request: Request, response: Response, next:NextFunction) => {
+    try {
+        const packageJsonPath:string = join(__dirname, 'package.json');
+        const packageJson:{version:string} = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+        response.status(200).send(`${packageJson.version} | ${SERVER_START_TIMESTAMP.toISOString()}`);
+
+    } catch(error) {
+        log.warn('Failed to Parse Server Version:', error);
+        response.status(200).send(`Version Unavailable | ${SERVER_START_TIMESTAMP.toISOString()}`);
+    }
+});
+
+
 //Formatting Request Body
 apiServer.use(express.json());
 
@@ -140,7 +154,7 @@ apiServer.use('/api', (request:JwtRequest, response:Response, next:NextFunction)
 //General API Routes
 apiServer.use('/api', apiRoutes);
 
-apiServer.get('/api/authenticate', GET_jwtVerify);
+apiServer.post('/api/authenticate', POST_JWTLogin);
 
 apiServer.post('/api/logout', POST_logout);
 

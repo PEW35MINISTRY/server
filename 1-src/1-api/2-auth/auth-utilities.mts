@@ -1,14 +1,13 @@
 import jwtPackage, { JwtPayload } from 'jsonwebtoken';
-import { createHash } from 'node:crypto';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { DB_POPULATE_USER_PROFILE, DB_SELECT_USER, DB_SELECT_USER_PROFILE } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_POPULATE_USER_PROFILE, DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
 import { JwtData } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { DB_SELECT_USER_CONTENT_LIST } from '../../2-services/2-database/queries/content-queries.mjs';
-import { argon2d, hash, verify } from 'argon2';
+import { hash, verify } from 'argon2';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
 import dotenv from 'dotenv';
@@ -133,35 +132,58 @@ const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.USER, token:str
     }
 }
 
-//Login Operation
-export const getUserLogin = async(email:string = '', password: string = '', detailed = true):Promise<LoginResponseBody|undefined> => {
-    //Query Database
+
+/**************************
+* LOGIN RESPONSE HANDLING *
+***************************/
+export enum LoginMethod {
+    JWT = 'JWT',
+    EMAIL = 'EMAIL',
+    APPLE = 'APPLE',
+    GOOGLE = 'GOOGLE',
+    FACEBOOK = 'FACEBOOK'
+}
+
+export const getJWTLogin = async(userID:number, detailed = true):Promise<LoginResponseBody|undefined> => {
+    const userProfile:USER = await DB_SELECT_USER(new Map([['userID', userID]]));
+           
+    return await assembleLoginResponse(LoginMethod.JWT, userProfile, detailed);
+}
+
+export const getEmailLogin = async(email:string = '', password: string = '', detailed = true):Promise<LoginResponseBody|undefined> => {
     const userProfile:USER = await DB_SELECT_USER(new Map([['email', email]]));
 
     // Verify user credentials
-    if(userProfile.isValid && userProfile.userID > 0 
-        && password !== undefined && password.length > 0 
-        && await verifyPassword(userProfile.passwordHash, password)) {
-            log.auth('Successfully logged in user: ', userProfile.userID);
+    if(!userProfile.isValid || userProfile.userID <= 0 
+        || password === undefined || password.length === 0 
+        || !(await verifyPassword(userProfile.passwordHash, password)))
+            return undefined;
+
+    else            
+        return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
+}
+
+export const assembleLoginResponse = async(loginMethod:LoginMethod, userProfile:USER, detailed = true):Promise<LoginResponseBody|undefined> => {
+    // Verify user credentials
+    if(!userProfile.isValid || userProfile.userID <= 0)
+        return undefined;
     
-        if(detailed) 
-            await DB_POPULATE_USER_PROFILE(userProfile);
+    if(detailed) 
+        await DB_POPULATE_USER_PROFILE(userProfile);
 
-        //Always include default content for dashboard
-        else if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
-            userProfile.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(userProfile.userID, 5);
+    //Always include default content for dashboard
+    else if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
+        userProfile.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(userProfile.userID, 5);
 
-        return {
-            jwt: generateJWT(userProfile.userID, userProfile.getHighestRole()),
-            userID: userProfile.userID,
-            userRole: userProfile.getHighestRole(),
-            userProfile: userProfile.toJSON(),
-            service: 'Email & Password Authenticated'
-        }
+    if(getEnvironment() === ENVIRONMENT_TYPE.DEVELOPMENT)
+        log.auth(`Logging in user ${userProfile.userID} via ${loginMethod}`);
 
-    //Login Failed
-    } else {
-        return undefined;  
+    return {
+        jwt: generateJWT(userProfile.userID, userProfile.getHighestRole()),
+        userID: userProfile.userID,
+        userRole: userProfile.getHighestRole(),
+        userProfile: userProfile.toJSON(),
+        service: loginMethod
     }
 }
 

@@ -40,6 +40,13 @@ export const MOBILE_CONTENT_SUPPORTED_SOURCES:ContentSourceEnum[] = [
     ContentSourceEnum.THROUGH_THE_WORD
 ];
 
+export const MOBILE_CONTENT_SUPPORTED_TYPES_MAP:Map<ContentSourceEnum, ContentTypeEnum[]> = new Map([
+    [ContentSourceEnum.YOUTUBE, [ContentTypeEnum.VIDEO]],
+    [ContentSourceEnum.GOT_QUESTIONS, [ContentTypeEnum.ARTICLE]],
+    [ContentSourceEnum.BIBLE_PROJECT, [ContentTypeEnum.ARTICLE]],
+    [ContentSourceEnum.THROUGH_THE_WORD, [ContentTypeEnum.ARTICLE]]
+]);
+
 //TS can't extend enum, but object operates similar
 export const ContentSearchFilterEnum = {
     ...ContentSourceEnum,
