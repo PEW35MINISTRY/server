@@ -66,8 +66,8 @@ export const getDateYearsAgo = (years: number = 13):Date => {
 
 //HTML date input supports: 'YYYY-MM-DD'
 export const getShortDate = (dateISO:string):string => dateISO ? dateISO.split('T')[0] : getDateYearsAgo(13).toISOString().toString().split('T')[0];
-export const getDOBMinDate = (role:RoleEnum = RoleEnum.USER):Date => (role === RoleEnum.USER) ? getDateYearsAgo(13) : getDateYearsAgo(18);
-export const getDOBMaxDate = (role:RoleEnum = RoleEnum.USER):Date => getDateYearsAgo(100);
+export const getDOBMinDate = (role:RoleEnum = RoleEnum.USER):Date => getDateYearsAgo(100); //Oldest
+export const getDOBMaxDate = (role:RoleEnum = RoleEnum.USER):Date => (role === RoleEnum.USER) ? getDateYearsAgo(13) : getDateYearsAgo(18); //Youngest
 
 /*****************************************
 *   FIELD LISTS: LOGIN | SIGNUP | EDIT
