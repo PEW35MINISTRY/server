@@ -180,7 +180,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
     if(field.type === InputType.DATE && field.field === 'dateOfBirth') { //(Note: Assumes userRoleList has already been parsed or exists)     
       const currentDate:Date = new Date(value);
       if(isNaN(currentDate.valueOf()) || currentDate < getDOBMinDate(this.getHighestRole()) || currentDate > getDOBMaxDate(this.getHighestRole())) {
-        log.warn(`User dateOfBirth validation failed: ${value} with current role: ${this.getHighestRole()}`, currentDate.toISOString(), getDOBMinDate(this.getHighestRole()).toISOString(), getDOBMaxDate(this.getHighestRole()).toISOString())
+        log.warn(`User dateOfBirth validation failed: ${value} with current role: ${this.getHighestRole()}`, 'DOB value:', currentDate.toISOString(), 'MinimumDOB/Oldest:', getDOBMinDate(this.getHighestRole()).toISOString(), 'MaximumDOB/Youngest:', getDOBMaxDate(this.getHighestRole()).toISOString())
         return false;
       } else return true;
 
