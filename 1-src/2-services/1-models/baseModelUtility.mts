@@ -1,4 +1,4 @@
-import InputField, { InputType, isListType, InputSelectionField } from "../../0-assets/field-sync/input-config-sync/inputField.mjs";
+import InputField, { InputType, isListType, InputSelectionField, InputRangeField } from "../../0-assets/field-sync/input-config-sync/inputField.mjs";
 import { JwtClientRequest } from "../../1-api/2-auth/auth-types.mjs";
 import { Exception } from "../../1-api/api-types.mjs";
 import { getEnvironment, isURLValid } from "../10-utilities/utilities.mjs";
@@ -286,6 +286,10 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
                 return false;
             }
         }
+
+    /* RANGE_SLIDER */
+    } else if((field instanceof InputRangeField) && (field.type === InputType.RANGE_SLIDER) && !isNaN(Number(value)) && (Number(value) < Number(field.minValue) || Number(value) > Number(field.maxValue))) {
+        return false;
         
     /* SELECT_LIST */
     } else if((field instanceof InputSelectionField) && (field.type === InputType.SELECT_LIST) && !field.selectOptionList.includes(`${value}`)) {
