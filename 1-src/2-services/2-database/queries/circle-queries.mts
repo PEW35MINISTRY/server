@@ -320,9 +320,8 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
     await execute('SELECT DISTINCT circle.circleID, circle.name, circle.image, circle.leaderID, ( SELECT circle_user.status WHERE circle_user.userID = ? ) as status ' 
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
-        + 'WHERE circle_user.userID = ? OR ( circle.leaderID = ? AND ( circle_user.userID = ? ) '
-        + '= ( SELECT MAX(c_u.userID = ? ) FROM circle_user as c_u WHERE c_u.circleID = circle.circleID )) '
-        + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, userID, userID, userID, userID])
+        + 'WHERE circle_user.userID = ? OR ( circle.leaderID = ? ) '
+        + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, userID, userID])
 
     //Leader included in MEMBER search
     : (status === DATABASE_CIRCLE_STATUS_ENUM.MEMBER) ?
