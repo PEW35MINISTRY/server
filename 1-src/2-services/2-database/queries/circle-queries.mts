@@ -321,7 +321,7 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
         + 'WHERE circle_user.userID = ? OR ( circle.leaderID = ? ) '
-        + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, userID, userID, userID, userID])
+        + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, userID, userID])
 
     //Leader included in MEMBER search
     : (status === DATABASE_CIRCLE_STATUS_ENUM.MEMBER) ?
