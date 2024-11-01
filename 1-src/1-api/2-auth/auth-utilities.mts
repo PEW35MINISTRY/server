@@ -175,7 +175,7 @@ export const assembleLoginResponse = async(loginMethod:LoginMethod, userProfile:
     else if(userProfile.recommendedContentList === undefined || userProfile.recommendedContentList.length === 0)
         userProfile.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(userProfile.userID, 5);
 
-    if(getEnvironment() === ENVIRONMENT_TYPE.DEVELOPMENT)
+    if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL)
         log.auth(`Logging in user ${userProfile.userID} via ${loginMethod}`);
 
     return {

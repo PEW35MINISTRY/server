@@ -391,21 +391,32 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
 
     const errorResponse:ServerErrorResponse = {
         status: status,
-        notification: notification,
-        message: message,
-        action: action,
-        type: request.method,
-        url: request.originalUrl,
-        params: JSON.stringify(request.params),
-        query: JSON.stringify(request.query),
-        header: request.headers,
-        body: request.body
+        notification: notification
     }
-    response.status(error.status || 500).send(errorResponse);
 
+    if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)
+        response.status(error.status || 500).send(errorResponse);
+
+    else if (getEnvironment() !== ENVIRONMENT_TYPE.PRODUCTION) {
+        const debugResponse:ServerDebugErrorResponse = {
+            ...errorResponse,
+            message: message,
+            action: action,
+            type: request.method,
+            url: request.originalUrl,
+            params: JSON.stringify(request.params),
+            query: JSON.stringify(request.query),
+            header: request.headers,
+            body: request.body,
+        };
+
+        response.status(error.status || 500).send(debugResponse);
+    }
+
+    /* Logging API Errors */
     if(status < 400) log.event(`API | ${status} | Event:`, message);
     else if(status === 400) log.warn('API | 400 | User Request Invalid:', message);
     else if(status === 401) log.auth('API   401 | User Unauthorized:', message);
-    else if(status === 404) log.warn('API | 404 | Request Not Found:', message);
+    else if(status === 404 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('API | 404 | Request Not Found:', message);
     else log.error(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
 });
