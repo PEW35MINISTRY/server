@@ -10,15 +10,17 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 
 //Import Types
-import { ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types';
+import { getEnvironment } from './2-services/10-utilities/utilities.mjs';
+import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/field-sync/input-config-sync/inputField.mjs';
+import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
-import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest } from './1-api/2-auth/auth-types.mjs';
+import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest, LogSearchRequest, LogEntryRequest } from './1-api/2-auth/auth-types.mjs';
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 
 //Import Routes
-import logRoutes from './1-api/1-log/log.mjs';
 import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
+import { GET_LogDefaultList, GET_LogSearchList, POST_LogEntry, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
@@ -33,7 +35,6 @@ import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_Partn
 import * as log from './2-services/log.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
-import { SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/field-sync/input-config-sync/inputField.mjs';
 
 /********************
     EXPRESS SEVER
@@ -341,8 +342,12 @@ apiServer.use('/api/admin', (request:JwtAdminRequest, response:Response, next:Ne
 apiServer.get('/api/admin/mock-user', GET_createMockUser); //Optional query: populate=true
 
 apiServer.use(express.text());
-apiServer.use('/api/admin/log', logRoutes);
 apiServer.delete('/api/admin/flush-search-cache/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => DELETE_flushSearchCacheAdmin(undefined, request, response, next)); //(Handles authentication)
+
+apiServer.get('/api/admin/log', GET_LogDefaultList);
+apiServer.get('/api/admin/log/:type', (request:LogSearchRequest, response:Response, next:NextFunction) => GET_LogSearchList(undefined, request, response, next));
+apiServer.post('/api/admin/log/:type', (request:LogEntryRequest, response:Response, next:NextFunction) => POST_LogEntry(undefined, request, response, next));
+apiServer.post('/api/admin/log/:type/reset', (request:LogEntryRequest, response:Response, next:NextFunction) => POST_LogResetFile(undefined, request, response, next));
 
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.get('/api/admin/client/:client/mock-prayer-request', GET_createMockPrayerRequest);
