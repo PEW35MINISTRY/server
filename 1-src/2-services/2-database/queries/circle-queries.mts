@@ -321,6 +321,7 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
         + 'WHERE circle_user.userID = ? OR ( circle.leaderID = ? ) '
+        + 'GROUP BY circle.circleID '
         + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, userID, userID])
 
     //Leader included in MEMBER search
@@ -330,12 +331,14 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
         + 'WHERE ( circle_user.userID = ? AND circle_user.status = ? ) '
         + 'OR ( circle.leaderID = ? ) '
+        + 'GROUP BY circle.circleID '
         + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, status, userID, userID])
 
     : await execute('SELECT DISTINCT circle.circleID, circle.name, circle.image, circle.leaderID, circle_user.status ' 
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
         + 'WHERE (circle_user.userID = ?  AND circle_user.status = ? ) '
+        + 'GROUP BY circle.circleID '
         + 'ORDER BY circle_user.modifiedDT DESC;', [userID, status]);
  
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || '', status: (row.leaderID === userID) ? CircleStatusEnum.LEADER : (row.status === undefined) ? undefined : CircleStatusEnum[row.status]}))];

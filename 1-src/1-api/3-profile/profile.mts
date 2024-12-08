@@ -146,6 +146,8 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
 
                 response.status(201).send(loginDetails);
                 await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();
+                
+                log.event('Successfully Signed up New User', newProfile.userID, newProfile.displayName, JSON.stringify(newProfile.userRoleList), (request.query.populate === 'true') ? 'Populated Demo Profile' : '');
             } else
                 next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`, 'Please Login'));
         }
