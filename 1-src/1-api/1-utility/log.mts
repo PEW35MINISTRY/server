@@ -1,10 +1,30 @@
-import express, { NextFunction, Request, Response, Router } from 'express';
-import * as log from '../../2-services/log.mjs';
-import {  JwtAdminRequest, LogEntryRequest, LogSearchRequest } from '../2-auth/auth-types.mjs';
+import { NextFunction, Response } from 'express';
+import {  JwtAdminRequest, LogEntryKeyRequest, LogEntryNewRequest, LogSearchRequest } from '../2-auth/auth-types.mjs';
 import { LogLocation, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { Exception } from '../api-types.mjs';
-import { filterLogEntries, readLogFile, resetLogFile, writeLogFile } from '../../2-services/10-utilities/logging/log-local-utilities.mjs';
+import { filterLogEntries, readLogFile, resetLogFile, streamLocalLogFile, writeLogFile } from '../../2-services/10-utilities/logging/log-local-utilities.mjs';
 import LOG_ENTRY from '../../2-services/10-utilities/logging/logEntryModel.mjs';
+
+
+//Fetch individual entry by S3 File Key
+export const GET_LogEntryByS3Key = async(request:LogEntryKeyRequest, response:Response, next:NextFunction) => {
+    return response.status(200).send(new LOG_ENTRY(LogType.ERROR, ['This is a sample Error until S3 is implemented', request.query.key]).toJSON());
+}
+
+
+//Default View; combines ERROR and WARN entries
+export const GET_LogDefaultList = async(request:JwtAdminRequest, response:Response, next:NextFunction) => {
+    const startTime = Date.now() - 7 * 24 * 60 * 60 * 1000; //7 days
+
+    let logList:LOG_ENTRY[] = [];
+    logList.push(...(await readLogFile(LogType.WARN, 30)));
+    logList.push(...(await readLogFile(LogType.ERROR, 100 - logList.length)));
+
+    if(Array.isArray(logList) && logList.length > 0)
+        return response.status(200).send(filterLogEntries(logList, undefined, startTime, undefined, true).map(entry => entry.toJSON()));
+    else
+        return response.status(205).send([]);
+}
 
 
 export const GET_LogSearchList = async(logType:LogType|undefined, request:LogSearchRequest, response:Response, next:NextFunction) => {
@@ -32,8 +52,8 @@ export const GET_LogSearchList = async(logType:LogType|undefined, request:LogSea
         return response.status(205).send([]);
 };
 
-
-export const POST_LogEntry = async(logType:LogType|undefined, request:LogEntryRequest, response:Response, next:NextFunction) => {
+/* Save New Log Entry */
+export const POST_LogEntry = async(logType:LogType|undefined, request:LogEntryNewRequest, response:Response, next:NextFunction) => {
     /* Identifying Log Type via URL parameter */
     if(logType === undefined) {
         logType = LogType[String(request.params.type ?? '').toUpperCase().trim() as keyof typeof LogType];
@@ -45,12 +65,11 @@ export const POST_LogEntry = async(logType:LogType|undefined, request:LogEntryRe
     /* Identifying Location from Query parameter */
     const location = LogLocation[request.query.location as string] || LogLocation.LOCAL;
     const messageList:string[] = Array.isArray(request.body) ? request.body : [request.body];
-    const stackTrace:string[]|undefined = [LogType.ALERT, LogType.ERROR].includes(logType) ? log.getStackTrace() : undefined;
 
-    const logEntry = new LOG_ENTRY(logType, messageList, stackTrace);
+    const logEntry = new LOG_ENTRY(logType, messageList);
 
     if(logEntry.validateCheck() === false)
-        return next(new Exception(500, `New Log Entry failed to validate and not saved`, 'Failed to Validate Log'));
+        return next(new Exception(500, `New Log Entry failed to validate and not saved: ${logEntry.toString()}`, 'Failed to Validate Log'));
     
     else if((location === LogLocation.LOCAL) && await writeLogFile(logEntry) === false)
         return next(new Exception(500, `Failed to write log to local file :: ${logType}`, 'Failed to Write Log'));
@@ -59,8 +78,8 @@ export const POST_LogEntry = async(logType:LogType|undefined, request:LogEntryRe
         return response.status(202).send(logEntry.toJSON());
 }
 
-
-export const POST_LogResetFile = async(logType:LogType|undefined, request:LogEntryRequest, response:Response, next:NextFunction) => {
+//Reduce to minimum & latest entries
+export const POST_LogResetFile = async(logType:LogType|undefined, request:LogEntryNewRequest, response:Response, next:NextFunction) => {
     /* Identifying Log Type via URL parameter */
     if(logType === undefined) {
         logType = LogType[String(request.params.type ?? '').toUpperCase().trim() as keyof typeof LogType];
@@ -78,17 +97,37 @@ export const POST_LogResetFile = async(logType:LogType|undefined, request:LogEnt
 }
 
 
-//Default View; combines ERROR and WARN entries
-export const GET_LogDefaultList = async(request:JwtAdminRequest, response:Response, next:NextFunction) => {
-    const startTime = Date.now() - 7 * 24 * 60 * 60 * 1000; //7 days
+//Export txt log file
+export const GET_LogDownloadFile = async(logType:LogType|undefined, request:LogEntryNewRequest, response:Response, next:NextFunction) => {
+    const {location = LogLocation.LOCAL} = request.query
 
-    let logList:LOG_ENTRY[] = [];
-    logList.push(...(await readLogFile(LogType.WARN, 30)));
-    logList.push(...(await readLogFile(LogType.ERROR, 100 - logList.length)));
+    /* Identifying Log Type via URL parameter */
+    if(logType === undefined) {
+        logType = LogType[String(request.params.type ?? '').toUpperCase().trim() as keyof typeof LogType];
 
-    if(Array.isArray(logList) && logList.length > 0)
-        return response.status(200).send(filterLogEntries(logList, undefined, startTime, undefined, true).map(entry => entry.toJSON()));
-    else
-        return response.status(205).send([]);
-}
+        if(logType === undefined) 
+            return next(new Exception(400, `Failed to parse log type :: missing 'type' parameter :: ${request.params.type}`, 'Missing Log Type'));
+    }
+
+    response.setHeader('Content-Disposition', `attachment; filename="${logType}.txt"`);
+    response.setHeader('Content-Type', 'text/plain');
     
+    //Initiate file stream within log utilities
+    if(location === LogLocation.LOCAL)
+        streamLocalLogFile(logType, response);
+    else
+        return next(new Exception(404, 'Download only available for local logs'));
+}
+
+
+export const POST_LogEmailReport = async(logType:LogType|undefined, request:LogEntryNewRequest, response:Response, next:NextFunction) => {
+    /* Identifying Log Type via URL parameter */
+    if(logType === undefined) {
+        logType = LogType[String(request.params.type ?? '').toUpperCase().trim() as keyof typeof LogType];
+
+        if(logType === undefined) 
+            return next(new Exception(400, `Failed to parse log type :: missing 'type' parameter :: ${request.params.type}`, 'Missing Log Type'));
+    }
+
+    return next(new Exception(500, 'Log email service yet to be implemented', 'Email Service Unavailable'));
+}

@@ -15,12 +15,12 @@ import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/fie
 import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
-import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest, LogSearchRequest, LogEntryRequest } from './1-api/2-auth/auth-types.mjs';
+import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest, LogSearchRequest, LogEntryNewRequest } from './1-api/2-auth/auth-types.mjs';
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 
 //Import Routes
 import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
-import { GET_LogDefaultList, GET_LogSearchList, POST_LogEntry, POST_LogResetFile } from './1-api/1-utility/log.mjs';
+import { GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
@@ -344,10 +344,13 @@ apiServer.get('/api/admin/mock-user', GET_createMockUser); //Optional query: pop
 apiServer.use(express.text());
 apiServer.delete('/api/admin/flush-search-cache/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => DELETE_flushSearchCacheAdmin(undefined, request, response, next)); //(Handles authentication)
 
-apiServer.get('/api/admin/log', GET_LogDefaultList);
+apiServer.get('/api/admin/log', GET_LogEntryByS3Key);
+apiServer.get('/api/admin/log/default', GET_LogDefaultList);
 apiServer.get('/api/admin/log/:type', (request:LogSearchRequest, response:Response, next:NextFunction) => GET_LogSearchList(undefined, request, response, next));
-apiServer.post('/api/admin/log/:type', (request:LogEntryRequest, response:Response, next:NextFunction) => POST_LogEntry(undefined, request, response, next));
-apiServer.post('/api/admin/log/:type/reset', (request:LogEntryRequest, response:Response, next:NextFunction) => POST_LogResetFile(undefined, request, response, next));
+apiServer.post('/api/admin/log/:type', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogEntry(undefined, request, response, next));
+apiServer.post('/api/admin/log/:type/reset', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogResetFile(undefined, request, response, next));
+apiServer.get('/api/admin/log/:type/download', (request:LogEntryNewRequest, response:Response, next:NextFunction) => GET_LogDownloadFile(undefined, request, response, next));
+apiServer.post('/api/admin/log/:type/report', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogEmailReport(undefined, request, response, next));
 
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.get('/api/admin/client/:client/mock-prayer-request', GET_createMockPrayerRequest);
@@ -423,5 +426,5 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     else if(status === 400) log.warn('API | 400 | User Request Invalid:', message);
     else if(status === 401) log.auth('API   401 | User Unauthorized:', message);
     else if(status === 404 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('API | 404 | Request Not Found:', message);
-    else log.error(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
+    else log.errorWithoutTrace(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
 });

@@ -39,7 +39,7 @@ export enum LogType {
 }
 
 //JSON form of LOG_ENTRY
-export type LogEntry = { 
+export type LogListItem = { 
     timestamp:number; 
     type:LogType; 
     messages:string[]; 

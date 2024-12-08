@@ -113,7 +113,7 @@ export interface LogSearchRequest extends JwtAdminRequest {
     },
 };
 
-export interface LogEntryRequest extends JwtAdminRequest {
+export interface LogEntryNewRequest extends JwtAdminRequest {
     params:JwtAdminRequest['params'] & {
         type?:string
     },
@@ -121,4 +121,10 @@ export interface LogEntryRequest extends JwtAdminRequest {
         location?:string
     },
     body: string|string[]
+};
+
+export interface LogEntryKeyRequest extends JwtAdminRequest {
+    query: {
+        key:string
+    }
 };

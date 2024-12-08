@@ -1,4 +1,5 @@
 import fs, { promises as fsPromises } from 'fs';
+import { Response } from 'express';
 import readline from 'readline';
 import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE } from './log-types.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
@@ -6,6 +7,7 @@ import LOG_ENTRY, { logDateRegex } from './logEntryModel.mjs';
 import * as log from '../../log.mjs'; //Only use on read operations
 import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { Exception } from '../../../1-api/api-types.mjs';
 
 
 /* WRITE TO FILE */
@@ -15,7 +17,7 @@ export const writeLogFile = async(entry:LOG_ENTRY, evaluateLogSize:boolean = tru
         if(!await fsPromises.access(LOG_DIRECTORY).catch(() => false))
             await fsPromises.mkdir(LOG_DIRECTORY, { recursive: true });
 
-        await fsPromises.appendFile(getLogFilePath(entry.type), `${entry.toString()}\n`, 'utf-8');
+        await fsPromises.appendFile(getLogFilePath(entry.type), `${entry.toString()}\n\n`, 'utf-8');
 
         //Evaluate file size & Reduce to latest entries
         const logSize = await calculateLogSize(entry.type);
@@ -43,7 +45,7 @@ export const resetLogFile = async(type:LogType, validate:boolean = false):Promis
         if(logSize <= LOG_ROLLOVER_SIZE_BYTES && !validate)
             return []; //Do Nothing
 
-        console.log(`Resetting ${type} log file with size: ${logSize} to be within ${LOG_ROLLOVER_SIZE_BYTES} bytes.`);
+        console.log(`NOTE: Resetting ${type} log file with size: ${logSize} to be within ${LOG_ROLLOVER_SIZE_BYTES} bytes.`);
 
         const readInterface = readline.createInterface({
             input: fs.createReadStream(getLogFilePath(type), { encoding: 'utf-8', start: Math.max(0, logSize - LOG_ROLLOVER_SIZE_BYTES) }),
@@ -64,7 +66,7 @@ export const resetLogFile = async(type:LogType, validate:boolean = false):Promis
                         if(validationErrorList.length === 0)
                             logEntriesKeeping.push(logEntry);
                         else
-                            console.log(`Resetting ${type} Log Entry - Failed Validation:`, validationErrorList, line.trim());
+                            console.log(`NOTE: Resetting ${type} Log Entry - Failed Validation:`, validationErrorList, line.trim());
                     }
 
                     entryBuffer = '';
@@ -114,11 +116,11 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
         await fsPromises.access(getLogFilePath(type)); //Verify File Exists
 
         const startByte = (maxEntries === undefined) ? 0 : Math.max(0, 
-            (await calculateLogSize(type)) 
-                - ((estimateBytes(type, lastReadIndex) + estimateBytes(type, maxEntries)) 
-                    * (2.0 - LOG_ESTIMATE_CONFIDENCE)));
+            Math.floor((await calculateLogSize(type)) 
+                - (estimateBytes(type, (lastReadIndex + 1) * maxEntries) 
+                    * (2.0 - LOG_ESTIMATE_CONFIDENCE))));
         
-        if(startByte > 0 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`Starting to ready ${type} log file at byte: ${startByte} of total size: ${await calculateLogSize(type)} bytes.`);
+        if(startByte > 0 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`NOTE: Starting to read ${type} log file at byte: ${startByte} of total size: ${await calculateLogSize(type)} bytes.`);
 
         const readInterface = readline.createInterface({
             input: fs.createReadStream(getLogFilePath(type), { encoding: 'utf-8', start: startByte }),
@@ -128,7 +130,7 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
         let readNextLine:boolean = true;
         return new Promise((resolve) => {
             let entryBuffer = '';
-            readInterface.on('line', (line) => {               
+            readInterface.on('line', (line) => {                   
                 if(!readNextLine)
                     return;
                 else if(logDateRegex.test(line) && (entryBuffer.length > 10)) {
@@ -141,8 +143,6 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
                         const validationErrorList = logEntry.validate();
                         if(validationErrorList.length === 0)
                             logEntries.push(logEntry);
-                        else
-                            console.log(`Parsing ${type} Log - Failed validation:`, validationErrorList, entryBuffer.trim());
                     }
 
                     entryBuffer = '';
@@ -262,6 +262,26 @@ export const filterLogEntries = (logList:LOG_ENTRY[], searchTerm?:string, startT
         .sort((a, b) => (b.filterRank !== a.filterRank) ? b.filterRank - a.filterRank 
             : b.getTimestamp() - a.getTimestamp());
     }
+
+
+//Stream local file to download
+export const streamLocalLogFile = async(logType:LogType, response:Response):Promise<Response> => {
+    try {     
+        log.event('Downloading local log file: ', getLogFilePath(logType))  ;
+        await fsPromises.access(getLogFilePath(logType));
+        const fileStream = fs.createReadStream(getLogFilePath(logType));
+
+        //Pipe the file stream to the response
+        fileStream.pipe(response);
+
+        fileStream.on('error', (error) => {
+            log.error(`Streaming ${logType} log from local txt file error: `, error);
+        });
+        return response;
+    } catch (error) { //Not returning Exception, b/c fileStream is ongoing
+        log.error(`Error while attempting to stream ${logType} log from local txt file: `, error);
+    }
+};
 
 
 /* UTILITIES */

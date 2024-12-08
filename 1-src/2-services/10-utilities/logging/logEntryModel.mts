@@ -1,5 +1,5 @@
 import * as log from '../../log.mjs';
-import { LogEntry, LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
+import { LogListItem, LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
 import { ENVIRONMENT_TYPE } from "../../../0-assets/field-sync/input-config-sync/inputField.mjs";
 import { getEnvironment } from "../utilities.mjs";
 import { LOG_SIMILAR_TIME_RANGE, LOG_SOURCE } from "./log-types.mjs";
@@ -20,18 +20,17 @@ export default class LOG_ENTRY {
     constructor(type:LogType, messages:string[], stackTrace:string[] = [], fileKey:string = '', date:Date = new Date(), source:LOG_SOURCE = LOG_SOURCE.NEW) {
         this.date = date;
         this.type = type;
-        this.messages = messages;
-        this.stackTrace = stackTrace;
+        this.messages = messages.filter(m => m.length > 0);
+        this.stackTrace = stackTrace.filter(m => m.length > 0);
         this.fileKey = fileKey;
         this.source = source;
 
         if((this.source === LOG_SOURCE.NEW) && (getEnvironment() === ENVIRONMENT_TYPE.LOCAL)) this.print();
-
     }
 
 
     /* JSON */
-    toJSON = ():LogEntry =>  ({
+    toJSON = ():LogListItem =>  ({
         timestamp:this.getTimestamp(),
         type:this.type,
         messages:this.messages,
@@ -70,7 +69,7 @@ export default class LOG_ENTRY {
 
         const prefix:string = `${year}/${month}/${day}/${hour}/${this.getDailyTimestamp()}_${this.type}`;
         const firstMessage:string = this.messages[0]?.slice(0, (maxCharacters - prefix.length - 6)) || 'Unknown Error';
-        return  `${prefix}_${firstMessage}`.slice(0, (maxCharacters - 5)) + '.json';
+        return  `${prefix}_${firstMessage.replace(/[^a-zA-Z0-9_-]+/g, '_')}`.slice(0, (maxCharacters - 5)) + '.json';
     }
 
 
@@ -292,7 +291,7 @@ const filterNonASCII = (text:string):string => text.replace(/[^\x00-\x7F]/g, '?'
 //MM-DD-YYYY HH:MM:SS.mmm
 export const logDateRegex: RegExp = new RegExp(/^\[\d{1,2}-\d{1,2}-\d{4} \d{1,2}:\d{1,2}:\d{1,2}(\.\d{1,3})?\]/);
 
-const formatLogDate = (date:Date):string => (!(date instanceof Date) || isNaN(date.getTime())) ? '' :
+const formatLogDate = (date:Date):string => (!(date instanceof Date) || isNaN(date.getTime())) ? '[]' :
     '['
     + String(date.getMonth() + 1).padStart(2, '0')
     + '-'
@@ -319,3 +318,4 @@ const formatLogTime = (date:Date):string => (!(date instanceof Date) || isNaN(da
     + '.'
     + String(date.getMilliseconds()).padStart(3, '0')
     + ']';
+    
