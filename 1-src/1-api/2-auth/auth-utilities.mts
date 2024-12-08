@@ -2,7 +2,7 @@ import jwtPackage, { JwtPayload } from 'jsonwebtoken';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_POPULATE_USER_PROFILE, DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { JwtData } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';

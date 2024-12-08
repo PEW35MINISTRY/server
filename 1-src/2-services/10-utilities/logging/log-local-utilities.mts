@@ -4,7 +4,7 @@ import readline from 'readline';
 import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE } from './log-types.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import LOG_ENTRY, { logDateRegex } from './logEntryModel.mjs';
-import * as log from '../../log.mjs'; //Only use on read operations
+import * as log from './log.mjs'; //Only use on read operations
 import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { Exception } from '../../../1-api/api-types.mjs';

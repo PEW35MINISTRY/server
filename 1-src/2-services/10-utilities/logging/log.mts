@@ -1,7 +1,7 @@
-import { LogType } from '../0-assets/field-sync/api-type-sync/utility-types.mjs';
-import { writeLogFile } from './10-utilities/logging/log-local-utilities.mjs';
-import { SAVE_LOGS_LOCALLY } from './10-utilities/logging/log-types.mjs';
-import LOG_ENTRY from './10-utilities/logging/logEntryModel.mjs';
+import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { writeLogFile } from './log-local-utilities.mjs';
+import { SAVE_LOGS_LOCALLY } from './log-types.mjs';
+import LOG_ENTRY from './logEntryModel.mjs';
 
 /* EXPORT LOG BY TYPE */
 export const alert = async(...messages:any[]):Promise<Boolean> => {

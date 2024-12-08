@@ -1,6 +1,6 @@
 import { DeleteObjectCommand, DeleteObjectCommandOutput, PutObjectCommand, PutObjectCommandOutput , S3Client } from '@aws-sdk/client-s3';
 import axios from 'axios';
-import * as log from '../log.mjs';
+import * as log from './logging/log.mjs';
 import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ImageTypeEnum } from '../../1-api/api-types.mjs';
 import { getEnvironment, isEnumValue, isURLValid } from './utilities.mjs';

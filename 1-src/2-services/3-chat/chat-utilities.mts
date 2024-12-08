@@ -1,6 +1,6 @@
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import USER from '../1-models/userModel.mjs';
-import * as log from '../log.mjs';
+import * as log from '../10-utilities/logging/log.mjs';
 import { DB_SELECT_CONTACT_LIST, DB_SELECT_USER } from '../2-database/queries/user-queries.mjs';
 import { SocketMessage } from './chat-types.mjs';
 

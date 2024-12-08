@@ -1,4 +1,4 @@
-import * as log from '../../log.mjs';
+import * as log from '../logging/log.mjs';
 import USER from '../../1-models/userModel.mjs'
 import CIRCLE from '../../1-models/circleModel.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';

@@ -1,5 +1,5 @@
 import { RowDataPacket } from 'mysql2/promise';
-import * as log from '../../log.mjs';
+import * as log from '../../10-utilities/logging/log.mjs';
 import { query, execute, command } from '../database.mjs';
 import USER from '../../1-models/userModel.mjs';
 import { NewPartnerListItem, PartnerCountListItem, PartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';

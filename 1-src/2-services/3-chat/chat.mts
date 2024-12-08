@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import { DefaultEventsMap } from "socket.io/dist/typed-events.js";
-import * as log from "../log.mjs";
+import * as log from "../10-utilities/logging/log.mjs";
 import { SocketMessage } from "./chat-types.mjs";
 import { formatMessageNames, fetchNames } from "./chat-utilities.mjs";
 

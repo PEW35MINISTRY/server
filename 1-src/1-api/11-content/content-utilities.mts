@@ -9,7 +9,7 @@ import CONTENT_ARCHIVE from '../../2-services/1-models/contentArchiveModel.mjs';
 import { downloadImageAndUpload, clearImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { DB_SELECT_CONTENT_BY_URL, DB_UPDATE_CONTENT } from '../../2-services/2-database/queries/content-queries.mjs';
 import { ContentMetaDataResponseBody } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
 import { extractRegexMaxLength } from '../../2-services/10-utilities/utilities.mjs';
 

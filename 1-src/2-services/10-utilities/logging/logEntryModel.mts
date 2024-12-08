@@ -1,4 +1,4 @@
-import * as log from '../../log.mjs';
+import * as log from './log.mjs';
 import { LogListItem, LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
 import { ENVIRONMENT_TYPE } from "../../../0-assets/field-sync/input-config-sync/inputField.mjs";
 import { getEnvironment } from "../utilities.mjs";

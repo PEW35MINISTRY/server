@@ -1,4 +1,4 @@
-import * as log from '../../log.mjs';
+import * as log from '../../10-utilities/logging/log.mjs';
 import { command, execute, validateColumns } from '../database.mjs';
 import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';

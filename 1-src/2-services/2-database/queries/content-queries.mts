@@ -2,7 +2,7 @@ import { ContentListItem } from '../../../0-assets/field-sync/api-type-sync/cont
 import { MOBILE_CONTENT_SUPPORTED_SOURCES } from '../../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import CONTENT_ARCHIVE from '../../1-models/contentArchiveModel.mjs';
-import * as log from '../../log.mjs';
+import * as log from '../../10-utilities/logging/log.mjs';
 import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT } from '../database-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
 
