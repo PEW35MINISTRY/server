@@ -1,5 +1,6 @@
 /************* ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ *************/
 
+import { DeviceOSEnum } from '../input-config-sync/inputField.mjs';
 import { GenderEnum, ModelSourceEnvironmentEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
 import { CircleAnnouncementListItem, CircleListItem } from './circle-types.mjs'
 import { ContentListItem } from './content-types.mjs';
@@ -108,4 +109,20 @@ export interface ProfileEditRequestBody {
     notes?: string,
     modelSourceEnvironmentEnum?: string,
     userRoleTokenList?: [{role: RoleEnum, token: string}]
+}
+
+/* User Notifications */
+export type Mobile_Device = {
+    deviceName:string,
+    deviceToken:string,
+    deviceOS:DeviceOSEnum,
+    endpointARN?:string
+}
+
+export type NotificationDeviceListItem = {
+    deviceID:number, //Readonly, record in Database
+    userID:number,
+    deviceName:string,
+    deviceOS:DeviceOSEnum,
+    modifiedDT:string //ISO string
 }

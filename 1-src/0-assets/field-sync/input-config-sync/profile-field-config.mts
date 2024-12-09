@@ -1,5 +1,5 @@
 /***** ONLY DEPENDENCY: ./inputField - Define all other types locally *****/
-import InputField, { ENVIRONMENT_TYPE, InputRangeField, InputSelectionField, InputType } from './inputField.mjs';
+import InputField, { DeviceOSEnum, ENVIRONMENT_TYPE, InputRangeField, InputSelectionField, InputType } from './inputField.mjs';
 
 /*******************************************************
 *        PROFILE FIELD CONFIGURATION FILE
@@ -137,3 +137,10 @@ export const SIGNUP_PROFILE_FIELDS:InputField[] = [
 ];
 
 export const PARTNERSHIP_CONTRACT = (userName:string, partnerName:string):string => `I ${userName} promise to pray for ${partnerName} every day, as agreed upon in this contract, while ensuring our conversations remain private. This daily commitment remains in place until our partnership ends. By signing this agreement, I confirm my dedication to our prayer partnership and look forward to the positive impact it will have on both of us.`;
+
+export const NOTIFICATION_DEVICE_FIELDS:InputField[] = [
+    new InputField({title: 'Device Name', field: 'deviceName', type:InputType.TEXT, validationRegex: new RegExp(/^[a-zA-Z0-9' _-]{5,255}$/), validationMessage: 'Required, 5-100 chars, letters, numbers, dashes, underscores.' }),
+    new InputField({title: 'Token', field: 'deviceToken', type:InputType.TEXT, validationRegex: new RegExp(/^[a-zA-Z0-9._-]{1,255}$/), validationMessage: 'Required, 5-100 chars, letters, numbers, dashes, underscores.' }),
+    new InputSelectionField({title: 'Platform', field: 'deviceOS', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(DeviceOSEnum)}),
+    new InputField({title: 'Endpoint', field: 'endpointARN', type:InputType.TEXT, validationRegex: new RegExp(/^[a-zA-Z0-9:./=_-]{0,255}$/), validationMessage: 'Required, 5-100 chars, letters, numbers, dashes, underscores.' }),
+];

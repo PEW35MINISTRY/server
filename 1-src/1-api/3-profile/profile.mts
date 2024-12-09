@@ -2,7 +2,7 @@ import express, { NextFunction, Request, Response, Router } from 'express';
 import URL, { URLSearchParams } from 'url';
 import * as log from '../../2-services/log.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, NOTIFICATION_DEVICE_FIELDS, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
@@ -18,6 +18,7 @@ import { InputRangeField } from '../../0-assets/field-sync/input-config-sync/inp
 import { searchList } from '../api-search-utilities.mjs';
 import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
+import { saveNotificationDevice } from './profile-utilities.mjs';
 
 
 
@@ -135,12 +136,17 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             const loginDetails:LoginResponseBody = await getEmailLogin(newProfile.email, request.body['password'], false);
 
             if(loginDetails) {
+                newProfile.userID = loginDetails.userID;
+                newProfile.isValid = true;
+
                 if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
+
+                //Mobile: Save Device Information for Notification Setup
+                if(request.body.device)
+                    saveNotificationDevice(newProfile.userID, request.body.notificationDevice);
 
                 //Optional Demo User Populate
                 if(request.query.populate === 'true' && newProfile.isRole(RoleEnum.USER)) {
-                    newProfile.userID = loginDetails.userID;
-                    newProfile.isValid = true;
                     loginDetails.userProfile = (await populateDemoRelations(newProfile)).toJSON();
                 }
 
@@ -181,6 +187,10 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
             const insertRoleList:DATABASE_USER_ROLE_ENUM[] = editProfile.userRoleList?.filter((role) => ((role !== RoleEnum.USER || saveUserRole) && !currentRoleList.includes(role))).map((role) => DATABASE_USER_ROLE_ENUM[role]);
             if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({userID:editProfile.userID, userRoleList: insertRoleList}))
                 log.error(`Edit Profile Failed :: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${editProfile.userID}`);
+
+            //Mobile: Save Device Information for Notification Setup
+            if(request.body.device)
+                saveNotificationDevice(request.clientID, request.body.device);
 
             response.status(202).send(editProfile.toJSON());
         }
