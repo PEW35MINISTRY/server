@@ -28,15 +28,19 @@ import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
  ***************************/
 
 /* INSERT OR UPDATE RECORD | deviceToken triggers UPDATE */
-export const DB_INSERT_OR_UPDATE_NOTIFICATION_DEVICE = async(userID:number, deviceName:string, deviceToken:string, deviceOS:DATABASE_DEVICE_OS_ENUM, endpointARN?:string):Promise<boolean> => {
+export const DB_INSERT_NOTIFICATION_DEVICE = async(userID:number, deviceName:string, deviceToken:string, deviceOS:DATABASE_DEVICE_OS_ENUM, endpointARN?:string):Promise<boolean> => {
     const response = await command(
-        `INSERT INTO notification_device (userID, deviceName, deviceToken, deviceOS, endpointARN) VALUES (?, ?, ?, ?, ?) 
-         ON DUPLICATE KEY UPDATE deviceName = VALUES(deviceName), deviceToken = VALUES(deviceToken), deviceOS = VALUES(deviceOS), endpointARN = VALUES(endpointARN);`,
-        [userID, deviceName, deviceToken, deviceOS, endpointARN || null]
+        `INSERT INTO notification_device (userID, deviceName, deviceToken, deviceOS, endpointARN) VALUES (?, ?, ?, ?, ?)`, [userID, deviceName, deviceToken, deviceOS, endpointARN || null]
     );
     return (response?.affectedRows > 0);
 };
 
+export const DB_UPDATE_NOTIFICATION_DEVICE = async(deviceID: number, deviceToken:string):Promise<boolean> => {
+    const response = await command(
+        `UPDATE notification_device SET deviceToken = ? where deviceID = ?`, [deviceID, deviceToken]
+    );
+    return (response?.affectedRows > 0);
+}
 
 /* USER Editable */
 export const DB_SELECT_NOTIFICATION_DEVICE_LIST = async(userID:number):Promise<NotificationDeviceListItem[]> => {
@@ -49,6 +53,11 @@ export const DB_SELECT_NOTIFICATION_DEVICE_LIST = async(userID:number):Promise<N
         deviceOS: row.deviceOS,
         modifiedDT: row.modifiedDT //ISO string, readonly
     }));
+}
+
+export const DB_SELECT_NOTIFICATION_DEVICE_TOKEN = async(deviceID:number):Promise<string[]> => {
+    const rows = await execute(`SELECT deviceToken FROM notification_device WHERE deviceID = ?`, [deviceID]);
+    return rows.map((row) => row.deviceToken);
 }
 
 export const DB_UPDATE_NOTIFICATION_DEVICE_NAME = async(deviceID:number, deviceName:string):Promise<boolean> => {
