@@ -11,7 +11,7 @@ import { DeviceOSEnum } from '../../0-assets/field-sync/input-config-sync/inputF
 *****************************************************************************************/
 
 export interface ProfileEditRequest extends JwtClientRequest {
-    body: ProfileEditRequestBody & { device?:Mobile_Device }
+    body: ProfileEditRequestBody
 }
 
 export interface CreateDemoRequest extends JwtRequest {
