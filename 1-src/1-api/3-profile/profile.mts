@@ -188,10 +188,6 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
             if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({userID:editProfile.userID, userRoleList: insertRoleList}))
                 log.error(`Edit Profile Failed :: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${editProfile.userID}`);
 
-            //Mobile: Save Device Information for Notification Setup
-            if(request.body.device)
-                saveNotificationDevice(request.clientID, request.body.device);
-
             response.status(202).send(editProfile.toJSON());
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
