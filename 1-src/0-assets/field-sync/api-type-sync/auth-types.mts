@@ -13,7 +13,8 @@ import { ProfileResponse } from './profile-types.mjs';
 
 export interface LoginRequestBody {
     email: string, 
-    password: string
+    password: string,
+    deviceID: string
 };
 
 export interface JwtResponseBody {
