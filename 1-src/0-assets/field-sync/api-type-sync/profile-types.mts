@@ -115,8 +115,7 @@ export interface ProfileEditRequestBody {
 export type Mobile_Device = {
     deviceName:string,
     deviceToken:string,
-    deviceOS:DeviceOSEnum,
-    endpointARN?:string
+    deviceOS:DeviceOSEnum
 }
 
 export type NotificationDeviceListItem = {
