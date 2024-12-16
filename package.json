@@ -23,6 +23,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.417.0",
     "@aws-sdk/client-secrets-manager": "^3.565.0",
+    "@aws-sdk/client-sns": "^3.709.0",
     "@types/dotenv": "^8.2.0",
     "@types/jsonwebtoken": "^9.0.2",
     "argon2": "^0.41.1",
