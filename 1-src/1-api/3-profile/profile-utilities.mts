@@ -1,12 +1,14 @@
 import { Exception, JwtSearchRequest } from '../api-types.mjs';
 import * as log from '../../2-services/log.mjs';
 import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, NOTIFICATION_DEVICE_FIELDS, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { Mobile_Device, ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { NotificationDeviceSignup, NotificationDeviceVerify, ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { LIST_LIMIT, SEARCH_MIN_CHARS } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { DB_SELECT_USER_SEARCH } from '../../2-services/2-database/queries/user-queries.mjs';
 import { DATABASE_DEVICE_OS_ENUM } from '../../2-services/2-database/database-types.mjs';
 import { DeviceOSEnum, InputSelectionField } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_DEVICE_TOKEN, DB_UPDATE_NOTIFICATION_DEVICE } from '../../2-services/2-database/queries/notification-queries.mjs';
+import { DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT, DB_SELELCT_NOTIFICATION_DEVICE_ID } from '../../2-services/2-database/queries/notification-queries.mjs';
+import { CreatePlatformEndpointCommand, CreatePlatformEndpointCommandOutput, GetEndpointAttributesCommand, GetEndpointAttributesCommandOutput, SetEndpointAttributesCommand, SNSClient } from '@aws-sdk/client-sns';
+
 
 
 export const editProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
@@ -45,67 +47,110 @@ export const filterContactList = async(request:JwtSearchRequest, contactList:Pro
         return contactList;
 }
 
+/********************************
+ * AWS SNS ITEGRATION HANDLING *
+ ********************************/
+
+const createEndpoint = async(deviceToken:string):Promise<string> => {
+    try {
+        const client = new SNSClient({ region: process.env.SNS_REGION });
+        const response:CreatePlatformEndpointCommandOutput = await client.send(new CreatePlatformEndpointCommand({
+            PlatformApplicationArn: process.env.PLATFORM_APPLICATION_ARN,
+            Token: deviceToken
+        }));
+        return JSON.parse(response.EndpointArn);
+    } catch (error) {
+        await log.alert(`AWS SNS | Server failed to connect to SNS or got invalid response when creating endpoint for: ${deviceToken}.`, error);
+        throw error;
+    }
+}
+
+const updateEndpointToken = async(endpointARN:string, deviceToken: string):Promise<void> => {
+    try {
+        const client = new SNSClient({ region: process.env.SNS_REGION });
+        const response = await client.send(new SetEndpointAttributesCommand({
+            EndpointArn: endpointARN,
+            Attributes: {
+                Token: deviceToken
+            }
+        }));
+    } catch (error) {
+        await log.alert(`AWS SNS | Server failed to connect to SNS or got invalid response when updating endpoint for: ${deviceToken}, ${endpointARN}.`, error);
+        throw error;
+    }
+}
+
+const getEndpointToken = async(endpointARN:string):Promise<string> => {
+    try {
+        const client = new SNSClient({ region: process.env.SNS_REGION });
+        const response:GetEndpointAttributesCommandOutput = await client.send(new GetEndpointAttributesCommand({
+            EndpointArn: endpointARN,
+        }));
+        return JSON.parse(response.Attributes.Token);
+    } catch (error) {
+        await log.alert(`AWS SNS | Server failed to connect to SNS or got invalid response when getting device token from endpoint: ${endpointARN}.`, error);
+        throw error;
+    }
+}
 
 /********************************
  * NOTIFICATION DEVICE HANDLING *
  ********************************/
-export const saveNotificationDevice = async(userID:number, notificationDevice:Mobile_Device):Promise<boolean> => {
-    let { deviceOS, deviceToken, deviceName } = notificationDevice;
+
+export const saveNotificationDevice = async(userID:number, notificationDevice:NotificationDeviceSignup):Promise<number> => {
+    let { deviceToken, deviceName, deviceOS } = notificationDevice;
 
     const nameRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceName')?.validationRegex || new RegExp(/.{1,255}/);
     const tokenRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceToken')?.validationRegex || new RegExp(/.{1,255}/);
-    const operatingSystemOptionList: string[] = (NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceOS') as InputSelectionField)?.selectOptionList || Object.values(DeviceOSEnum);
 
     //Configure Defaults & Custom Settings
     if(!deviceName || deviceName.length <= 1) deviceName = `User ${userID} ${String(deviceOS ?? 'Device').toLowerCase()}`;
     else deviceName = deviceName.replace(/’/g, "'").trim(); //Two types of apostrophes 
 
     //Validate Device Information
-    if(!userID || userID <= 0) {
-        log.warn('Invalid userID, unable to assign a notification device', 'Invalid userID', userID);
-        return false;
-
-    } else if(!deviceName || !nameRegex.test(deviceName)) {
+    if(!deviceName || !nameRegex.test(deviceName)) {
         log.warn('Invalid notification device detail for user:', userID, 'Invalid deviceName', deviceName);
-        return false;
+        return -1;
 
     } else if(!deviceToken || !tokenRegex.test(deviceToken)) {
         log.warn('Invalid notification device detail for user:', userID, 'Invalid deviceToken', deviceToken);
-        return false;
-
-    } else if(!deviceOS || !operatingSystemOptionList.includes(deviceOS) || DATABASE_DEVICE_OS_ENUM[deviceOS] === undefined) {
-        log.warn('Invalid notification device detail for user:', userID, 'Invalid deviceOS', deviceOS);
-        return false;
-
-    } else if(await DB_INSERT_NOTIFICATION_DEVICE(userID, deviceName, deviceToken, DATABASE_DEVICE_OS_ENUM[deviceOS]) === false) {
-        log.error('Failed to setup notifications for user:', userID, JSON.stringify(notificationDevice));
-        return false;
+        return -1;
 
     } else {
+        const endpointArn = await createEndpoint(deviceToken);
+        await DB_INSERT_NOTIFICATION_DEVICE(userID, deviceName, endpointArn);
+
+        const deviceID = await DB_SELELCT_NOTIFICATION_DEVICE_ID(userID, endpointArn)[0];
+
         log.event(`Notification device setup for user ${userID}: ${deviceName}`);
-        return true;
+        return deviceID;
     }
 };
 
-export const verifyNotificationDevice = async(userID:number, deviceID: number, deviceToken:string):Promise<boolean> => {
+export const verifyNotificationDevice = async(userID:number, notificationDevice:NotificationDeviceVerify):Promise<boolean> => {
+    const { deviceID, deviceToken } = notificationDevice;
     const tokenRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceToken')?.validationRegex || new RegExp(/.{1,255}/);
 
     //Validate Device Information
-    if(!userID || userID <= 0) {
-        log.warn('Invalid userID, unable to verify a notification device', 'Invalid userID', userID);
-        return false;
-    } if(!deviceID || deviceID <= 0) {
+    if(!deviceID || deviceID <= 0) {
         log.warn('Invalid deviceID, unable to verify a notification device', 'Invalid deviceID', userID);
         return false;
     } else if(!deviceToken || !tokenRegex.test(deviceToken)) {
         log.warn('Invalid notification device detail for user:', userID, 'Invalid deviceToken', deviceToken);
         return false;
-    } else if (DB_SELECT_NOTIFICATION_DEVICE_TOKEN(deviceID)[0] !== deviceToken) {
-        const result = DB_UPDATE_NOTIFICATION_DEVICE(deviceID, deviceToken);
-        log.event(`Notification device token updated for deviceID ${deviceID} belonging to user ${userID}`);
-        return result;
     } else {
-        log.event(`Notification device verified for deviceID ${deviceID} belonging to user ${userID}`);
+        const endpointArnList = await DB_SELECT_NOTIFICATION_ENDPOINT(deviceID)
+        if (endpointArnList.length !== 1) {
+            log.warn('Invalid notification device endpoint for user:', userID, 'Invalid Endpoint', endpointArnList);
+            return false;
+        }
+
+        const currentDeviceToken = await getEndpointToken(endpointArnList[0]);
+        if (currentDeviceToken !== deviceToken) {
+            updateEndpointToken(endpointArnList[0], deviceToken);
+            log.event(`Notification device token updated for deviceID ${deviceID} belonging to user ${userID}`);
+
+        } else log.event(`Notification device verified for deviceID ${deviceID} belonging to user ${userID}`);
         return true;
     }
 }

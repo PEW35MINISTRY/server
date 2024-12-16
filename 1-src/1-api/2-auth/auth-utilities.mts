@@ -3,7 +3,7 @@ import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-fi
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_POPULATE_USER_PROFILE, DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/log.mjs';
-import { JwtData } from './auth-types.mjs';
+import { JwtData, JwtRequest } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { DB_SELECT_USER_CONTENT_LIST } from '../../2-services/2-database/queries/content-queries.mjs';
@@ -11,6 +11,8 @@ import { hash, verify } from 'argon2';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
 import dotenv from 'dotenv';
+import { saveNotificationDevice, verifyNotificationDevice } from '../3-profile/profile-utilities.mjs';
+import { NotificationDeviceSignup } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 dotenv.config(); 
 
 /********************
@@ -144,9 +146,8 @@ export enum LoginMethod {
     FACEBOOK = 'FACEBOOK'
 }
 
-export const getJWTLogin = async(userID:number, detailed = true):Promise<LoginResponseBody|undefined> => {
-    const userProfile:USER = await DB_SELECT_USER(new Map([['userID', userID]]));
-           
+export const getJWTLogin = async(request:JwtRequest, detailed = true):Promise<LoginResponseBody|undefined> => {
+    const userProfile:USER = await DB_SELECT_USER(new Map([['userID', request.jwtUserID]]));
     return await assembleLoginResponse(LoginMethod.JWT, userProfile, detailed);
 }
 
@@ -159,8 +160,7 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
         || !(await verifyPassword(userProfile.passwordHash, password)))
             return undefined;
 
-    else            
-        return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
+    return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
 }
 
 export const assembleLoginResponse = async(loginMethod:LoginMethod, userProfile:USER, detailed = true):Promise<LoginResponseBody|undefined> => {

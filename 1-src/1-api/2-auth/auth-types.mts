@@ -43,7 +43,6 @@ export interface LoginRequest extends Request {
     body: LoginRequestBody
 };
 
-
 export interface JwtPrayerRequest extends JwtRequest {
     params: JwtRequest['params'] & {
         prayer: string,

@@ -13,8 +13,7 @@ import { ProfileResponse } from './profile-types.mjs';
 
 export interface LoginRequestBody {
     email: string, 
-    password: string,
-    deviceID: string
+    password: string
 };
 
 export interface JwtResponseBody {
@@ -25,5 +24,6 @@ export interface JwtResponseBody {
 
 export interface LoginResponseBody extends JwtResponseBody {
     userProfile: ProfileResponse,
-    service:string
+    service:string,
+    deviceID?:number // return device ID on signup
 };

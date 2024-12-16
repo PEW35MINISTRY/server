@@ -3,11 +3,27 @@ import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtClientRequest } from '../2-auth/auth-types.mjs';
 import { DB_DELETE_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_UPDATE_NOTIFICATION_DEVICE_NAME } from '../../2-services/2-database/queries/notification-queries.mjs';
-import { NotificationDeviceDeleteRequest, NotificationDeviceNameRequest, NotificationDeviceRequest } from './profile-types.mjs';
+import { NotificationDeviceDeleteRequest, NotificationDeviceNameRequest, NotificationDeviceSignupRequest, NotificationDeviceVerifyRequest } from './profile-types.mjs';
 import { NOTIFICATION_DEVICE_FIELDS } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { saveNotificationDevice } from './profile-utilities.mjs';
+import { saveNotificationDevice, verifyNotificationDevice } from './profile-utilities.mjs';
+import { NotificationDeviceVerify } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 
+export const POST_notificationDeviceUser = async (request:NotificationDeviceVerifyRequest, response:Response, next:NextFunction) => {
+    // Verify notification device ID. If a device ID is not provided, a new device is registered
+    let deviceID = request.body.deviceID;
 
+    if (request.body.deviceID !== undefined) {
+        if (await verifyNotificationDevice(request.clientID, request.body) === false)
+            next(new Exception(500, `Failed to verify or update notification device for user: ${request.clientID}`, 'Failed to verify or update'));
+    }
+    else {
+        deviceID = await saveNotificationDevice(request.clientID, {deviceToken: request.body.deviceToken});
+        if (deviceID < 0) next(new Exception(500, `Failed to insert notification device for user: ${request.clientID}`, 'Failed to Save'));
+    }
+
+    response.status(200).send(deviceID);
+    log.event(`Notification device created/updated for user ${request.clientID} by user ${request.jwtUserID}`);
+}
 
 export const GET_notificationDeviceList = async (request:JwtClientRequest, response:Response) => {
     response.status(200).send(await DB_SELECT_NOTIFICATION_DEVICE_LIST(request.clientID));
@@ -36,13 +52,12 @@ export const PATCH_notificationDeviceName = async (request:NotificationDeviceNam
 
 
 //New or Replace Record
-export const PUT_notificationDeviceAdmin = async(request:NotificationDeviceRequest, response:Response, next:NextFunction) => {
+export const PUT_notificationDeviceAdmin = async(request:NotificationDeviceSignupRequest, response:Response, next:NextFunction) => {
     
-    if(await saveNotificationDevice(request.clientID, request.body) === false)
-        next(new Exception(500, `Failed to insert or update notification device for user: ${request.clientID}`, 'Failed to Save'));
-
+    const deviceID = await saveNotificationDevice(request.clientID, request.body);
+    if (deviceID < 0) next(new Exception(500, `Failed to insert or update notification device for user: ${request.clientID}`, 'Failed to Save'));
     else {
-        response.status(200).send(`Notification Device Updated Successfully`);
+        response.status(200).send(deviceID);
         log.event(`Notification device created/updated for user ${request.clientID} by user ${request.jwtUserID}`);
     }
 };

@@ -1,5 +1,5 @@
 import { Request } from 'express'
-import { Mobile_Device, ProfileEditRequestBody } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs'
+import { NotificationDeviceSignup, NotificationDeviceVerify, ProfileEditRequestBody } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs'
 import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs'
 import { DeviceOSEnum } from '../../0-assets/field-sync/input-config-sync/inputField.mjs'
 
@@ -21,7 +21,7 @@ export interface CreateDemoRequest extends JwtRequest {
 }
 
 export interface ProfileSignupRequest extends CreateDemoRequest {
-    body:Request['body'] & ProfileEditRequestBody & { device?:Mobile_Device }
+    body:Request['body'] & ProfileEditRequestBody & NotificationDeviceSignup 
     query: {
         populate?:string
     }
@@ -45,8 +45,12 @@ export interface ProfileEditWalkLevelRequest extends JwtClientRequest {
 * Notification Types *
 **********************/
 //Admin Insert Manually
-export interface NotificationDeviceRequest extends JwtClientRequest {
-    body: Mobile_Device; //Defined in: 1-src\0-assets\field-sync\api-type-sync\profile-types.mts
+export interface NotificationDeviceSignupRequest extends JwtClientRequest {
+    body: NotificationDeviceSignup; //Defined in: 1-src\0-assets\field-sync\api-type-sync\profile-types.mts
+}
+
+export interface NotificationDeviceVerifyRequest extends JwtClientRequest {
+    body: NotificationDeviceVerify;
 }
 
 export interface NotificationDeviceDeleteRequest extends JwtClientRequest {

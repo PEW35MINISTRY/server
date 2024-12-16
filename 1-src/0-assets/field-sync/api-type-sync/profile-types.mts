@@ -111,17 +111,20 @@ export interface ProfileEditRequestBody {
     userRoleTokenList?: [{role: RoleEnum, token: string}]
 }
 
-/* User Notifications */
-export type Mobile_Device = {
-    deviceName:string,
-    deviceToken:string,
-    deviceOS:DeviceOSEnum
+export type NotificationDeviceVerify = {
+    deviceID?: number,
+    deviceToken: string
+}
+
+export type NotificationDeviceSignup = {
+    deviceToken: string,
+    deviceName?: string,
+    deviceOS?: DeviceOSEnum
 }
 
 export type NotificationDeviceListItem = {
     deviceID:number, //Readonly, record in Database
     userID:number,
     deviceName:string,
-    deviceOS:DeviceOSEnum,
     modifiedDT:string //ISO string
 }

@@ -28,7 +28,7 @@ import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, G
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
-import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceList, PATCH_notificationDeviceName, PUT_notificationDeviceAdmin } from './1-api/3-profile/notification.mjs';
+import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceList, PATCH_notificationDeviceName, POST_notificationDeviceUser, PUT_notificationDeviceAdmin } from './1-api/3-profile/notification.mjs';
 
 //Import Services
 import * as log from './2-services/log.mjs';
@@ -245,6 +245,7 @@ apiServer.delete('/api/user/:client/contact-list-cache', DELETE_contactCache);
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
 
+apiServer.post('/api/user/:client/notification/device', POST_notificationDeviceUser)
 apiServer.get('/api/user/:client/notification/device-list', GET_notificationDeviceList);
 apiServer.patch('/api/user/:client/notification/device/:device/device-name', PATCH_notificationDeviceName);
 apiServer.delete('/api/user/:client/notification/device/:device', DELETE_notificationDevice);
