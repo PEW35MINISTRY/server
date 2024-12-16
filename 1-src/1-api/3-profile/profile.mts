@@ -142,8 +142,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
                 if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
 
                 //Mobile: Save Device Information for Notification Setup
-                if(request.body.device)
-                    saveNotificationDevice(newProfile.userID, request.body.notificationDevice);
+                loginDetails.deviceID = await saveNotificationDevice(newProfile.userID, request.body.notificationDevice);
 
                 //Optional Demo User Populate
                 if(request.query.populate === 'true' && newProfile.isRole(RoleEnum.USER)) {
