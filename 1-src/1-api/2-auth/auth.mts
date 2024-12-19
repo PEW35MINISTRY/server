@@ -1,5 +1,5 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { EMAIL_REGEX } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { Exception } from '../api-types.mjs';

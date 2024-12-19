@@ -2,7 +2,7 @@ import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-t
 import { CircleSearchRefineEnum, CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_SEARCH_REVERSE_CACHE, DB_SELECT_CIRCLE_IDS, DB_SELECT_USER_CIRCLE_IDS } from '../../2-services/2-database/queries/circle-queries.mjs';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { JwtSearchRequest } from '../api-types.mjs';
 
 /**********************************

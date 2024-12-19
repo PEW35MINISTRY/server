@@ -6,7 +6,7 @@ import { PrayerRequestTagEnum } from '../../0-assets/field-sync/input-config-syn
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
 import { DATABASE_PRAYER_REQUEST, PRAYER_REQUEST_TABLE_COLUMNS } from '../2-database/database-types.mjs';
-import * as log from '../log.mjs';
+import * as log from '../10-utilities/logging/log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 
 

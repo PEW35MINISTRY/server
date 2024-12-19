@@ -1,4 +1,4 @@
-import * as log from '../../log.mjs';
+import * as log from '../../10-utilities/logging/log.mjs';
 import { command, execute, validateColumns } from '../database.mjs';
 import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
@@ -321,6 +321,7 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
         + 'WHERE circle_user.userID = ? OR ( circle.leaderID = ? ) '
+        + 'GROUP BY circle.circleID '
         + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, userID, userID])
 
     //Leader included in MEMBER search
@@ -330,12 +331,14 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
         + 'WHERE ( circle_user.userID = ? AND circle_user.status = ? ) '
         + 'OR ( circle.leaderID = ? ) '
+        + 'GROUP BY circle.circleID '
         + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, status, userID, userID])
 
     : await execute('SELECT DISTINCT circle.circleID, circle.name, circle.image, circle.leaderID, circle_user.status ' 
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
         + 'WHERE (circle_user.userID = ?  AND circle_user.status = ? ) '
+        + 'GROUP BY circle.circleID '
         + 'ORDER BY circle_user.modifiedDT DESC;', [userID, status]);
  
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || '', status: (row.leaderID === userID) ? CircleStatusEnum.LEADER : (row.status === undefined) ? undefined : CircleStatusEnum[row.status]}))];

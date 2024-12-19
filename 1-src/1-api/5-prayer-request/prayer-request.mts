@@ -5,7 +5,7 @@ import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-fi
 import PRAYER_REQUEST from '../../2-services/1-models/prayerRequestModel.mjs';
 import { PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_PRAYER_REQUEST, DB_DELETE_PRAYER_REQUEST_COMMENT, DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH, DB_INSERT_AND_SELECT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST_COMMENT, DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH, DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST, DB_SELECT_PRAYER_REQUEST_COMMENT, DB_SELECT_PRAYER_REQUEST_DETAIL, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST, DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST, DB_UPDATE_INCREMENT_PRAYER_COUNT, DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT, DB_UPDATE_PRAYER_REQUEST, DB_UPDATE_RESOLVE_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception } from '../api-types.mjs';
 import { PrayerRequestCommentRequest, PrayerRequestPatchRequest, PrayerRequestPostRequest } from './prayer-request-types.mjs';

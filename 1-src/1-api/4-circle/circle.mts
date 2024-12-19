@@ -9,7 +9,7 @@ import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS_REQUIR
 import { DB_DELETE_CIRCLE, DB_DELETE_CIRCLE_ANNOUNCEMENT, DB_DELETE_CIRCLE_USER_STATUS, DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_INSERT_CIRCLE, DB_INSERT_CIRCLE_ANNOUNCEMENT, DB_INSERT_CIRCLE_USER_STATUS, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_CIRCLE_DETAIL, DB_SELECT_CIRCLE_DETAIL_BY_NAME, DB_SELECT_CIRCLE_USER_LIST, DB_SELECT_USER_CIRCLES, DB_UPDATE_CIRCLE, DB_UPDATE_CIRCLE_USER_STATUS } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { JwtCircleRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';

@@ -2,7 +2,7 @@ import InputField, { InputType, isListType, InputSelectionField, InputRangeField
 import { JwtClientRequest } from "../../1-api/2-auth/auth-types.mjs";
 import { Exception } from "../../1-api/api-types.mjs";
 import { getEnvironment, isURLValid } from "../10-utilities/utilities.mjs";
-import * as log from "../log.mjs";
+import * as log from "../10-utilities/logging/log.mjs";
 import BASE_MODEL from "./baseModel.mjs";
 
 /* BASE_MODEL_UTILITY */

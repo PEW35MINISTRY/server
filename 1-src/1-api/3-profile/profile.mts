@@ -1,6 +1,6 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import URL, { URLSearchParams } from 'url';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
@@ -146,6 +146,8 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
 
                 response.status(201).send(loginDetails);
                 await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();
+                
+                log.event('Successfully Signed up New User', newProfile.userID, newProfile.displayName, JSON.stringify(newProfile.userRoleList), (request.query.populate === 'true') ? 'Populated Demo Profile' : '');
             } else
                 next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`, 'Please Login'));
         }
