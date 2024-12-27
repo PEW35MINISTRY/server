@@ -14,15 +14,18 @@ export const POST_notificationDeviceUser = async (request:NotificationDeviceVeri
 
     if (request.body.deviceID !== undefined) {
         if (await verifyNotificationDevice(request.clientID, request.body) === false)
-            next(new Exception(500, `Failed to verify or update notification device for user: ${request.clientID}`, 'Failed to verify or update'));
+            return next(new Exception(500, `Failed to verify or update notification device for user: ${request.clientID}`, 'Failed to verify or update'));
+        log.event(`Notification device verified for user ${request.clientID} by user ${request.jwtUserID}`);
+
     }
     else {
         deviceID = await saveNotificationDevice(request.clientID, {deviceToken: request.body.deviceToken});
-        if (deviceID < 0) next(new Exception(500, `Failed to insert notification device for user: ${request.clientID}`, 'Failed to Save'));
+        if (deviceID < 0) return next(new Exception(500, `Failed to insert notification device for user: ${request.clientID}`, 'Failed to Save'));
+        log.event(`Notification device created for user ${request.clientID} by user ${request.jwtUserID}`);
+
     }
 
-    response.status(200).send(deviceID);
-    log.event(`Notification device created/updated for user ${request.clientID} by user ${request.jwtUserID}`);
+    response.status(200).send(deviceID.toString());
 }
 
 export const GET_notificationDeviceList = async (request:JwtClientRequest, response:Response) => {
@@ -57,7 +60,7 @@ export const PUT_notificationDeviceAdmin = async(request:NotificationDeviceSignu
     const deviceID = await saveNotificationDevice(request.clientID, request.body);
     if (deviceID < 0) next(new Exception(500, `Failed to insert or update notification device for user: ${request.clientID}`, 'Failed to Save'));
     else {
-        response.status(200).send(deviceID);
+        response.status(200).send(deviceID.toString());
         log.event(`Notification device created/updated for user ${request.clientID} by user ${request.jwtUserID}`);
     }
 };

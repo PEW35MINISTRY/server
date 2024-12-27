@@ -58,7 +58,7 @@ const createEndpoint = async(deviceToken:string):Promise<string> => {
             PlatformApplicationArn: process.env.PLATFORM_APPLICATION_ARN,
             Token: deviceToken
         }));
-        return JSON.parse(response.EndpointArn);
+        return response.EndpointArn;
     } catch (error) {
         await log.alert(`AWS SNS | Server failed to connect to SNS or got invalid response when creating endpoint for: ${deviceToken}.`, error);
         throw error;
@@ -86,7 +86,7 @@ const getEndpointToken = async(endpointARN:string):Promise<string> => {
         const response:GetEndpointAttributesCommandOutput = await client.send(new GetEndpointAttributesCommand({
             EndpointArn: endpointARN,
         }));
-        return JSON.parse(response.Attributes.Token);
+        return response.Attributes.Token;
     } catch (error) {
         await log.alert(`AWS SNS | Server failed to connect to SNS or got invalid response when getting device token from endpoint: ${endpointARN}.`, error);
         throw error;
@@ -120,9 +120,10 @@ export const saveNotificationDevice = async(userID:number, notificationDevice:No
         const endpointArn = await createEndpoint(deviceToken);
         await DB_INSERT_NOTIFICATION_DEVICE(userID, deviceName, endpointArn);
 
-        const deviceID = await DB_SELELCT_NOTIFICATION_DEVICE_ID(userID, endpointArn)[0];
+        const deviceIDPromise = await DB_SELELCT_NOTIFICATION_DEVICE_ID(userID, endpointArn);
+        const deviceID = deviceIDPromise[0];
 
-        log.event(`Notification device setup for user ${userID}: ${deviceName}`);
+        log.event(`Notification device ${deviceID} setup for user ${userID}: ${deviceName}`);
         return deviceID;
     }
 };
