@@ -60,11 +60,18 @@ export const DB_UPDATE_NOTIFICATION_DEVICE_NAME = async(deviceID:number, deviceN
 }
 
 /* Delete Individually by deviceID or All linked to userID */
-export const DB_DELETE_NOTIFICATION_DEVICE = async({deviceID, userID}:{deviceID?:number, userID:number}):Promise<boolean> => {
+export const DB_DELETE_NOTIFICATION_DEVICE_BY_USER = async({deviceID, userID}:{deviceID?:number, userID:number}):Promise<boolean> => {
     log.event((deviceID !== undefined) ? `Deleting Notification Device with deviceID: ${deviceID}` : `Deleting Notification Device(s) for userID: ${userID}`);
     
     const response:CommandResponseType = (deviceID !== undefined) ? await command('DELETE FROM notification_device WHERE deviceID = ? ;', [deviceID])
                 : await command('DELETE FROM notification_device WHERE userID = ? ;', [userID]);
+
+    return (response !== undefined); //Success on non failure
+}
+
+export const DB_DELETE_NOTIFICATION_DEVICE_BY_ENDPOINT = async(endpointARN:string):Promise<boolean> => {
+    log.event(`Deleting Endpoint ARN ${endpointARN}`);
+        const response:CommandResponseType = await command('DELETE FROM notification_device WHERE endpointARN = ? ;', [endpointARN]);
 
     return (response !== undefined); //Success on non failure
 }

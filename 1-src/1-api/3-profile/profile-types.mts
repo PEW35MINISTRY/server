@@ -53,6 +53,17 @@ export interface NotificationDeviceVerifyRequest extends JwtClientRequest {
     body: NotificationDeviceVerify;
 }
 
+export enum SingleRecipientNotificationType {
+    PARTNERSHIP_REQUEST = "PARTNERSHIP_REQUEST",
+    PARTNERSHIP_ACCEPT = "PARTNERSHIP_ACCEPT",
+    CIRCLE_INVITE = "CIRCLE_INVITE"
+}
+
+export enum MultipleRecipientNotificationType {
+    PRAYER_REQUEST_USER = "PRAYER_REQUEST_USER",
+    PRAYER_REQUEST_CIRCLE = "PRAYER_REQUEST_CIRCLE"
+}
+
 export interface NotificationDeviceDeleteRequest extends JwtClientRequest {
     params: JwtClientRequest['params'] & {
         device:string,

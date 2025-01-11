@@ -16,6 +16,8 @@ import { clearImage, clearImageCombinations, uploadImage } from '../../2-service
 import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest } from './circle-types.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { sendNotificationSingleRecipient } from '../3-profile/profile-utilities.mjs';
+import { SingleRecipientNotificationType } from '../3-profile/profile-types.mjs';
 
 
 /******************
@@ -315,6 +317,8 @@ export const POST_circleLeaderMemberInvite =  async(request: JwtCircleClientRequ
     else {
         const circleItem:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
         circleItem.status = CircleStatusEnum.INVITE;
+
+        sendNotificationSingleRecipient(request.jwtUserID, parseInt(request.params.client), SingleRecipientNotificationType.CIRCLE_INVITE, undefined, request.circleID);
         response.status(202).send(circleItem);
     }
 };

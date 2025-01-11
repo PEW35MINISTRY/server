@@ -8,6 +8,8 @@ import { DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-s
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_DELETE_CONTACT_CACHE, DB_DELETE_CONTACT_CACHE_BATCH, DB_IS_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_ROLES } from '../../2-services/2-database/queries/user-queries.mjs';
 import { PartnerListItem, ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { sendNotificationSingleRecipient } from '../3-profile/profile-utilities.mjs';
+import { SingleRecipientNotificationType } from '../3-profile/profile-types.mjs';
 
 
 
@@ -88,6 +90,10 @@ export const POST_PartnerContractAccept = async(request:JwtClientRequest, respon
             await DB_DELETE_CONTACT_CACHE_BATCH([request.jwtUserID, request.clientID]);
 
         log.event(`User ${request.jwtUserID} and partner ${request.clientID} are now ${newStatus}`);
+
+        if (newStatus === PartnerStatusEnum.PENDING_CONTRACT_PARTNER) sendNotificationSingleRecipient(getUserID(request.jwtUserID, request.clientID), getPartnerID(request.jwtUserID , request.clientID), SingleRecipientNotificationType.PARTNERSHIP_REQUEST);
+        else if (newStatus === PartnerStatusEnum.PARTNER) sendNotificationSingleRecipient(getPartnerID(request.jwtUserID, request.clientID), getUserID(request.jwtUserID, request.clientID), SingleRecipientNotificationType.PARTNERSHIP_ACCEPT);
+
         response.status(200).send(await DB_SELECT_PARTNERSHIP(request.jwtUserID, request.clientID));
     } else
         return next(new Exception(500, `Failed to save partnership status for user ${request.jwtUserID} and partner ${request.clientID} as ${newStatus}`, 'Save Failed'));

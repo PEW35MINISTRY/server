@@ -140,7 +140,7 @@ export const PARTNERSHIP_CONTRACT = (userName:string, partnerName:string):string
 
 export const NOTIFICATION_DEVICE_FIELDS:InputField[] = [
     new InputField({title: 'Device Name', field: 'deviceName', type:InputType.TEXT, validationRegex: new RegExp(/^[a-zA-Z0-9' _-]{5,255}$/), validationMessage: 'Required, 5-100 chars, letters, numbers, dashes, underscores.' }),
-    new InputField({title: 'Token', field: 'deviceToken', type:InputType.TEXT, validationRegex: new RegExp(/^[a-zA-Z0-9._-]{1,255}$/), validationMessage: 'Required, 5-100 chars, letters, numbers, dashes, underscores.' }),
+    new InputField({title: 'Token', field: 'deviceToken', type:InputType.TEXT, validationRegex: new RegExp(/^[a-zA-Z0-9.:_-]{1,255}$/), validationMessage: 'Required, 5-100 chars, letters, numbers, dashes, underscores.' }),
     new InputSelectionField({title: 'Platform', field: 'deviceOS', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(DeviceOSEnum)}),
     new InputField({title: 'Endpoint', field: 'endpointARN', type:InputType.TEXT, validationRegex: new RegExp(/^[a-zA-Z0-9:./=_-]{0,255}$/), validationMessage: 'Required, 5-100 chars, letters, numbers, dashes, underscores.' }),
 ];

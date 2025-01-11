@@ -2,7 +2,7 @@ import { NextFunction, Response } from 'express';
 import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtClientRequest } from '../2-auth/auth-types.mjs';
-import { DB_DELETE_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_UPDATE_NOTIFICATION_DEVICE_NAME } from '../../2-services/2-database/queries/notification-queries.mjs';
+import { DB_DELETE_NOTIFICATION_DEVICE_BY_USER, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_UPDATE_NOTIFICATION_DEVICE_NAME } from '../../2-services/2-database/queries/notification-queries.mjs';
 import { NotificationDeviceDeleteRequest, NotificationDeviceNameRequest, NotificationDeviceSignupRequest, NotificationDeviceVerifyRequest } from './profile-types.mjs';
 import { NOTIFICATION_DEVICE_FIELDS } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { saveNotificationDevice, verifyNotificationDevice } from './profile-utilities.mjs';
@@ -72,7 +72,7 @@ export const DELETE_notificationDevice = async (request:NotificationDeviceDelete
     if(request.params.device === undefined || isNaN(parseInt(request.params.device))) 
         return next(new Exception(400, `Notification Device Delete Failed :: missing deviceID parameter :: ${request.params.device}`, 'Missing DeviceID'));
 
-    else if(await DB_DELETE_NOTIFICATION_DEVICE({ deviceID: parseInt(request.params.device), userID: request.clientID }) === false)
+    else if(await DB_DELETE_NOTIFICATION_DEVICE_BY_USER({ deviceID: parseInt(request.params.device), userID: request.clientID }) === false)
         return next(new Exception(404, `Notification Device Delete Failed :: Failed to delete device with deviceID: ${request.params.device} for userID: ${request.clientID}`, 'Delete Failed'));
 
     else 
@@ -84,7 +84,7 @@ export const DELETE_notificationDevice = async (request:NotificationDeviceDelete
 //Delete all notification device records associated with clientID
 export const DELETE_allUserNotificationDevices = async (request:JwtClientRequest, response:Response, next:NextFunction) => {
 
-    if(await DB_DELETE_NOTIFICATION_DEVICE({ userID: request.clientID }) === false)
+    if(await DB_DELETE_NOTIFICATION_DEVICE_BY_USER({ userID: request.clientID }) === false)
         return next(new Exception(404, `Notification Device Delete Failed :: Failed to delete devices for userID: ${request.clientID}`, 'Delete Failed'));
 
     else 
