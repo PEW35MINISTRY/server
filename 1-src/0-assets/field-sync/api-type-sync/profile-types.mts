@@ -110,21 +110,3 @@ export interface ProfileEditRequestBody {
     modelSourceEnvironmentEnum?: string,
     userRoleTokenList?: [{role: RoleEnum, token: string}]
 }
-
-export type NotificationDeviceVerify = {
-    deviceID?: number,
-    deviceToken: string
-}
-
-export type NotificationDeviceSignup = {
-    deviceToken: string,
-    deviceName?: string,
-    deviceOS?: DeviceOSEnum
-}
-
-export type NotificationDeviceListItem = {
-    deviceID:number, //Readonly, record in Database
-    userID:number,
-    deviceName:string,
-    modifiedDT:string //ISO string
-}

@@ -4,9 +4,9 @@ import { CommandResponseType } from '../database-types.mjs';
 import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
-import { NotificationDeviceListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { NotificationDeviceListItem } from '../../../0-assets/field-sync/api-type-sync/notification-types.mjs';
 
 
 /*****************************************************************************
@@ -51,6 +51,16 @@ export const DB_SELECT_NOTIFICATION_DEVICE_LIST = async(userID:number):Promise<N
         deviceName: row.deviceName,
         modifiedDT: row.modifiedDT //ISO string, readonly
     }));
+}
+
+export const DB_SELECT_NOTIFICATION_DEVICE_ID = async (deviceID:number):Promise<number[]> => {
+    const rows = await execute(`SELECT deviceID FROM notification_device WHERE deviceID = ?`, [deviceID]);
+    return rows.map(row => row.deviceID);
+}
+
+export const DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT = async (endpointARN:string):Promise<number[]> => {
+    const rows = await execute(`SELECT deviceID FROM notification_device WHERE endpointARN = ?`, [endpointARN]);
+    return rows.map(row => row.deviceID);
 }
 
 export const DB_UPDATE_NOTIFICATION_DEVICE_NAME = async(deviceID:number, deviceName:string):Promise<boolean> => {

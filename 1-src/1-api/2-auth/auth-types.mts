@@ -20,7 +20,6 @@ export interface SubscribePost extends Request {
     }
 }
 
-
 export interface JwtData extends JwtPayload {
     jwtUserID: number;
     jwtUserRole:RoleEnum;

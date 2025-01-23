@@ -24,6 +24,5 @@ export interface JwtResponseBody {
 
 export interface LoginResponseBody extends JwtResponseBody {
     userProfile: ProfileResponse,
-    service:string,
-    deviceID?:number // return device ID on signup
+    service:string
 };

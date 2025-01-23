@@ -2,28 +2,34 @@ import { NextFunction, Response } from 'express';
 import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtClientRequest } from '../2-auth/auth-types.mjs';
-import { DB_DELETE_NOTIFICATION_DEVICE_BY_USER, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_UPDATE_NOTIFICATION_DEVICE_NAME } from '../../2-services/2-database/queries/notification-queries.mjs';
-import { NotificationDeviceDeleteRequest, NotificationDeviceNameRequest, NotificationDeviceSignupRequest, NotificationDeviceVerifyRequest } from './profile-types.mjs';
-import { NOTIFICATION_DEVICE_FIELDS } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { saveNotificationDevice, verifyNotificationDevice } from './profile-utilities.mjs';
-import { NotificationDeviceVerify } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { DB_DELETE_NOTIFICATION_DEVICE_BY_USER, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT, DB_UPDATE_NOTIFICATION_DEVICE_NAME } from '../../2-services/2-database/queries/notification-queries.mjs';
+import { NotificationDeviceDeleteRequest, NotificationDeviceNameRequest, NotificationDeviceSignupRequest, NotificationDeviceVerifyRequest } from './notification-types.mjs';
+import { reapNotificationEndpoint, saveNotificationDevice, verifyNotificationDevice } from './notification-utilities.mjs';
+import { NOTIFICATION_DEVICE_FIELDS } from '../../0-assets/field-sync/input-config-sync/notification-field-config.mjs';
+import { DeviceVerificationResponseType } from '../../0-assets/field-sync/api-type-sync/notification-types.mjs';
 
-export const POST_notificationDeviceUser = async (request:NotificationDeviceVerifyRequest, response:Response, next:NextFunction) => {
-    // Verify notification device ID. If a device ID is not provided, a new device is registered
-    let deviceID = request.body.deviceID;
-
-    if (request.body.deviceID !== undefined) {
-        if (await verifyNotificationDevice(request.clientID, request.body) === false)
-            return next(new Exception(500, `Failed to verify or update notification device for user: ${request.clientID}`, 'Failed to verify or update'));
-        log.event(`Notification device verified for user ${request.clientID} by user ${request.jwtUserID}`);
-
+export const POST_verifyNotificationDeviceUser = async (request:NotificationDeviceVerifyRequest, response:Response, next:NextFunction) => {
+    
+    const result:DeviceVerificationResponseType = await verifyNotificationDevice(request.clientID, request.params.device, request.body.deviceToken);
+    switch(result) {
+        case DeviceVerificationResponseType.FAILURE:
+            return next(new Exception(500, `Failed to verify or update notification device for user: ${request.clientID}`, DeviceVerificationResponseType.FAILURE));
+            break;
+        case DeviceVerificationResponseType.DELETED:
+            return next(new Exception(500, `Failed to verify or update notification device for user: ${request.clientID}`, DeviceVerificationResponseType.DELETED));
+            break;
+        case DeviceVerificationResponseType.SUCCESS:
+            log.event(`Notification device verified for user ${request.clientID} by user ${request.jwtUserID}`, DeviceVerificationResponseType.SUCCESS);
+            response.status(200).send(DeviceVerificationResponseType.SUCCESS);
+            break
     }
-    else {
-        deviceID = await saveNotificationDevice(request.clientID, {deviceToken: request.body.deviceToken});
-        if (deviceID < 0) return next(new Exception(500, `Failed to insert notification device for user: ${request.clientID}`, 'Failed to Save'));
+}
+
+export const POST_newNotificationDeviceUser = async (request:NotificationDeviceSignupRequest, response:Response, next:NextFunction) => {
+
+    const deviceID = await saveNotificationDevice(request.clientID, request.body);
+    if (deviceID < 0) return next(new Exception(500, `Failed to insert notification device for user: ${request.clientID}`, 'Failed to Save'));
         log.event(`Notification device created for user ${request.clientID} by user ${request.jwtUserID}`);
-
-    }
 
     response.status(200).send(deviceID.toString());
 }
@@ -68,14 +74,18 @@ export const PUT_notificationDeviceAdmin = async(request:NotificationDeviceSignu
 
 //Delete single record by deviceID
 export const DELETE_notificationDevice = async (request:NotificationDeviceDeleteRequest, response:Response, next:NextFunction) => {
+    let endpoints = [];
 
     if(request.params.device === undefined || isNaN(parseInt(request.params.device))) 
         return next(new Exception(400, `Notification Device Delete Failed :: missing deviceID parameter :: ${request.params.device}`, 'Missing DeviceID'));
 
-    else if(await DB_DELETE_NOTIFICATION_DEVICE_BY_USER({ deviceID: parseInt(request.params.device), userID: request.clientID }) === false)
+    endpoints = await DB_SELECT_NOTIFICATION_ENDPOINT(parseInt(request.params.device));
+
+    if(await DB_DELETE_NOTIFICATION_DEVICE_BY_USER({ deviceID: parseInt(request.params.device), userID: request.clientID }) === false)
         return next(new Exception(404, `Notification Device Delete Failed :: Failed to delete device with deviceID: ${request.params.device} for userID: ${request.clientID}`, 'Delete Failed'));
 
     else 
+        await reapNotificationEndpoint(endpoints[0]);
         return response.status(204).send(`Notification Device with deviceID: ${request.params.device} successfully removed for userID: ${request.clientID}`);
     //Event logging, handled in route
 };

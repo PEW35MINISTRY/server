@@ -11,8 +11,7 @@ import { hash, verify } from 'argon2';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
 import dotenv from 'dotenv';
-import { saveNotificationDevice, verifyNotificationDevice } from '../3-profile/profile-utilities.mjs';
-import { NotificationDeviceSignup } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+
 dotenv.config(); 
 
 /********************

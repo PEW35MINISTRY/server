@@ -9,9 +9,9 @@ import * as log from '../../2-services/log.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception } from '../api-types.mjs';
 import { PrayerRequestCommentRequest, PrayerRequestPatchRequest, PrayerRequestPostRequest } from './prayer-request-types.mjs';
-import { sendNotificationMultipleRecipient } from '../3-profile/profile-utilities.mjs';
-import { MultipleRecipientNotificationType } from '../3-profile/profile-types.mjs';
 import { DB_SELECT_CIRCLE_SEARCH, DB_SELECT_CIRCLE_USER_IDS } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { sendNotification, sendNotificationCircle} from '../8-notification/notification-utilities.mjs';
+import { CircleNotificationType, NotificationType } from '../8-notification/notification-types.mjs';
 
 
 /*************************************
@@ -81,11 +81,11 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
                 
                 else {
                     // send notifications asynchronously
-                    for (const circleID of (newPrayerRequest.addCircleRecipientIDList)) {
+                    for (const circleID of (newPrayerRequest.addCircleRecipientIDList || [])) {
                         const userIDs = await DB_SELECT_CIRCLE_USER_IDS(circleID, undefined, false);
-                        sendNotificationMultipleRecipient(requestorID, userIDs, MultipleRecipientNotificationType.PRAYER_REQUEST_CIRCLE, undefined, circleID);
+                        sendNotificationCircle(requestorID, userIDs, circleID, CircleNotificationType.PRAYER_REQUEST_RECIPIENT);
                     }
-                    if (newPrayerRequest.addUserRecipientIDList.length > 0) sendNotificationMultipleRecipient(requestorID, newPrayerRequest.addUserRecipientIDList || [], MultipleRecipientNotificationType.PRAYER_REQUEST_USER);
+                    if (newPrayerRequest.addUserRecipientIDList !== undefined && newPrayerRequest.addUserRecipientIDList.length > 0) sendNotification(requestorID, newPrayerRequest.addUserRecipientIDList || [], NotificationType.PRAYER_REQUEST_RECIPIENT);
 
                     response.status(201).send(savedPrayerRequest.toJSON());
                     log.event('Created New Prayer Request:', savedPrayerRequest.prayerRequestID);
@@ -132,11 +132,11 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
                 editPrayerRequest.commentList = currentPrayerRequest.commentList;
 
                 // send notifications asynchronously
-                for (const circleID of (editPrayerRequest.addCircleRecipientIDList)) {
+                for (const circleID of (editPrayerRequest.addCircleRecipientIDList || [])) {
                     const userIDs = await DB_SELECT_CIRCLE_USER_IDS(circleID, undefined, false);
-                    sendNotificationMultipleRecipient(editPrayerRequest.requestorID, userIDs, MultipleRecipientNotificationType.PRAYER_REQUEST_CIRCLE, currentPrayerRequest.requestorProfile.displayName, circleID);
+                    sendNotificationCircle(editPrayerRequest.requestorID, userIDs, circleID, CircleNotificationType.PRAYER_REQUEST_RECIPIENT, currentPrayerRequest.requestorProfile.displayName);
                 }
-                if (editPrayerRequest.addUserRecipientIDList.length > 0) sendNotificationMultipleRecipient(editPrayerRequest.requestorID, editPrayerRequest.addUserRecipientIDList, MultipleRecipientNotificationType.PRAYER_REQUEST_USER, currentPrayerRequest.requestorProfile.displayName);
+                if (editPrayerRequest.addUserRecipientIDList !== undefined && editPrayerRequest.addUserRecipientIDList.length > 0) sendNotification(editPrayerRequest.requestorID, editPrayerRequest.addUserRecipientIDList, NotificationType.PRAYER_REQUEST_RECIPIENT, currentPrayerRequest.requestorProfile.displayName);
 
                 response.status(202).send(editPrayerRequest.toJSON());
                 log.event('Edit Prayer Request successfully saved:', editPrayerRequest.prayerRequestID);
