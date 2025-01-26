@@ -11,11 +11,12 @@ export type NotificationDeviceSignup = {
     deviceOS?: DeviceOSEnum
 }
 
-export type NotificationDeviceListItem = {
+export interface NotificationDeviceListItem {
     deviceID:number, //Readonly, record in Database
     userID:number,
     deviceName:string,
-    modifiedDT:string //ISO string
+    modifiedDT:string, //ISO string
+    endpointARN?:string //ADMIN detailed
 }
 
 export enum DeviceVerificationResponseType {

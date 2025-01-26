@@ -202,23 +202,15 @@ export type DATABASE_CONTENT = {
 /******************************************************************** 
 *      Database `notification_device` Table Created: 12/7/2024      *
 *********************************************************************/
-export const NOTIFICATION_DEVICE_TABLE_COLUMNS_REQUIRED:string[] = [
-    'deviceID', 'userID', 'deviceToken', 'deviceOS'
-];
+export const NOTIFICATION_DEVICE_TABLE_COLUMNS_REQUIRED:string[] = [ 'deviceID', 'userID' ];
 
 export const NOTIFICATION_DEVICE_TABLE_COLUMNS:string[] = [ ...NOTIFICATION_DEVICE_TABLE_COLUMNS_REQUIRED,
     'deviceName', 'endpointARN'
 ];
-
-export enum DATABASE_DEVICE_OS_ENUM {
-    IOS = 'IOS',
-    ANDROID = 'ANDROID',
-}
 
 export type DATABASE_NOTIFICATION_DEVICE = {
     deviceID:number, //Auto incrementing, our ID in database
     userID:number,
     deviceName:string,
     endpointARN?:string,
-    modifiedDT:Date
 }
