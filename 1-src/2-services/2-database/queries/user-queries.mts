@@ -477,6 +477,10 @@ export const DB_DELETE_CONTACT_CACHE = async(userID:number):Promise<boolean> => 
 }
 
 export const DB_DELETE_CONTACT_CACHE_BATCH = async(userIDList:number[]):Promise<boolean> => {
+    if(userIDList.length === 0) {
+        log.warn('Contact Cache Batch Delete: Empty List of Users');
+        return false;
+    }
     log.event('Contact Cache Batch Delete: ', `userIDList: ${JSON.stringify(userIDList)}`);
     const placeholderList = userIDList.map(() => '?').join(', ');
 
@@ -494,6 +498,10 @@ export const DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS = async(circleID:number):Pro
 }
 
 export const DB_DELETE_CONTACT_CACHE_BY_CIRCLE_BATCH = async(circleIDList:number[], userIDList:number[] = []): Promise<boolean> => {
+    if(circleIDList.length === 0 && userIDList.length === 0) {
+        log.warn('Contact Cache Batch Delete Circle: Empty List of Circles & Users');
+        return false;
+    }
     const allMemberIDLists = await Promise.all(
         circleIDList.map((circleID: number) => DB_SELECT_CIRCLE_USER_IDS(circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, true))
     );

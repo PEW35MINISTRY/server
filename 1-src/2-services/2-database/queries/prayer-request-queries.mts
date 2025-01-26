@@ -268,6 +268,10 @@ export const DB_INSERT_USER_RECIPIENT_PRAYER_REQUEST = async({prayerRequestID, u
 
 //Batch Insert multiple recipients at once
 export const DB_INSERT_USER_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequestID, userRecipientIDList=[]}:{prayerRequestID:number, userRecipientIDList:number[]}):Promise<boolean> => {
+    if(userRecipientIDList.length === 0) {
+        log.warn('Batch INSERT INTO prayer_request_recipient: Empty List of Users');
+        return false;
+    }
     const batchList = userRecipientIDList.map((userID:number) => ([prayerRequestID, userID]));
 
     const response:boolean|undefined = await batch(`INSERT INTO prayer_request_recipient ( prayerRequestID, userID ) VALUES ? ;`, batchList);
@@ -283,6 +287,10 @@ export const DB_INSERT_CIRCLE_RECIPIENT_PRAYER_REQUEST = async({prayerRequestID,
 }
 
 export const DB_INSERT_CIRCLE_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequestID, circleRecipientIDList=[]}:{prayerRequestID:number, circleRecipientIDList:number[]}):Promise<boolean> => {
+    if(circleRecipientIDList.length === 0) {
+        log.warn('Batch INSERT INTO prayer_request_recipient: Empty List of Circles');
+        return false;
+    }
     const batchList = circleRecipientIDList.map((circleID:number) => ([prayerRequestID, circleID]));
 
     const response:boolean|undefined = await batch(`INSERT INTO prayer_request_recipient ( prayerRequestID, circleID ) VALUES ? ;`, batchList);
@@ -291,6 +299,11 @@ export const DB_INSERT_CIRCLE_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequ
 }
 
 export const DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequestID, userRecipientIDList=[], circleRecipientIDList=[]}:{prayerRequestID:number, userRecipientIDList:number[], circleRecipientIDList:number[]}):Promise<boolean> => {
+    if(userRecipientIDList.length === 0 && circleRecipientIDList.length === 0) {
+        log.warn('Batch INSERT INTO prayer_request_recipient: Empty List of Users & Circles');
+        return false;
+    }
+        
     const batchList = [];
     
     if(userRecipientIDList.length > 0) {
@@ -325,6 +338,10 @@ export const DB_DELETE_RECIPIENT_PRAYER_REQUEST = async({prayerRequestID, userID
 
 //Batch Delete multiple recipients at once
 export const DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequestID, userRecipientIDList=[], circleRecipientIDList=[]}:{prayerRequestID:number, userRecipientIDList:number[], circleRecipientIDList:number[]}):Promise<boolean> => {
+    if(userRecipientIDList.length === 0 && circleRecipientIDList.length === 0) {
+        log.warn('Batch DELETE FROM prayer_request_recipient: Empty List of Users & Circles');
+        return false;
+    }
 
     const response:CommandResponseType = await command('DELETE FROM prayer_request_recipient WHERE prayerRequestID = ? AND '
                                                     + `( ${[...userRecipientIDList.map((id) => 'userID = ?'), ...circleRecipientIDList.map((id) => 'circleID = ?')].join(' OR ')} );`,
