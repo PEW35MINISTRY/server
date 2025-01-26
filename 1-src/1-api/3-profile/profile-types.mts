@@ -21,7 +21,7 @@ export interface CreateDemoRequest extends JwtRequest {
 }
 
 export interface ProfileSignupRequest extends CreateDemoRequest {
-    body:Request['body'] & ProfileEditRequestBody & NotificationDeviceSignup
+    body:Request['body'] & ProfileEditRequestBody
     query: {
         populate?:string
     }

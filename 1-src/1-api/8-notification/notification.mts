@@ -2,9 +2,9 @@ import { NextFunction, Response } from 'express';
 import * as log from '../../2-services/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtClientRequest } from '../2-auth/auth-types.mjs';
-import { DB_DELETE_NOTIFICATION_DEVICE_BY_USER, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT, DB_UPDATE_NOTIFICATION_DEVICE_NAME } from '../../2-services/2-database/queries/notification-queries.mjs';
+import { DB_DELETE_NOTIFICATION_DEVICE_BY_USER, DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_DEVICE_ID, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT, DB_UPDATE_NOTIFICATION_DEVICE_NAME } from '../../2-services/2-database/queries/notification-queries.mjs';
 import { NotificationDeviceDeleteRequest, NotificationDeviceNameRequest, NotificationDeviceSignupRequest, NotificationDeviceVerifyRequest } from './notification-types.mjs';
-import { reapNotificationEndpoint, saveNotificationDevice, verifyNotificationDevice } from './notification-utilities.mjs';
+import { createEndpoint, deleteNotificationOphanedEndpoint, saveNotificationDevice, verifyNotificationDevice } from './notification-utilities.mjs';
 import { NOTIFICATION_DEVICE_FIELDS } from '../../0-assets/field-sync/input-config-sync/notification-field-config.mjs';
 import { DeviceVerificationResponseType } from '../../0-assets/field-sync/api-type-sync/notification-types.mjs';
 
@@ -62,12 +62,24 @@ export const PATCH_notificationDeviceName = async (request:NotificationDeviceNam
 
 //New or Replace Record
 export const PUT_notificationDeviceAdmin = async(request:NotificationDeviceSignupRequest, response:Response, next:NextFunction) => {
-    
-    const deviceID = await saveNotificationDevice(request.clientID, request.body);
-    if (deviceID < 0) next(new Exception(500, `Failed to insert or update notification device for user: ${request.clientID}`, 'Failed to Save'));
+    const deviceTokenValidationRegex:RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceToken')?.validationRegex || new RegExp(/.{1,255}/);
+    let deviceName = request.body.deviceName;
+
+    if (request.body.deviceToken === undefined || !(new RegExp(deviceTokenValidationRegex).test(request.body.deviceToken)))
+        return next(new Exception(400, `Notification Device PUT Failed :: invalid deviceToken :: ${request.body.deviceToken}`, 'Invalid Device Token'));
+
+    if(!deviceName || deviceName.length <= 1) deviceName = `User ${request.clientID} ${String(request.body.deviceOS ?? 'Device').toLowerCase()}`;
+    else deviceName = deviceName.replace(/’/g, "'").trim(); //Two types of apostrophes 
+
+    const endpointARN = await createEndpoint(request.body.deviceToken);
+    if (endpointARN === null) 
+        return next(new Exception(500, `Notification Device PUT Failed :: failed to create endpointARN for device :: ${request.body.deviceToken}`, 'Failed to create endpointARN'));
+    else if (await DB_INSERT_NOTIFICATION_DEVICE(request.clientID, deviceName, endpointARN) === false)
+        return next(new Exception(500, `Notification Device PUT Failed :: failed to save notification device :: ${request.body.deviceToken}`, 'Failed to save'));
     else {
+        const deviceID = await DB_SELECT_NOTIFICATION_DEVICE_ID({userID: request.clientID, endpointArn: endpointARN});
         response.status(200).send(deviceID.toString());
-        log.event(`Notification device created/updated for user ${request.clientID} by user ${request.jwtUserID}`);
+        log.event(`Notification device updated for user ${request.clientID} by user ${request.jwtUserID}`);
     }
 };
 
@@ -85,7 +97,7 @@ export const DELETE_notificationDevice = async (request:NotificationDeviceDelete
         return next(new Exception(404, `Notification Device Delete Failed :: Failed to delete device with deviceID: ${request.params.device} for userID: ${request.clientID}`, 'Delete Failed'));
 
     else 
-        await reapNotificationEndpoint(endpoints[0]);
+        await deleteNotificationOphanedEndpoint(endpoints[0]);
         return response.status(204).send(`Notification Device with deviceID: ${request.params.device} successfully removed for userID: ${request.clientID}`);
     //Event logging, handled in route
 };

@@ -145,8 +145,8 @@ export enum LoginMethod {
     FACEBOOK = 'FACEBOOK'
 }
 
-export const getJWTLogin = async(request:JwtRequest, detailed = true):Promise<LoginResponseBody|undefined> => {
-    const userProfile:USER = await DB_SELECT_USER(new Map([['userID', request.jwtUserID]]));
+export const getJWTLogin = async(userID:number, detailed = true):Promise<LoginResponseBody|undefined> => {
+    const userProfile:USER = await DB_SELECT_USER(new Map([['userID', userID]]));
     return await assembleLoginResponse(LoginMethod.JWT, userProfile, detailed);
 }
 

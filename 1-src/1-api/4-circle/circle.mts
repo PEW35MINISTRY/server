@@ -313,12 +313,12 @@ export const DELETE_circleMember =  async(request: JwtCircleRequest, response: R
 export const POST_circleLeaderMemberInvite =  async(request: JwtCircleClientRequest, response: Response, next: NextFunction) => {
     
     if(await DB_INSERT_CIRCLE_USER_STATUS({userID: request.clientID, circleID: request.circleID, status: DATABASE_CIRCLE_STATUS_ENUM.INVITE}) === false)
-        next(new Exception(404, `Circle Membership Leader Invite Failed :: Failed to invite user ${request.params.client} to circle ${request.circleID}.`, 'Invite Failed'));
+        next(new Exception(404, `Circle Membership Leader Invite Failed :: Failed to invite user ${request.clientID} to circle ${request.circleID}.`, 'Invite Failed'));
     else {
         const circleItem:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
         circleItem.status = CircleStatusEnum.INVITE;
 
-        sendNotificationCircle(request.jwtUserID, [parseInt(request.params.client)], circleItem.circleID, CircleNotificationType.CIRCLE_INVITE);
+        sendNotificationCircle(request.jwtUserID, [request.clientID], circleItem.circleID, CircleNotificationType.CIRCLE_INVITE);
         response.status(202).send(circleItem);
     }
 };

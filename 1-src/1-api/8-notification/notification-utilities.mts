@@ -2,7 +2,7 @@ import * as log from '../../2-services/log.mjs';
 import { NOTIFICATION_DEVICE_FIELDS } from '../../0-assets/field-sync/input-config-sync/notification-field-config.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
-import { DB_DELETE_NOTIFICATION_DEVICE_BY_ENDPOINT, DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST, DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT, DB_SELECT_NOTIFICATION_DEVICE_ID, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT, DB_SELECT_NOTIFICATION_ENDPOINT_LIST, DB_SELELCT_NOTIFICATION_DEVICE_ID } from '../../2-services/2-database/queries/notification-queries.mjs';
+import { DB_DELETE_NOTIFICATION_DEVICE_BY_ENDPOINT, DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST, DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT, DB_SELECT_NOTIFICATION_DEVICE_ID, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT, DB_SELECT_NOTIFICATION_ENDPOINT_LIST } from '../../2-services/2-database/queries/notification-queries.mjs';
 import { CreatePlatformEndpointCommand, CreatePlatformEndpointCommandOutput, DeleteEndpointCommand, GetEndpointAttributesCommand, GetEndpointAttributesCommandOutput, PublishCommand, SetEndpointAttributesCommand, SNSClient } from '@aws-sdk/client-sns';
 import { CircleNotificationType, NotificationType } from './notification-types.mjs';
 import { DB_SELECT_CIRCLE } from '../../2-services/2-database/queries/circle-queries.mjs';
@@ -50,7 +50,7 @@ const publishNotifications = async (endpointARNs:string[], message:string) => {
     }
 }
 
-const createEndpoint = async(deviceToken:string):Promise<string> => {
+export const createEndpoint = async(deviceToken:string):Promise<string> => {
     try {
         const response:CreatePlatformEndpointCommandOutput = await snsClient.send(new CreatePlatformEndpointCommand({
             PlatformApplicationArn: process.env.PLATFORM_APPLICATION_ARN,
@@ -59,6 +59,7 @@ const createEndpoint = async(deviceToken:string):Promise<string> => {
         return response.EndpointArn;
     } catch (error) {
         await log.error(`AWS SNS :: Server failed to connect to SNS or got invalid response when creating endpoint for: ${deviceToken}.`, error);
+        return null;
     }
 }
 
@@ -154,12 +155,7 @@ export const sendNotification = async (senderID:number, recipientIDList: number[
  * NOTIFICATION DEVICE HANDLING *
  ********************************/
 
-const cleanUpNotificationDevice = async (endpointArn:string) => {
-    await deleteEndpoint(endpointArn);
-    if (!await DB_DELETE_NOTIFICATION_DEVICE_BY_ENDPOINT(endpointArn)) log.warn(`FAILED TO DELETE NOTIFICATION DEVICE FOR ENDPOINT ARN ${endpointArn}`);
-}
-
-export const reapNotificationEndpoint = async (endpointArn:string):Promise<void> => {
+export const deleteNotificationOphanedEndpoint = async (endpointArn:string):Promise<void> => {
     // check to see if any notification devices are still using a endpoint ARN. if not, delete it
     const endpoints = await DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT(endpointArn);
     if (endpoints.length === 0) await deleteEndpoint(endpointArn);
@@ -188,7 +184,7 @@ export const saveNotificationDevice = async(userID:number, notificationDevice:No
         const endpointArn = await createEndpoint(deviceToken);
         await DB_INSERT_NOTIFICATION_DEVICE(userID, deviceName, endpointArn);
 
-        const deviceIDPromise = await DB_SELELCT_NOTIFICATION_DEVICE_ID(userID, endpointArn);
+        const deviceIDPromise = await DB_SELECT_NOTIFICATION_DEVICE_ID({userID, endpointArn});
         const deviceID = deviceIDPromise[0];
 
         log.event(`Notification device ${deviceID} setup for user ${userID}: ${deviceName}`);
@@ -196,6 +192,7 @@ export const saveNotificationDevice = async(userID:number, notificationDevice:No
     }
 };
 
+// Query the endpointARN on AWS to see if the user's deviceToken has changed since they last logged in through email and update it if is has
 export const verifyNotificationDevice = async(userID:number, device:string, deviceToken:string):Promise<DeviceVerificationResponseType> => {
     const tokenRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceToken')?.validationRegex || new RegExp(/.{1,255}/);
     const deviceID = parseInt(device);
@@ -211,7 +208,7 @@ export const verifyNotificationDevice = async(userID:number, device:string, devi
         const endpointArnList = await DB_SELECT_NOTIFICATION_ENDPOINT(deviceID)
         if (endpointArnList.length !== 1) {
             // Check to see if the user logged into a different deleted to this device
-            const devices = await DB_SELECT_NOTIFICATION_DEVICE_ID(deviceID);
+            const devices = await DB_SELECT_NOTIFICATION_DEVICE_ID({deviceID});
             if (devices.length === 0) {
                 log.event(`Cannot update deviceToken for a notification device [${deviceID}] that no longer exists. Register a new notification device to receive notifications.`);
                 return DeviceVerificationResponseType.DELETED;

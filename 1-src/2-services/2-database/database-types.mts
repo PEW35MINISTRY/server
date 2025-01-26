@@ -207,7 +207,7 @@ export const NOTIFICATION_DEVICE_TABLE_COLUMNS_REQUIRED:string[] = [
 ];
 
 export const NOTIFICATION_DEVICE_TABLE_COLUMNS:string[] = [ ...NOTIFICATION_DEVICE_TABLE_COLUMNS_REQUIRED,
-    'deviceName', 'endpointARN', 'modifiedDT'
+    'deviceName', 'endpointARN'
 ];
 
 export enum DATABASE_DEVICE_OS_ENUM {
@@ -219,8 +219,6 @@ export type DATABASE_NOTIFICATION_DEVICE = {
     deviceID:number, //Auto incrementing, our ID in database
     userID:number,
     deviceName:string,
-    deviceToken:string,  //Manufacturer's ID
-    deviceOS: DATABASE_DEVICE_OS_ENUM,
     endpointARN?:string,
     modifiedDT:Date
 }

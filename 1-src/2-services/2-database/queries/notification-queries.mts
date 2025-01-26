@@ -35,8 +35,10 @@ export const DB_INSERT_NOTIFICATION_DEVICE = async(userID:number, deviceName:str
     return (response?.affectedRows > 0);
 };
 
-export const DB_SELELCT_NOTIFICATION_DEVICE_ID = async(userID:number, endpointArn:string):Promise<number[]> => {
-    const rows = await execute(`SELECT deviceID FROM notification_device WHERE userID = ? AND endpointARN = ?`, [userID, endpointArn]);
+export const DB_SELECT_NOTIFICATION_DEVICE_ID = async({deviceID, userID, endpointArn}:{deviceID?:number, userID?:number, endpointArn?:string}):Promise<number[]> => {
+    
+    const rows = deviceID !== undefined ? await execute(`SELECT deviceID FROM notification_device WHERE deviceID = ?`, [deviceID]) : 
+        userID !== undefined && endpointArn !== undefined ? await execute(`SELECT deviceID FROM notification_device WHERE userID = ? AND endpointARN = ?`, [userID, endpointArn]) : [];
     
     return rows.map(row => row.deviceID); 
 }
@@ -51,11 +53,6 @@ export const DB_SELECT_NOTIFICATION_DEVICE_LIST = async(userID:number):Promise<N
         deviceName: row.deviceName,
         modifiedDT: row.modifiedDT //ISO string, readonly
     }));
-}
-
-export const DB_SELECT_NOTIFICATION_DEVICE_ID = async (deviceID:number):Promise<number[]> => {
-    const rows = await execute(`SELECT deviceID FROM notification_device WHERE deviceID = ?`, [deviceID]);
-    return rows.map(row => row.deviceID);
 }
 
 export const DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT = async (endpointARN:string):Promise<number[]> => {

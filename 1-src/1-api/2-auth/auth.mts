@@ -40,7 +40,7 @@ export const POST_emailSubscribe = async(request:SubscribePost, response:Respons
  Authenticated Routes
  *********************/
  export const POST_JWTLogin = async (request: JwtRequest, response: Response, next: NextFunction) => {
-    response.status(202).send(await getJWTLogin(request, true));
+    response.status(202).send(await getJWTLogin(request.jwtUserID, true));
 };
 
 

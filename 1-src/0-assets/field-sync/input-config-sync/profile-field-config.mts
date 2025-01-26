@@ -1,5 +1,5 @@
 /***** ONLY DEPENDENCY: ./inputField - Define all other types locally *****/
-import InputField, { DeviceOSEnum, ENVIRONMENT_TYPE, InputRangeField, InputSelectionField, InputType } from './inputField.mjs';
+import InputField, { ENVIRONMENT_TYPE, InputRangeField, InputSelectionField, InputType } from './inputField.mjs';
 
 /*******************************************************
 *        PROFILE FIELD CONFIGURATION FILE

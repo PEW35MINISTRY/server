@@ -245,11 +245,12 @@ apiServer.delete('/api/user/:client/contact-list-cache', DELETE_contactCache);
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
 
-apiServer.post('/api/user/:client/notification/device/:device/verify', POST_verifyNotificationDeviceUser)
 apiServer.post('/api/user/:client/notification/device', POST_newNotificationDeviceUser)
-apiServer.get('/api/user/:client/notification/device-list', GET_notificationDeviceList);
-apiServer.patch('/api/user/:client/notification/device/:device/device-name', PATCH_notificationDeviceName);
 apiServer.delete('/api/user/:client/notification/device/:device', DELETE_notificationDevice);
+apiServer.post('/api/user/:client/notification/device/:device/verify', POST_verifyNotificationDeviceUser)
+apiServer.patch('/api/user/:client/notification/device/:device/device-name', PATCH_notificationDeviceName);
+
+apiServer.get('/api/user/:client/notification/device-list', GET_notificationDeviceList);
 apiServer.delete('/api/user/:client/notification/device-all', DELETE_allUserNotificationDevices);
 
 apiServer.get('/api/user/:client/partner-list', (request:JwtClientStatusFilterRequest, response:Response, next:NextFunction) => GET_PartnerList(undefined, request, response, next));
