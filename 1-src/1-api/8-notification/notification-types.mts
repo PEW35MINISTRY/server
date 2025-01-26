@@ -4,7 +4,7 @@
 **********************/
 
 import { NotificationDeviceSignup, NotificationDeviceVerify } from "../../0-assets/field-sync/api-type-sync/notification-types.mjs";
-import { JwtClientRequest } from "../2-auth/auth-types.mjs";
+import { JwtAdminRequest, JwtClientRequest } from "../2-auth/auth-types.mjs";
 
 //Admin Insert Manually
 export interface NotificationDeviceSignupRequest extends JwtClientRequest {
@@ -29,17 +29,32 @@ export enum CircleNotificationType {
     PRAYER_REQUEST_RECIPIENT = "PRAYER_REQUEST_RECIPIENT",
 }
 
-export interface NotificationDeviceDeleteRequest extends JwtClientRequest {
+export interface NotificationDeviceClientRequest extends JwtClientRequest {
     params: JwtClientRequest['params'] & {
         device:string,
     }
 }
 
-export interface NotificationDeviceNameRequest extends NotificationDeviceDeleteRequest {
-    params: NotificationDeviceDeleteRequest['params'] & {
+export interface NotificationDeviceNameRequest extends NotificationDeviceClientRequest {
+    params: NotificationDeviceClientRequest['params'] & {
         device:string,
     },
     body: {
         deviceName:string
     }
+}
+
+/* ADMIN Requests | Identify via deviceID only */
+export interface NotificationDeviceRequest extends JwtAdminRequest {
+    params: JwtAdminRequest['params'] & {
+        device:string,
+    }
+}
+
+export interface NotificationDeviceAdminEditRequest extends NotificationDeviceRequest {
+    body: {
+        userID?:number,
+        deviceName?:string,
+        endpointARN?:string
+    };
 }

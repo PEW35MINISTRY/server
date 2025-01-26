@@ -30,6 +30,28 @@ export const DB_INSERT_NOTIFICATION_DEVICE = async(userID:number, deviceName:str
     return (response?.affectedRows > 0);
 };
 
+/* ADMIN Edit Fields */
+export const DB_UPDATE_NOTIFICATION_DEVICE = async({deviceID, userID, deviceName, endpointARN}:{deviceID:number, userID?:number, deviceName?:string, endpointARN?:string}):Promise<boolean> => {
+    const fieldMap = new Map();
+    if(userID) fieldMap.set('userID', userID);
+    if(deviceName) fieldMap.set('deviceName', deviceName);
+    if(endpointARN) fieldMap.set('endpointARN', endpointARN);
+
+    if (fieldMap.size === 0 || validateColumns(fieldMap, false, NOTIFICATION_DEVICE_TABLE_COLUMNS, NOTIFICATION_DEVICE_TABLE_COLUMNS_REQUIRED) === false) {
+        log.db(`DB_UPDATE_NOTIFICATION_DEVICE called with invalid fields to update for device: ${deviceID}`, JSON.stringify(fieldMap))
+        return false;
+    } else
+        log.event(`DB_UPDATE_NOTIFICATION_DEVICE - Updating Notification fields for device: ${deviceID}`, JSON.stringify(fieldMap));
+
+    const response = await command(
+        `UPDATE notification_device SET ${Array.from(fieldMap.keys()).map((field) => `${field} = ?`).join(', ')} 
+         WHERE deviceID = ?;`, [...fieldMap.values(), deviceID]
+    );
+    
+    return (response?.affectedRows > 0);
+};
+
+
 export const DB_SELECT_NOTIFICATION_DEVICE_ID = async({deviceID, userID, endpointArn}:{deviceID?:number, userID?:number, endpointArn?:string}):Promise<number[]> => {
     
     const rows = deviceID !== undefined ? await execute(`SELECT deviceID FROM notification_device WHERE deviceID = ?`, [deviceID]) : 
@@ -60,6 +82,26 @@ export const DB_UPDATE_NOTIFICATION_DEVICE_NAME = async(deviceID:number, deviceN
     
     return ((response !== undefined) && (response.affectedRows === 1));
 }
+
+
+/* ADMIN Single Detailed */
+export const DB_SELECT_NOTIFICATION_DEVICE_DETAILED_BY_ID = async(deviceID:number):Promise<NotificationDeviceListItem|undefined> => {
+    const rows = await execute(`SELECT * FROM notification_device WHERE deviceID = ?`, [deviceID]);
+    
+    if(rows.length != 1) {
+        log.warn(`DB_SELECT_NOTIFICATION_DEVICE_DETAILED_BY_ID ${rows.length ? 'MULTIPLE' : 'NONE'} Notification Devices Identified for deviceID: ${deviceID}`, JSON.stringify(rows));
+        return undefined;
+    }
+
+    return {
+        deviceID: rows[0].deviceID,
+        userID: rows[0].userID,
+        deviceName: rows[0].deviceName,
+        modifiedDT: rows[0].modifiedDT, //ISO string, readonly
+        endpointARN: rows[0].endpointARN,
+    };
+}
+
 
 /* Delete Individually by deviceID or All linked to userID */
 export const DB_DELETE_NOTIFICATION_DEVICE_BY_USER = async({deviceID, userID}:{deviceID?:number, userID:number}):Promise<boolean> => {
