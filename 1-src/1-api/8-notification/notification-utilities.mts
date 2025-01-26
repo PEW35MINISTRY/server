@@ -2,7 +2,7 @@ import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { NOTIFICATION_DEVICE_FIELDS } from '../../0-assets/field-sync/input-config-sync/notification-field-config.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
-import { DB_DELETE_NOTIFICATION_DEVICE_BY_ENDPOINT, DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST, DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT, DB_SELECT_NOTIFICATION_DEVICE_ID, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT, DB_SELECT_NOTIFICATION_ENDPOINT_LIST } from '../../2-services/2-database/queries/notification-queries.mjs';
+import {  DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST, DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT, DB_SELECT_NOTIFICATION_DEVICE_ID, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT } from '../../2-services/2-database/queries/notification-queries.mjs';
 import { CreatePlatformEndpointCommand, CreatePlatformEndpointCommandOutput, DeleteEndpointCommand, GetEndpointAttributesCommand, GetEndpointAttributesCommandOutput, PublishCommand, SetEndpointAttributesCommand, SNSClient } from '@aws-sdk/client-sns';
 import { CircleNotificationType, NotificationType } from './notification-types.mjs';
 import { DB_SELECT_CIRCLE } from '../../2-services/2-database/queries/circle-queries.mjs';
@@ -155,7 +155,7 @@ export const sendNotification = async (senderID:number, recipientIDList: number[
  * NOTIFICATION DEVICE HANDLING *
  ********************************/
 
-export const deleteNotificationOphanedEndpoint = async (endpointArn:string):Promise<void> => {
+export const deleteNotificationOrphanedEndpoint = async (endpointArn:string):Promise<void> => {
     // check to see if any notification devices are still using a endpoint ARN. if not, delete it
     const endpoints = await DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT(endpointArn);
     if (endpoints.length === 0) await deleteEndpoint(endpointArn);

@@ -4,10 +4,13 @@ import { Exception } from '../api-types.mjs';
 import { JwtClientRequest } from '../2-auth/auth-types.mjs';
 import { DB_DELETE_NOTIFICATION_DEVICE_BY_USER, DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_DEVICE_ID, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT, DB_UPDATE_NOTIFICATION_DEVICE_NAME } from '../../2-services/2-database/queries/notification-queries.mjs';
 import { NotificationDeviceDeleteRequest, NotificationDeviceNameRequest, NotificationDeviceSignupRequest, NotificationDeviceVerifyRequest } from './notification-types.mjs';
-import { createEndpoint, deleteNotificationOphanedEndpoint, saveNotificationDevice, verifyNotificationDevice } from './notification-utilities.mjs';
+import { createEndpoint, deleteNotificationOrphanedEndpoint, saveNotificationDevice, verifyNotificationDevice } from './notification-utilities.mjs';
 import { NOTIFICATION_DEVICE_FIELDS } from '../../0-assets/field-sync/input-config-sync/notification-field-config.mjs';
 import { DeviceVerificationResponseType } from '../../0-assets/field-sync/api-type-sync/notification-types.mjs';
 
+
+
+// Query the endpointARN on AWS to see if the user's deviceToken has changed since they last login & update
 export const POST_verifyNotificationDeviceUser = async (request:NotificationDeviceVerifyRequest, response:Response, next:NextFunction) => {
     
     const result:DeviceVerificationResponseType = await verifyNotificationDevice(request.clientID, request.params.device, request.body.deviceToken);
@@ -97,7 +100,7 @@ export const DELETE_notificationDevice = async (request:NotificationDeviceDelete
         return next(new Exception(404, `Notification Device Delete Failed :: Failed to delete device with deviceID: ${request.params.device} for userID: ${request.clientID}`, 'Delete Failed'));
 
     else 
-        await deleteNotificationOphanedEndpoint(endpoints[0]);
+        await deleteNotificationOrphanedEndpoint(endpoints[0]);
         return response.status(204).send(`Notification Device with deviceID: ${request.params.device} successfully removed for userID: ${request.clientID}`);
     //Event logging, handled in route
 };

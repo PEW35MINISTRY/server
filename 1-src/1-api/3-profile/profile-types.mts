@@ -1,7 +1,6 @@
 import { Request } from 'express'
 import { ProfileEditRequestBody } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs'
 import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs'
-import { NotificationDeviceSignup } from '../../0-assets/field-sync/api-type-sync/notification-types.mjs'
 
 
 

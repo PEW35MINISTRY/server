@@ -1,11 +1,6 @@
 import * as log from '../../10-utilities/logging/log.mjs';
 import { batch, command, execute, validateColumns } from '../database.mjs';
-import { CommandResponseType } from '../database-types.mjs';
-import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
-import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
-import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
-import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
-import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { CommandResponseType, NOTIFICATION_DEVICE_TABLE_COLUMNS, NOTIFICATION_DEVICE_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import { NotificationDeviceListItem } from '../../../0-assets/field-sync/api-type-sync/notification-types.mjs';
 
 
