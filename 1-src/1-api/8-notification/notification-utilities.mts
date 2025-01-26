@@ -164,7 +164,7 @@ export const deleteNotificationOrphanedEndpoint = async (endpointArn:string):Pro
 export const saveNotificationDevice = async(userID:number, notificationDevice:NotificationDeviceSignup):Promise<number> => {
     let { deviceToken, deviceName, deviceOS } = notificationDevice;
 
-    const nameRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceName')?.validationRegex || new RegExp(/.{1,255}/);
+    const nameRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceName')?.validationRegex || new RegExp(/.{1,100}/);
     const tokenRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceToken')?.validationRegex || new RegExp(/.{1,255}/);
 
     //Configure Defaults & Custom Settings

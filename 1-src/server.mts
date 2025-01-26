@@ -30,7 +30,7 @@ import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, G
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
-import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceList, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser, PUT_notificationDeviceAdmin } from './1-api/8-notification/notification.mjs';
+import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceDetailAdmin, GET_notificationDeviceList, PATCH_notificationDeviceAdmin, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser } from './1-api/8-notification/notification.mjs';
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
@@ -364,7 +364,9 @@ apiServer.post('/api/admin/log/:type/report', (request:LogEntryNewRequest, respo
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.get('/api/admin/client/:client/mock-prayer-request', GET_createMockPrayerRequest);
 apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdmin);
-apiServer.put('/api/admin/client/:client/notification/device', PUT_notificationDeviceAdmin);
+
+apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDetailAdmin);
+apiServer.patch('/api/admin/notification/device/:device', PATCH_notificationDeviceAdmin);
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
