@@ -1,4 +1,12 @@
-import { DeviceOSEnum } from "../input-config-sync/inputField.mjs"
+
+/*********** ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ ***********/
+
+
+/************************************************************
+*    NOTIFICATION DEVICE TYPE CONFIGURATION FILE            *
+* Sync across all repositories: server, portal, mobile      *
+* Server: 1-src\1-api\8-notification\notification-types.mts *
+*************************************************************/
 
 export type NotificationDeviceVerify = {
     deviceID?: number,
@@ -8,7 +16,7 @@ export type NotificationDeviceVerify = {
 export type NotificationDeviceSignup = {
     deviceToken: string,
     deviceName?: string,
-    deviceOS?: DeviceOSEnum
+    deviceOS?: string
 }
 
 export interface NotificationDeviceListItem {
