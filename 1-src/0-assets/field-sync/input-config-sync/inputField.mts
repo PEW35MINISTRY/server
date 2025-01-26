@@ -6,6 +6,7 @@
 ********************************************************/
 
 export enum ENVIRONMENT_TYPE {
+    LOCAL = 'LOCAL',
     DEVELOPMENT = 'DEVELOPMENT',
     PRODUCTION = 'PRODUCTION'
 }

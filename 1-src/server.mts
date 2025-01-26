@@ -10,15 +10,17 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 
 //Import Types
-import { ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types';
+import { getEnvironment } from './2-services/10-utilities/utilities.mjs';
+import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/field-sync/input-config-sync/inputField.mjs';
+import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
-import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest } from './1-api/2-auth/auth-types.mjs';
+import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest, LogSearchRequest, LogEntryNewRequest } from './1-api/2-auth/auth-types.mjs';
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 
 //Import Routes
-import logRoutes from './1-api/1-log/log.mjs';
 import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
+import { GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
@@ -31,10 +33,9 @@ import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_Partn
 import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceList, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser, PUT_notificationDeviceAdmin } from './1-api/8-notification/notification.mjs';
 
 //Import Services
-import * as log from './2-services/log.mjs';
+import * as log from './2-services/10-utilities/logging/log.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
-import { SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/field-sync/input-config-sync/inputField.mjs';
 
 /********************
     EXPRESS SEVER
@@ -350,8 +351,15 @@ apiServer.use('/api/admin', (request:JwtAdminRequest, response:Response, next:Ne
 apiServer.get('/api/admin/mock-user', GET_createMockUser); //Optional query: populate=true
 
 apiServer.use(express.text());
-apiServer.use('/api/admin/log', logRoutes);
 apiServer.delete('/api/admin/flush-search-cache/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => DELETE_flushSearchCacheAdmin(undefined, request, response, next)); //(Handles authentication)
+
+apiServer.get('/api/admin/log', GET_LogEntryByS3Key);
+apiServer.get('/api/admin/log/default', GET_LogDefaultList);
+apiServer.get('/api/admin/log/:type', (request:LogSearchRequest, response:Response, next:NextFunction) => GET_LogSearchList(undefined, request, response, next));
+apiServer.post('/api/admin/log/:type', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogEntry(undefined, request, response, next));
+apiServer.post('/api/admin/log/:type/reset', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogResetFile(undefined, request, response, next));
+apiServer.get('/api/admin/log/:type/download', (request:LogEntryNewRequest, response:Response, next:NextFunction) => GET_LogDownloadFile(undefined, request, response, next));
+apiServer.post('/api/admin/log/:type/report', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogEmailReport(undefined, request, response, next));
 
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.get('/api/admin/client/:client/mock-prayer-request', GET_createMockPrayerRequest);
@@ -401,21 +409,32 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
 
     const errorResponse:ServerErrorResponse = {
         status: status,
-        notification: notification,
-        message: message,
-        action: action,
-        type: request.method,
-        url: request.originalUrl,
-        params: JSON.stringify(request.params),
-        query: JSON.stringify(request.query),
-        header: request.headers,
-        body: request.body
+        notification: notification
     }
-    response.status(error.status || 500).send(errorResponse);
 
+    if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)
+        response.status(error.status || 500).send(errorResponse);
+
+    else if (getEnvironment() !== ENVIRONMENT_TYPE.PRODUCTION) {
+        const debugResponse:ServerDebugErrorResponse = {
+            ...errorResponse,
+            message: message,
+            action: action,
+            type: request.method,
+            url: request.originalUrl,
+            params: JSON.stringify(request.params),
+            query: JSON.stringify(request.query),
+            header: request.headers,
+            body: request.body,
+        };
+
+        response.status(error.status || 500).send(debugResponse);
+    }
+
+    /* Logging API Errors */
     if(status < 400) log.event(`API | ${status} | Event:`, message);
     else if(status === 400) log.warn('API | 400 | User Request Invalid:', message);
     else if(status === 401) log.auth('API   401 | User Unauthorized:', message);
-    else if(status === 404) log.warn('API | 404 | Request Not Found:', message);
-    else log.error(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
+    else if(status === 404 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('API | 404 | Request Not Found:', message);
+    else log.errorWithoutTrace(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
 });

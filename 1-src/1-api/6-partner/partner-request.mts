@@ -1,5 +1,5 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtAdminRequest, JwtClientPartnerRequest, JwtClientRequest, JwtClientStatusFilterRequest } from '../2-auth/auth-types.mjs';
 import { PartnerStatusEnum, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';

@@ -1,5 +1,5 @@
 import { NextFunction, Response } from 'express';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtClientRequest } from '../2-auth/auth-types.mjs';
 import { DB_DELETE_NOTIFICATION_DEVICE_BY_USER, DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_DEVICE_ID, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT, DB_UPDATE_NOTIFICATION_DEVICE_NAME } from '../../2-services/2-database/queries/notification-queries.mjs';

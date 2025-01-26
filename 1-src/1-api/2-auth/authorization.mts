@@ -4,7 +4,7 @@ import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_
 import { DB_IS_USER_PARTNER_ANY_STATUS } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DB_IS_PRAYER_REQUEST_REQUESTOR, DB_IS_RECIPIENT_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
-import * as log from '../../2-services/log.mjs';
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
 import { getJWTData as getJwtData, isMaxRoleGreaterThan, verifyJWT as verifyJwt } from './auth-utilities.mjs';

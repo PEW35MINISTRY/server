@@ -34,7 +34,7 @@ export const getDateDaysFuture = (days: number = 14):Date => {
 
 export const CREATE_PRAYER_REQUEST_FIELDS:InputField[] = [
     new InputField({title: 'Topic', field: 'topic', required: true, type: InputType.TEXT, validationRegex: new RegExp(/^.{1,35}$/), validationMessage: 'Required, max 30 characters.' }),
-    new InputField({title: 'Description', field: 'description', required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{0,225}$/), validationMessage: 'Max 200 characters.'}),
+    new InputField({title: 'Prayer Request', field: 'description', required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{0,225}$/), validationMessage: 'Max 200 characters.'}),
     new InputSelectionField({title: 'Long Term', field: 'isOnGoing', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     new InputSelectionField({title: 'Category', field: 'tagList', type: InputType.MULTI_SELECTION_LIST, selectOptionList: Object.values(PrayerRequestTagEnum)}),
     new InputField({title: 'Relevance', field: 'expirationDate', required: true, type: InputType.DATE, value: getDateDaysFuture().toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Required, must be future date.' }),
@@ -43,7 +43,7 @@ export const CREATE_PRAYER_REQUEST_FIELDS:InputField[] = [
 ];
 
 export const EDIT_PRAYER_REQUEST_FIELDS:InputField[] = [
-    new InputSelectionField({title: 'Resolved', field: 'isResolved', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
+    new InputSelectionField({title: 'Answered', field: 'isResolved', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     ...CREATE_PRAYER_REQUEST_FIELDS,
     new InputField({title: 'Send to Contacts', field: 'addUserRecipientIDList', hide: true, type: InputType.USER_ID_LIST, validationRegex: new RegExp(/[0-9]+/)}),
     new InputField({title: 'Remove Contacts', field: 'removeUserRecipientIDList', hide: true, type: InputType.USER_ID_LIST, validationRegex: new RegExp(/[0-9]+/)}),

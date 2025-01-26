@@ -1,4 +1,4 @@
-import * as log from '../../log.mjs';
+import * as log from '../../10-utilities/logging/log.mjs';
 import USER from '../../1-models/userModel.mjs';
 import { generateJWTRequest, JwtSearchRequest } from '../../../1-api/api-types.mjs';
 import { LIST_LIMIT, SearchType } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
