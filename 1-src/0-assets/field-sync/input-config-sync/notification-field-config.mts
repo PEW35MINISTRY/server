@@ -1,4 +1,11 @@
-import InputField, { InputType } from "./inputField.mjs";
+/***** ONLY DEPENDENCY: ./inputField - Define all other types locally *****/
+import InputField, { InputType } from './inputField.mjs';
+
+
+/*******************************************************
+*    NOTIFICATION DEVICE FIELD CONFIGURATION FILE      *
+* Sync across all repositories: server, portal, mobile *
+*******************************************************/
 
 //New Device Entry; endpointARN is assigned by server
 export const NOTIFICATION_DEVICE_FIELDS:InputField[] = [
