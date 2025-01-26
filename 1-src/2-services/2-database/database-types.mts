@@ -198,3 +198,19 @@ export type DATABASE_CONTENT = {
     notes?: string
 };
 
+
+/******************************************************************** 
+*      Database `notification_device` Table Created: 12/7/2024      *
+*********************************************************************/
+export const NOTIFICATION_DEVICE_TABLE_COLUMNS_REQUIRED:string[] = [ 'deviceID', 'userID' ];
+
+export const NOTIFICATION_DEVICE_TABLE_COLUMNS:string[] = [ ...NOTIFICATION_DEVICE_TABLE_COLUMNS_REQUIRED,
+    'deviceName', 'endpointARN'
+];
+
+export type DATABASE_NOTIFICATION_DEVICE = {
+    deviceID:number, //Auto incrementing, our ID in database
+    userID:number,
+    deviceName:string,
+    endpointARN?:string,
+}

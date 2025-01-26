@@ -1,10 +1,9 @@
 import { Exception, JwtSearchRequest } from '../api-types.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { LIST_LIMIT, SEARCH_MIN_CHARS } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { DB_SELECT_USER_SEARCH } from '../../2-services/2-database/queries/user-queries.mjs';
-
 
 export const editProfileFieldAllowed = (field:string, userRole:RoleEnum):boolean => {
     if(userRole === RoleEnum.ADMIN)
@@ -19,7 +18,6 @@ export const signupProfileFieldAllowed = (field:string, userRole:RoleEnum):boole
     else
         return SIGNUP_PROFILE_FIELDS.some(inputField => inputField.field === field);
 }
-
 
 /**************************************************************
  *  CONTENT SEARCH FILTERING BY SEARCH                        *

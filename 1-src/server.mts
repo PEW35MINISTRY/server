@@ -30,6 +30,7 @@ import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, G
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
+import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceList, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser, PUT_notificationDeviceAdmin } from './1-api/8-notification/notification.mjs';
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
@@ -245,6 +246,14 @@ apiServer.delete('/api/user/:client/contact-list-cache', DELETE_contactCache);
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
 
+apiServer.post('/api/user/:client/notification/device', POST_newNotificationDeviceUser)
+apiServer.delete('/api/user/:client/notification/device/:device', DELETE_notificationDevice);
+apiServer.post('/api/user/:client/notification/device/:device/verify', POST_verifyNotificationDeviceUser)
+apiServer.patch('/api/user/:client/notification/device/:device/device-name', PATCH_notificationDeviceName);
+
+apiServer.get('/api/user/:client/notification/device-list', GET_notificationDeviceList);
+apiServer.delete('/api/user/:client/notification/device-all', DELETE_allUserNotificationDevices);
+
 apiServer.get('/api/user/:client/partner-list', (request:JwtClientStatusFilterRequest, response:Response, next:NextFunction) => GET_PartnerList(undefined, request, response, next));
 apiServer.get('/api/user/:client/partner-pending-list', GET_PendingPartnerList);
 apiServer.post('/api/user/:client/new-partner', POST_NewPartnerSearch);
@@ -355,6 +364,7 @@ apiServer.post('/api/admin/log/:type/report', (request:LogEntryNewRequest, respo
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.get('/api/admin/client/:client/mock-prayer-request', GET_createMockPrayerRequest);
 apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdmin);
+apiServer.put('/api/admin/client/:client/notification/device', PUT_notificationDeviceAdmin);
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));

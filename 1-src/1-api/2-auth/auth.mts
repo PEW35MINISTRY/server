@@ -13,7 +13,7 @@ import { DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries
  *********************/
 
 export const POST_login =  async(request: LoginRequest, response: Response, next: NextFunction) => {
-    const loginDetails:LoginResponseBody = await getEmailLogin(request.body['email'], request.body['password']);
+    const loginDetails:LoginResponseBody = await getEmailLogin(request.body['email'], request.body['password'], true);
 
     if(loginDetails)
         response.status(202).send(loginDetails);

@@ -16,6 +16,8 @@ import { clearImage, clearImageCombinations, uploadImage } from '../../2-service
 import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest } from './circle-types.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { CircleNotificationType } from '../8-notification/notification-types.mjs';
+import { sendNotificationCircle} from '../8-notification/notification-utilities.mjs';
 
 
 /******************
@@ -311,10 +313,12 @@ export const DELETE_circleMember =  async(request: JwtCircleRequest, response: R
 export const POST_circleLeaderMemberInvite =  async(request: JwtCircleClientRequest, response: Response, next: NextFunction) => {
     
     if(await DB_INSERT_CIRCLE_USER_STATUS({userID: request.clientID, circleID: request.circleID, status: DATABASE_CIRCLE_STATUS_ENUM.INVITE}) === false)
-        next(new Exception(404, `Circle Membership Leader Invite Failed :: Failed to invite user ${request.params.client} to circle ${request.circleID}.`, 'Invite Failed'));
+        next(new Exception(404, `Circle Membership Leader Invite Failed :: Failed to invite user ${request.clientID} to circle ${request.circleID}.`, 'Invite Failed'));
     else {
         const circleItem:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
         circleItem.status = CircleStatusEnum.INVITE;
+
+        sendNotificationCircle(request.jwtUserID, [request.clientID], circleItem.circleID, CircleNotificationType.CIRCLE_INVITE);
         response.status(202).send(circleItem);
     }
 };
@@ -343,6 +347,9 @@ export const POST_circleMemberJoinAdmin =  async(request: JwtCircleClientRequest
         await DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS(request.circleID);
         const circle:CircleListItem = (await DB_SELECT_CIRCLE(request.circleID)).toListItem();
         circle.status = CircleStatusEnum.MEMBER;
+
+        sendNotificationCircle(request.jwtUserID, [request.clientID], circle.circleID, CircleNotificationType.CIRCLE_INVITE);
+        
         response.status(202).send(circle);
         log.event(`Admin assigning user ${request.clientID} to circle ${request.circleID}`);
     }

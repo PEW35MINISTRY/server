@@ -20,7 +20,7 @@ export interface CreateDemoRequest extends JwtRequest {
 }
 
 export interface ProfileSignupRequest extends CreateDemoRequest {
-    body: Request['body'] & ProfileEditRequestBody
+    body:Request['body'] & ProfileEditRequestBody
     query: {
         populate?:string
     }
@@ -38,3 +38,4 @@ export interface ProfileEditWalkLevelRequest extends JwtClientRequest {
         walkLevel:number
     }
 }
+

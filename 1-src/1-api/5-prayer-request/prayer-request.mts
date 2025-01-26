@@ -9,6 +9,9 @@ import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception } from '../api-types.mjs';
 import { PrayerRequestCommentRequest, PrayerRequestPatchRequest, PrayerRequestPostRequest } from './prayer-request-types.mjs';
+import { DB_SELECT_CIRCLE_SEARCH, DB_SELECT_CIRCLE_USER_IDS } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { sendNotification, sendNotificationCircle} from '../8-notification/notification-utilities.mjs';
+import { CircleNotificationType, NotificationType } from '../8-notification/notification-types.mjs';
 
 
 /*************************************
@@ -77,6 +80,13 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
                     next(new Exception(500, 'Create Prayer Request Failed :: Failed to save batch recipient list.', 'Send Failed'));
                 
                 else {
+                    // send notifications asynchronously
+                    for (const circleID of (newPrayerRequest.addCircleRecipientIDList || [])) {
+                        const userIDs = await DB_SELECT_CIRCLE_USER_IDS(circleID, undefined, false);
+                        sendNotificationCircle(requestorID, userIDs, circleID, CircleNotificationType.PRAYER_REQUEST_RECIPIENT);
+                    }
+                    if (newPrayerRequest.addUserRecipientIDList !== undefined && newPrayerRequest.addUserRecipientIDList.length > 0) sendNotification(requestorID, newPrayerRequest.addUserRecipientIDList || [], NotificationType.PRAYER_REQUEST_RECIPIENT);
+
                     response.status(201).send(savedPrayerRequest.toJSON());
                     log.event('Created New Prayer Request:', savedPrayerRequest.prayerRequestID);
                 }
@@ -120,6 +130,14 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
                 editPrayerRequest.userRecipientList = await DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST(request.prayerRequestID);
                 editPrayerRequest.circleRecipientList = await DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST(request.prayerRequestID);
                 editPrayerRequest.commentList = currentPrayerRequest.commentList;
+
+                // send notifications asynchronously
+                for (const circleID of (editPrayerRequest.addCircleRecipientIDList || [])) {
+                    const userIDs = await DB_SELECT_CIRCLE_USER_IDS(circleID, undefined, false);
+                    sendNotificationCircle(editPrayerRequest.requestorID, userIDs, circleID, CircleNotificationType.PRAYER_REQUEST_RECIPIENT, currentPrayerRequest.requestorProfile.displayName);
+                }
+                if (editPrayerRequest.addUserRecipientIDList !== undefined && editPrayerRequest.addUserRecipientIDList.length > 0) sendNotification(editPrayerRequest.requestorID, editPrayerRequest.addUserRecipientIDList, NotificationType.PRAYER_REQUEST_RECIPIENT, currentPrayerRequest.requestorProfile.displayName);
+
                 response.status(202).send(editPrayerRequest.toJSON());
                 log.event('Edit Prayer Request successfully saved:', editPrayerRequest.prayerRequestID);
             }

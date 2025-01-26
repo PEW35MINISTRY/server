@@ -20,7 +20,6 @@ export interface SubscribePost extends Request {
     }
 }
 
-
 export interface JwtData extends JwtPayload {
     jwtUserID: number;
     jwtUserRole:RoleEnum;
@@ -42,7 +41,6 @@ export interface JwtRequest extends Request {
 export interface LoginRequest extends Request {
     body: LoginRequestBody
 };
-
 
 export interface JwtPrayerRequest extends JwtRequest {
     params: JwtRequest['params'] & {

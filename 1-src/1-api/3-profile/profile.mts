@@ -20,7 +20,6 @@ import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-c
 import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
 
 
-
 //UI Helper Utility
 export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
     response.status(200).send([...Object.keys(RoleEnum)]);
@@ -135,12 +134,13 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             const loginDetails:LoginResponseBody = await getEmailLogin(newProfile.email, request.body['password'], false);
 
             if(loginDetails) {
+                newProfile.userID = loginDetails.userID;
+                newProfile.isValid = true;
+
                 if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
 
                 //Optional Demo User Populate
                 if(request.query.populate === 'true' && newProfile.isRole(RoleEnum.USER)) {
-                    newProfile.userID = loginDetails.userID;
-                    newProfile.isValid = true;
                     loginDetails.userProfile = (await populateDemoRelations(newProfile)).toJSON();
                 }
 
