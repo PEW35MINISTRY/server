@@ -120,9 +120,10 @@ export const DELETE_notificationDevice = async (request:NotificationDeviceClient
     if(await DB_DELETE_NOTIFICATION_DEVICE_BY_USER({ deviceID: parseInt(request.params.device), userID: request.clientID }) === false)
         return next(new Exception(404, `Notification Device Delete Failed :: Failed to delete device with deviceID: ${request.params.device} for userID: ${request.clientID}`, 'Delete Failed'));
 
-    else 
+    else {
         await deleteNotificationOrphanedEndpoint(endpoints[0]);
         return response.status(204).send(`Notification Device with deviceID: ${request.params.device} successfully removed for userID: ${request.clientID}`);
+    }
     //Event logging, handled in route
 };
 
