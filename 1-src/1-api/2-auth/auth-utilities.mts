@@ -47,10 +47,12 @@ await InitializeJWTSecretKey();
 ******************* */
 export const generateJWT = (userID:number, userRole:RoleEnum):string => {
     //generate JWT as type JWTData
-    if(userID > 0 && userRole as RoleEnum !== undefined)
+    if(userID > 0 && userRole as RoleEnum !== undefined) {
+        type ExpireTimeValue = '2h' | '15m' | '10d';  //jsonwebtoken has strick type format checking; here's a few options for
+        
         // default config generates signature with HS256 - https://www.npmjs.com/package/jsonwebtoken
-        return jwtPackage.sign({jwtUserID: userID, jwtUserRole: userRole}, APP_SECRET_KEY, {expiresIn: process.env.JWT_DURATION || '15 minutes'});
-    else {
+        return jwtPackage.sign({jwtUserID: userID, jwtUserRole: userRole}, APP_SECRET_KEY, {expiresIn: (process.env.JWT_DURATION || '15m') as ExpireTimeValue});
+    } else {
         log.error(`JWT Generation Failed: INVALID userID: ${userID} or userRole: ${userRole}`);
         return '';
     }

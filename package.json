@@ -18,13 +18,13 @@
     "server": "npm run serve",
     "start": "npm run build & npm run open & npm run serve",
     "update": "npm run website && npm run portal && npm run start",
-    "debug": "npm run build & npm run serve"
+    "debug": "npm run build & npm run serve",
+    "clean": "rimraf node_modules/ package-lock.json 0-compiled/"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.417.0",
     "@aws-sdk/client-secrets-manager": "^3.565.0",
     "@aws-sdk/client-sns": "^3.709.0",
-    "@types/dotenv": "^8.2.0",
     "@types/jsonwebtoken": "^9.0.2",
     "argon2": "^0.41.1",
     "axios": "^1.5.0",
@@ -39,7 +39,7 @@
     "metascraper-title": "^5.45.9",
     "mysql2": "3.11.3",
     "path": "^0.12.7",
-    "rimraf": "^3.0.2",
+    "rimraf": "5.0.10",
     "socket.io": "^4.5.4",
     "stack-trace": "^1.0.0-pre1",
     "ts-node": "9.1"
