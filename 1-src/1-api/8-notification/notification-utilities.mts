@@ -8,13 +8,15 @@ import { CircleNotificationType, NotificationType } from './notification-types.m
 import { DB_SELECT_CIRCLE } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { DeviceVerificationResponseType, NotificationDeviceSignup } from '../../0-assets/field-sync/api-type-sync/notification-types.mjs';
+import { DeviceOSEnum, ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
 
 const snsClient = new SNSClient({ region: process.env.SNS_REGION });
 
 // SNS headers for Apple
 const SNS_APNS_HEADERS = {
     "AWS.SNS.MOBILE.APNS.PUSH_TYPE":{"DataType":"String","StringValue":"alert"},
-    "AWS.SNS.MOBILE.APNS.PRIORITY":{"DataType":"String","StringValue":"5"}
+    "AWS.SNS.MOBILE.APNS.PRIORITY":{"DataType":"String","StringValue":"10"}
 }
 
 const getIndividualPrayerRequestNotificationBody = (username: string) => `New prayer request from ${username}`;
@@ -50,10 +52,10 @@ const publishNotifications = async (endpointARNs:string[], message:string) => {
     }
 }
 
-export const createEndpoint = async(deviceToken:string):Promise<string> => {
+export const createEndpoint = async(deviceToken:string, deviceOS:DeviceOSEnum):Promise<string> => {
     try {
         const response:CreatePlatformEndpointCommandOutput = await snsClient.send(new CreatePlatformEndpointCommand({
-            PlatformApplicationArn: process.env.PLATFORM_APPLICATION_ARN,
+            PlatformApplicationArn: deviceOS === DeviceOSEnum.ANDROID ? process.env.FIREBASE_PLATFORM_APPLICATION_ARN : [ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT].includes(getEnvironment()) ? process.env.APNS_DEV_PLATFORM_APPLICATION_ARN : process.env.APNS_PROD_PLATFORM_APPLICATION_ARN,
             Token: deviceToken
         }));
         return response.EndpointArn;
@@ -166,6 +168,7 @@ export const saveNotificationDevice = async(userID:number, notificationDevice:No
 
     const nameRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceName')?.validationRegex || new RegExp(/.{1,100}/);
     const tokenRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceToken')?.validationRegex || new RegExp(/.{1,255}/);
+    const deviceOSRegex: RegExp = NOTIFICATION_DEVICE_FIELDS.find((input) => input.field === 'deviceOS')?.validationRegex || new RegExp(/^ANDROID|IOS$/);
 
     //Configure Defaults & Custom Settings
     if(!deviceName || deviceName.length <= 1) deviceName = `User ${userID} ${String(deviceOS ?? 'Device').toLowerCase()}`;
@@ -175,13 +178,14 @@ export const saveNotificationDevice = async(userID:number, notificationDevice:No
     if(!deviceName || !nameRegex.test(deviceName)) {
         log.warn('Invalid notification device detail for user:', userID, 'Invalid deviceName', deviceName);
         return -1;
-
     } else if(!deviceToken || !tokenRegex.test(deviceToken)) {
         log.warn('Invalid notification device detail for user:', userID, 'Invalid deviceToken', deviceToken);
         return -1;
-
+    } else if (!deviceOS || !deviceOSRegex.test(deviceOS)) {
+        log.warn('Invalid notification device detail for user:', userID, 'Invalid deviceOS', deviceOS);
+        return -1;
     } else {
-        const endpointArn = await createEndpoint(deviceToken);
+        const endpointArn = await createEndpoint(deviceToken, deviceOS);
         await DB_INSERT_NOTIFICATION_DEVICE(userID, deviceName, endpointArn);
 
         const deviceIDPromise = await DB_SELECT_NOTIFICATION_DEVICE_ID({userID, endpointArn});
