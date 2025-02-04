@@ -55,7 +55,7 @@ const publishNotifications = async (endpointARNs:string[], message:string) => {
 export const createEndpoint = async(deviceToken:string, deviceOS:DeviceOSEnum):Promise<string> => {
     try {
         const response:CreatePlatformEndpointCommandOutput = await snsClient.send(new CreatePlatformEndpointCommand({
-            PlatformApplicationArn: deviceOS === DeviceOSEnum.ANDROID ? process.env.FIREBASE_PLATFORM_APPLICATION_ARN : [ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT].includes(getEnvironment()) ? process.env.APNS_DEV_PLATFORM_APPLICATION_ARN : process.env.APNS_DEV_PLATFORM_APPLICATION_ARN,
+            PlatformApplicationArn: deviceOS === DeviceOSEnum.ANDROID ? process.env.FIREBASE_PLATFORM_APPLICATION_ARN : [ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT].includes(getEnvironment()) ? process.env.APNS_DEV_PLATFORM_APPLICATION_ARN : process.env.APNS_PROD_PLATFORM_APPLICATION_ARN,
             Token: deviceToken
         }));
         return response.EndpointArn;
