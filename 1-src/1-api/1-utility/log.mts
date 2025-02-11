@@ -14,7 +14,7 @@ export const GET_LogEntryByS3Key = async(request:LogEntryKeyRequest, response:Re
     if(request.query.key === undefined || request.query.key.length < 10) 
         return next(new Exception(400, `Invalid log key in query parameter :: ${request.query.key}`, 'Missing Log Key'));
     else
-        return response.status(200).send(await fetchS3LogEntry(request.query.key));
+        return response.status(200).send(await (await fetchS3LogEntry(request.query.key))?.toJSON());
 }
 
 
@@ -71,9 +71,14 @@ export const GET_LogSearchList = async(logType:LogType|undefined, request:LogSea
 };
 
 /* Save New Log Entry */
-export const POST_LogEntry = async(logType:LogType|undefined, request:LogEntryNewRequest, response:Response, next:NextFunction) => {
+export const POST_LogEntry = async(type:LogType|'ALERT'|undefined, request:LogEntryNewRequest, response:Response, next:NextFunction) => {
+    let logType:LogType;
+    const sendAlertEmail:boolean = (type === 'ALERT'); //Alert Error is type LogType.ERROR and sends email
+    
+    if(sendAlertEmail) {
+        logType = LogType.ERROR;
     /* Identifying Log Type via URL parameter */
-    if(logType === undefined) {
+    } else if(type === undefined) {
         logType = LogType[String(request.params.type ?? '').toUpperCase().trim() as keyof typeof LogType];
 
         if(logType === undefined) 
@@ -95,8 +100,12 @@ export const POST_LogEntry = async(logType:LogType|undefined, request:LogEntryNe
     else if((location === LogLocation.S3) && await uploadS3LogEntry(logEntry) === false)
         return next(new Exception(500, `Failed to upload log to S3 :: ${logType}`, 'Failed to Write Log'));
     
-    else
+    else {
+        if(sendAlertEmail)
+            console.warn('Email Alert not supported yet.');
+            // await sendLogAlertEmail(logEntry);
         return response.status(202).send(logEntry.toJSON());
+    }
 }
 
 //Reduce to minimum & latest entries

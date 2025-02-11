@@ -304,7 +304,6 @@ const calculateLogSize = async (type:LogType):Promise<number|undefined> => { //B
 
 const estimateLine = (type:LogType, bytes:number):number => { 
     switch(type) {
-        case LogType.ALERT:
         case LogType.ERROR:
             return Math.floor(bytes / 830);
         case LogType.DB:
@@ -318,7 +317,6 @@ const estimateLine = (type:LogType, bytes:number):number => {
 
 const estimateBytes = (type:LogType, entries:number):number => { 
     switch(type) {
-        case LogType.ALERT:
         case LogType.ERROR:
             return entries * 830;
         case LogType.DB:

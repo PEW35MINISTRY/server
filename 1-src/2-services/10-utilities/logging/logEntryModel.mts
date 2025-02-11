@@ -45,9 +45,8 @@ export default class LOG_ENTRY {
 
     static constructFromJSON = (json:any):LOG_ENTRY | undefined => {
         try {
-            const { timestamp, type, messages, stackTrace, fileKey, duplicateList } = json;
+            const { timestamp, type, messages, stackTrace, fileKey } = json;
             const logEntry:LOG_ENTRY = new LOG_ENTRY(type, messages, stackTrace ?? [], fileKey, new Date(timestamp), LOG_SOURCE.JSON);
-            logEntry.duplicateList = duplicateList;
 
             if(!logEntry.validate(LOG_SOURCE.JSON))
                 throw new Error(`Invalid ${LOG_SOURCE.JSON} Log:${JSON.stringify(logEntry.toJSON())}`);
@@ -208,7 +207,6 @@ export default class LOG_ENTRY {
 
     print = ():void => {
         switch (this.type) {
-            case LogType.ALERT:
             case LogType.ERROR:
                 return console.error(this.toString());
             case LogType.WARN:

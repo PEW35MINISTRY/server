@@ -30,7 +30,6 @@ export enum LogLocation {
 }
 
 export enum LogType {
-    ALERT = 'ALERT', 
     ERROR = 'ERROR', 
     WARN = 'WARN', 
     DB = 'DB', 

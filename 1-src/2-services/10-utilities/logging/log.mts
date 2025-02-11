@@ -6,7 +6,7 @@ import LOG_ENTRY from './logEntryModel.mjs';
 
 /* EXPORT LOG BY TYPE */
 export const alert = async(...messages:any[]):Promise<boolean> => {
-    const entry:LOG_ENTRY = new LOG_ENTRY(LogType.ALERT, messages, getStackTrace());
+    const entry:LOG_ENTRY = new LOG_ENTRY(LogType.ERROR, ['ALERT', ...messages], getStackTrace());
 
     return !SAVE_LOGS_LOCALLY || await writeLogFile(entry)
         && !UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry);

@@ -98,7 +98,7 @@ export const fetchS3LogsByDateRange = async(type:LogType, startDate:Date, endDat
     }
 
     const logList:LOG_ENTRY[][] = await Promise.all(promiseList);
-    return logList.flat().slice(maxEntries); //latest
+    return logList.flat().slice(0, maxEntries); //latest
 }
 
 
@@ -149,7 +149,7 @@ export const uploadS3LogEntry = async(entry:LOG_ENTRY):Promise<boolean> => {
 
 /* Batch Upload | Throttle Connections */
 const MAX_CONNECTIONS:number = (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? 10 : 50;
-export const uploadS3LogBatch = async (entries: LOG_ENTRY[]): Promise<boolean> => {
+export const uploadS3LogBatch = async (entries:LOG_ENTRY[]): Promise<boolean> => {
     const queue:Promise<boolean>[] = [];
     for(const entry of entries) {
         const task:Promise<boolean> = uploadS3LogEntry(entry); //Handles Local or AWS approach
@@ -157,8 +157,8 @@ export const uploadS3LogBatch = async (entries: LOG_ENTRY[]): Promise<boolean> =
 
         if(queue.length >= MAX_CONNECTIONS) {
             await Promise.race(queue);
-            for (let i = queue.length - 1; i >= 0; i--) {
-                if (queue[i].catch(() => {}) === Promise.resolve()) {
+            for(let i = queue.length - 1; i >= 0; i--) {
+                if(queue[i].catch(() => {}) === Promise.resolve()) {
                     queue.splice(i, 1);
                 }
             }
