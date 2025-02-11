@@ -10,7 +10,7 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 
 //Import Types
-import { getEnvironment } from './2-services/10-utilities/utilities.mjs';
+import { checkAWSAuthentication, getEnvironment } from './2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
@@ -45,10 +45,11 @@ const SERVER_PORT = process.env.SERVER_PORT || 5000;
 const publicServer: Application = express();
 const apiServer: Application = express();
 
-/********************
-   Socket.IO Chat
- *********************/
+/************************
+* SERVER INITIALIZATION *
+*************************/
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
+await checkAWSAuthentication();
 
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS

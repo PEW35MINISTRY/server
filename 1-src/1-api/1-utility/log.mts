@@ -1,24 +1,37 @@
 import { NextFunction, Response } from 'express';
-import {  JwtAdminRequest, LogEntryKeyRequest, LogEntryNewRequest, LogSearchRequest } from '../2-auth/auth-types.mjs';
+import { JwtAdminRequest, LogEntryKeyRequest, LogEntryLocationRequest, LogEntryNewRequest, LogSearchRequest } from '../2-auth/auth-types.mjs';
 import { LogLocation, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { Exception } from '../api-types.mjs';
 import { filterLogEntries, readLogFile, resetLogFile, streamLocalLogFile, writeLogFile } from '../../2-services/10-utilities/logging/log-local-utilities.mjs';
 import LOG_ENTRY from '../../2-services/10-utilities/logging/logEntryModel.mjs';
+import { fetchS3LogEntry, fetchS3LogsByDateRange, streamS3LogsAsFile, uploadS3LogEntry } from '../../2-services/10-utilities/logging/log-s3-utilities.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 
 
 //Fetch individual entry by S3 File Key
 export const GET_LogEntryByS3Key = async(request:LogEntryKeyRequest, response:Response, next:NextFunction) => {
-    return response.status(200).send(new LOG_ENTRY(LogType.ERROR, ['This is a sample Error until S3 is implemented', request.query.key]).toJSON());
+    if(request.query.key === undefined || request.query.key.length < 10) 
+        return next(new Exception(400, `Invalid log key in query parameter :: ${request.query.key}`, 'Missing Log Key'));
+    else
+        return response.status(200).send(await fetchS3LogEntry(request.query.key));
 }
 
 
 //Default View; combines ERROR and WARN entries
-export const GET_LogDefaultList = async(request:JwtAdminRequest, response:Response, next:NextFunction) => {
+export const GET_LogDefaultList = async(request:LogEntryLocationRequest, response:Response, next:NextFunction) => {
+    const {location =  (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? LogLocation.LOCAL : LogLocation.S3} = request.query
     const startTime = Date.now() - 7 * 24 * 60 * 60 * 1000; //7 days
 
     let logList:LOG_ENTRY[] = [];
-    logList.push(...(await readLogFile(LogType.WARN, 30)));
-    logList.push(...(await readLogFile(LogType.ERROR, 100 - logList.length)));
+    if(location === LogLocation.LOCAL) {
+        logList.push(...(await readLogFile(LogType.WARN, 200)));
+        logList.push(...(await readLogFile(LogType.ERROR, 500 - logList.length)));
+
+    } else if(location === LogLocation.S3) {
+        logList.push(...(await fetchS3LogsByDateRange(LogType.WARN, new Date(startTime), new Date(), 200)));
+        logList.push(...(await fetchS3LogsByDateRange(LogType.ERROR, new Date(startTime), new Date(), 500 - logList.length)));
+    }
 
     if(Array.isArray(logList) && logList.length > 0)
         return response.status(200).send(filterLogEntries(logList, undefined, startTime, undefined, true).map(entry => entry.toJSON()));
@@ -37,14 +50,19 @@ export const GET_LogSearchList = async(logType:LogType|undefined, request:LogSea
     }
 
     //Search Options
-    const { location = LogLocation.LOCAL, search, cumulativeIndex, startTimestamp, endTimestamp, maxEntries, combineDuplicates } = request.query;
+    const { location = (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? LogLocation.LOCAL : LogLocation.S3, 
+        search, cumulativeIndex, startTimestamp, endTimestamp, maxEntries, combineDuplicates } = request.query;
     const lastReadEntryIndex:number = Math.max(0, parseInt(cumulativeIndex ?? '0'));
     const startTime:number|undefined = startTimestamp ? new Date(parseInt(startTimestamp)).getTime() : undefined;
     const endTime:number|undefined = endTimestamp ? new Date(parseInt(endTimestamp)).getTime() : undefined;
     const mergeDuplicates: boolean = (combineDuplicates === 'true') ? true : (combineDuplicates === 'false') ? false : true;
     const entries:number = Math.min(500, parseInt(maxEntries ?? String(search ? 500 : 100)));
 
-    const logList:LOG_ENTRY[] = (location === LogLocation.LOCAL) ? await readLogFile(logType, entries, lastReadEntryIndex, endTime) : [];
+    const logList:LOG_ENTRY[] = (location === LogLocation.LOCAL) ? await readLogFile(logType, entries, lastReadEntryIndex, endTime) 
+                                : (location == LogLocation.S3) ? await fetchS3LogsByDateRange(logType, new Date(startTime), new Date(endTime)) //Limited to key details
+                                : [];
+
+//TODO ATHENA Search
 
     if(Array.isArray(logList) && logList.length > 0)
         return response.status(200).send(filterLogEntries(logList, search, startTime, endTime, mergeDuplicates).map(entry => entry.toJSON()));
@@ -63,7 +81,7 @@ export const POST_LogEntry = async(logType:LogType|undefined, request:LogEntryNe
     }
 
     /* Identifying Location from Query parameter */
-    const location = LogLocation[request.query.location as string] || LogLocation.LOCAL;
+    const location = LogLocation[request.query.location as string] || (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? LogLocation.LOCAL : LogLocation.S3;
     const messageList:string[] = Array.isArray(request.body) ? request.body : [request.body];
 
     const logEntry = new LOG_ENTRY(logType, messageList);
@@ -73,6 +91,9 @@ export const POST_LogEntry = async(logType:LogType|undefined, request:LogEntryNe
     
     else if((location === LogLocation.LOCAL) && await writeLogFile(logEntry) === false)
         return next(new Exception(500, `Failed to write log to local file :: ${logType}`, 'Failed to Write Log'));
+
+    else if((location === LogLocation.S3) && await uploadS3LogEntry(logEntry) === false)
+        return next(new Exception(500, `Failed to upload log to S3 :: ${logType}`, 'Failed to Write Log'));
     
     else
         return response.status(202).send(logEntry.toJSON());
@@ -87,6 +108,9 @@ export const POST_LogResetFile = async(logType:LogType|undefined, request:LogEnt
         if(logType === undefined) 
             return next(new Exception(400, `Failed to parse log type :: missing 'type' parameter :: ${request.params.type}`, 'Missing Log Type'));
     }
+
+    if(LogLocation[request.query.location] !== LogLocation.LOCAL)
+        return next(new Exception(400, `Log reset unavailable for ${LogLocation.S3} location.`));
 
     const retainedLogList:LOG_ENTRY[] = await resetLogFile(logType, true);
 
@@ -115,8 +139,10 @@ export const GET_LogDownloadFile = async(logType:LogType|undefined, request:LogE
     //Initiate file stream within log utilities
     if(location === LogLocation.LOCAL)
         streamLocalLogFile(logType, response);
+    else if(location === LogLocation.S3)
+        streamS3LogsAsFile(logType, response);
     else
-        return next(new Exception(404, 'Download only available for local logs'));
+        return next(new Exception(404, `Download unavailable for log location: ${location}`));
 }
 
 

@@ -5,7 +5,7 @@ import { getEnvironment } from "../utilities.mjs";
 import { LOG_SIMILAR_TIME_RANGE, LOG_SOURCE } from "./log-types.mjs";
 
 
-/* LOG ENTRY OBJECT | Manages uniform formatting */
+/* LOG ENTRY OBJECT | Manages import/export with uniform formatting */
 export default class LOG_ENTRY {
     date:Date;
     type:LogType;
@@ -20,17 +20,20 @@ export default class LOG_ENTRY {
     constructor(type:LogType, messages:string[], stackTrace:string[] = [], fileKey:string = '', date:Date = new Date(), source:LOG_SOURCE = LOG_SOURCE.NEW) {
         this.date = date;
         this.type = type;
-        this.messages = messages.filter(m => m.length > 0);
+
+//TODO decide if filter or BLANK
+
+        this.messages = messages.map(m => (m === undefined) ? 'UNDEFINED' : (m === null) ? 'NULL' : (m.trim && m.trim().length === 0) ? 'BLANK' : m);   //.filter(m => m.length > 0);
         this.stackTrace = stackTrace.filter(m => m.length > 0);
         this.fileKey = fileKey;
         this.source = source;
 
-        if((this.source === LOG_SOURCE.NEW) && (getEnvironment() === ENVIRONMENT_TYPE.LOCAL)) this.print();
+        // if((this.source === LOG_SOURCE.NEW) && (getEnvironment() === ENVIRONMENT_TYPE.LOCAL)) this.print();
     }
 
 
     /* JSON */
-    toJSON = ():LogListItem =>  ({
+    toJSON = ():LogListItem => ({
         timestamp:this.getTimestamp(),
         type:this.type,
         messages:this.messages,
@@ -42,82 +45,72 @@ export default class LOG_ENTRY {
 
     static constructFromJSON = (json:any):LOG_ENTRY | undefined => {
         try {
-            const { timestamp, type, messages, stackTrace, file } = json;
-            const logEntry:LOG_ENTRY = new LOG_ENTRY(type, messages, stackTrace, file, new Date(timestamp), LOG_SOURCE.JSON);
+            const { timestamp, type, messages, stackTrace, fileKey, duplicateList } = json;
+            const logEntry:LOG_ENTRY = new LOG_ENTRY(type, messages, stackTrace ?? [], fileKey, new Date(timestamp), LOG_SOURCE.JSON);
+            logEntry.duplicateList = duplicateList;
 
             if(!logEntry.validate(LOG_SOURCE.JSON))
                 throw new Error(`Invalid ${LOG_SOURCE.JSON} Log:${JSON.stringify(logEntry.toJSON())}`);
             return logEntry;
         } catch (error) {
-            log.error('Failed LOG_ENTRY.constructFromJSON:', error);
+            log.error('Failed LOG_ENTRY.constructFromJSON:', error, JSON.stringify(json));
             return undefined;
         }
     }
 
 
     /* AWS S3 Storage */
+    static createDayS3KeyPrefix = (type:LogType, date:Date):string => {
+        const year:number = date.getFullYear();
+        const month:string = String(date.getMonth() + 1).padStart(2, '0');
+        const day:string = String(date.getDate()).padStart(2, '0');
+        return `${type}_${year}/${month}/${day}/`;
+    }
+
+    static createHourS3KeyPrefix = (type:LogType, date:Date):string => {
+        const hour:string = String(date.getHours()).padStart(2, '0');
+        return `${LOG_ENTRY.createDayS3KeyPrefix(type, date)}${hour}/`;
+    }
+
     //S3 Object key: max 1024 characters
     static readonly MAX_KEY_LENGTH:number = 1000;
     getS3Key = (maxCharacters:number = LOG_ENTRY.MAX_KEY_LENGTH):string => 
         (!this.fileKey) ? (this.fileKey = this.createS3Key(maxCharacters)) : this.fileKey;
 
     createS3Key = (maxCharacters:number = LOG_ENTRY.MAX_KEY_LENGTH):string => {
-        const year:number = this.date.getFullYear();
-        const month:string = String(this.date.getMonth() + 1).padStart(2, '0');
-        const day:string = String(this.date.getDate()).padStart(2, '0');
-        const hour:string = String(this.date.getHours()).padStart(2, '0');
-
-        const prefix:string = `${year}/${month}/${day}/${hour}/${this.getDailyTimestamp()}_${this.type}`;
-        const firstMessage:string = this.messages[0]?.slice(0, (maxCharacters - prefix.length - 6)) || 'Unknown Error';
-        return  `${prefix}_${firstMessage.replace(/[^a-zA-Z0-9_-]+/g, '_')}`.slice(0, (maxCharacters - 5)) + '.json';
+        const prefix:string = `${LOG_ENTRY.createHourS3KeyPrefix(this.type, this.date)}${this.getMinuteTimestamp()}`;
+        let combineMessages: string = this.messages.map(m => filterNonASCII(m).replace(/[^a-zA-Z0-9_-]+/g, '_')).join('~');
+        return `${prefix}_${ combineMessages}`.slice(0, (maxCharacters - 5)) + '.json';
     }
 
 
-    //S3 Meta Data: max 2KB ~ 2048 ASCII characters
-    //In-order to support special characters need binary search to test encoded length
-    static readonly MAX_METADATA_LENGTH:number = 2000;
-    getS3MetaData = (maxCharacters:number = LOG_ENTRY.MAX_METADATA_LENGTH):{ [key:string]:string } => {
-        const metaData:{ [key:string]:string } = {
-            timestamp:this.date.getTime().toString(),
-            type:LogType[this.type],
-            additionalDetails:'false',
-            messagesStringified:'[]'
-        };
-
-        let selectedMessages:string[] = [];
-        for (const rawMessage of this.messages) {
-            const message:string = filterNonASCII(rawMessage);
-            const currentSize:number = JSON.stringify(metaData).length;
-            if((currentSize + message.length + 2) > maxCharacters) { //+2 for commas in JSON
-                metaData.additionalDetails = 'true';
-                break;
-            } else if(currentSize < (maxCharacters - 10)) { //Within 10 characters; truncate one more
-                selectedMessages.push(message.slice(0, (currentSize)));
-                metaData.messagesStringified = JSON.stringify(selectedMessages);
-                metaData.additionalDetails = 'true';
-
-            } else {
-                selectedMessages.push(message);
-                metaData.messagesStringified = JSON.stringify(selectedMessages);
-            }
-        }
-
-        return metaData;
-    }
-
-    static constructFromS3MetaData = (fileKey:string, metaData:{ [key:string]:string }):LOG_ENTRY => {
+    static constructFromS3Key = (fileKey:string):LOG_ENTRY => {
         try {
-            const logEntry:LOG_ENTRY = new LOG_ENTRY(LogType[metaData.type], JSON.parse(metaData.messagesStringified), [], fileKey, new Date(parseInt(metaData.timestamp)), LOG_SOURCE.META_DATA);
-
-            if(!logEntry.validate(LOG_SOURCE.META_DATA))
-                throw new Error(`Invalid ${LOG_SOURCE.META_DATA} Log:${JSON.stringify(logEntry.toJSON())}`);
+            //Match createS3Key structure: type + date path + minuteTimestamp + messages
+            const regex = /^([^_]+)_(\d{4})\/(\d{2})\/(\d{2})\/(\d{2})\/(\d+)_(.+)\.json$/;
+            const match = fileKey.match(regex);
+            if(!match) throw new Error(`Invalid fileKey format: ${fileKey}`);
+    
+            const [, typeString, year, month, day, hour, minuteTimestamp, messagesPart] = match;
+    
+            const type:LogType = LogType[typeString];    
+            const timestampDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), 0, 0, 0);    
+            const timestamp = timestampDate.getTime() + parseInt(minuteTimestamp);    
+            const messages:string[] = messagesPart ? messagesPart.replace(/[_]+/g,' ').split('~') : [];
+    
+            //Construct LOG_ENTRY
+            const logEntry = new LOG_ENTRY(type, messages, [], fileKey, new Date(timestamp), LOG_SOURCE.S3_KEY);
+            const validationErrors:string[] = logEntry.validate(LOG_SOURCE.S3_KEY);
+            if(validationErrors.length > 0)
+                throw new Error(`Invalid Validation errors: ${JSON.stringify(validationErrors)}`);
+    
             return logEntry;
-        } catch (error) {
-            log.error('Failed LOG_ENTRY.constructFromS3MetaData:', error);
+        } catch(error) {
+            log.error('Failed LOG_ENTRY.constructFromS3Key:', error, fileKey);
             return undefined;
         }
     }
-
+    
 
     /* TEXT */
     createDuplicateSummary = (entry:LOG_ENTRY, maxCharacters:number = 200):string => {
@@ -202,15 +195,15 @@ export default class LOG_ENTRY {
             const logEntry:LOG_ENTRY = new LOG_ENTRY(type, messages, stackTrace, undefined, timestamp, LOG_SOURCE.TEXT);
     
             // Validate log entry
-            if (!logEntry.validate(LOG_SOURCE.TEXT))
+            if(!logEntry.validateCheck(LOG_SOURCE.TEXT))
                 throw new Error(`Invalid ${LOG_SOURCE.TEXT} Log: ${JSON.stringify(logEntry.toJSON())}`);
 
             return logEntry;
         } catch (error) {
-            console.error('Failed LOG_ENTRY.constructFromText:', error);
+            // console.error('Failed LOG_ENTRY.constructFromText:', error, text);
             return undefined;
         }
-    };
+    }
         
 
     print = ():void => {
@@ -233,6 +226,7 @@ export default class LOG_ENTRY {
 
     getDailyTimestamp = ():number => this.date.getTime() % 86400000;
 
+    getMinuteTimestamp = ():number => this.date.getTime() % 3600000;
 
     /* EQUALS COMPARISON */
     equals = (entry:LOG_ENTRY):boolean =>
@@ -265,28 +259,24 @@ export default class LOG_ENTRY {
         if(!(Array.isArray(this.messages) && this.messages.length > 0))
             errorList.push(`Invalid ${destinationSource} Log: messages required value ${JSON.stringify(this.messages)}`);
 
-        if((destinationSource === LOG_SOURCE.JSON || destinationSource === LOG_SOURCE.META_DATA) && (!this.fileKey || this.fileKey.length > LOG_ENTRY.MAX_KEY_LENGTH))
+        if((destinationSource === LOG_SOURCE.S3_KEY) && (!this.fileKey || this.fileKey.length > LOG_ENTRY.MAX_KEY_LENGTH))
             errorList.push(`Invalid ${destinationSource} Log: fileKey missing or length ${this.fileKey?.length || 0} exceeds maximum ${LOG_ENTRY.MAX_KEY_LENGTH}`);
 
-        if(destinationSource === LOG_SOURCE.META_DATA) {
-            const s3KeyLength = this.getS3Key().length;
+        if(destinationSource === LOG_SOURCE.S3_KEY) {
+            const s3KeyLength = encodeURIComponent(this.getS3Key()).length;
             if(s3KeyLength > LOG_ENTRY.MAX_KEY_LENGTH)
                 errorList.push(`Invalid ${destinationSource} Log: S3 key length ${s3KeyLength} exceeds maximum ${LOG_ENTRY.MAX_KEY_LENGTH}`);
-
-            const metadataLength = encodeURIComponent(JSON.stringify(this.getS3MetaData())).length;
-            if(metadataLength > LOG_ENTRY.MAX_METADATA_LENGTH)
-                errorList.push(`Invalid ${destinationSource} Log: metadata length ${metadataLength} exceeds maximum ${LOG_ENTRY.MAX_METADATA_LENGTH}`);
         }
 
         return errorList;
-    };
+    }
 }
 
 
 /* UTILITIES */
 
 //Replace non-ASCII with ? and remove ; | ASCII characters are a 1:1 bytes
-const filterNonASCII = (text:string):string => text.replace(/[^\x00-\x7F]/g, '?').replace(/;/g, '');
+const filterNonASCII = (text:string):string => String(text || '').replace(/[^\x00-\x7F]/g, '?').replace(/;/g, '');
 
 //MM-DD-YYYY HH:MM:SS.mmm
 export const logDateRegex: RegExp = new RegExp(/^\[\d{1,2}-\d{1,2}-\d{4} \d{1,2}:\d{1,2}:\d{1,2}(\.\d{1,3})?\]/);

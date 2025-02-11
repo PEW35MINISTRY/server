@@ -1,7 +1,7 @@
 import { DeleteObjectCommand, DeleteObjectCommandOutput, PutObjectCommand, PutObjectCommandOutput , S3Client } from '@aws-sdk/client-s3';
 import axios from 'axios';
 import * as log from './logging/log.mjs';
-import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ImageTypeEnum } from '../../1-api/api-types.mjs';
 import { getEnvironment, isEnumValue, isURLValid } from './utilities.mjs';
 import dotenv from 'dotenv';
@@ -32,7 +32,7 @@ dotenv.config();
         && isEnumValue(ImageTypeEnum, imageType.toUpperCase())
       );
     } catch(error) {
-        log.error('Error validating image URL', imageURL, error);
+        log.error('Error validating image URL', imageURL, process.env.IMAGE_BUCKET_NAME, error);
       return false;
     }
   };
@@ -48,22 +48,6 @@ export const getImageFileName = ({id, imageType, fileName}:{id:number, imageType
     }    
 }
 
-export const uploadImage = async({id, imageType, fileName, imageBlob: imageBlob}:{id:number, imageType:ImageTypeEnum, fileName:string, imageBlob:Blob|Buffer}):Promise<string|undefined> => {
-    const imageFileName = getImageFileName({id, imageType, fileName});
-
-    return (imageFileName === undefined) ? undefined
-        : (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) ? uploadImageProduction(imageFileName, imageBlob) : uploadImageDevelopment(imageFileName, imageBlob);
-}
-
-//return true for non-error responses
-export const clearImage = async(fileName:string):Promise<boolean> => {
-    if(fileName.includes('demo')) {
-        log.warn('Blocking delete of demo image: ', fileName);
-        return true; //Allow sequential image upload & replacement
-    }
-    return (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) ? clearImageProduction(fileName) : clearImageDevelopment(fileName);
-}
-
 
 //Attempts all supported image extensions and return false for any error responses
 export const clearImageCombinations = async ({id, imageType}:{id:number, imageType:ImageTypeEnum}):Promise<boolean> =>
@@ -74,75 +58,48 @@ export const clearImageCombinations = async ({id, imageType}:{id:number, imageTy
 
 
 
- /***************************
- * DEVELOPMENT IMAGE UPLOAD *
- ****************************/
- const DEVELOPMENT_BUCKET_URL:string = `https://3uczw0bwaj.execute-api.${process.env.IMAGE_BUCKET_REGION}.amazonaws.com/prod/${process.env.IMAGE_BUCKET_NAME}`;
-
-/* Development Environment AWS S3 Bucket Upload */
-const uploadImageDevelopment = async(fileName:string, imageBlob:Blob|Buffer):Promise<string|undefined> => 
-    await axios.put(`${DEVELOPMENT_BUCKET_URL}/${fileName}`,
-            imageBlob,
-            { headers: { 'x-api-key': process.env.IMAGE_BUCKET_KEY }})
-        .then((response) => {
-            log.event('Successful - Development S3 Image Upload', fileName, response.status, response.data);
-            return `https://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
-        })
-        .catch(function (error) {
-            log.error('Failed - Development S3 Image Upload', fileName, error);
-            return undefined;
-        });
-
-
-const clearImageDevelopment = async(fileName:string):Promise<boolean> => 
-    await axios.delete(`${DEVELOPMENT_BUCKET_URL}/${fileName}`,
-            { headers: { 'x-api-key': process.env.IMAGE_BUCKET_KEY }})
-        .then((response) => {
-            log.event('Successful - Development S3 Image Delete', fileName, response.status, response.data);
-            return true;
-        })
-        .catch(function (error) {
-            log.error('Failed - Development S3 Image Delete', fileName, error);
-            return false;
-        });
-
-
-
  /******************************
  * AWS PRODUCTION IMAGE UPLOAD *
  *******************************/
-
 /* Development Environment AWS S3 Bucket Upload | Uses IAM authentication */
-const uploadImageProduction = async(fileName:string, imageBlog:Blob|Buffer):Promise<string|undefined> => {
+export const uploadImage = async({id, imageType, fileName, imageBlob: imageBlob}:{id:number, imageType:ImageTypeEnum, fileName:string, imageBlob:Blob|Buffer}):Promise<string|undefined> => {
     try {
-        const client = new S3Client({ region: process.env.IMAGE_BUCKET_REGION });
+        const imageFileName = getImageFileName({id, imageType, fileName});
+        if(imageFileName === undefined)
+            throw new Error('INVALID - fileName attempted to upload image');
 
+        const client = new S3Client({ region: process.env.IMAGE_BUCKET_REGION });
         const command = new PutObjectCommand({
             Bucket: process.env.IMAGE_BUCKET_NAME,
-            Key: fileName,
-            Body: imageBlog
+            Key: imageFileName,
+            Body: imageBlob
         });
 
         const response:PutObjectCommandOutput = await client.send(command);
 
         if (response?.$metadata?.httpStatusCode === 200) {
-            log.event('Successful - Production S3 Image Upload', fileName);
-            return `https://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
+            log.event(`Successful - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Upload`, imageFileName);
+            return `https://${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com/${imageFileName}`;
         }
 
-        log.error('Failed - Production S3 Image Upload', JSON.stringify(response));
+        log.error(`Failed - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Upload`, JSON.stringify(response));
         return undefined;
 
     } catch(error) {
-        log.error('Error - Production S3 Image Upload', error);
+        log.error(`Error - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Upload`, error);
         return undefined;
     }
 }
 
-const clearImageProduction = async(fileName:string):Promise<boolean> => {
+//return true for non-error responses
+export const clearImage = async(fileName:string):Promise<boolean> => {
     try {
-        const client = new S3Client({ region: process.env.IMAGE_BUCKET_REGION });
+        if(fileName.includes('demo')) {
+            log.warn('Blocking delete of demo image: ', fileName);
+            return true; //Allow sequential image upload & replacement
+        }
 
+        const client = new S3Client({ region: process.env.IMAGE_BUCKET_REGION });
         const command = new DeleteObjectCommand({
             Bucket: process.env.IMAGE_BUCKET_NAME,
             Key: fileName
@@ -151,14 +108,14 @@ const clearImageProduction = async(fileName:string):Promise<boolean> => {
         const response:DeleteObjectCommandOutput = await client.send(command);
 
         if (response?.$metadata?.httpStatusCode === 204)
-            log.event('Successful - Production S3 Image Delete', fileName);
+            log.event(`Successful - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Delete`, fileName);
         else
-            log.event('Unsuccessful - Production S3 Image Delete', JSON.stringify(response));
+            log.event(`Failed - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Delete`, JSON.stringify(response));
 
         return true;
 
     } catch(error) {
-        log.error('Error - Production S3 Image Delete', error);
+        log.error(`Error - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Delete`, error);
         return false;
     }
 }

@@ -1,18 +1,22 @@
 import fs, { promises as fsPromises } from 'fs';
 import { Response } from 'express';
 import readline from 'readline';
-import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE } from './log-types.mjs';
+import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE, SAVE_LOGS_LOCALLY } from './log-types.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import LOG_ENTRY, { logDateRegex } from './logEntryModel.mjs';
-import * as log from './log.mjs'; //Only use on read operations
 import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { Exception } from '../../../1-api/api-types.mjs';
+/* DO NOT IMPORT [ log from '/10-utilities/logging/log.mjs' ] to AVOID INFINITE LOOP */
 
 
 /* WRITE TO FILE */
-export const writeLogFile = async(entry:LOG_ENTRY, evaluateLogSize:boolean = true):Promise<Boolean> => {
+export const writeLogFile = async(entry:LOG_ENTRY, evaluateLogSize:boolean = true):Promise<boolean> => {
     try {
+        if(!SAVE_LOGS_LOCALLY) {
+            console.error('LOCAL LOGGING DISABLED\n', entry.print());
+            return false;
+        }
+
         // Ensure the directory exists
         if(!await fsPromises.access(LOG_DIRECTORY).catch(() => false))
             await fsPromises.mkdir(LOG_DIRECTORY, { recursive: true });
@@ -33,10 +37,23 @@ export const writeLogFile = async(entry:LOG_ENTRY, evaluateLogSize:boolean = tru
 }
 
 
+/* Local Utility to write parsing errors to file */
+//Use console.log when chance of infinite loop from writing to file errors
+const saveLogLocally = async(actionType:LogType, ...messages:string[]):Promise<boolean> =>
+    writeLogFile(
+        new LOG_ENTRY((actionType !== LogType.ERROR) ? LogType.WARN : LogType.ERROR,
+            ['LOCAL LOG UTILITY ERROR', ...messages, actionType, String(getLogFilePath(actionType))]
+        ),
+        false //Don't evaluateLogSize
+    );
+
 
 /* RESET LOG FILE WITH LATEST ENTRIES | May also use to validate and re-write log file */
 export const resetLogFile = async(type:LogType, validate:boolean = false):Promise<LOG_ENTRY[]> => {
-    const logEntriesKeeping:LOG_ENTRY[] = [];
+    if(!SAVE_LOGS_LOCALLY) {
+        console.error(`LOCAL LOGGING DISABLED - Rejecting ${type} resetLogFile`);
+        return [];
+    }
 
     try {
         await fsPromises.access(getLogFilePath(type)); //Verify File Exists
@@ -52,22 +69,18 @@ export const resetLogFile = async(type:LogType, validate:boolean = false):Promis
             crlfDelay: Infinity
         });
 
+        const logEntriesKeeping:LOG_ENTRY[] = [];
         return new Promise<LOG_ENTRY[]>((resolve) => {
             let entryBuffer = '';
             readInterface.on('line', (line) => {                    
                 if(logDateRegex.test(line) && (entryBuffer.length > 10)) {
-                    const logEntry:LOG_ENTRY = LOG_ENTRY.constructFromText(entryBuffer.trim());
+                    const logEntry:LOG_ENTRY|undefined = LOG_ENTRY.constructFromText(entryBuffer.trim());
 
-                    if(!validate) {
+                    if(logEntry && (!validate || logEntry.validateCheck()))
                         logEntriesKeeping.push(logEntry);
 
-                    } else {
-                        const validationErrorList = logEntry.validate();
-                        if(validationErrorList.length === 0)
-                            logEntriesKeeping.push(logEntry);
-                        else
-                            console.log(`NOTE: Resetting ${type} Log Entry - Failed Validation:`, validationErrorList, line.trim());
-                    }
+                    else
+                        console.log(`NOTE: Resetting ${type} Log Entry - Failed Validation:`, ...logEntry.validate(), line.trim());
 
                     entryBuffer = '';
                 }
@@ -86,20 +99,14 @@ export const resetLogFile = async(type:LogType, validate:boolean = false):Promis
             });
 
             readInterface.on('error', async(error) => {
-                await writeLogFile(
-                    new LOG_ENTRY((type !== LogType.ERROR) ? LogType.WARN : LogType.ERROR,
-                        ['Error resetting log file:', type, getLogFilePath(type), error]
-                    ), false);
+                await saveLogLocally(type, 'Error - Parsing while resetting local log file.', error);
 
                 resolve([]);
             });                    
         });
         
     } catch (error) {
-        await writeLogFile(
-            new LOG_ENTRY((type !== LogType.ERROR) ? LogType.WARN : LogType.ERROR,
-                ['Invalid Error resetting log file:', type, getLogFilePath(type), error]
-            ), false);
+        await saveLogLocally(type, 'Invalid Error - Resetting local log file.', error);
 
         return [];
     }
@@ -128,26 +135,24 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
         });
 
         let readNextLine:boolean = true;
+        let failedValidation:number = 0;
         return new Promise((resolve) => {
             let entryBuffer = '';
             readInterface.on('line', (line) => {                   
                 if(!readNextLine)
                     return;
                 else if(logDateRegex.test(line) && (entryBuffer.length > 10)) {
-                    const logEntry:LOG_ENTRY = LOG_ENTRY.constructFromText(entryBuffer.trim());
+                    const logEntry:LOG_ENTRY|undefined = LOG_ENTRY.constructFromText(entryBuffer.trim());
 
-                    if(!validate) {
+                    if(logEntry && (!validate || logEntry.validateCheck()))
                         logEntries.push(logEntry);
 
-                    } else {
-                        const validationErrorList = logEntry.validate();
-                        if(validationErrorList.length === 0)
-                            logEntries.push(logEntry);
-                    }
+                    else
+                        failedValidation++;
 
                     entryBuffer = '';
 
-                    if(logEntry.getTimestamp() > endTimeStamp) {
+                    if(logEntry && logEntry.getTimestamp() > endTimeStamp) {
                         readNextLine = false;
                         readInterface.close();
                     }
@@ -155,25 +160,23 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
                 entryBuffer += line + '\n';
             });
 
-            readInterface.on('close', () => {
+            readInterface.on('close', async() => {
                 readNextLine = false;
-                resolve(logEntries.slice(-1 * maxEntries).reverse());
+
+                if(failedValidation > 0)
+                    await saveLogLocally(type, `Local ReadLogFile skipped ${failedValidation} entries with failed validations.`);
+
+                resolve(logEntries.slice(-1 * (maxEntries ?? 500)).reverse());
             });
 
             readInterface.on('error', async(error) => {
                 readNextLine = false;
-                await writeLogFile(
-                    new LOG_ENTRY(LogType.ERROR,
-                        ['Error reading log file:', type, getLogFilePath(type), error]
-                    ), false);
+                await saveLogLocally(type, 'Error - Parsing while reading local log file.', error);
                 resolve([]);
             });
         });
-    } catch (error) {
-        await writeLogFile(
-            new LOG_ENTRY(LogType.ERROR,
-                ['Error parsing log file:', type, getLogFilePath(type), error]
-            ), false);
+    } catch(error) {
+        await saveLogLocally(type, 'Invalid Error - Reading local log file.', error);
         return [];
     }
 };
@@ -266,20 +269,24 @@ export const filterLogEntries = (logList:LOG_ENTRY[], searchTerm?:string, startT
 
 //Stream local file to download
 export const streamLocalLogFile = async(logType:LogType, response:Response):Promise<Response> => {
-    try {     
-        log.event('Downloading local log file: ', getLogFilePath(logType))  ;
+    try {
+        writeLogFile(
+            new LOG_ENTRY(LogType.EVENT, ['Downloading local log file: ', String(getLogFilePath(logType))]),
+            false //Don't evaluateLogSize
+        );
+
         await fsPromises.access(getLogFilePath(logType));
         const fileStream = fs.createReadStream(getLogFilePath(logType));
 
         //Pipe the file stream to the response
         fileStream.pipe(response);
 
-        fileStream.on('error', (error) => {
-            log.error(`Streaming ${logType} log from local txt file error: `, error);
+        fileStream.on('error', async(error) => {
+            await saveLogLocally(logType, `Streaming ${logType} log from local txt file error: `, String(error));
         });
         return response;
-    } catch (error) { //Not returning Exception, b/c fileStream is ongoing
-        log.error(`Error while attempting to stream ${logType} log from local txt file: `, error);
+    } catch(error) { //Not returning Exception, b/c fileStream is ongoing
+        await saveLogLocally(logType, `Error while attempting to stream ${logType} log from local txt file: `, String(error));
     }
 };
 

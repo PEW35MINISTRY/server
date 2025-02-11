@@ -18,7 +18,7 @@
     "server": "npm run serve",
     "start": "npm run build & npm run open & npm run serve",
     "update": "npm run website && npm run portal && npm run start",
-    "debug": "npm run build & npm run serve",
+    "debug": "aws sso login & npm run serve",
     "clean": "rimraf node_modules/ package-lock.json 0-compiled/"
   },
   "dependencies": {

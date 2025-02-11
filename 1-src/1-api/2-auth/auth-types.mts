@@ -96,12 +96,17 @@ export interface JwtAdminRequest extends JwtRequest {
 
 };
 
-export interface LogSearchRequest extends JwtAdminRequest {
+export interface LogEntryLocationRequest extends JwtAdminRequest {
+    query: {
+        location?:string
+    }
+};
+
+export interface LogSearchRequest extends LogEntryLocationRequest {
     params:JwtAdminRequest['params'] & {
         type?:string
     },
-    query: {
-        location?:string
+    query:LogEntryLocationRequest['query'] & {
         search?:string,
         cumulativeIndex?:string, //Cumulative entry count; use to estimate start; only works with endTimestamp marker
         startTimestamp?:string,
@@ -111,12 +116,9 @@ export interface LogSearchRequest extends JwtAdminRequest {
     },
 };
 
-export interface LogEntryNewRequest extends JwtAdminRequest {
+export interface LogEntryNewRequest extends LogEntryLocationRequest {
     params:JwtAdminRequest['params'] & {
         type?:string
-    },
-    query: {
-        location?:string
     },
     body: string|string[]
 };
