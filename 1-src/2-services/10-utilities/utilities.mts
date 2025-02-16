@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-types.mjs';
 import dotenv from 'dotenv';
@@ -44,3 +45,5 @@ export const extractRegexMaxLength = (regex:RegExp, findMin?:boolean):number => 
         (findMin ? parseInt(match[1], 10) : parseInt(match[2], 10)) 
         : (findMin ? 0 : Number.MAX_SAFE_INTEGER);
 }
+
+export const getSHA256Hash = (value:string) => createHash('sha256').update(value).digest('hex');

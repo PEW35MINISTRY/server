@@ -3,7 +3,7 @@ import axios from 'axios';
 import * as log from './logging/log.mjs';
 import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ImageTypeEnum } from '../../1-api/api-types.mjs';
-import { getEnvironment, isEnumValue, isURLValid } from './utilities.mjs';
+import { getEnvironment, getSHA256Hash, isEnumValue, isURLValid } from './utilities.mjs';
 import dotenv from 'dotenv';
 dotenv.config(); 
 
@@ -40,8 +40,11 @@ dotenv.config();
   
 export const getImageFileName = ({id, imageType, fileName}:{id:number, imageType:ImageTypeEnum, fileName:string}):string|undefined => {
     const extension = fileName.split('.').pop(); //dot optional
+    const currentTime = new Date().getTime().toString();
+    const fileNameHash = getSHA256Hash(`${imageType.toLowerCase()}_${id}_${currentTime}`);
+    console.log(fileNameHash);
     if(SUPPORTED_IMAGE_EXTENSION_LIST.includes(extension)) 
-        return `${imageType.toLowerCase()}_${id}.${extension}`;
+        return `${imageType.toLowerCase()}_${id}_${fileNameHash}.${extension}`;
     else {
         log.error('Image Upload to AWS S3 with unsupported file type.', extension, fileName, imageType, id);
         return undefined;
