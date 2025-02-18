@@ -42,7 +42,6 @@ export const getImageFileName = ({id, imageType, fileName}:{id:number, imageType
     const extension = fileName.split('.').pop(); //dot optional
     const currentTime = new Date().getTime().toString();
     const fileNameHash = getSHA256Hash(`${imageType.toLowerCase()}_${id}_${currentTime}`);
-    console.log(fileNameHash);
     if(SUPPORTED_IMAGE_EXTENSION_LIST.includes(extension)) 
         return `${imageType.toLowerCase()}_${id}_${fileNameHash}.${extension}`;
     else {
