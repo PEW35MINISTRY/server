@@ -8,23 +8,23 @@ import LOG_ENTRY from './logEntryModel.mjs';
 export const alert = async(...messages:any[]):Promise<boolean> => {
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.ERROR, ['ALERT', ...messages], getStackTrace());
 
-    return !SAVE_LOGS_LOCALLY || await writeLogFile(entry)
-        && !UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry);
-        // && !SEND_LOG_EMAILS || await sendLogAlertEmail(entry);
+    return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
+        // && (!SEND_LOG_EMAILS || await sendLogAlertEmail(entry));
 }
 
 export const error = async(...messages:any[]):Promise<boolean> => {
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.ERROR, messages, getStackTrace());
 
-    return !SAVE_LOGS_LOCALLY || await writeLogFile(entry)
-        && !UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry);
+    return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
 }
 
 export const errorWithoutTrace = async(...messages:any[]):Promise<boolean> => {
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.ERROR, messages);
 
-    return !SAVE_LOGS_LOCALLY || await writeLogFile(entry)
-        && !UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry);
+    return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
 }
 
 export default error;
@@ -32,15 +32,15 @@ export default error;
 export const warn = async(...messages:any[]):Promise<boolean> => {
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.WARN, messages);
 
-    return !SAVE_LOGS_LOCALLY || await writeLogFile(entry)
-        && !UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry);
+    return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
 }
 
 export const db = async(...messages:any[]):Promise<boolean> => {
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.DB, messages);
 
-    return !SAVE_LOGS_LOCALLY || await writeLogFile(entry)
-        && !UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry);
+    return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
 }
 
 export const auth = async(...messages:any[]):Promise<boolean> => {
@@ -49,8 +49,8 @@ export const auth = async(...messages:any[]):Promise<boolean> => {
     
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.AUTH, messages);
 
-    return !SAVE_LOGS_LOCALLY || await writeLogFile(entry)
-        && !UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry);
+    return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
 }
 
 export const event = async(...messages:any[]):Promise<boolean> => {
@@ -59,8 +59,8 @@ export const event = async(...messages:any[]):Promise<boolean> => {
 
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.EVENT, messages);
 
-    return !SAVE_LOGS_LOCALLY || await writeLogFile(entry)
-        && !UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry);
+    return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
 }
 
 

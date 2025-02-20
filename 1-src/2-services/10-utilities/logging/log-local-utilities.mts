@@ -17,7 +17,12 @@ export const writeLogFile = async(entry:LOG_ENTRY, evaluateLogSize:boolean = tru
             return false;
         }
 
-        // Ensure the directory exists
+        //Temporary console.log validity
+        const errors:string[] = entry.validate();
+        if(errors.length > 0) 
+            console.log(entry.source, errors);
+
+        //Ensure the directory exists
         if(!await fsPromises.access(LOG_DIRECTORY).catch(() => false))
             await fsPromises.mkdir(LOG_DIRECTORY, { recursive: true });
 
@@ -74,13 +79,13 @@ export const resetLogFile = async(type:LogType, validate:boolean = false):Promis
             let entryBuffer = '';
             readInterface.on('line', (line) => {                    
                 if(logDateRegex.test(line) && (entryBuffer.length > 10)) {
-                    const logEntry:LOG_ENTRY|undefined = LOG_ENTRY.constructFromText(entryBuffer.trim());
+                    const logEntry:LOG_ENTRY|undefined = LOG_ENTRY.constructFromText(entryBuffer.trim(), validate);
 
-                    if(logEntry && (!validate || logEntry.validateCheck()))
+                    if(logEntry)
                         logEntriesKeeping.push(logEntry);
 
                     else
-                        console.log(`NOTE: Resetting ${type} Log Entry - Failed Validation:`, ...logEntry.validate(), line.trim());
+                        console.log(`NOTE: Resetting ${type} Log Entry - Failed Validation:`, ...(logEntry?.validate() ?? []), line.trim());
 
                     entryBuffer = '';
                 }
@@ -88,8 +93,6 @@ export const resetLogFile = async(type:LogType, validate:boolean = false):Promis
             });
 
             readInterface.on('close', async() => {
-                console.log('Reached close with ', logEntriesKeeping.length);
-
                 //Write the retained entries back to the file asynchronously
                 await fs.promises.writeFile(getLogFilePath(type), logEntriesKeeping
                     .sort((a,b) => a.getTimestamp() - b.getTimestamp())
@@ -135,6 +138,7 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
         });
 
         let readNextLine:boolean = true;
+        let skipNextEntry:boolean = (startByte !== 0); //First entry read will be partial, because of byte estimation
         let failedValidation:number = 0;
         return new Promise((resolve) => {
             let entryBuffer = '';
@@ -142,20 +146,23 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
                 if(!readNextLine)
                     return;
                 else if(logDateRegex.test(line) && (entryBuffer.length > 10)) {
-                    const logEntry:LOG_ENTRY|undefined = LOG_ENTRY.constructFromText(entryBuffer.trim());
+                    if(!skipNextEntry) {
+                        const logEntry:LOG_ENTRY|undefined = LOG_ENTRY.constructFromText(entryBuffer.trim(), validate);
 
-                    if(logEntry && (!validate || logEntry.validateCheck()))
-                        logEntries.push(logEntry);
+                        if(logEntry)
+                            logEntries.push(logEntry);
 
-                    else
-                        failedValidation++;
+                        else
+                            failedValidation++;
 
-                    entryBuffer = '';
 
-                    if(logEntry && logEntry.getTimestamp() > endTimeStamp) {
-                        readNextLine = false;
-                        readInterface.close();
+                        if(logEntry && logEntry.getTimestamp() > endTimeStamp) {
+                            readNextLine = false;
+                            readInterface.close();
+                        }
                     }
+                    skipNextEntry = false;
+                    entryBuffer = '';
                 }
                 entryBuffer += line + '\n';
             });
@@ -218,53 +225,30 @@ const calculateSearchTermRanking = (entry:LOG_ENTRY, search:string):number => {
 
 
 export const filterLogEntries = (logList:LOG_ENTRY[], searchTerm?:string, startTimestamp?:number, endTimestamp?:number, mergeDuplicates:boolean = false):LOG_ENTRY[] => {
-    const selectedList:LOG_ENTRY[] = []; //Local cache tracking duplicates
+    let selectedList:LOG_ENTRY[] = logList;
 
-    return logList
-        .filter((entry) => {
-            //Filter time range
-            if(startTimestamp && endTimestamp && (startTimestamp < endTimestamp)) {
-                const entryTimestamp = entry.getTimestamp();
+    //Filter time range
+    if(startTimestamp && endTimestamp && (startTimestamp < endTimestamp))
+        selectedList = selectedList.filter((entry) => (startTimestamp <= entry.getTimestamp() && entry.getTimestamp() <= endTimestamp));
 
-                if(entryTimestamp < startTimestamp || endTimestamp > entryTimestamp)
-                    return false;
-            }
+    //Optionally Combine Similar Duplicate Entires
+    if(mergeDuplicates)
+        selectedList = LOG_ENTRY.mergeDuplicates(selectedList);
 
-            //Optionally Combine Similar Duplicate Entires
-            if(mergeDuplicates) {
-                for(let i = selectedList.length - 1; i >= 0; i--) { //Assume chronologically ordered
-                    const recentEntry = selectedList[i];
-
-                    if(!recentEntry.compatibleTime(entry))
-                        break;
-
-                    if(entry.similar(recentEntry)) {
-                        recentEntry.addDuplicate(entry);
-                        return false;
-                    }
-                }
-            }
-
-            //Calculate Search Term Ranking
+    //Update filterRank to factor in duplicates
+    if(searchTerm && searchTerm.length >= 1)
+        selectedList = selectedList.filter((entry) => {
             if(searchTerm && searchTerm.length >= 1) {
                 entry.filterRank = calculateSearchTermRanking(entry, searchTerm);
-                if(entry.filterRank < 0)
-                    return false;
-            }
+                return (entry.filterRank > 0);
+            } else
+                return true;
+        });
 
-            selectedList.push(entry);
-            return true;
-        })
-        //Update filterRank to factor in duplicates
-        .map((entry) => {
-            if(mergeDuplicates && searchTerm && searchTerm.length >= 1 && entry.duplicateList.length > 0)
-                entry.filterRank = calculateSearchTermRanking(entry, searchTerm);
-            return entry;
-        })
-        //Priority Sorting
-        .sort((a, b) => (b.filterRank !== a.filterRank) ? b.filterRank - a.filterRank 
-            : b.getTimestamp() - a.getTimestamp());
-    }
+    //Priority Sorting
+    return selectedList.sort((a, b) => (b.filterRank !== a.filterRank) ? b.filterRank - a.filterRank 
+        : b.getTimestamp() - a.getTimestamp());
+}
 
 
 //Stream local file to download

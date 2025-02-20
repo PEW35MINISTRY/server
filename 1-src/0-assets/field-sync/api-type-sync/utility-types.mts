@@ -42,6 +42,7 @@ export type LogListItem = {
     timestamp:number; 
     type:LogType; 
     messages:string[]; 
+    messageSearch:string; //Combine string for AWS Athena query
     stackTrace?:string[]; 
     fileKey?:string; 
     duplicateList?:string[]; 

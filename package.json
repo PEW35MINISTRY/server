@@ -22,6 +22,7 @@
     "clean": "rimraf node_modules/ package-lock.json 0-compiled/"
   },
   "dependencies": {
+    "@aws-sdk/client-athena": "^3.744.0",
     "@aws-sdk/client-s3": "^3.417.0",
     "@aws-sdk/client-secrets-manager": "^3.565.0",
     "@aws-sdk/client-sns": "^3.709.0",

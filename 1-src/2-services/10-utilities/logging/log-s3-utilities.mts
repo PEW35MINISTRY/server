@@ -26,7 +26,7 @@ const saveLogLocally = async(type:LogType, ...messages:string[]):Promise<boolean
 /*************************
  * S3 LOG FETCH HANDLING *
  *************************/
-export const fetchS3LogEntry = async(key:string):Promise<LOG_ENTRY | undefined> => {
+export const fetchS3LogEntry = async(key:string, validate:boolean = true):Promise<LOG_ENTRY | undefined> => {
     try {
         const command = new GetObjectCommand({
             Bucket: process.env.LOG_BUCKET_NAME,
@@ -36,7 +36,11 @@ export const fetchS3LogEntry = async(key:string):Promise<LOG_ENTRY | undefined> 
         const response = await s3LogClient.send(command);
         const bodyString:string = await response.Body.transformToString();
 
-        const entry:LOG_ENTRY = LOG_ENTRY.constructFromJSON(JSON.parse(bodyString));
+        const entry:LOG_ENTRY = LOG_ENTRY.constructFromJSON(JSON.parse(bodyString), validate);
+
+        if(!entry)
+            throw new Error('Failed to parse or validate Log Entry body');
+
         entry.fileKey = key;
         return entry;
 
@@ -48,7 +52,7 @@ export const fetchS3LogEntry = async(key:string):Promise<LOG_ENTRY | undefined> 
 
 /* Fetch all Logs for a given day */
 //Populated only from S3 Key (1024 characters), must use individual fetch to get full message list from body
-export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxEntries:number = 500):Promise<LOG_ENTRY[]> => {
+export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxEntries:number = 500, mergeDuplicates:boolean = true, validate:boolean = true) => {
     try {
         const params = {
             Bucket: process.env.LOG_BUCKET_NAME,
@@ -58,7 +62,7 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
         const response:ListObjectsV2CommandOutput = await s3LogClient.send(command);
 
         if(!response.Contents || !Array.isArray(response.Contents) || response.Contents.length === 0)
-            throw new Error('INVALID - response contents');
+            return []; //No entries matching prefix exist
 
         let missingKeys:number = 0;
         let failedValidation:number = 0;
@@ -69,8 +73,8 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
                 continue;
             }
 
-            const entry:LOG_ENTRY|undefined = LOG_ENTRY.constructFromS3Key(obj.Key);
-            if(entry && entry.validateCheck())
+            const entry:LOG_ENTRY|undefined = LOG_ENTRY.constructFromS3Key(obj.Key, validate);
+            if(entry)
                 logEntries.push(entry);
             else
                 failedValidation++;
@@ -79,21 +83,27 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
         if((missingKeys + failedValidation) > 0)
             await saveLogLocally(type, `Local fetchS3LogsByDay skipped ${missingKeys} entries of ${response.Contents.length} with missing keys and ${failedValidation} entries with failed validations.`);
 
-        return logEntries;
+
+        //Optionally Combine Similar Duplicate Entires
+        return (mergeDuplicates) ? LOG_ENTRY.mergeDuplicates(logEntries) : logEntries;
+            
     } catch(error) {
         await saveLogLocally(type, 'FAILED - fetchS3LogsByDay', error);
         return [];
     }
 }
 
-export const fetchS3LogsByDateRange = async(type:LogType, startDate:Date, endDate:Date = new Date(), maxEntries:number = 500):Promise<LOG_ENTRY[]> => {
+export const fetchS3LogsByDateRange = async(type:LogType, startTimestamp?:number, endTimestamp?:number, maxEntries:number = 500, mergeDuplicates:boolean = true):Promise<LOG_ENTRY[]> => {
+    const endDate = new Date(endTimestamp); //Default to today
+    const startDate = new Date(startTimestamp ?? (endDate.getTime() - (7 * 24 * 60 * 60 * 1000))); //7 days
+
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setHours(0, 0, 0, 0);
 
     const promiseList:Promise<LOG_ENTRY[]>[] = [];
     while(start <= end) {
-        promiseList.push(fetchS3LogsByDay(type, end, maxEntries)); //maintains order end -> start
+        promiseList.push(fetchS3LogsByDay(type, end, maxEntries, mergeDuplicates)); //maintains order end -> start
         end.setDate(end.getDate() - 1); //endDate -> startDate
     }
 
@@ -111,10 +121,10 @@ export const streamS3LogsAsFile = async(logType:LogType, response:Response):Prom
         );
 
         const startTime = Date.now() - 10 * 24 * 60 * 60 * 1000; //10 days
-        const logs = await fetchS3LogsByDateRange(logType, new Date(startTime), new Date(), 1000);
+        const logs = await fetchS3LogsByDateRange(logType, startTime, undefined, 1000, false);
             
         // Convert logs to a stream and send it as response
-        const logStream = Readable.from(logs.map(log => JSON.stringify(log) + '\n'));
+        const logStream = Readable.from(logs.map(entry => `${entry.toString()}\n\n`));
         logStream.pipe(response);
 
         logStream.on('error', async(error) => {
