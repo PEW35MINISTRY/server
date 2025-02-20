@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { NextFunction, Response } from 'express';
 import { Readable } from 'stream';
 import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, ListObjectsV2CommandOutput, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import LOG_ENTRY from './logEntryModel.mjs';
@@ -7,6 +7,7 @@ import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { writeLogFile } from './log-local-utilities.mjs';
 import dotenv from 'dotenv';
+import { Exception } from '../../../1-api/api-types.mjs';
 dotenv.config(); 
 /* DO NOT IMPORT [ log from '/10-utilities/logging/log.mjs' ] to AVOID INFINITE LOOP */
 
@@ -61,8 +62,10 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
         const command:ListObjectsV2Command = new ListObjectsV2Command(params);
         const response:ListObjectsV2CommandOutput = await s3LogClient.send(command);
 
-        if(!response.Contents || !Array.isArray(response.Contents) || response.Contents.length === 0)
+        if(!response.Contents || !Array.isArray(response.Contents) || response.Contents.length === 0) {
+            if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
             return []; //No entries matching prefix exist
+        }
 
         let missingKeys:number = 0;
         let failedValidation:number = 0;
@@ -95,16 +98,13 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
 
 export const fetchS3LogsByDateRange = async(type:LogType, startTimestamp?:number, endTimestamp?:number, maxEntries:number = 500, mergeDuplicates:boolean = true):Promise<LOG_ENTRY[]> => {
     const endDate = new Date(endTimestamp); //Default to today
+    endDate.setHours(0, 0, 0, 0);
     const startDate = new Date(startTimestamp ?? (endDate.getTime() - (7 * 24 * 60 * 60 * 1000))); //7 days
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(0, 0, 0, 0);
-
     const promiseList:Promise<LOG_ENTRY[]>[] = [];
-    while(start <= end) {
-        promiseList.push(fetchS3LogsByDay(type, end, maxEntries, mergeDuplicates)); //maintains order end -> start
-        end.setDate(end.getDate() - 1); //endDate -> startDate
+    while(startDate <= endDate) {
+        promiseList.push(fetchS3LogsByDay(type, new Date(endDate), maxEntries, mergeDuplicates)); //maintains order end -> start
+        endDate.setDate(endDate.getDate() - 1); //endDate -> startDate
     }
 
     const logList:LOG_ENTRY[][] = await Promise.all(promiseList);
@@ -113,19 +113,25 @@ export const fetchS3LogsByDateRange = async(type:LogType, startTimestamp?:number
 
 
 //Stream recent entries as a downloadable file
-export const streamS3LogsAsFile = async(logType:LogType, response:Response):Promise<Response> => {
+export const streamS3LogsAsFile = async(logType:LogType, response:Response, next:NextFunction):Promise<Response|void> => {
     try {
-        writeLogFile(
-            new LOG_ENTRY(LogType.EVENT, ['Downloading last 10 days of S3 logs as a file: ', logType]),
-            false //Don't evaluateLogSize
-        );
-
-        const startTime = Date.now() - 10 * 24 * 60 * 60 * 1000; //10 days
-        const logs = await fetchS3LogsByDateRange(logType, startTime, undefined, 1000, false);
+        const startTime = new Date().getTime() - (10 * 24 * 60 * 60 * 1000); //10 days
+        const logs = await fetchS3LogsByDateRange(logType, startTime, new Date().getTime(), 1000, false);
             
+        if(!logs || logs.length === 0)
+            throw new Error(`Zero S3 Logs Identified for ${logType} within last 10 days.`);
+
         // Convert logs to a stream and send it as response
         const logStream = Readable.from(logs.map(entry => `${entry.toString()}\n\n`));
         logStream.pipe(response);
+
+        logStream.on('end', () => {
+            writeLogFile(
+                new LOG_ENTRY(LogType.EVENT, ['Downloaded last 10 days of S3 logs as a file: ', logType]),
+                false //Don't evaluateLogSize
+            );
+            response.end();
+        });
 
         logStream.on('error', async(error) => {
             await saveLogLocally(logType, `Streaming ${logType} log from S3 as txt file error: `, String(error));
@@ -133,6 +139,7 @@ export const streamS3LogsAsFile = async(logType:LogType, response:Response):Prom
         return response;
     } catch(error) { //Not returning Exception, b/c fileStream is ongoing
         await saveLogLocally(logType, `Error while attempting to stream ${logType} log from S3 as txt file: `, String(error));
+        return next(new Exception(404, `Stream failed to generate for S3 log type: ${logType}`, 'Failed Stream'));
     }
 };
 

@@ -1,11 +1,12 @@
 import fs, { promises as fsPromises } from 'fs';
-import { Response } from 'express';
+import { NextFunction, Response } from 'express';
 import readline from 'readline';
 import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE, SAVE_LOGS_LOCALLY } from './log-types.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import LOG_ENTRY, { logDateRegex } from './logEntryModel.mjs';
 import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { Exception } from '../../../1-api/api-types.mjs';
 /* DO NOT IMPORT [ log from '/10-utilities/logging/log.mjs' ] to AVOID INFINITE LOOP */
 
 
@@ -130,7 +131,7 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
                 - (estimateBytes(type, (lastReadIndex + 1) * maxEntries) 
                     * (2.0 - LOG_ESTIMATE_CONFIDENCE))));
         
-        if(startByte > 0 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`NOTE: Starting to read ${type} log file at byte: ${startByte} of total size: ${await calculateLogSize(type)} bytes.`);
+        if(startByte > 0 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`NOTE: Reading local ${type} log file at byte: ${startByte} of total size: ${await calculateLogSize(type)} bytes.`);
 
         const readInterface = readline.createInterface({
             input: fs.createReadStream(getLogFilePath(type), { encoding: 'utf-8', start: startByte }),
@@ -252,7 +253,7 @@ export const filterLogEntries = (logList:LOG_ENTRY[], searchTerm?:string, startT
 
 
 //Stream local file to download
-export const streamLocalLogFile = async(logType:LogType, response:Response):Promise<Response> => {
+export const streamLocalLogFile = async(logType:LogType, response:Response, next:NextFunction):Promise<Response|void> => {
     try {
         writeLogFile(
             new LOG_ENTRY(LogType.EVENT, ['Downloading local log file: ', String(getLogFilePath(logType))]),
@@ -271,7 +272,7 @@ export const streamLocalLogFile = async(logType:LogType, response:Response):Prom
         return response;
     } catch(error) { //Not returning Exception, b/c fileStream is ongoing
         await saveLogLocally(logType, `Error while attempting to stream ${logType} log from local txt file: `, String(error));
-    }
+        return next(new Exception(404, `Stream failed to generate for local log file: ${getLogFilePath(logType)}`, 'Failed Stream'));    }
 };
 
 

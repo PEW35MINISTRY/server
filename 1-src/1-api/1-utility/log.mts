@@ -148,11 +148,11 @@ export const GET_LogDownloadFile = async(logType:LogType|undefined, request:LogE
     
     //Initiate file stream within log utilities
     if(location === LogLocation.LOCAL)
-        streamLocalLogFile(logType, response);
+        streamLocalLogFile(logType, response, next);
     else if(location === LogLocation.S3)
-        streamS3LogsAsFile(logType, response);
+        streamS3LogsAsFile(logType, response, next);
     else
-        return next(new Exception(404, `Download unavailable for log location: ${location}`));
+        return next(new Exception(404, `Download unavailable for log location: ${location}`, 'Invalid Location'));
 }
 
 

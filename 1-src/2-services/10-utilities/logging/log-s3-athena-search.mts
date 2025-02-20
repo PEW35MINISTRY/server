@@ -100,7 +100,6 @@ export const athenaSearchS3Logs = async(type:LogType, searchTerm:string, startTi
             + 'ORDER BY score DESC, ts DESC '
             + `LIMIT ${maxEntries};`;
 
-
     const queryExecutionCommand = new StartQueryExecutionCommand({
         QueryString: query,
         QueryExecutionContext: { Database: process.env.LOG_ATHENA_DATABASE },
