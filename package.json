@@ -41,6 +41,7 @@
     "mysql2": "3.11.3",
     "path": "^0.12.7",
     "rimraf": "5.0.10",
+    "rimraf": "5.0.10",
     "socket.io": "^4.5.4",
     "stack-trace": "^1.0.0-pre1",
     "ts-node": "9.1"
