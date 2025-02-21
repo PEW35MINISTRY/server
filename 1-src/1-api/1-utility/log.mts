@@ -1,5 +1,5 @@
 import { NextFunction, Response } from 'express';
-import { LogEntryDayRequest, LogEntryKeyRequest, LogEntryLocationRequest, LogEntryNewRequest, LogSearchRequest } from '../2-auth/auth-types.mjs';
+import { JwtAdminRequest, LogEntryDayRequest, LogEntryKeyRequest, LogEntryLocationRequest, LogEntryNewRequest, LogSearchRequest } from '../2-auth/auth-types.mjs';
 import { LogLocation, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { Exception } from '../api-types.mjs';
 import { filterLogEntries, readLogFile, resetLogFile, streamLocalLogFile, writeLogFile } from '../../2-services/10-utilities/logging/log-local-utilities.mjs';
@@ -8,6 +8,7 @@ import { deleteS3Log, deleteS3LogsByDay, fetchS3LogEntry, fetchS3LogsByDateRange
 import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { athenaSearchS3Logs } from '../../2-services/10-utilities/logging/log-s3-athena-search.mjs';
+import { updateAthenaPartitions } from '../../2-services/10-utilities/athena.mjs';
 
 
 //Fetch individual entry by S3 File Key
@@ -70,6 +71,16 @@ export const GET_LogSearchList = async(logType:LogType|undefined, request:LogSea
     else
         return response.status(205).send([]);
 };
+
+
+/* Manually Updates Athena Search Partitions | Needed daily, athenaSearchS3Logs calls automatically */
+export const POST_LogPartitionBucket = async (request:JwtAdminRequest, response:Response, next:NextFunction) => {
+    if(await updateAthenaPartitions(process.env.LOG_ATHENA_DATABASE, process.env.LOG_ATHENA_TABLE, `s3://${process.env.LOG_BUCKET_NAME}/athena`))
+        response.status(204).send(`Manual Athena partitions successfully.`);
+    else
+        next(new Exception(404, `Failed to manually partition logs for Athena searching.`, 'Partition Failed'));
+};
+
 
 /* Save New Log Entry */
 export const POST_LogEntry = async(type:LogType|'ALERT'|undefined, request:LogEntryNewRequest, response:Response, next:NextFunction) => {

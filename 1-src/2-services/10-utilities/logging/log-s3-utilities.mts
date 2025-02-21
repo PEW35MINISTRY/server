@@ -118,7 +118,7 @@ export const fetchS3LogsByDateRange = async(type:LogType, startTimestamp?:number
     if(promiseQueue.length > 0 && logList.flat().length < maxEntries) {
         logList.push(...await Promise.all(promiseQueue)); //Process remaining days
     }
-console.log('DONE', logList.length, promiseQueue.length);
+
     return logList.flat().slice(0, maxEntries);
 }
   
