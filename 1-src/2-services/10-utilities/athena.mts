@@ -58,7 +58,6 @@ export const executeAthenaQuery = async(command:StartQueryExecutionCommand, maxD
         /* Evaluate Result */
         if(startResponse && status === AthenaStatus.SUCCEEDED) {
             const duration:number = new Date().getTime() - startTimestamp;
-            await log.event(`Athena Query Succeeded for ${command.input?.QueryExecutionContext?.Database}`, 'Duration: (ms)', duration);
             return { queryExecutionId:queryExecutionId, success:(status === AthenaStatus.SUCCEEDED), status:status, duration:duration, rows:[] };
 
         } else

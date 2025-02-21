@@ -1,7 +1,7 @@
 import assert from 'node:assert';
-import { LogListItem, LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
-import { LOG_SOURCE } from "./log-types.mjs";
-import LOG_ENTRY from "./logEntryModel.mjs";
+import { LogListItem, LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { LOG_SOURCE } from './log-types.mjs';
+import LOG_ENTRY from './logEntryModel.mjs';
 
 const entry = new LOG_ENTRY(
     LogType.WARN,

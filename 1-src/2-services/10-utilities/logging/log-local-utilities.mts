@@ -268,6 +268,7 @@ export const streamLocalLogFile = async(logType:LogType, response:Response, next
 
         fileStream.on('error', async(error) => {
             await saveLogLocally(logType, `Streaming ${logType} log from local txt file error: `, String(error));
+            next(new Exception(500, `Error streaming local log file: ${getLogFilePath(logType)}`, 'Failed Stream'));
         });
         return response;
     } catch(error) { //Not returning Exception, b/c fileStream is ongoing

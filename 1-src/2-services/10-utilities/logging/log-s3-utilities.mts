@@ -6,8 +6,9 @@ import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-type
 import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { writeLogFile } from './log-local-utilities.mjs';
-import dotenv from 'dotenv';
 import { Exception } from '../../../1-api/api-types.mjs';
+import { MAX_PARALLEL_CONNECTIONS } from './log-types.mjs';
+import dotenv from 'dotenv';
 dotenv.config(); 
 /* DO NOT IMPORT [ log from '/10-utilities/logging/log.mjs' ] to AVOID INFINITE LOOP */
 
@@ -86,7 +87,6 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
         if((missingKeys + failedValidation) > 0)
             await saveLogLocally(type, `Local fetchS3LogsByDay skipped ${missingKeys} entries of ${response.Contents.length} with missing keys and ${failedValidation} entries with failed validations.`);
 
-
         //Optionally Combine Similar Duplicate Entires
         return (mergeDuplicates) ? LOG_ENTRY.mergeDuplicates(logEntries) : logEntries;
             
@@ -101,16 +101,27 @@ export const fetchS3LogsByDateRange = async(type:LogType, startTimestamp?:number
     endDate.setHours(0, 0, 0, 0);
     const startDate = new Date(startTimestamp ?? (endDate.getTime() - (7 * 24 * 60 * 60 * 1000))); //7 days
 
-    const promiseList:Promise<LOG_ENTRY[]>[] = [];
+    const promiseQueue:Promise<LOG_ENTRY[]>[] = [];
+    const logList:LOG_ENTRY[][] = [];
     while(startDate <= endDate) {
-        promiseList.push(fetchS3LogsByDay(type, new Date(endDate), maxEntries, mergeDuplicates)); //maintains order end -> start
+        promiseQueue.push(fetchS3LogsByDay(type, new Date(endDate), maxEntries, mergeDuplicates)); //maintains order end -> start
+        
+        if(promiseQueue.length >= MAX_PARALLEL_CONNECTIONS) {
+            logList.push(...await Promise.all(promiseQueue.splice(0, MAX_PARALLEL_CONNECTIONS)));
+
+            if(logList.flat().length >= maxEntries)
+                break; 
+        }
         endDate.setDate(endDate.getDate() - 1); //endDate -> startDate
     }
 
-    const logList:LOG_ENTRY[][] = await Promise.all(promiseList);
-    return logList.flat().slice(0, maxEntries); //latest
+    if(promiseQueue.length > 0 && logList.flat().length < maxEntries) {
+        logList.push(...await Promise.all(promiseQueue)); //Process remaining days
+    }
+console.log('DONE', logList.length, promiseQueue.length);
+    return logList.flat().slice(0, maxEntries);
 }
-
+  
 
 //Stream recent entries as a downloadable file
 export const streamS3LogsAsFile = async(logType:LogType, response:Response, next:NextFunction):Promise<Response|void> => {
@@ -135,9 +146,10 @@ export const streamS3LogsAsFile = async(logType:LogType, response:Response, next
 
         logStream.on('error', async(error) => {
             await saveLogLocally(logType, `Streaming ${logType} log from S3 as txt file error: `, String(error));
+            next(new Exception(500, `Error streaming S3 log type: ${logType}`, 'Failed Stream'));
         });
         return response;
-    } catch(error) { //Not returning Exception, b/c fileStream is ongoing
+    } catch(error) {
         await saveLogLocally(logType, `Error while attempting to stream ${logType} log from S3 as txt file: `, String(error));
         return next(new Exception(404, `Stream failed to generate for S3 log type: ${logType}`, 'Failed Stream'));
     }
@@ -165,14 +177,13 @@ export const uploadS3LogEntry = async(entry:LOG_ENTRY):Promise<boolean> => {
 }
 
 /* Batch Upload | Throttle Connections */
-const MAX_CONNECTIONS:number = (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? 10 : 50;
 export const uploadS3LogBatch = async (entries:LOG_ENTRY[]): Promise<boolean> => {
     const queue:Promise<boolean>[] = [];
     for(const entry of entries) {
         const task:Promise<boolean> = uploadS3LogEntry(entry); //Handles Local or AWS approach
         queue.push(task);
 
-        if(queue.length >= MAX_CONNECTIONS) {
+        if(queue.length >= MAX_PARALLEL_CONNECTIONS) {
             await Promise.race(queue);
             for(let i = queue.length - 1; i >= 0; i--) {
                 if(queue[i].catch(() => {}) === Promise.resolve()) {
@@ -204,7 +215,6 @@ export const deleteS3Log = async(key:string):Promise<boolean> => {
         });
 
         await s3LogClient.send(command);
-        await saveLogLocally(LogType.EVENT, 'Successful - AWS S3 Log Deleted', key);
         return true;
     } catch(error) {
         await saveLogLocally(LogType.ERROR, 'Failed - AWS S3 Log Deleted', key, error);
@@ -212,21 +222,22 @@ export const deleteS3Log = async(key:string):Promise<boolean> => {
     }
 }
 
-export const deleteS3LogsByDay = async(type:LogType, date:Date = new Date()): Promise<boolean> => {
-    try {
-        const params = {
-         Bucket: process.env.LOG_BUCKET_NAME,
-         Prefix: LOG_ENTRY.createDayS3KeyPrefix(type, date),
-     };
+
+export const deleteS3LogsByDay = async(type:LogType, date:Date = new Date()):Promise<boolean> => {
+    const params = {
+        Bucket: process.env.LOG_BUCKET_NAME,
+        Prefix: LOG_ENTRY.createDayS3KeyPrefix(type, date),
+    };
 
      const command = new ListObjectsV2Command(params);
      const response:ListObjectsV2CommandOutput = await s3LogClient.send(command);
 
-     if(!response.Contents || !Array.isArray(response.Contents) || response.Contents.length === 0)
-         throw new Error('INVALID - response contents');
+     if(!response.Contents || !Array.isArray(response.Contents) || response.Contents.length === 0) {
+        if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
+        return false; //No entries matching prefix exist
+     }
 
      let missingKeys:number = 0;
-     
      const deletePromises = response.Contents.map((obj) => {
          if(!obj.Key || obj.Key.length < 10) {
              missingKeys++;
@@ -236,38 +247,32 @@ export const deleteS3LogsByDay = async(type:LogType, date:Date = new Date()): Pr
          return deleteS3Log(obj.Key);
      });
 
-     const results = await Promise.all(deletePromises);
+     const results:boolean[] = [];
+     while(deletePromises.length > 0) {
+        const batch = deletePromises.splice(0, MAX_PARALLEL_CONNECTIONS);
+        results.push(...await Promise.all(batch));
+     }
+
      const deletionsFailed:number = results.reduce((count, result) => (result === false) ? count++ : count, 0);
 
      if((missingKeys + deletionsFailed) > 0)
-        await saveLogLocally(LogType.WARN, `AWS deleteS3LogsByDay skipped ${missingKeys} entries of ${results.length} with missing keys and ${deletionsFailed} deletions failed.`);
+        await saveLogLocally(LogType.WARN, `AWS deleteS3LogsByDay skipped ${missingKeys} entries of ${deletePromises.length} with missing keys and ${deletionsFailed} deletions failed.`);
 
      return (deletionsFailed === 0);
- } catch(error) {
-     await saveLogLocally(LogType.ERROR, 'FAILED - deleteS3LogsByDay', type, date.toDateString(), error);
-     return false;
- }
 }
 
+
 export const deleteS3LogsByDateRange = async(type:LogType, startDate:Date, endDate:Date): Promise<boolean> => {
-    try {
-        const start:Date = new Date(startDate);
-        const end:Date = new Date(endDate);
-        end.setHours(0, 0, 0, 0);
+    const start:Date = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end:Date = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
 
-        const deletePromises: Promise<boolean>[] = [];
-
-        //Generate delete operations for each day in the range
-        while(start <= end) {
-            const dateCopy = new Date(start); //Avoid mutation
-            deletePromises.push(deleteS3LogsByDay(type, dateCopy));
-            start.setDate(start.getDate() + 1); // Increment day
-        }
-
-        const results = await Promise.all(deletePromises);
-        return results.every((result) => result === true);
-    } catch(error) {
-        await saveLogLocally(LogType.ERROR, `Failed - Delete logs within date range ${startDate.toISOString()} to ${endDate.toISOString()}:`, error);
-        return false;
+    const results:boolean[] = [];
+    while(start <= end) {
+        results.push(await deleteS3LogsByDay(type, new Date(start)));
+        start.setDate(start.getDate() + 1);
     }
+
+    return results.every((result) => result === true);
 }

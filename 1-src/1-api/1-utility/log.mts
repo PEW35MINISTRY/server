@@ -1,10 +1,10 @@
 import { NextFunction, Response } from 'express';
-import { LogEntryKeyRequest, LogEntryLocationRequest, LogEntryNewRequest, LogSearchRequest } from '../2-auth/auth-types.mjs';
+import { LogEntryDayRequest, LogEntryKeyRequest, LogEntryLocationRequest, LogEntryNewRequest, LogSearchRequest } from '../2-auth/auth-types.mjs';
 import { LogLocation, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { Exception } from '../api-types.mjs';
 import { filterLogEntries, readLogFile, resetLogFile, streamLocalLogFile, writeLogFile } from '../../2-services/10-utilities/logging/log-local-utilities.mjs';
 import LOG_ENTRY from '../../2-services/10-utilities/logging/logEntryModel.mjs';
-import { fetchS3LogEntry, fetchS3LogsByDateRange, streamS3LogsAsFile, uploadS3LogEntry } from '../../2-services/10-utilities/logging/log-s3-utilities.mjs';
+import { deleteS3Log, deleteS3LogsByDay, fetchS3LogEntry, fetchS3LogsByDateRange, streamS3LogsAsFile, uploadS3LogEntry } from '../../2-services/10-utilities/logging/log-s3-utilities.mjs';
 import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { athenaSearchS3Logs } from '../../2-services/10-utilities/logging/log-s3-athena-search.mjs';
@@ -143,7 +143,7 @@ export const GET_LogDownloadFile = async(logType:LogType|undefined, request:LogE
             return next(new Exception(400, `Failed to parse log type :: missing 'type' parameter :: ${request.params.type}`, 'Missing Log Type'));
     }
 
-    response.setHeader('Content-Disposition', `attachment; filename="${logType}.txt"`);
+    response.setHeader('Content-Disposition', `attachment; filename='${logType}.txt'`);
     response.setHeader('Content-Type', 'text/plain');
     
     //Initiate file stream within log utilities
@@ -167,3 +167,29 @@ export const POST_LogEmailReport = async(logType:LogType|undefined, request:LogE
 
     return next(new Exception(500, 'Log email service yet to be implemented', 'Email Service Unavailable'));
 }
+
+
+/* Delete S3 Log Entries */
+export const DELETE_LogEntryByS3Key = async (request:LogEntryKeyRequest, response:Response, next:NextFunction) => {
+    const { key } = request.query;
+    if(!key || key.length < 10)
+        return next(new Exception(400, 'S3 Key is required', 'Missing S3 Key'));
+
+    if(await deleteS3Log(key))
+        response.status(204).send(`Log entry with key ${key} deleted successfully`);
+    else
+        next(new Exception(404, `Failed to delete log entry with key ${key}`, 'Log Deletion Failed'));
+}
+
+
+export const DELETE_LogEntryS3ByDay = async (request:LogEntryDayRequest, response:Response, next:NextFunction) => {
+    const { timestamp } = request.query;
+    if (!timestamp || isNaN(new Date(timestamp).getTime()))
+        return next(new Exception(400, 'Timestamp query parameter is required', 'Missing Timestamp'));
+
+    if(await deleteS3LogsByDay(LogType.EVENT, new Date(timestamp)))
+        response.status(204).send(`Logs for ${timestamp} deleted successfully`);
+    else
+        next(new Exception(404, `Failed to delete logs for ${timestamp}`, 'Log Day Deletion Failed'));
+};
+

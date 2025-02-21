@@ -23,6 +23,8 @@ export const setSaveAuthLogs = (saveAuthLogs:boolean):void => { SAVE_AUTH_LOGS =
 export let SAVE_EVENT_LOGS = (process.env.SAVE_EVENT_LOGS !== undefined) ? (process.env.SAVE_EVENT_LOGS === 'true') : true;
 export const setSaveEventLogs = (saveEventLogs:boolean):void => { SAVE_LOGS_LOCALLY = saveEventLogs; }
 
+/* S3 LOGGING Controls */
+export const MAX_PARALLEL_CONNECTIONS:number = (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? 10 : 30;
 
 
 /* LOCAL LOGGING FILES */

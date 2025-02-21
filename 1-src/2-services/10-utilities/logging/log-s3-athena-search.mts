@@ -1,10 +1,10 @@
-import {  StartQueryExecutionCommand } from '@aws-sdk/client-athena';
+import { StartQueryExecutionCommand } from '@aws-sdk/client-athena';
 import { AthenaQueryResult, searchAthenaQuery, updateAthenaPartitions } from '../athena.mjs';
-import * as log from './log.mjs';
-import LOG_ENTRY from './logEntryModel.mjs';
-import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import LOG_ENTRY from './logEntryModel.mjs';
+import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import * as log from './log.mjs';
 
 /*
     Athena Table to Query S3 Logs
@@ -91,7 +91,7 @@ export const athenaSearchS3Logs = async(type:LogType, searchTerm:string, startTi
             + `AND logs_dev.timestamp >= ${startDate.getTime()} AND logs_dev.timestamp <= ${endDate.getTime()} `
         +') '
 
-        //Apply 'undefined' as column placeholder | ('timestamp' is a SQL keyword)
+        //Apply placeholders for empty columns, otherwise omitted in results array | ('timestamp' is a SQL keyword)
         + `SELECT ${Array.from(LOG_ENTRY.JSONFieldDetails.entries()).filter(([key]) => key !== 'timestamp').map(([key, value]:[string, { defaultIndicator:string }]) => `COALESCE(${key}, ${value.defaultIndicator}) AS ${key}`).join(', ')}, `
             + 'ts AS timestamp, '
             + '(fullMatchScore + partialMatchScore + wordMatchScore) AS score '

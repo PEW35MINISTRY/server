@@ -102,6 +102,12 @@ export interface LogEntryLocationRequest extends JwtAdminRequest {
     }
 };
 
+export interface LogEntryDayRequest extends JwtAdminRequest {
+    query: {
+        timestamp:string
+    }
+};
+
 export interface LogSearchRequest extends LogEntryLocationRequest {
     params:JwtAdminRequest['params'] & {
         type?:string
