@@ -8,8 +8,9 @@ import { DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-s
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_DELETE_CONTACT_CACHE, DB_DELETE_CONTACT_CACHE_BATCH, DB_IS_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_ROLES } from '../../2-services/2-database/queries/user-queries.mjs';
 import { PartnerListItem, ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { sendNotification } from '../8-notification/notification-utilities.mjs';
+import { sendTemplateNotification, sendNotificationPairedMessage } from '../8-notification/notification-utilities.mjs';
 import { NotificationType } from '../8-notification/notification-types.mjs';
+import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 
 
 /*********************************
@@ -67,21 +68,38 @@ export const POST_NewPartnerSearch = async(request:JwtClientRequest, response:Re
 //user 'jwtUserID' is taking action with partner 'clientID'
 export const POST_PartnerContractAccept = async(request:JwtClientRequest, response:Response, next:NextFunction) => {
     const currentStatus:PartnerStatusEnum = await DB_SELECT_PARTNER_STATUS(request.jwtUserID, request.clientID);
+
+    //Database schema requires userID < partnerID for DATABASE_PARTNER_STATUS_ENUM perspective
+    const smallerUserID = getUserID(request.jwtUserID, request.clientID);
+    const largerPartnerID = getPartnerID(request.jwtUserID, request.clientID);
     let newStatus:PartnerStatusEnum = currentStatus;
-    if((currentStatus === PartnerStatusEnum.PENDING_CONTRACT_BOTH) && (request.jwtUserID === getUserID(request.jwtUserID , request.clientID))) 
-        newStatus = PartnerStatusEnum.PENDING_CONTRACT_PARTNER;
+
+    //New Partnership or assigned by Admin
+    if(currentStatus === PartnerStatusEnum.PENDING_CONTRACT_BOTH) {
+
+        //User (smallerUserID) is still waiting for partner (largerPartnerID) to accept
+        if(request.jwtUserID === smallerUserID) {
+            newStatus = PartnerStatusEnum.PENDING_CONTRACT_PARTNER; 
+            await sendTemplateNotification(smallerUserID, [largerPartnerID], NotificationType.PARTNERSHIP_REQUEST);
+
+        //Partner (largerPartnerID) is still waiting for user (smallerUserID) to accept
+        } else if(request.jwtUserID === largerPartnerID) {
+            newStatus = PartnerStatusEnum.PENDING_CONTRACT_USER;
+            await sendTemplateNotification(largerPartnerID, [smallerUserID], NotificationType.PARTNERSHIP_REQUEST);
+        }
+      
+    //Partnership completed, remaining user accepts
+    } else if (currentStatus === PartnerStatusEnum.PENDING_CONTRACT_USER && request.jwtUserID === smallerUserID) {
+        newStatus = PartnerStatusEnum.PARTNER;
+        await sendTemplateNotification(smallerUserID, [largerPartnerID], NotificationType.PARTNERSHIP_ACCEPT);
+        
+    } else if(currentStatus === PartnerStatusEnum.PENDING_CONTRACT_PARTNER && request.jwtUserID === largerPartnerID) {
+        newStatus = PartnerStatusEnum.PARTNER;
+        await sendTemplateNotification(largerPartnerID, [smallerUserID], NotificationType.PARTNERSHIP_ACCEPT);
     
-    else if((currentStatus === PartnerStatusEnum.PENDING_CONTRACT_BOTH) && (request.jwtUserID === getPartnerID(request.jwtUserID , request.clientID)))
-        newStatus = PartnerStatusEnum.PENDING_CONTRACT_USER;
-
-    else if((currentStatus === PartnerStatusEnum.PENDING_CONTRACT_USER) && (request.jwtUserID === getUserID(request.jwtUserID , request.clientID))) 
-        newStatus = PartnerStatusEnum.PARTNER;
-
-    else if((currentStatus === PartnerStatusEnum.PENDING_CONTRACT_PARTNER) && (request.jwtUserID === getPartnerID(request.jwtUserID , request.clientID))) 
-        newStatus = PartnerStatusEnum.PARTNER;
-
-    else //No pending status identified
-        return  next(new Exception(400, `Partnership is not PENDING between user ${request.jwtUserID} and partner ${request.clientID}, unable to accept partnership contract.`, 'Partnership not found'));
+    //No pending status identified
+    } else
+        return next(new Exception(400, `Partnership is not PENDING between user ${request.jwtUserID} and partner ${request.clientID}. Current status: ${currentStatus}. Unable to accept partnership contract.`, 'Partnership not found'));
 
     //Assign new status
     if(await DB_ASSIGN_PARTNER_STATUS(request.jwtUserID, request.clientID, DATABASE_PARTNER_STATUS_ENUM[newStatus])) {
@@ -89,10 +107,6 @@ export const POST_PartnerContractAccept = async(request:JwtClientRequest, respon
             await DB_DELETE_CONTACT_CACHE_BATCH([request.jwtUserID, request.clientID]);
 
         log.event(`User ${request.jwtUserID} and partner ${request.clientID} are now ${newStatus}`);
-
-        if (newStatus === PartnerStatusEnum.PENDING_CONTRACT_PARTNER) sendNotification(getUserID(request.jwtUserID, request.clientID), [getPartnerID(request.jwtUserID , request.clientID)], NotificationType.PARTNERSHIP_REQUEST);
-        else if (newStatus === PartnerStatusEnum.PARTNER) sendNotification(getPartnerID(request.jwtUserID, request.clientID), [getUserID(request.jwtUserID, request.clientID)], NotificationType.PARTNERSHIP_ACCEPT);
-
         response.status(200).send(await DB_SELECT_PARTNERSHIP(request.jwtUserID, request.clientID));
     } else
         return next(new Exception(500, `Failed to save partnership status for user ${request.jwtUserID} and partner ${request.clientID} as ${newStatus}`, 'Save Failed'));
@@ -135,9 +149,36 @@ export const POST_PartnerStatusAdmin = async(status:PartnerStatusEnum|undefined,
     if(await DB_ASSIGN_PARTNER_STATUS(request.clientID, request.partnerID, DATABASE_PARTNER_STATUS_ENUM[status])) {
         await DB_DELETE_CONTACT_CACHE_BATCH([request.clientID, request.partnerID]);
 
-        if (status === PartnerStatusEnum.PENDING_CONTRACT_PARTNER) sendNotification(getUserID(request.jwtUserID, request.clientID), [getPartnerID(request.jwtUserID , request.clientID)], NotificationType.PARTNERSHIP_REQUEST);
-        else if (status === PartnerStatusEnum.PARTNER) sendNotification(getPartnerID(request.jwtUserID, request.clientID), [getUserID(request.jwtUserID, request.clientID)], NotificationType.PARTNERSHIP_ACCEPT);
+        /* Send Notifications */
+        const userName: string = (await DB_SELECT_USER(new Map([['userID', request.clientID]]))).displayName;
+        const partnerName: string = (await DB_SELECT_USER(new Map([['userID', request.partnerID]]))).displayName;
 
+        const messageMap: Map<number, string> = new Map();
+        switch (status) {
+            case PartnerStatusEnum.PARTNER:
+                messageMap.set(request.clientID, `Admin approved partnership with ${partnerName}`);
+                messageMap.set(request.partnerID, `Admin approved partnership with ${userName}`);
+                break;
+            case PartnerStatusEnum.PENDING_CONTRACT_BOTH:
+                messageMap.set(request.clientID, `${partnerName} is waiting for your acceptance of partnership`);
+                messageMap.set(request.partnerID, `${userName} is waiting for your acceptance of partnership`);
+                break;
+            case PartnerStatusEnum.PENDING_CONTRACT_USER:
+                messageMap.set(request.clientID, `${partnerName} is waiting for your acceptance of partnership`);
+                messageMap.set(request.partnerID, `Admin approved partnership with ${userName}`);
+                break;
+            case PartnerStatusEnum.PENDING_CONTRACT_PARTNER:
+                messageMap.set(request.clientID, `Admin approved partnership with ${partnerName}`);
+                messageMap.set(request.partnerID, `${userName} is waiting for your acceptance of partnership`);
+                break;
+            case PartnerStatusEnum.ENDED:
+            case PartnerStatusEnum.FAILED:
+            default:
+                messageMap.set(request.clientID, `Partnership with ${partnerName} ${makeDisplayText(status)}`);
+                messageMap.set(request.partnerID, `Partnership with ${userName} ${makeDisplayText(status)}`);
+        }
+        await sendNotificationPairedMessage(messageMap);
+        
         log.event(`ADMIN: User ${request.clientID} and partner ${request.partnerID} are now ${status}`);
         response.status(200).send(await DB_SELECT_PARTNERSHIP(request.clientID, request.partnerID));
     } else
