@@ -49,7 +49,7 @@ const publishNotificationPairedMessages = async(endPointMessageMap: Map<string, 
         try {
             await snsClient.send(new PublishCommand({
                 TargetArn: endpoint,
-                Message: getStringifiedNotification(message),
+                Message: message,
                 MessageAttributes: SNS_APNS_HEADERS,
                 MessageStructure: 'json'
             }));
@@ -134,14 +134,14 @@ export const sendNotificationCircle = async (senderID:number, recipientIDList: n
     let message = undefined;
     switch (notificationType) {
         case CircleNotificationType.PRAYER_REQUEST_RECIPIENT:
-            message = getStringifiedNotification(getCirclePrayerRequestNotificationBody(senderDisplayName, circleName));
+            message = getCirclePrayerRequestNotificationBody(senderDisplayName, circleName);
             break;
         case CircleNotificationType.CIRCLE_INVITE:
-            message = getStringifiedNotification(getCircleInviteNotificationBody(senderDisplayName, circleName));
+            message = getCircleInviteNotificationBody(senderDisplayName, circleName);
             break;
         default:
             log.warn(`NOTIFICATION :: Invalid notification type ${notificationType} for circle [${circleID}] for users [${recipientIDList.join(', ')}] from user ${senderID}`);
-            message = getStringifiedNotification(`${senderDisplayName} has an update for you`);
+            message = `${senderDisplayName} has an update for you`;
             break;
     }
 
@@ -155,17 +155,17 @@ export const sendTemplateNotification = async (senderID:number, recipientIDList:
     let message = undefined;
     switch(notificationType) {
         case NotificationType.PARTNERSHIP_ACCEPT:
-            message = getStringifiedNotification(getPartnershipAcceptanceNotificationBody(senderDisplayName));
+            message = getPartnershipAcceptanceNotificationBody(senderDisplayName);
             break;
         case NotificationType.PARTNERSHIP_REQUEST:
-            message = getStringifiedNotification(getNewPartnershipRequestNotificationBody(senderDisplayName));
+            message = getNewPartnershipRequestNotificationBody(senderDisplayName);
             break;
         case NotificationType.PRAYER_REQUEST_RECIPIENT:
-            message = getStringifiedNotification(getIndividualPrayerRequestNotificationBody(senderDisplayName));
+            message = getIndividualPrayerRequestNotificationBody(senderDisplayName);
             break;
         default:
             log.warn(`NOTIFICATION :: Invalid notification type ${notificationType} for users [${recipientIDList.join(', ')}] from user ${senderID}`);
-            message = getStringifiedNotification(`${senderDisplayName} has an update for you`);
+            message = `${senderDisplayName} has an update for you`;
             break
     }
     return await sendNotificationMessage(recipientIDList, message);
@@ -173,7 +173,7 @@ export const sendTemplateNotification = async (senderID:number, recipientIDList:
 
 export const sendNotificationMessage = async(recipientIDList:number[], message:string):Promise<boolean> => {
     const recipientEndpointARNs:string[] = await DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST(recipientIDList);
-    return publishNotifications(recipientEndpointARNs, message);
+    return publishNotifications(recipientEndpointARNs, getStringifiedNotification(message));
 }
 
 export const sendNotificationPairedMessage = async(messageMap:Map<number, string>):Promise<boolean> => {
@@ -182,7 +182,7 @@ export const sendNotificationPairedMessage = async(messageMap:Map<number, string
     const endpointMessageMap = new Map(
         Array.from(userIDEndpointMap.entries())
             .filter(([userID, endpointARN]) => messageMap.has(userID) && endpointARN.length > 0)
-            .map(([userID, endpointARN]) => [endpointARN, messageMap.get(userID)!])
+            .map(([userID, endpointARN]) => [endpointARN, getStringifiedNotification(messageMap.get(userID)!)])
     );
 
     return await publishNotificationPairedMessages(endpointMessageMap); //<endpointARN, message>
