@@ -40,7 +40,7 @@ const getStringifiedNotification = (body:string) => {
 //Send identical message to all recipients
 const publishNotifications = async(endpointARNs:string[], message:string):Promise<boolean> => {
     const endPointMessageMap = new Map(endpointARNs.map(endpoint => [endpoint, message]));
-    return publishNotificationPairedMessages(endPointMessageMap);
+    return await publishNotificationPairedMessages(endPointMessageMap);
 };
 
 //Send Individual messages to each recipient
@@ -49,7 +49,7 @@ const publishNotificationPairedMessages = async(endPointMessageMap: Map<string, 
         try {
             await snsClient.send(new PublishCommand({
                 TargetArn: endpoint,
-                Message: message,
+                Message: getStringifiedNotification(message),
                 MessageAttributes: SNS_APNS_HEADERS,
                 MessageStructure: 'json'
             }));
@@ -145,7 +145,7 @@ export const sendNotificationCircle = async (senderID:number, recipientIDList: n
             break;
     }
 
-    return sendNotificationMessage(recipientIDList, message);
+    return await sendNotificationMessage(recipientIDList, message);
 }
 
 export const sendTemplateNotification = async (senderID:number, recipientIDList: number[], notificationType: NotificationType, requestSenderDisplayName?:string):Promise<boolean> => {
@@ -168,7 +168,7 @@ export const sendTemplateNotification = async (senderID:number, recipientIDList:
             message = getStringifiedNotification(`${senderDisplayName} has an update for you`);
             break
     }
-    return sendNotificationMessage(recipientIDList, message);
+    return await sendNotificationMessage(recipientIDList, message);
 }
 
 export const sendNotificationMessage = async(recipientIDList:number[], message:string):Promise<boolean> => {
@@ -185,7 +185,7 @@ export const sendNotificationPairedMessage = async(messageMap:Map<number, string
             .map(([userID, endpointARN]) => [endpointARN, messageMap.get(userID)!])
     );
 
-    return publishNotificationPairedMessages(endpointMessageMap); //<endpointARN, message>
+    return await publishNotificationPairedMessages(endpointMessageMap); //<endpointARN, message>
 }
 
 
