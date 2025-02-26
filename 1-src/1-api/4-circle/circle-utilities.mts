@@ -10,7 +10,7 @@ import { JwtSearchRequest } from '../api-types.mjs';
  **********************************/
 
 //Intelligently clear circle_search_cache base on circle change | [SYNC with searchCircleList]
-export const updateCircleListCache = async(updatedFields:Map<string, any>):Promise<Boolean> => {
+export const updateCircleListCache = async(updatedFields:Map<string, any>):Promise<boolean> => {
     const filterList:CircleSearchRefineEnum[] = [CircleSearchRefineEnum.ALL];
     const valueList:string[] = [];
 

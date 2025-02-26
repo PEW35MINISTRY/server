@@ -30,7 +30,6 @@ export enum LogLocation {
 }
 
 export enum LogType {
-    ALERT = 'ALERT', 
     ERROR = 'ERROR', 
     WARN = 'WARN', 
     DB = 'DB', 
@@ -43,6 +42,7 @@ export type LogListItem = {
     timestamp:number; 
     type:LogType; 
     messages:string[]; 
+    messageSearch:string; //Combine string for AWS Athena query
     stackTrace?:string[]; 
     fileKey?:string; 
     duplicateList?:string[]; 
