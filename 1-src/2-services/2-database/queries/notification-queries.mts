@@ -133,13 +133,17 @@ export const DB_SELECT_NOTIFICATION_ENDPOINT = async(deviceID:number):Promise<st
     return rows.map(row => row.endpointARN); 
 }
 
-export const DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST = async(userIDList:number[]):Promise<string[]> => {
+export const DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_MAP = async(userIDList:number[]):Promise<Map<number, string>> => {
     if(userIDList.length === 0 || !Array.isArray(userIDList) || !userIDList.every(id => typeof id === 'number')) {
-        log.db('DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST Invalid userIDList:', JSON.stringify(userIDList));
-        return [];
+        log.db('DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_MAP Invalid userIDList:', JSON.stringify(userIDList));
+        return new Map();
     }
 
     const placeholders = userIDList.map(() => '?').join(',');
-    const rows = await execute(`SELECT endpointARN FROM notification_device WHERE userID IN (${placeholders})`, userIDList);
-    return rows.map((row) => row.endpointARN);
+    const rows = await execute(`SELECT userID, endpointARN FROM notification_device WHERE userID IN (${placeholders})`, userIDList);
+    return rows.reduce((map, row) => map.set(row.userID ?? -1, row.endpointARN ?? ''), new Map<number, string>());
+}
+
+export const DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST = async(userIDList:number[]):Promise<string[]> => {
+    return Array.from((await DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_MAP(userIDList)).values());
 }
