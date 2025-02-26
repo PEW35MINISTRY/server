@@ -25,8 +25,8 @@ const SNS_APNS_HEADERS = {
  ********************************/
 const getIndividualPrayerRequestNotificationBody = (username: string) => `New prayer request from ${username}`;
 const getCirclePrayerRequestNotificationBody = (username:string, circleName: string) => `New prayer request from ${username} in ${circleName}`;
-const getNewPartnershipRequestNotificationBody = (username:string) => `New partnership request from ${username}`;
-const getPartnershipAcceptanceNotificationBody = (username:string) => `${username} accepted your partnership request!`;
+const getNewPartnershipRequestNotificationBody = (username:string) => `You have a new prayer partner contract available with ${username}`;
+const getPartnershipAcceptanceNotificationBody = (username:string) => `${username} accepted the prayer partner contract`;
 const getCircleInviteNotificationBody = (username:string, circleName:string) => `${username} has sent an invite to join ${circleName}`;
 
 const getStringifiedNotification = (body:string) => {
