@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-types.mjs';
 import dotenv from 'dotenv';
@@ -20,6 +21,17 @@ export const getModelSourceEnvironment = (): DATABASE_MODEL_SOURCE_ENVIRONMENT_E
         ?? DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT;
 };
 
+/* AWS SSO Authentication | Provides access to S3 & SNS utilities */
+export const checkAWSAuthentication = async():Promise<boolean> => {
+    try { //Fetch list of buckets as a test
+        const s3Client = new S3Client({ region: process.env.LOG_BUCKET_REGION });
+        await s3Client.send(new ListBucketsCommand({}));       
+        return true;
+    } catch(error) {
+        console.error('WARNING - AWS Credentials Not Verified');
+        return false;
+    }
+}
 
 /*********************
  * GENERIC UTILITIES *
