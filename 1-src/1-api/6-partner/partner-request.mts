@@ -160,8 +160,8 @@ export const POST_PartnerStatusAdmin = async(status:PartnerStatusEnum|undefined,
                 messageMap.set(request.partnerID, `Admin approved partnership with ${userName}`);
                 break;
             case PartnerStatusEnum.PENDING_CONTRACT_BOTH:
-                messageMap.set(request.clientID, `${partnerName} is waiting for your acceptance of partnership`);
-                messageMap.set(request.partnerID, `${userName} is waiting for your acceptance of partnership`);
+                messageMap.set(request.clientID, `You have a new prayer partner contract available with ${partnerName}`);
+                messageMap.set(request.partnerID, `You have a new prayer partner contract available with ${userName}`);
                 break;
             case PartnerStatusEnum.PENDING_CONTRACT_USER:
                 messageMap.set(request.clientID, `${partnerName} is waiting for your acceptance of partnership`);
