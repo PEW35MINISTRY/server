@@ -10,7 +10,7 @@ import bodyParser from 'body-parser';
 import cors from 'cors';
 
 //Import Types
-import { getEnvironment } from './2-services/10-utilities/utilities.mjs';
+import { checkAWSAuthentication, getEnvironment } from './2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
@@ -20,7 +20,7 @@ import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 
 //Import Routes
 import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
-import { GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogResetFile } from './1-api/1-utility/log.mjs';
+import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogPartitionBucket, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
@@ -45,10 +45,11 @@ const SERVER_PORT = process.env.SERVER_PORT || 5000;
 const publicServer: Application = express();
 const apiServer: Application = express();
 
-/********************
-   Socket.IO Chat
- *********************/
+/************************
+* SERVER INITIALIZATION *
+*************************/
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
+await checkAWSAuthentication();
 
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
@@ -354,7 +355,10 @@ apiServer.use(express.text());
 apiServer.delete('/api/admin/flush-search-cache/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => DELETE_flushSearchCacheAdmin(undefined, request, response, next)); //(Handles authentication)
 
 apiServer.get('/api/admin/log', GET_LogEntryByS3Key);
+apiServer.delete('/api/admin/log', DELETE_LogEntryByS3Key);
+apiServer.delete('/api/admin/log/day', DELETE_LogEntryS3ByDay);
 apiServer.get('/api/admin/log/default', GET_LogDefaultList);
+apiServer.post('/api/admin/log/athena-partition', POST_LogPartitionBucket);
 apiServer.get('/api/admin/log/:type', (request:LogSearchRequest, response:Response, next:NextFunction) => GET_LogSearchList(undefined, request, response, next));
 apiServer.post('/api/admin/log/:type', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogEntry(undefined, request, response, next));
 apiServer.post('/api/admin/log/:type/reset', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogResetFile(undefined, request, response, next));

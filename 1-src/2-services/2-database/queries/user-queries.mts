@@ -163,7 +163,7 @@ export const DB_DELETE_USER = async(userID:number):Promise<boolean> => { //Note:
 
 
 //Checks all users in database, regardless of user.modelSourceEnvironment
-export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateAllFields:boolean = true):Promise<Boolean|undefined> => { //(ALL columns and values are case insensitive)
+export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateAllFields:boolean = true):Promise<boolean|undefined> => { //(ALL columns and values are case insensitive)
     //Validate Columns prior to Query | filter to only test valid columns
     const columnsLowerCase:string[] = USER_TABLE_COLUMNS.map(c => c.toLowerCase());
     const validFieldMap:Map<string, any> = new Map();  
@@ -200,7 +200,7 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
 /**********************
  *  USER ROLE QUERIES
  **********************/
-export const DB_IS_USER_ROLE = async(userID:number, userRole:DATABASE_USER_ROLE_ENUM, useDefaultUser:boolean = false):Promise<Boolean> => {   
+export const DB_IS_USER_ROLE = async(userID:number, userRole:DATABASE_USER_ROLE_ENUM, useDefaultUser:boolean = false):Promise<boolean> => {   
     const rows = await execute('SELECT * ' + 'FROM user '
     + 'LEFT JOIN user_role ON user_role.userID = user.userID '
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
@@ -211,7 +211,7 @@ export const DB_IS_USER_ROLE = async(userID:number, userRole:DATABASE_USER_ROLE_
     return (rows.length === 1);
 }
 
-export const DB_IS_ANY_USER_ROLE = async(userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[], useDefaultUser:boolean = true):Promise<Boolean> => {   
+export const DB_IS_ANY_USER_ROLE = async(userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[], useDefaultUser:boolean = true):Promise<boolean> => {   
 
     if(userRoleList === undefined || userRoleList.length === 0) return false;
 
