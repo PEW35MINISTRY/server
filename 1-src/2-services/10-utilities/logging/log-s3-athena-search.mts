@@ -5,6 +5,7 @@ import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync
 import LOG_ENTRY from './logEntryModel.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import * as log from './log.mjs';
+import { LOG_SEARCH_DEFAULT_TIMESPAN } from './log-types.mjs';
 
 /*
     Athena Table to Query S3 Logs
@@ -36,7 +37,7 @@ const MAX_QUERY_TIMEOUT_MS = 15000; //15 seconds
 let lastPartitionUpdateTimestamp:number = 0;
 export const athenaSearchS3Logs = async(type:LogType, searchTerm:string, startTimestamp?:number, endTimestamp?:number, maxEntries:number = 1000, mergeDuplicates:boolean = false):Promise<LOG_ENTRY[]> => {
     const endDate = new Date(endTimestamp); //Default to today
-    const startDate = new Date(startTimestamp ?? (endDate.getTime() - (7 * 24 * 60 * 60 * 1000))); //7 days
+    const startDate = new Date(startTimestamp ?? (endDate.getTime() - LOG_SEARCH_DEFAULT_TIMESPAN));
 
     if(isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate.getTime() < startDate.getTime()) {
         log.warn('athenaSearchS3Logs called with invalid dates: (start/timestamp/end/timestamp)', startDate, startTimestamp, endDate, endTimestamp);

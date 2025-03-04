@@ -7,7 +7,7 @@ import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { writeLogFile } from './log-local-utilities.mjs';
 import { Exception } from '../../../1-api/api-types.mjs';
-import { MAX_PARALLEL_CONNECTIONS } from './log-types.mjs';
+import { LOG_SEARCH_DEFAULT_MAX_ENTRIES, LOG_SEARCH_DEFAULT_TIMESPAN, MAX_PARALLEL_CONNECTIONS } from './log-types.mjs';
 import dotenv from 'dotenv';
 dotenv.config(); 
 /* DO NOT IMPORT [ log from '/10-utilities/logging/log.mjs' ] to AVOID INFINITE LOOP */
@@ -54,7 +54,7 @@ export const fetchS3LogEntry = async(key:string, validate:boolean = true):Promis
 
 /* Fetch all Logs for a given day */
 //Populated only from S3 Key (1024 characters), must use individual fetch to get full message list from body
-export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxEntries:number = 500, mergeDuplicates:boolean = true, validate:boolean = true) => {
+export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxEntries:number = LOG_SEARCH_DEFAULT_MAX_ENTRIES, mergeDuplicates:boolean = true, validate:boolean = true) => {
     try {
         const params = {
             Bucket: process.env.LOG_BUCKET_NAME,
@@ -96,11 +96,10 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
     }
 }
 
-export const fetchS3LogsByDateRange = async(type:LogType, startTimestamp?:number, endTimestamp?:number, maxEntries:number = 500, mergeDuplicates:boolean = true):Promise<LOG_ENTRY[]> => {
+export const fetchS3LogsByDateRange = async(type:LogType, startTimestamp?:number, endTimestamp?:number, maxEntries:number = LOG_SEARCH_DEFAULT_MAX_ENTRIES, mergeDuplicates:boolean = true):Promise<LOG_ENTRY[]> => {
     const endDate = new Date(endTimestamp); //Default to today
     endDate.setHours(0, 0, 0, 0);
-    const startDate = new Date(startTimestamp ?? (endDate.getTime() - (7 * 24 * 60 * 60 * 1000))); //7 days
-
+    const startDate = new Date(startTimestamp ?? (endDate.getTime() - LOG_SEARCH_DEFAULT_TIMESPAN));
     const promiseQueue:Promise<LOG_ENTRY[]>[] = [];
     const logList:LOG_ENTRY[][] = [];
     while(startDate <= endDate) {
@@ -126,7 +125,7 @@ export const fetchS3LogsByDateRange = async(type:LogType, startTimestamp?:number
 //Stream recent entries as a downloadable file
 export const streamS3LogsAsFile = async(logType:LogType, response:Response, next:NextFunction):Promise<Response|void> => {
     try {
-        const startTime = new Date().getTime() - (10 * 24 * 60 * 60 * 1000); //10 days
+        const startTime = new Date().getTime() - LOG_SEARCH_DEFAULT_TIMESPAN;
         const logs = await fetchS3LogsByDateRange(logType, startTime, new Date().getTime(), 1000, false);
             
         if(!logs || logs.length === 0)

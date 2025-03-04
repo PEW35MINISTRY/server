@@ -9,6 +9,7 @@ import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { athenaSearchS3Logs } from '../../2-services/10-utilities/logging/log-s3-athena-search.mjs';
 import { updateAthenaPartitions } from '../../2-services/10-utilities/athena.mjs';
+import { LOG_DEFAULT_ERROR_PERCENTAGE, LOG_SEARCH_DEFAULT_MAX_ENTRIES, LOG_SEARCH_DEFAULT_TIMESPAN } from '../../2-services/10-utilities/logging/log-types.mjs';
 
 
 //Fetch individual entry by S3 File Key
@@ -23,16 +24,17 @@ export const GET_LogEntryByS3Key = async(request:LogEntryKeyRequest, response:Re
 //Default View; combines ERROR and WARN entries
 export const GET_LogDefaultList = async(request:LogEntryLocationRequest, response:Response, next:NextFunction) => {
     const {location =  (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? LogLocation.LOCAL : LogLocation.S3} = request.query
-    const startTime = new Date().getTime() - (7 * 24 * 60 * 60 * 1000); //7 days
+    const startTime = new Date().getTime() - LOG_SEARCH_DEFAULT_TIMESPAN; //7 days
+    const warnMaxEntries = LOG_SEARCH_DEFAULT_MAX_ENTRIES * (1 - LOG_DEFAULT_ERROR_PERCENTAGE);
     
     let logList:LOG_ENTRY[] = [];
     if(location === LogLocation.LOCAL) {
-        logList.push(...(await readLogFile(LogType.WARN, 200)));
-        logList.push(...(await readLogFile(LogType.ERROR, 500 - logList.length)));
+        logList.push(...(await readLogFile(LogType.WARN, warnMaxEntries)));
+        logList.push(...(await readLogFile(LogType.ERROR, LOG_SEARCH_DEFAULT_MAX_ENTRIES - logList.length)));
 
     } else if(location === LogLocation.S3) {
-        logList.push(...(await fetchS3LogsByDateRange(LogType.WARN, startTime, undefined, 200)));
-        logList.push(...(await fetchS3LogsByDateRange(LogType.ERROR, startTime, undefined, 500 - logList.length)));
+        logList.push(...(await fetchS3LogsByDateRange(LogType.WARN, startTime, undefined, warnMaxEntries)));
+        logList.push(...(await fetchS3LogsByDateRange(LogType.ERROR, startTime, undefined, LOG_SEARCH_DEFAULT_MAX_ENTRIES - logList.length)));
     }
 
     if(Array.isArray(logList) && logList.length > 0)
@@ -55,10 +57,10 @@ export const GET_LogSearchList = async(logType:LogType|undefined, request:LogSea
     const { location = (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? LogLocation.LOCAL : LogLocation.S3, 
         search, cumulativeIndex, startTimestamp, endTimestamp, maxEntries, combineDuplicates } = request.query;
     const lastReadEntryIndex:number = Math.max(0, parseInt(cumulativeIndex ?? '0'));
-    const startTime:number|undefined = startTimestamp ? new Date(parseInt(startTimestamp)).getTime() : new Date().getTime() - (7 * 24 * 60 * 60 * 1000); //7 days;
+    const startTime:number|undefined = startTimestamp ? new Date(parseInt(startTimestamp)).getTime() : new Date().getTime() - LOG_SEARCH_DEFAULT_TIMESPAN;
     const endTime:number|undefined = endTimestamp ? new Date(parseInt(endTimestamp)).getTime() : new Date().getTime();
     const mergeDuplicates:boolean = (combineDuplicates === 'true') ? true : (combineDuplicates === 'false') ? false : true;
-    const entries:number = Math.min(500, parseInt(maxEntries ?? String(search ? 500 : 100)));
+    const entries:number = parseInt(maxEntries ?? String(LOG_SEARCH_DEFAULT_MAX_ENTRIES));
 
     const logList:LOG_ENTRY[] = (location === LogLocation.LOCAL) ? filterLogEntries(await readLogFile(logType, entries, lastReadEntryIndex, endTime), search, startTime, endTime, mergeDuplicates)
                                 : (location === LogLocation.S3) ? 

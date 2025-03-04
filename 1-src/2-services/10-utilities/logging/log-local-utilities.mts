@@ -1,7 +1,7 @@
 import fs, { promises as fsPromises } from 'fs';
 import { NextFunction, Response } from 'express';
 import readline from 'readline';
-import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE, SAVE_LOGS_LOCALLY } from './log-types.mjs';
+import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE, SAVE_LOGS_LOCALLY, LOG_SEARCH_DEFAULT_MAX_ENTRIES } from './log-types.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import LOG_ENTRY, { logDateRegex } from './logEntryModel.mjs';
 import { getEnvironment } from '../utilities.mjs';
@@ -99,7 +99,7 @@ export const resetLogFile = async(type:LogType, validate:boolean = false):Promis
                     .sort((a,b) => a.getTimestamp() - b.getTimestamp())
                     .map(entry => entry.toString()).join('\n') + '\n', 'utf-8');
 
-                resolve(logEntriesKeeping.slice(-1 * 500).reverse());
+                resolve(logEntriesKeeping.slice(-1 * LOG_SEARCH_DEFAULT_MAX_ENTRIES).reverse());
             });
 
             readInterface.on('error', async(error) => {
@@ -174,7 +174,7 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
                 if(failedValidation > 0)
                     await saveLogLocally(type, `Local ReadLogFile skipped ${failedValidation} entries with failed validations.`);
 
-                resolve(logEntries.slice(-1 * (maxEntries ?? 500)).reverse());
+                resolve(logEntries.slice(-1 * (maxEntries ?? LOG_SEARCH_DEFAULT_MAX_ENTRIES)).reverse());
             });
 
             readInterface.on('error', async(error) => {

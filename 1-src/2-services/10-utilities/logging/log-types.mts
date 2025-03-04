@@ -7,6 +7,11 @@ import { getEnvironment } from '../utilities.mjs';
 
 
 /* LOGGING CONTROLS */
+export const LOG_SEARCH_DEFAULT_TIMESPAN = (7 * 24 * 60 * 60 * 1000); //7 days
+export const LOG_SEARCH_DEFAULT_MAX_ENTRIES = 500;
+export const LOG_DEFAULT_ERROR_PERCENTAGE = 0.67;
+
+
 export let SAVE_LOGS_LOCALLY = (process.env.SAVE_LOGS_LOCALLY !== undefined) ? (process.env.SAVE_LOGS_LOCALLY === 'true') : true;
 export const setSaveLogsLocally = (saveLocally:boolean):void => { SAVE_LOGS_LOCALLY = saveLocally; }
 
@@ -22,6 +27,7 @@ export const setSaveAuthLogs = (saveAuthLogs:boolean):void => { SAVE_AUTH_LOGS =
 
 export let SAVE_EVENT_LOGS = (process.env.SAVE_EVENT_LOGS !== undefined) ? (process.env.SAVE_EVENT_LOGS === 'true') : true;
 export const setSaveEventLogs = (saveEventLogs:boolean):void => { SAVE_LOGS_LOCALLY = saveEventLogs; }
+
 
 /* S3 LOGGING Controls */
 export const MAX_PARALLEL_CONNECTIONS:number = (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? 10 : 30;
