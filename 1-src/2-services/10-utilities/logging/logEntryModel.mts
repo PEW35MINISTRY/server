@@ -21,11 +21,16 @@ export default class LOG_ENTRY {
     constructor(type:LogType, messages:string[], stackTrace:string[] = [], fileKey:string = '', date:Date = new Date(), source:LOG_SOURCE = LOG_SOURCE.NEW) {
         this.date = date;
         this.type = type;
-
-        this.messages = messages.map(m => (m === undefined) ? 'UNDEFINED' : (m === null) ? 'NULL' : (m.trim && m.trim().length === 0) ? 'BLANK' : m);
-        this.stackTrace = stackTrace.filter(m => m.length > 0);
         this.fileKey = fileKey;
         this.source = source;
+
+        this.messages = messages.map(m => 
+            (m === undefined) ? 'UNDEFINED' 
+            : (m === null) ? 'NULL' 
+            : (typeof m !== 'string') ? JSON.stringify(m)
+            : (m.trim && m.trim().length === 0) ? 'BLANK' : m);
+
+        this.stackTrace = stackTrace.filter(s => ((typeof s === 'string') && (s.length > 0)));
 
         if((this.source === LOG_SOURCE.NEW) && (getEnvironment() === ENVIRONMENT_TYPE.LOCAL)) this.print();
     }
