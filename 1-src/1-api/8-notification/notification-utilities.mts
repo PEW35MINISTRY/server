@@ -2,7 +2,7 @@ import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { NOTIFICATION_DEVICE_FIELDS } from '../../0-assets/field-sync/input-config-sync/notification-field-config.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
-import {  DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST, DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT, DB_SELECT_NOTIFICATION_DEVICE_ID, DB_SELECT_NOTIFICATION_DEVICE_LIST, DB_SELECT_NOTIFICATION_ENDPOINT } from '../../2-services/2-database/queries/notification-queries.mjs';
+import {  DB_INSERT_NOTIFICATION_DEVICE, DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST, DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_MAP, DB_SELECT_NOTIFICATION_DEVICE_BY_ENDPOINT, DB_SELECT_NOTIFICATION_DEVICE_ID, DB_SELECT_NOTIFICATION_ENDPOINT } from '../../2-services/2-database/queries/notification-queries.mjs';
 import { CreatePlatformEndpointCommand, CreatePlatformEndpointCommandOutput, DeleteEndpointCommand, GetEndpointAttributesCommand, GetEndpointAttributesCommandOutput, PublishCommand, SetEndpointAttributesCommand, SNSClient } from '@aws-sdk/client-sns';
 import { CircleNotificationType, NotificationType } from './notification-types.mjs';
 import { DB_SELECT_CIRCLE } from '../../2-services/2-database/queries/circle-queries.mjs';
@@ -19,10 +19,14 @@ const SNS_APNS_HEADERS = {
     "AWS.SNS.MOBILE.APNS.PRIORITY":{"DataType":"String","StringValue":"10"}
 }
 
+
+/********************************
+ * NOTIFICATION TEMPLATE BODIES *
+ ********************************/
 const getIndividualPrayerRequestNotificationBody = (username: string) => `New prayer request from ${username}`;
 const getCirclePrayerRequestNotificationBody = (username:string, circleName: string) => `New prayer request from ${username} in ${circleName}`;
-const getNewPartnershipRequestNotificationBody = (username:string) => `New partnership request from ${username}`;
-const getPartnershipAcceptanceNotificationBody = (username:string) => `${username} accepted your partnership request!`;
+const getNewPartnershipRequestNotificationBody = (username:string) => `You have a new prayer partner contract available with ${username}`;
+const getPartnershipAcceptanceNotificationBody = (username:string) => `${username} accepted the prayer partner contract`;
 const getCircleInviteNotificationBody = (username:string, circleName:string) => `${username} has sent an invite to join ${circleName}`;
 
 const getStringifiedNotification = (body:string) => {
@@ -31,11 +35,17 @@ const getStringifiedNotification = (body:string) => {
 
 
 /********************************
- * AWS SNS ITEGRATION HANDLING *
+ *  AWS SNS ITERATION HANDLING  *
  ********************************/
+//Send identical message to all recipients
+const publishNotifications = async(endpointARNs:string[], message:string):Promise<boolean> => {
+    const endPointMessageMap = new Map(endpointARNs.map(endpoint => [endpoint, message]));
+    return await publishNotificationPairedMessages(endPointMessageMap);
+};
 
-const publishNotifications = async (endpointARNs:string[], message:string) => {
-    for (const endpoint of endpointARNs) {
+//Send Individual messages to each recipient
+const publishNotificationPairedMessages = async(endPointMessageMap: Map<string, string>):Promise<boolean> => {
+    const publishPromises = Array.from(endPointMessageMap.entries()).map(async ([endpoint, message]:[string, string]) => {
         try {
             await snsClient.send(new PublishCommand({
                 TargetArn: endpoint,
@@ -43,14 +53,23 @@ const publishNotifications = async (endpointARNs:string[], message:string) => {
                 MessageAttributes: SNS_APNS_HEADERS,
                 MessageStructure: 'json'
             }));
+            return true;
+
         } catch (error) {
             // endpoints in Amazon SNS may become disabled if GCM or APNS informs Amazon SNS that the device token used in the publish request was invalid or no longer in use
-            if (error.name === "EndpointDisabledException") continue; //cleanUpNotificationDevice(endpoint);
-
+            if(error.name === "EndpointDisabledException") {         
+                //cleanUpNotificationDevice(endpoint);
+                return true;
+            }
             await log.warn(`AWS SNS :: Server failed to connect to SNS or got invalid response when publishing a notification for: ${endpoint}.`, error);
+            return false;
         }
-    }
-}
+    });
+
+    return (await Promise.allSettled(publishPromises))
+            .every(result => result.status === "fulfilled" && result.value === true);
+};
+
 
 export const createEndpoint = async(deviceToken:string, deviceOS:DeviceOSEnum):Promise<string> => {
     try {
@@ -105,7 +124,7 @@ const getEndpointToken = async(endpointARN:string):Promise<string> => {
  * NOTIFICATION EVENT PROCESSING *
  ********************************/
 
-export const sendNotificationCircle = async (senderID:number, recipientIDList: number[], circleID:number, notificationType:CircleNotificationType, requestSenderDisplayName?:string) => {
+export const sendNotificationCircle = async (senderID:number, recipientIDList: number[], circleID:number, notificationType:CircleNotificationType, requestSenderDisplayName?:string):Promise<boolean> => {
     const senderListItem:ProfileListItem | undefined = requestSenderDisplayName !== undefined ? undefined : await DB_SELECT_USER(new Map([['userID', senderID]])).then((user) => user.toListItem());
     const senderDisplayName = senderListItem !== undefined ? senderListItem.displayName : requestSenderDisplayName;
 
@@ -115,43 +134,60 @@ export const sendNotificationCircle = async (senderID:number, recipientIDList: n
     let message = undefined;
     switch (notificationType) {
         case CircleNotificationType.PRAYER_REQUEST_RECIPIENT:
-            message = getStringifiedNotification(getCirclePrayerRequestNotificationBody(senderDisplayName, circleName));
+            message = getCirclePrayerRequestNotificationBody(senderDisplayName, circleName);
             break;
         case CircleNotificationType.CIRCLE_INVITE:
-            message = getStringifiedNotification(getCircleInviteNotificationBody(senderDisplayName, circleName));
+            message = getCircleInviteNotificationBody(senderDisplayName, circleName);
             break;
         default:
             log.warn(`NOTIFICATION :: Invalid notification type ${notificationType} for circle [${circleID}] for users [${recipientIDList.join(', ')}] from user ${senderID}`);
-            message = getStringifiedNotification(`${senderDisplayName} has an update for you`);
+            message = `${senderDisplayName} has an update for you`;
             break;
     }
-    const recipientEndpointARNs = await DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST(recipientIDList);
-    await publishNotifications(recipientEndpointARNs, message);
+
+    return await sendNotificationMessage(recipientIDList, message);
 }
 
-export const sendNotification = async (senderID:number, recipientIDList: number[], notificationType: NotificationType, requestSenderDisplayName?:string) => {
+export const sendTemplateNotification = async (senderID:number, recipientIDList: number[], notificationType: NotificationType, requestSenderDisplayName?:string):Promise<boolean> => {
     const senderListItem:ProfileListItem | undefined = requestSenderDisplayName !== undefined ? undefined : await DB_SELECT_USER(new Map([['userID', senderID]])).then((user) => user.toListItem());
     const senderDisplayName = senderListItem !== undefined ? senderListItem.displayName : requestSenderDisplayName;
 
     let message = undefined;
     switch(notificationType) {
         case NotificationType.PARTNERSHIP_ACCEPT:
-            message = getStringifiedNotification(getPartnershipAcceptanceNotificationBody(senderDisplayName));
+            message = getPartnershipAcceptanceNotificationBody(senderDisplayName);
             break;
         case NotificationType.PARTNERSHIP_REQUEST:
-            message = getStringifiedNotification(getNewPartnershipRequestNotificationBody(senderDisplayName));
+            message = getNewPartnershipRequestNotificationBody(senderDisplayName);
             break;
         case NotificationType.PRAYER_REQUEST_RECIPIENT:
-            message = getStringifiedNotification(getIndividualPrayerRequestNotificationBody(senderDisplayName));
+            message = getIndividualPrayerRequestNotificationBody(senderDisplayName);
             break;
         default:
             log.warn(`NOTIFICATION :: Invalid notification type ${notificationType} for users [${recipientIDList.join(', ')}] from user ${senderID}`);
-            message = getStringifiedNotification(`${senderDisplayName} has an update for you`);
+            message = `${senderDisplayName} has an update for you`;
             break
     }
-    const recipientEndpointARNs = await DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST(recipientIDList);
-    await publishNotifications(recipientEndpointARNs, message);
+    return await sendNotificationMessage(recipientIDList, message);
 }
+
+export const sendNotificationMessage = async(recipientIDList:number[], message:string):Promise<boolean> => {
+    const recipientEndpointARNs:string[] = await DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST(recipientIDList);
+    return publishNotifications(recipientEndpointARNs, getStringifiedNotification(message));
+}
+
+export const sendNotificationPairedMessage = async(messageMap:Map<number, string>):Promise<boolean> => {
+    const userIDEndpointMap:Map<number, string> = await DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_MAP(Array.from(messageMap.keys()));
+
+    const endpointMessageMap = new Map(
+        Array.from(userIDEndpointMap.entries())
+            .filter(([userID, endpointARN]) => messageMap.has(userID) && endpointARN.length > 0)
+            .map(([userID, endpointARN]) => [endpointARN, getStringifiedNotification(messageMap.get(userID)!)])
+    );
+
+    return await publishNotificationPairedMessages(endpointMessageMap); //<endpointARN, message>
+}
+
 
 /********************************
  * NOTIFICATION DEVICE HANDLING *

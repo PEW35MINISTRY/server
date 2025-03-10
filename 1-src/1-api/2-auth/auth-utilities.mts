@@ -58,7 +58,7 @@ export const generateJWT = (userID:number, userRole:RoleEnum):string => {
     }
 }
 
-export const verifyJWT = (jwt:string):Boolean => {
+export const verifyJWT = (jwt:string):boolean => {
     try {
         jwtPackage.verify(jwt, APP_SECRET_KEY);
         return true;
