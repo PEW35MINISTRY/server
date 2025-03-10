@@ -97,7 +97,7 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
 }
 
 export const fetchS3LogsByDateRange = async(type:LogType, startTimestamp?:number, endTimestamp?:number, maxEntries:number = LOG_SEARCH_DEFAULT_MAX_ENTRIES, mergeDuplicates:boolean = true):Promise<LOG_ENTRY[]> => {
-    const endDate = new Date(endTimestamp); //Default to today
+    const endDate = new Date(endTimestamp ?? new Date().getTime()); //Default to today
     endDate.setHours(0, 0, 0, 0);
     const startDate = new Date(startTimestamp ?? (endDate.getTime() - LOG_SEARCH_DEFAULT_TIMESPAN));
     const promiseQueue:Promise<LOG_ENTRY[]>[] = [];
