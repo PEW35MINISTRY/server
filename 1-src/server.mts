@@ -127,7 +127,7 @@ apiServer.get('/version', (request: Request, response: Response, next:NextFuncti
         response.status(200).send(`${packageJson.version} | ${SERVER_START_TIMESTAMP.toISOString()}`);
 
     } catch(error) {
-        log.warn('Failed to Parse Server Version:', error);
+        log.warn('Failed to Parse Server Version:', error, error.message);
         response.status(200).send(`Version Unavailable | ${SERVER_START_TIMESTAMP.toISOString()}`);
     }
 });

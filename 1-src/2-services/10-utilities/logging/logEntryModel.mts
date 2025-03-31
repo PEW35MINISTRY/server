@@ -71,7 +71,7 @@ export default class LOG_ENTRY {
             
             return logEntry;
         } catch(error) {
-            log.error('Failed LOG_ENTRY.constructFromJSON:', error, JSON.stringify(json));
+            log.error('Failed LOG_ENTRY.constructFromJSON:', error, error.message, JSON.stringify(json));
             return undefined;
         }
     }
@@ -132,7 +132,7 @@ export default class LOG_ENTRY {
     
             return logEntry;
         } catch(error) {
-            log.error('Failed LOG_ENTRY.constructFromS3Key:', error, fileKey);
+            log.error('Failed LOG_ENTRY.constructFromS3Key:', error, error.message, fileKey);
             return undefined;
         }
     }
@@ -229,7 +229,7 @@ export default class LOG_ENTRY {
 
             return logEntry;
         } catch(error) {
-            log.error('Failed LOG_ENTRY.constructFromText:', error, text);
+            log.error('Failed LOG_ENTRY.constructFromText:', error, error.message, text);
             return undefined;
         }
     }

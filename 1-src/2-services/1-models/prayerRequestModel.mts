@@ -55,7 +55,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
             try {
                 tagList.push(...Array.from(JSON.parse(tagListStringified)));
             } catch(error) {
-                log.warn('Failed to parse PRAYER_REQUEST.tagListStringified', tagListStringified, error);
+                log.warn('Failed to parse PRAYER_REQUEST.tagListStringified', tagListStringified, error, error.message);
             }
         }
         return tagList;
