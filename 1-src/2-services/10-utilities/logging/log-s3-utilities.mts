@@ -47,7 +47,7 @@ export const fetchS3LogEntry = async(key:string, validate:boolean = true):Promis
         return entry;
 
     } catch(error) {
-        await saveLogLocally(LogType.ERROR, 'Failed - AWS S3 Log Fetch', key, error);
+        await saveLogLocally(LogType.ERROR, 'Failed - AWS S3 Log Fetch', key, error, error.message);
         return undefined;
     }
 }
@@ -91,7 +91,7 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
         return (mergeDuplicates) ? LOG_ENTRY.mergeDuplicates(logEntries) : logEntries;
             
     } catch(error) {
-        await saveLogLocally(type, 'FAILED - fetchS3LogsByDay', error);
+        await saveLogLocally(type, 'FAILED - fetchS3LogsByDay', error, error.message);
         return [];
     }
 }
@@ -149,7 +149,7 @@ export const streamS3LogsAsFile = async(logType:LogType, response:Response, next
         });
         return response;
     } catch(error) {
-        await saveLogLocally(logType, `Error while attempting to stream ${logType} log from S3 as txt file: `, String(error));
+        await saveLogLocally(logType, `Error while attempting to stream ${logType} log from S3 as txt file: `, String(error), error.message);
         return next(new Exception(404, `Stream failed to generate for S3 log type: ${logType}`, 'Failed Stream'));
     }
 };
@@ -170,7 +170,7 @@ export const uploadS3LogEntry = async(entry:LOG_ENTRY):Promise<boolean> => {
         await s3LogClient.send(command);
         return true;
     } catch(error) {
-        await saveLogLocally(entry.type, 'Failed - AWS S3 Log Upload', entry.getS3Key(), error);
+        await saveLogLocally(entry.type, 'Failed - AWS S3 Log Upload', entry.getS3Key(), error, error.message);
         return false;
     }
 }
@@ -216,7 +216,7 @@ export const deleteS3Log = async(key:string):Promise<boolean> => {
         await s3LogClient.send(command);
         return true;
     } catch(error) {
-        await saveLogLocally(LogType.ERROR, 'Failed - AWS S3 Log Deleted', key, error);
+        await saveLogLocally(LogType.ERROR, 'Failed - AWS S3 Log Deleted', key, error, error.message);
         return false;
     }
 }

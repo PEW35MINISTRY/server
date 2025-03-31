@@ -55,7 +55,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
             try {
                 keywordList.push(...Array.from(JSON.parse(keywordListStringified)));
             } catch(error) {
-                log.warn('Failed to parse CONTENT_ARCHIVE.keywordListStringified', keywordListStringified, error);
+                log.warn('Failed to parse CONTENT_ARCHIVE.keywordListStringified', keywordListStringified, error, error.message);
             }
         }
         return keywordList;

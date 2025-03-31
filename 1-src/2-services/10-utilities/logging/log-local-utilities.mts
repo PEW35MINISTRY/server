@@ -110,7 +110,7 @@ export const resetLogFile = async(type:LogType, validate:boolean = false):Promis
         });
         
     } catch (error) {
-        await saveLogLocally(type, 'Invalid Error - Resetting local log file.', error);
+        await saveLogLocally(type, 'Invalid Error - Resetting local log file.', error, error.message);
 
         return [];
     }
@@ -184,7 +184,7 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
             });
         });
     } catch(error) {
-        await saveLogLocally(type, 'Invalid Error - Reading local log file.', error);
+        await saveLogLocally(type, 'Invalid Error - Reading local log file.', error, error.message);
         return [];
     }
 };
@@ -272,7 +272,7 @@ export const streamLocalLogFile = async(logType:LogType, response:Response, next
         });
         return response;
     } catch(error) { //Not returning Exception, b/c fileStream is ongoing
-        await saveLogLocally(logType, `Error while attempting to stream ${logType} log from local txt file: `, String(error));
+        await saveLogLocally(logType, `Error while attempting to stream ${logType} log from local txt file: `, String(error), error.message);
         return next(new Exception(404, `Stream failed to generate for local log file: ${getLogFilePath(logType)}`, 'Failed Stream'));    }
 };
 
@@ -283,7 +283,7 @@ const calculateLogSize = async (type:LogType):Promise<number|undefined> => { //B
         const stats = await fsPromises.stat(getLogFilePath(type));
         return stats.size;
     } catch (error) {
-        console.error(`Error accessing log file: `, getLogFilePath(type), error);
+        console.error(`Error accessing log file: `, getLogFilePath(type), error, error.message);
     }
     return undefined;
 }

@@ -45,7 +45,7 @@ export default {
             return newModel;
 
         } catch (error) {
-            log.db(`BASE_MODEL_UTILITY.constructByDatabaseUtility | Error parsing Database object for ${defaultModel.modelType}.`, JSON.stringify(DB), error);
+            log.db(`BASE_MODEL_UTILITY.constructByDatabaseUtility | Error parsing Database object for ${defaultModel.modelType}.`, JSON.stringify(DB), error, error.message);
             return defaultModel;
         }
     },
@@ -85,7 +85,7 @@ export default {
             return newModel;
 
         } catch (error) {
-            log.db(`BASE_MODEL_UTILITY.constructByCloneUtility | Error cloning ${defaultModel.modelType}.`, JSON.stringify(currentModel), error);
+            log.db(`BASE_MODEL_UTILITY.constructByCloneUtility | Error cloning ${defaultModel.modelType}.`, JSON.stringify(currentModel), error, error.message);
             return defaultModel;
         }
     },
@@ -194,7 +194,7 @@ export default {
                         model[field.field] = parseInput({field:field, value:jsonObj[field.field]});
 
                 } catch(error) {
-                    log.warn(`Failed to parse profile field: ${field.field} with value:`, JSON.stringify(jsonObj[field.field]), error);
+                    log.warn(`Failed to parse profile field: ${field.field} with value:`, JSON.stringify(jsonObj[field.field]), error, error.message);
                     model[field.field] = undefined;
 
                     if(field.required) {
@@ -244,7 +244,7 @@ const parseInput = ({field, value}:{field:InputField, value:any}):any => {
             return value;
 
     } catch(error) {
-        log.warn(`Failed to parse profile field: ${field.field} with value: ${value}`, error);
+        log.warn(`Failed to parse profile field: ${field.field} with value: ${value}`, error, error.message);
         return undefined;
     }
 }
