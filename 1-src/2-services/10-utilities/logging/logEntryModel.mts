@@ -79,14 +79,14 @@ export default class LOG_ENTRY {
 
     /* AWS S3 Storage */
     static createDayS3KeyPrefix = (type:LogType, date:Date):string => {
-        const year:number = date.getFullYear();
-        const month:string = String(date.getMonth() + 1).padStart(2, '0');
-        const day:string = String(date.getDate()).padStart(2, '0');
+        const year:number = date.getUTCFullYear();
+        const month:string = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day:string = String(date.getUTCDate()).padStart(2, '0');
         return `type=${type}/year=${year}/month=${month}/day=${day}/`;
     }
 
     static createHourS3KeyPrefix = (type:LogType, date:Date):string => {
-        const hour:string = String(date.getHours()).padStart(2, '0');
+        const hour:string = String(date.getUTCHours()).padStart(2, '0');
         return `${LOG_ENTRY.createDayS3KeyPrefix(type, date)}hour=${hour}/`;
     }
 
