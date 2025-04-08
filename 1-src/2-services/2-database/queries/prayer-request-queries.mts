@@ -7,6 +7,7 @@ import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { ExpiredPrayerRequestListItem } from '../../../1-api/5-prayer-request/prayer-request-types.mjs';
 
 
 /*****************************************************************************
@@ -139,6 +140,13 @@ export const DB_UPDATE_RESOLVE_PRAYER_REQUEST = async(prayerRequestID:number):Pr
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
+export const DB_UPDATE_RESOLVE_PRAYER_REQUEST_BATCH = async(prayerRequestIDs:number[]):Promise<boolean> => {
+
+    const response:CommandResponseType = await command(`UPDATE prayer_request SET isResolved = true WHERE prayerRequestID = ?;`, prayerRequestIDs); 
+
+    return ((response !== undefined) && (response.affectedRows > 0));
+}
+
 export const DB_DELETE_PRAYER_REQUEST = async(prayerRequestID:number):Promise<boolean> => { //Note: Database Reinforces Key constrains
 
     const response:CommandResponseType = await command('DELETE FROM prayer_request WHERE prayerRequestID = ?;', [prayerRequestID]);
@@ -223,6 +231,20 @@ export const DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST = async(userID:number, isRe
             requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage}}))];
 }
 
+export const DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST = async(userID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
+    const rows = await execute('SELECT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
+        + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
+        + 'FROM prayer_request '
+        + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
+        + 'WHERE requestorID = ? '
+        + 'AND isOnGoing = 1 '
+        + 'AND isResolved = 0 '
+        + 'AND expirationDate < CURRENT_DATE() '
+        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID]);
+
+    return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
+        requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage}}))];
+}
 
 /*************************************
  *  PRAYER REQUEST RECIPIENT QUERIES
@@ -244,6 +266,18 @@ export const DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST = async(prayerReques
     + 'WHERE prayerRequestID = ? AND userID IS NULL;', [prayerRequestID]); 
  
     return [...rows.map(row => ({circleID: row.circleID, name: row.name, image: row.image}))];
+}
+
+export const DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED = async (isOngoing:number, limit:number, offset:number):Promise<ExpiredPrayerRequestListItem[]> => {
+    const rows = await execute('SELECT prayerRequestID, requestorID, topic '
+       + 'FROM prayer_request '
+       + 'WHERE isOnGoing = ? '
+       + 'AND isResolved = 0 '
+       + 'AND expirationDate < current_date() '
+       + `LIMIT ${limit} OFFSET ${offset}`, [isOngoing]
+    );
+
+    return [...rows.map((row) => ({prayerRequestID: row.prayerRequestID, requestorID: row.requestorID, topic: row.topic}))]
 }
 
 //Searches for userID match among: requestor, specified recipient, member or leader of circle which is an intended recipient

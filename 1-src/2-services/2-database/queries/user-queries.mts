@@ -12,7 +12,7 @@ import { batch, command, execute, validateColumns } from '../database.mjs';
 import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
 import { DB_SELECT_USER_CONTENT_LIST } from './content-queries.mjs';
 import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
-import { DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
+import { DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 
 
@@ -112,6 +112,7 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
     /* Prayer Requests */
     user.newPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_USER_LIST(user.userID, 7); //recipient, dashboard preview
     user.ownedPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID, false); //Not resolved (pending) for which user is the Requestor
+    user.expiringPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST(user.userID); // Owned prayer requests that are long term but past their set expiration date
     user.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(user.userID, 5);
 
     //Query via Search to use cached list

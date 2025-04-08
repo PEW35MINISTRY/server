@@ -18,3 +18,8 @@ export interface PrayerRequestCommentRequest extends JwtPrayerRequest {
     body: PrayerRequestCommentRequestBody
 }
 
+export interface ExpiredPrayerRequestListItem {
+    prayerRequestID: number,
+    requestorID: number,
+    topic: string,
+}
