@@ -1,9 +1,9 @@
+import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { ExpiredPrayerRequestListItem } from "../../1-api/5-prayer-request/prayer-request-types.mjs";
 import { sendNotificationMessage, sendNotificationPairedMessage } from "../../1-api/8-notification/notification-utilities.mjs";
-import DATABASE from "../../2-services/2-database/database.mjs";
 import { DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED, DB_UPDATE_RESOLVE_PRAYER_REQUEST_BATCH } from "../../2-services/2-database/queries/prayer-request-queries.mjs";
 
-const DEFAULT_EXPIRED_PRAYER_REQUEST_QUERY_LIMIT = 50;
+const DEFAULT_EXPIRED_PRAYER_REQUEST_QUERY_LIMIT = 5 ;
 
 export const answerPrayerRequests = async (nestedPrayerRequests:ExpiredPrayerRequestListItem[][]):Promise<boolean> => {
     for (const prayerRequestList in nestedPrayerRequests) {
@@ -23,6 +23,7 @@ export const getLongTermExpiredPrayerRequestsBatch = async () => {
     let offset = 0;
     while (done === false) {
         const result = await DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED(1, limit, offset);
+        console.log(result);
         prayerRequests.push(result);
 
         offset += result.length;
@@ -40,6 +41,7 @@ export const getShortTermExpiredPrayerRequestsBatch = async () => {
     let offset = 0;
     while (done === false) {
         const result = await DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED(0, limit, offset);
+        console.log(result);
         prayerRequests.push(result);
 
         offset += result.length;
@@ -64,24 +66,14 @@ export const notifyExpiringPrayerRequestOwners = async (nestedPrayerRequests:Exp
 }
 
 export const answerAndNotifyPrayerRequests = async () => {
-
-    const baseTimeout = 5000;
-  
-    const doTimeout = (timeout:number) => {
-      console.log("Waiting");
-      if (DATABASE === undefined) setTimeout(() => doTimeout(timeout), timeout)
-    }
-  
-    if (DATABASE === undefined) doTimeout(baseTimeout);
-    console.log("Continuing");
   
     try {
       // delete any non long-term prayer requests
       const shortTermExpiredPrayerRequests = await getShortTermExpiredPrayerRequestsBatch();
-      const shortTermResult = await answerPrayerRequests(shortTermExpiredPrayerRequests);
+      //const shortTermResult = await answerPrayerRequests(shortTermExpiredPrayerRequests);
   
       const longTermExpiredPrayerRequests = await getLongTermExpiredPrayerRequestsBatch();
-      const longTermResult = await notifyExpiringPrayerRequestOwners(longTermExpiredPrayerRequests);
+      //const longTermResult = await notifyExpiringPrayerRequestOwners(longTermExpiredPrayerRequests);
   
       //const statusCode = shortTermResult === true && longTermResult === true ? 200 : 503;
       console.log(shortTermExpiredPrayerRequests, longTermExpiredPrayerRequests);
@@ -94,10 +86,13 @@ export const answerAndNotifyPrayerRequests = async () => {
       return response;
   
     } catch(e) {
+      console.log(e);
       const response = {
         statusCode: 500,
         body: JSON.stringify(e.message),
       };
       return response;
     }
-  };
+};
+
+await answerAndNotifyPrayerRequests();
