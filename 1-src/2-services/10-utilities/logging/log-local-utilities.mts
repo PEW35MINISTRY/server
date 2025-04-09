@@ -275,7 +275,7 @@ export const streamLocalLogFile = async(logType:LogType, response:Response, next
         await saveLogLocally(logType, `Error while attempting to stream ${logType} log from local txt file: `, String(error), error.message);
         return next(new Exception(404, `Stream failed to generate for local log file: ${getLogFilePath(logType)}`, 'Failed Stream'));    }
 };
-
+ 
 
 /* UTILITIES */
 const calculateLogSize = async (type:LogType):Promise<number|undefined> => { //Bytes

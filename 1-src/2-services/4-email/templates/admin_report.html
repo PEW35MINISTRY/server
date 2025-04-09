@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Template</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+
+      body {
+        font-family: Verdana, sans-serif;
+        color: black;
+        padding: 1rem;
+        margin: 0;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          color: #dddddd;
+        }
+      }
+
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 1rem;
+        border-radius: 8px;
+      }
+
+      .button {
+        display: inline-block;
+        margin: 1rem auto;
+        padding: 0.3rem 1rem;
+        background-color: #b12020;
+        color: white;
+        text-decoration: none;
+        border: none;
+        border-radius: 4px;
+        font-weight: bold;
+      }
+
+      .log-entry {
+        font-family: 'Courier New', monospace;
+        font-size: small;
+        background-color: #f0f0f0;
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin: 0.5rem 0;
+        white-space: normal;
+        word-wrap: break-word;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .log-entry {
+            background-color: #333333;
+        }
+      }
+
+      .summary-table {
+        width: 100%;
+        margin-top: 2rem;
+        border-collapse: collapse;
+      }
+
+      .summary-table th, .summary-table td {
+        padding: 0.5rem;
+        border: none;
+        text-align: left;
+      }
+
+      .summary-table th {
+        background-color: #f5f5f5;
+      }
+
+      .log-entries {
+        margin-top: 1rem;
+        font-size: 14px;
+      }
+
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>[HEADER]</h1>
+
+      <!-- Date and Environment Information -->
+      <div>
+        <p><strong>Date:</strong> [DATE]</p>
+        <p><strong>Environment:</strong> [ENVIRONMENT]</p>
+      </div>
+
+      [BODY]
+
+    </div>
+  </body>
+</html>

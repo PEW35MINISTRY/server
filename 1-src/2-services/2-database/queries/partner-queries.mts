@@ -57,7 +57,7 @@ export const DB_IS_USER_PARTNER_ANY_STATUS = async(userID:number, clientID:numbe
     const rows = await execute('SELECT partner.status ' + 'FROM partner '
         + `WHERE userID = ? AND partnerID = ? AND ${preparedColumns};`, [getUserID(userID, clientID), getPartnerID(userID, clientID), ...statusList]);
 
-    if(rows.length > 1) log.db(`DB_IS_ANY_USER_PARTNER MULTIPLE RECORDS for partnership IDENTIFIED`, userID, clientID, status, JSON.stringify(rows));
+    if(rows.length > 1) log.db(`DB_IS_ANY_USER_PARTNER MULTIPLE RECORDS for partnership IDENTIFIED`, userID, clientID, ...statusList, JSON.stringify(rows));
 
     return (rows.length > 0);
 }

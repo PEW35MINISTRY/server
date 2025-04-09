@@ -36,6 +36,16 @@ import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notif
 import * as log from './2-services/10-utilities/logging/log.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
+import { sendEmailLogReport, sendEmailMessage, sendEmailUserReport } from './2-services/4-email/email.mjs';
+import { EMAIL_SENDER_ADDRESS } from './2-services/4-email/email-types.mjs';
+
+
+sendEmailMessage('Super IMPORTANT', 'Did you recieve my message?', EMAIL_SENDER_ADDRESS.SERVER, -1);
+
+// sendEmailLogReport();
+
+
+// sendEmailUserReport();
 
 /********************
     EXPRESS SEVER
@@ -441,6 +451,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     if(status < 400) log.event(`API | ${status} | Event:`, message);
     else if(status === 400) log.warn('API | 400 | User Request Invalid:', message);
     else if(status === 401) log.auth('API   401 | User Unauthorized:', message);
-    else if(status === 404 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('API | 404 | Request Not Found:', message);
-    else log.errorWithoutTrace(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
+    else if(status === 404) {
+        if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('API | 404 | Request Not Found:', message);
+    } else log.errorWithoutTrace(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
 });

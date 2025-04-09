@@ -11,6 +11,27 @@ export interface AWSDatabaseSecrets {
     dbInstanceIdentifier: string
 }
 
+export interface DatabaseTableUsage {
+    totalRows:number,
+    created24Hours:number,
+    created7Days:number,
+    created30Days:number,
+    modified24Hours:number,
+    modified7Days:number,
+    modified30Days:number,
+}
+
+export interface DatabaseUserStats extends DatabaseTableUsage {
+    active:number,
+    // verified: number,
+    walkLevelMap:Map<number, number>,
+
+    //User Role Totals
+    reported:number,
+    inactive:number,
+    roleMap:Map<DATABASE_USER_ROLE_ENUM, number>,
+}
+  
 
 export interface CommandResponseType extends SQL.ResultSetHeader {
     'COUNT(*)'?:number
@@ -24,6 +45,21 @@ export enum DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM {   //Allowed Interactions:
     INTERNAL = 'INTERNAL',                             //PRODUCTION
     PRODUCTION = 'PRODUCTION'
 }
+
+
+//Configuration for Reports on Database Tables
+export const TABLES_SUPPORTING_DT: Map<string, Array<'createdDT' | 'modifiedDT'>> = new Map([
+    ['user', ['createdDT', 'modifiedDT']],
+    ['circle', ['createdDT', 'modifiedDT']],
+    ['circle_announcement', ['createdDT']],
+    ['circle_user', ['modifiedDT']],
+    ['partner', ['createdDT', 'modifiedDT']],
+    ['prayer_request', ['createdDT', 'modifiedDT']],
+    ['prayer_request_comment', ['createdDT']],
+    ['content', ['createdDT', 'modifiedDT']],
+    ['notification_device', ['createdDT', 'modifiedDT']],
+    ['subscription', ['createdDT']],
+  ]);
 
 
 /******************************************************************* 
