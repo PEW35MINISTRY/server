@@ -28,7 +28,6 @@ const getCirclePrayerRequestNotificationBody = (username:string, circleName: str
 const getNewPartnershipRequestNotificationBody = (username:string) => `You have a new prayer partner contract available with ${username}`;
 const getPartnershipAcceptanceNotificationBody = (username:string) => `${username} accepted the prayer partner contract`;
 const getCircleInviteNotificationBody = (username:string, circleName:string) => `${username} has sent an invite to join ${circleName}`;
-const getExpiredPrayerReqyestNotificationBody = (topic:string) => `Your prayer request '${topic}' is expiring soon!`;
 
 const getStringifiedNotification = (body:string) => {
     return JSON.stringify({default: `${body}`, GCM: JSON.stringify({ "data": { "body": `${body}`, "priority": "high" }}), APNS: JSON.stringify({"aps":{"content-available":1, "alert": `${body}`}})});
@@ -48,6 +47,7 @@ const publishNotifications = async(endpointARNs:string[], message:string):Promis
 const publishNotificationPairedMessages = async(endPointMessageMap: Map<string, string>):Promise<boolean> => {
     const publishPromises = Array.from(endPointMessageMap.entries()).map(async ([endpoint, message]:[string, string]) => {
         try {
+            console.log("Sendong notification ", endpoint, message);
             await snsClient.send(new PublishCommand({
                 TargetArn: endpoint,
                 Message: message,

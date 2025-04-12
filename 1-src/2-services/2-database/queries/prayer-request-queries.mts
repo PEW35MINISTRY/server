@@ -7,7 +7,7 @@ import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
-import { ExpiredPrayerRequestListItem } from '../../../1-api/5-prayer-request/prayer-request-types.mjs';
+import { ExpiredPrayerRequest } from '../../../1-api/5-prayer-request/prayer-request-types.mjs';
 
 
 /*****************************************************************************
@@ -141,10 +141,16 @@ export const DB_UPDATE_RESOLVE_PRAYER_REQUEST = async(prayerRequestID:number):Pr
 }
 
 export const DB_UPDATE_RESOLVE_PRAYER_REQUEST_BATCH = async(prayerRequestIDs:number[]):Promise<boolean> => {
+    if(prayerRequestIDs.length === 0 || !Array.isArray(prayerRequestIDs) || !prayerRequestIDs.every(request => typeof request === 'number')) {
+        log.db('DB_UPDATE_RESOLVE_PRAYER_REQUEST_BATCH Invalid prayerRequestIDList:', JSON.stringify(prayerRequestIDs));
+        return false;
+    }
 
-    const response:CommandResponseType = await command(`UPDATE prayer_request SET isResolved = true WHERE prayerRequestID = ?;`, prayerRequestIDs); 
+    const placeholders = prayerRequestIDs.map(() => '?').join(',');
 
-    return ((response !== undefined) && (response.affectedRows > 0));
+    const response = await command(`UPDATE prayer_request SET isResolved = 1 WHERE prayerRequestID IN (${placeholders})`, prayerRequestIDs); 
+
+    return ((response !== undefined) && (response.affectedRows === 1));
 }
 
 export const DB_DELETE_PRAYER_REQUEST = async(prayerRequestID:number):Promise<boolean> => { //Note: Database Reinforces Key constrains
@@ -268,13 +274,14 @@ export const DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST = async(prayerReques
     return [...rows.map(row => ({circleID: row.circleID, name: row.name, image: row.image}))];
 }
 
-export const DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED = async (isOngoing:number, limit:number, offset:number):Promise<ExpiredPrayerRequestListItem[]> => {
+export const DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED = async (isOngoing:number, limit:number, cursorIndex:number):Promise<ExpiredPrayerRequest[]> => {
     const rows = await execute('SELECT prayerRequestID, requestorID, topic '
        + 'FROM prayer_request '
        + 'WHERE isOnGoing = ? '
+       + 'AND prayerRequestID > ? '
        + 'AND isResolved = 0 '
        + 'AND expirationDate < current_date() '
-       + `LIMIT ${limit} OFFSET ${offset}`, [isOngoing]
+       + `LIMIT ${limit}`, [isOngoing, cursorIndex]
     );
 
     return [...rows.map((row) => ({prayerRequestID: row.prayerRequestID, requestorID: row.requestorID, topic: row.topic}))]

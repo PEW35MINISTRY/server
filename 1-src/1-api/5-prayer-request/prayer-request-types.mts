@@ -18,7 +18,7 @@ export interface PrayerRequestCommentRequest extends JwtPrayerRequest {
     body: PrayerRequestCommentRequestBody
 }
 
-export interface ExpiredPrayerRequestListItem {
+export interface ExpiredPrayerRequest {
     prayerRequestID: number,
     requestorID: number,
     topic: string,

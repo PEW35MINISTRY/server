@@ -85,8 +85,6 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
     return DATABASE;
 }
 
-await initializeDatabase()
-
  /*  Initialize Database  & Wait*/
 //await initializeDatabase();   
 
@@ -146,7 +144,6 @@ export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPack
             });
     }
 }
-
 
 /***************************************************
  *  COMMAND: PREPARED DATABASE OPERATION STATEMENT
