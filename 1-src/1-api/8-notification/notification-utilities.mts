@@ -62,7 +62,7 @@ const publishNotificationPairedMessages = async(endPointMessageMap: Map<string, 
                 //cleanUpNotificationDevice(endpoint);
                 return true;
             }
-            await log.warn(`AWS SNS :: Server failed to connect to SNS or got invalid response when publishing a notification for: ${endpoint}.`, error);
+            await log.warn(`AWS SNS :: Server failed to connect to SNS or got invalid response when publishing a notification for: ${endpoint}.`, error, error.message);
             return false;
         }
     });
@@ -80,7 +80,7 @@ export const createEndpoint = async(deviceToken:string, deviceOS:DeviceOSEnum):P
         }));
         return response.EndpointArn;
     } catch (error) {
-        await log.error(`AWS SNS :: Server failed to connect to SNS or got invalid response when creating endpoint for: ${deviceToken}.`, error);
+        await log.error(`AWS SNS :: Server failed to connect to SNS or got invalid response when creating endpoint for: ${deviceToken}.`, error, error.message);
         return null;
     }
 }
@@ -91,7 +91,7 @@ const deleteEndpoint = async (endpointARN:string):Promise<void> => {
             EndpointArn: endpointARN
         }));
     } catch (error) {
-        await log.warn(`AWS SNS :: Server failed to connect to SNS or got invalid response when deleting an endpoint: ${endpointARN}.`, error);
+        await log.warn(`AWS SNS :: Server failed to connect to SNS or got invalid response when deleting an endpoint: ${endpointARN}.`, error, error.message);
     }
 }
 
@@ -105,7 +105,7 @@ const updateEndpointToken = async(endpointARN:string, deviceToken: string):Promi
             }
         }));
     } catch (error) {
-        await log.warn(`AWS SNS :: Server failed to connect to SNS or got invalid response when updating endpoint for: ${deviceToken}, ${endpointARN}.`, error);
+        await log.warn(`AWS SNS :: Server failed to connect to SNS or got invalid response when updating endpoint for: ${deviceToken}, ${endpointARN}.`, error, error.message);
     }
 }
 
@@ -116,7 +116,7 @@ const getEndpointToken = async(endpointARN:string):Promise<string> => {
         }));
         return response.Attributes.Token;
     } catch (error) {
-        await log.warn(`AWS SNS :: Server failed to connect to SNS or got invalid response when getting device token from endpoint: ${endpointARN}.`, error);
+        await log.warn(`AWS SNS :: Server failed to connect to SNS or got invalid response when getting device token from endpoint: ${endpointARN}.`, error, error.message);
     }
 }
 

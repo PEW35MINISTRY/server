@@ -89,7 +89,7 @@ export const fetchContentMetadata = async({type, source, url}:ContentMetaDataReq
         imageURL: (metadata.image === '') ? undefined : metadata.image,
       };
     } catch (error) {
-      log.error(`Error fetching content metadata for ${url}`, error);
+      log.error(`Error fetching content metadata for ${url}`, error, error.message);
       return undefined;
     }
   };

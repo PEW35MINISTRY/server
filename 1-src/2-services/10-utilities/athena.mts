@@ -65,7 +65,7 @@ export const executeAthenaQuery = async(command:StartQueryExecutionCommand, maxD
         
     } catch(error) {
         const duration:number = new Date().getTime() - startTimestamp;
-        await log.error(`${status} Athena Query - Athena for ${command.input?.QueryExecutionContext?.Database}`, error,
+        await log.error(`${status} Athena Query - Athena for ${command.input?.QueryExecutionContext?.Database}`, error, error.message,
             'Duration: (ms)', duration, 'Timeout scheduled after: (ms)', maxDuration, 'Query:', command.input?.QueryString);
         return { queryExecutionId:queryExecutionId, success:false, status:(duration >= maxDuration) ? AthenaStatus.TIMEOUT : status, duration:duration, rows:[] };
     }
@@ -123,7 +123,7 @@ export const searchAthenaQuery = async(command:StartQueryExecutionCommand, field
         return {...statusResult, rows};
 
     } catch(error) {
-        await log.error(`Failed Fetching Athena Query Results - Athena for ${command.input?.QueryExecutionContext?.Database}`, error, 'Query:', command.input?.QueryString);
+        await log.error(`Failed Fetching Athena Query Results - Athena for ${command.input?.QueryExecutionContext?.Database}`, error, error.message, 'Query:', command.input?.QueryString);
         return {...statusResult, status: AthenaStatus.FAILED};
     }
 }
