@@ -43,7 +43,7 @@ export const answerShortTermExpiredPrayerRequestsBatch = async ():Promise<void> 
 const notifyExpiringPrayerRequestOwners = async (expiredPrayerRequests:ExpiredPrayerRequest[]):Promise<boolean> => {
 
     for (const expiredPrayerRequest of expiredPrayerRequests) {
-        await sendNotificationMessage([expiredPrayerRequest.requestorID], `Your prayer request '${expiredPrayerRequest.topic}' is expiring soon!`);
+        await sendNotificationMessage([expiredPrayerRequest.requestorID], `Your prayer request '${expiredPrayerRequest.topic}' is expiring soon!`, new Map<string, string>().set('prayerRequestID', expiredPrayerRequest.requestorID.toString()));
     }
 
     return true;
