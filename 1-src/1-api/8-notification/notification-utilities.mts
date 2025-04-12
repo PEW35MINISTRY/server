@@ -29,8 +29,8 @@ const getNewPartnershipRequestNotificationBody = (username:string) => `You have 
 const getPartnershipAcceptanceNotificationBody = (username:string) => `${username} accepted the prayer partner contract`;
 const getCircleInviteNotificationBody = (username:string, circleName:string) => `${username} has sent an invite to join ${circleName}`;
 
-const getStringifiedNotification = (body:string, metadata?:Map<string, string>) => {
-    return JSON.stringify({default: `${body}`, GCM: JSON.stringify({ "data": { "body": `${body}`, "priority": "high", "metadata": { ...metadata ?? ''} }}), APNS: JSON.stringify({"aps":{"content-available":1, "alert": `${body}`}})});
+const getStringifiedNotification = (body:string) => {
+    return JSON.stringify({default: `${body}`, GCM: JSON.stringify({ "data": { "body": `${body}`, "priority": "high"}}), APNS: JSON.stringify({"aps":{"content-available":1, "alert": `${body}`}})});
 }
 
 
@@ -169,12 +169,12 @@ export const sendTemplateNotification = async (senderID:number, recipientIDList:
             message = `${senderDisplayName} has an update for you`;
             break
     }
-    return await sendNotificationMessage(recipientIDList, message, new Map<string, string>().set('prayerRequestID', '1'));
+    return await sendNotificationMessage(recipientIDList, message);
 }
 
-export const sendNotificationMessage = async(recipientIDList:number[], message:string, messageMetadata?:Map<string, string>):Promise<boolean> => {
+export const sendNotificationMessage = async(recipientIDList:number[], message:string):Promise<boolean> => {
     const recipientEndpointARNs:string[] = await DB_SELECT_NOTIFICATION_BATCH_ENDPOINT_LIST(recipientIDList);
-    return publishNotifications(recipientEndpointARNs, getStringifiedNotification(message, messageMetadata));
+    return publishNotifications(recipientEndpointARNs, getStringifiedNotification(message));
 }
 
 export const sendNotificationPairedMessage = async(messageMap:Map<number, string>):Promise<boolean> => {

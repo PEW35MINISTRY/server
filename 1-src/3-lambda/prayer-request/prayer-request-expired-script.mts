@@ -43,7 +43,7 @@ export const answerShortTermExpiredPrayerRequestsBatch = async ():Promise<void> 
 const notifyExpiringPrayerRequestOwners = async (expiredPrayerRequests:ExpiredPrayerRequest[]):Promise<boolean> => {
 
     for (const expiredPrayerRequest of expiredPrayerRequests) {
-        await sendNotificationMessage([expiredPrayerRequest.requestorID], `Your prayer request '${expiredPrayerRequest.topic}' is expiring soon!`, new Map<string, string>().set('prayerRequestID', expiredPrayerRequest.requestorID.toString()));
+        await sendNotificationMessage([expiredPrayerRequest.requestorID], `Your prayer request '${expiredPrayerRequest.topic}' is expiring soon!`);
     }
 
     return true;
@@ -52,11 +52,11 @@ const notifyExpiringPrayerRequestOwners = async (expiredPrayerRequests:ExpiredPr
 export const answerAndNotifyPrayerRequests = async () => {
   
   await initializeDatabase();
-
-  await notifyLongTermExpiredPrayerRequestsBatch();
-  //await answerShortTermExpiredPrayerRequestsBatch(); 
-
     try {  
+
+      await notifyLongTermExpiredPrayerRequestsBatch();
+      await answerShortTermExpiredPrayerRequestsBatch(); 
+
       const response = {
         //statusCode: statusCode,
         body: JSON.stringify('Hello from Lambda!'),
@@ -65,7 +65,6 @@ export const answerAndNotifyPrayerRequests = async () => {
       return response;
   
     } catch(e) {
-      console.log(e);
       const response = {
         statusCode: 500,
         body: JSON.stringify(e.message),
