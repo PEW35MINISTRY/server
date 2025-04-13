@@ -38,6 +38,7 @@ export interface PrayerRequestResponseBody {
     isOnGoing: boolean,
     isResolved: boolean,
     tagList?: PrayerRequestTagEnum[],
+    duration?: string;     //Instance of PrayerRequestDurationsMap, estimate of expirationDate
     expirationDate: string,
     commentList?: PrayerRequestCommentListItem[],
     userRecipientList?: ProfileListItem[],
@@ -51,6 +52,7 @@ export interface PrayerRequestPostRequestBody {
     prayerCount?: number,
     isOnGoing?: boolean,
     tagList?: string[],
+    duration?: string;     //Alternative for expirationDate
     expirationDate: string,
     addUserRecipientIDList?: number[],
     addCircleRecipientIDList?: number[]

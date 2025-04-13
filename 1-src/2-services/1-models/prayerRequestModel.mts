@@ -1,13 +1,14 @@
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
-import { PrayerRequestCommentListItem, PrayerRequestListItem, PrayerRequestResponseBody } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
+import { PrayerRequestCommentListItem, PrayerRequestListItem, PrayerRequestPostRequestBody, PrayerRequestResponseBody } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { PrayerRequestTagEnum } from '../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
+import { getDateDaysFuture, PrayerRequestDurationsMap, PrayerRequestTagEnum } from '../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
 import { DATABASE_PRAYER_REQUEST, PRAYER_REQUEST_TABLE_COLUMNS } from '../2-database/database-types.mjs';
 import * as log from '../10-utilities/logging/log.mjs';
 import BASE_MODEL from './baseModel.mjs';
+import { findClosestListOption, getDaysAway } from '../10-utilities/utilities.mjs';
 
 
 export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerRequestListItem, PrayerRequestResponseBody>  {
@@ -15,7 +16,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     //Static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = ['requestorID', 'topic', 'description']; //exclude: prayerRequestID, complex types, and lists
-    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
+    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'duration', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
 
     prayerRequestID: number = -1;
     requestorID: number;
@@ -26,7 +27,8 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     isResolved: boolean;
     tagList: PrayerRequestTagEnum[] = [];
     expirationDate: Date;
-
+    get duration(): number { return findClosestListOption(getDaysAway(this.expirationDate, 0), Array.from(PrayerRequestDurationsMap.values()).map(v => Number(v))); }
+      
     //Query separate Tables
     requestorProfile?: ProfileListItem;
     userRecipientList: ProfileListItem[] = [];
@@ -74,6 +76,8 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     override hasProperty = (field:string) => [ ...PRAYER_REQUEST.PROPERTY_LIST, 'addUserRecipientIDList', 'removeUserRecipientIDList', 'addCircleRecipientIDList', 'removeCircleRecipientIDList' ].includes(field); //used for JSON parsing
 
+    override get priorityInputList():string[] { return ['duration', 'expirationDate']; }
+
     /**********************************
     * ADDITIONAL STATIC CONSTRUCTORS *
     **********************************/
@@ -120,4 +124,18 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     override getUniqueDatabaseProperties = (baseModel:PRAYER_REQUEST):Map<string, any> => PRAYER_REQUEST.getUniqueDatabaseProperties(this, baseModel);
 
     override  toListItem = ():PrayerRequestListItem => ({prayerRequestID: this.prayerRequestID, requestorProfile: this.requestorProfile, topic: this.topic, prayerCount: this.prayerCount, tagList: this.tagList});
-};
+
+    /****************************************
+     * constructByJson Model Custom Handling *
+     *****************************************/  
+    override parseModelSpecificField = async({field, jsonObj}:{field:InputField, jsonObj:PrayerRequestPostRequestBody }):Promise<boolean|undefined> => {
+        /* Duration | Alternative input for expirationDate */
+        if(field.field === 'duration')
+            this.expirationDate = getDateDaysFuture(Number(jsonObj[field.field]));
+
+        else //No Field Match
+            return undefined;
+        
+        return true;
+    }
+}

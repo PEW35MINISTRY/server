@@ -59,3 +59,30 @@ export const extractRegexMaxLength = (regex:RegExp, findMin?:boolean):number => 
 }
 
 export const getSHA256Hash = (value:string) => createHash('sha256').update(value).digest('hex');
+
+//Difference +/- days from now
+export const getDaysAway = (date:Date, min?:number, max?:number):number => {
+    if(!date || isNaN(date.valueOf())) return 0;
+  
+    const now = new Date();
+    const timeDifference = date.getTime() - now.getTime();
+    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    
+    if(min !== undefined) days = Math.max(min, days);
+    if(max !== undefined) days = Math.min(max, days);  
+    return days;
+}
+
+//Numeric list: calculates the closest value from list of options
+export const findClosestListOption = (value:number, optionList:number[], roundDown:boolean = true):number => {
+    if (optionList.length === 0) return value;
+  
+    const sorted = [...optionList].sort((a, b) => a - b); 
+
+    if(roundDown) {
+      return sorted.filter(opt => opt <= value).pop() ?? sorted[0];
+    } else {
+      return sorted.find(opt => opt >= value) ?? sorted[sorted.length - 1];
+    }
+}
+  
