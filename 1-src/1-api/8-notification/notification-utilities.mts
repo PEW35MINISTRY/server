@@ -47,7 +47,6 @@ const publishNotifications = async(endpointARNs:string[], message:string):Promis
 const publishNotificationPairedMessages = async(endPointMessageMap: Map<string, string>):Promise<boolean> => {
     const publishPromises = Array.from(endPointMessageMap.entries()).map(async ([endpoint, message]:[string, string]) => {
         try {
-            console.log("Sendong notification ", endpoint, message);
             await snsClient.send(new PublishCommand({
                 TargetArn: endpoint,
                 Message: message,

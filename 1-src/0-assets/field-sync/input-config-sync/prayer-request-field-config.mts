@@ -50,8 +50,8 @@ export const CREATE_PRAYER_REQUEST_FIELDS:InputField[] = [
 ];
 
 export const EDIT_PRAYER_REQUEST_FIELDS:InputField[] = [
-    new InputSelectionField({title: 'Status', field: 'isResolved', value: 'Active', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false'], displayOptionList: ['Active', 'Inactive']}),
-    ...CREATE_PRAYER_REQUEST_FIELDS,
+    new InputSelectionField({title: 'Status', field: 'isResolved', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false'], displayOptionList: ['Inactive', 'Active']}),
+    ...CREATE_PRAYER_REQUEST_FIELDS.filter((field) => !['isOnGoing', 'duration'].includes(field.field)),
     new InputSelectionField({title: 'Remind Me', field: 'isOnGoing', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     new InputField({title: 'Send to Contacts', field: 'addUserRecipientIDList', hide: true, type: InputType.USER_ID_LIST, validationRegex: new RegExp(/[0-9]+/)}),
     new InputField({title: 'Remove Contacts', field: 'removeUserRecipientIDList', hide: true, type: InputType.USER_ID_LIST, validationRegex: new RegExp(/[0-9]+/)}),
