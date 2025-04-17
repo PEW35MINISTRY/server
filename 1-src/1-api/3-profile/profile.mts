@@ -219,7 +219,7 @@ export const DELETE_userProfile = async (request: JwtClientRequest, response: Re
 export const GET_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
     const filePath:string|undefined = (await DB_SELECT_USER(new Map([['userID', request.clientID]]))).image || undefined;
     if(filePath !== undefined)
-        response.status(200).redirect(filePath);
+        response.status(200).send(filePath);
     else
         next(new Exception(404, `User ${request.clientID} doesn't have a saved profile image`, 'No Image'));
 }
