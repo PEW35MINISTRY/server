@@ -44,6 +44,7 @@ export const CREATE_PRAYER_REQUEST_FIELDS:InputField[] = [
     new InputField({title: 'Description', field: 'description', required: true, type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{0,200}$/), validationMessage: 'Max 200 characters.'}),
     new InputSelectionField({title: 'Category', field: 'tagList', type: InputType.MULTI_SELECTION_LIST, selectOptionList: Object.values(PrayerRequestTagEnum)}),
     new InputSelectionField({title: 'Duration', field: 'duration', required: true, type: InputType.SELECT_LIST, value: '7', selectOptionList:Array.from(PrayerRequestDurationsMap.values()), displayOptionList:Array.from(PrayerRequestDurationsMap.keys())}),
+    new InputField({title: 'Expiration Date', field: 'expirationDate', required: true, hide: true, type: InputType.DATE, value: getDateDaysFuture().toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Required, must be future date.' }),
     new InputSelectionField({title: 'Remind Me', field: 'isOnGoing', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     new InputField({title: 'Send to Contacts', field: 'addUserRecipientIDList', hide: true, type: InputType.USER_ID_LIST, validationRegex: new RegExp(/[0-9]+/)}),
     new InputField({title: 'Send to Circles', field: 'addCircleRecipientIDList', hide: true, type: InputType.CIRCLE_ID_LIST, validationRegex: new RegExp(/[0-9]+/)}),
@@ -51,8 +52,7 @@ export const CREATE_PRAYER_REQUEST_FIELDS:InputField[] = [
 
 export const EDIT_PRAYER_REQUEST_FIELDS:InputField[] = [
     new InputSelectionField({title: 'Status', field: 'isResolved', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false'], displayOptionList: ['Inactive', 'Active']}),
-    ...CREATE_PRAYER_REQUEST_FIELDS.filter((field) => !['isOnGoing', 'duration'].includes(field.field)),
-    new InputSelectionField({title: 'Remind Me', field: 'isOnGoing', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
+    ...CREATE_PRAYER_REQUEST_FIELDS,
     new InputField({title: 'Send to Contacts', field: 'addUserRecipientIDList', hide: true, type: InputType.USER_ID_LIST, validationRegex: new RegExp(/[0-9]+/)}),
     new InputField({title: 'Remove Contacts', field: 'removeUserRecipientIDList', hide: true, type: InputType.USER_ID_LIST, validationRegex: new RegExp(/[0-9]+/)}),
     new InputField({title: 'Send to Circles', field: 'addCircleRecipientIDList', hide: true, type: InputType.CIRCLE_ID_LIST, validationRegex: new RegExp(/[0-9]+/)}),
