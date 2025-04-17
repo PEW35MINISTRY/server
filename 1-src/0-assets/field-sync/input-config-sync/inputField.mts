@@ -11,7 +11,7 @@ export enum ENVIRONMENT_TYPE {
     PRODUCTION = 'PRODUCTION'
 }
 
-export const SUPPORTED_IMAGE_EXTENSION_LIST = ['png', 'jpg', 'jpeg'];  //Sync with AWS 
+export const SUPPORTED_IMAGE_EXTENSION_LIST = ['png', 'jpg', 'jpeg'];  //Sync with AWS settings
 
 export enum DeviceOSEnum {
     IOS = 'IOS',
@@ -146,7 +146,7 @@ export class InputRangeField extends InputField {
 
 //Converts underscores to spaces and capitalizes each word
 export const makeDisplayText = (text:string = ''):string => text.toLowerCase().split(/[_\s]+/).map((s) => s.charAt(0).toUpperCase() + s.substring(1)).join(' ');
-export const makeDisplayList = (list:(string)[]):string[] => list.map((value:string) => makeDisplayText(String(value)));
+export const makeDisplayList = (list:string[]):string[] => list.map(value => makeDisplayText(value));
 
 //For parsing JSON Response vs FIELD_LIST and optional field properties
 export const checkFieldName = (FIELD_LIST:InputField[], fieldName:string, required?:boolean, unique?:boolean, hide?:boolean):boolean =>
