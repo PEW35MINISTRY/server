@@ -271,6 +271,13 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
         log.warn(`Validating input for ${field.field}; failed validation Regex: ${field.validationRegex}`, value);
         return false;
 
+    /* Length | Applies to lists too */
+    } else if(field.length !== undefined && ((isListType(field.type) ? value.length : [...String(value)].length) < field.length.min
+        || (isListType(field.type) ? value.length : [...String(value)].length) > field.length.max)) {
+        log.warn(`Validating input for ${field.field};`, `Minimum: ${field.length.min}`, `Length: ${(isListType(field.type) ? value.length : [...String(value)].length)}`, `Maximum: ${field.length.max}`, value);
+        return false;
+
+    /* DATE ISO String */
     } else if(field.type === InputType.DATE) {
         const date:Date = new Date(value);
 
@@ -307,6 +314,7 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
             log.warn(`Validating input for ${field.field};  multi selection; mismatched multiple select option list`, JSON.stringify(value), JSON.stringify(field.selectOptionList));
         return false;
 
+    /* Image URI */
     } else if((field.type === InputType.TEXT) && ['url', 'image'].includes(field.field.toLowerCase()) && !isURLValid(value)) {
         log.warn(`Validating input for ${field.field}; failed: isURLValid`, value);
         return false;
