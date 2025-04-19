@@ -85,10 +85,7 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
     return DATABASE;
 }
 
- /*  Initialize Database  & Wait*/
-//await initializeDatabase();   
-
-
+ 
 /* Prevent SQL Injection Protocol:
 * 1) Use Prepared Statements, auto escape input strings
 * 2) Validate Column Names
@@ -144,6 +141,7 @@ export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPack
             });
     }
 }
+
 
 /***************************************************
  *  COMMAND: PREPARED DATABASE OPERATION STATEMENT
