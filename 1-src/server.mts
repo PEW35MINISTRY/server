@@ -34,9 +34,9 @@ import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notif
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
+import { initializeDatabase } from './2-services/2-database/database.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
-import { initializeDatabase } from './2-services/2-database/database.mjs';
 
 /********************
     EXPRESS SEVER
@@ -50,10 +50,9 @@ const apiServer: Application = express();
 * SERVER INITIALIZATION *
 *************************/
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
+await initializeDatabase(); 
 await checkAWSAuthentication();
 
-console.log('SERVER-running-database-initialization');
-await initializeDatabase(); 
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
