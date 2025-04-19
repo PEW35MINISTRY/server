@@ -27,7 +27,7 @@ const getJWTSecretValue = async ():Promise<string> => {
         }));
         return response.SecretString;
     } catch (error) {
-        await log.alert(`JWT | AWS Secret Manager failed to connect to JWT Secret: ${process.env.JWT_SECRET_NAME} in Region: ${process.env.JWT_SECRET_REGION}.`, error);
+        await log.alert(`JWT | AWS Secret Manager failed to connect to JWT Secret: ${process.env.JWT_SECRET_NAME} in Region: ${process.env.JWT_SECRET_REGION}.`, error, error.message);
         throw error;
     }
 }
@@ -62,8 +62,8 @@ export const verifyJWT = (jwt:string):boolean => {
     try {
         jwtPackage.verify(jwt, APP_SECRET_KEY);
         return true;
-    } catch(err) {
-        log.auth('Failed to verify JWT', err);
+    } catch(error) {
+        log.auth('Failed to verify JWT', error, error.message);
         return false;
     }
 }
@@ -101,7 +101,7 @@ export const validateNewRoleTokenList = async({newRoleList, jsonRoleTokenList, e
                 return await verifyNewAccountToken(role, authenticationToken, email);
 
             } catch(error) {
-                log.auth(`validateNewRoleTokenList | Failed to validate role: ${role} for ${email}`);
+                log.auth(`validateNewRoleTokenList | Failed to validate role: ${role} for ${email}`, error.message);
                 return false;
             }
         }

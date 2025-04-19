@@ -11,7 +11,7 @@ export enum ENVIRONMENT_TYPE {
     PRODUCTION = 'PRODUCTION'
 }
 
-export const SUPPORTED_IMAGE_EXTENSION_LIST = ['png', 'jpg', 'jpeg'];  //Sync with AWS 
+export const SUPPORTED_IMAGE_EXTENSION_LIST = ['png', 'jpg', 'jpeg'];  //Sync with AWS settings
 
 export enum DeviceOSEnum {
     IOS = 'IOS',
@@ -96,14 +96,17 @@ export class InputSelectionField extends InputField {
     displayOptionList: string[];
 
     constructor({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage, environmentList,
-        selectOptionList } :
+        selectOptionList, displayOptionList } :
         {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, environmentList?:ENVIRONMENT_TYPE[],
-            selectOptionList:string[] }) {
+            selectOptionList:string[], displayOptionList?:string[] }) {
 
         super({title, field, customField, value, type, required, unique, hide, validationRegex, validationMessage, environmentList});
 
         this.selectOptionList = selectOptionList;
-        this.displayOptionList = makeDisplayList(selectOptionList);
+        if(Array.isArray(displayOptionList) && displayOptionList.length > 0)
+            this.displayOptionList = displayOptionList;
+        else
+            this.displayOptionList = makeDisplayList(this.selectOptionList);
 
         //Default Handle List Validations
         if(type == InputType.SELECT_LIST && validationRegex?.source === '.+') { //Testing against InputField default
@@ -112,6 +115,8 @@ export class InputSelectionField extends InputField {
         }
 
         if(![InputType.SELECT_LIST, InputType.MULTI_SELECTION_LIST].includes(this.type)) throw new Error(`InputSelectionField - ${field} - Invalid type: ${type}`);
+        if(!Array.isArray(this.selectOptionList) || this.selectOptionList.length === 0) throw new Error(`InputSelectionField - ${field} - Empty Selection List`);
+        if(!Array.isArray(this.displayOptionList) || this.selectOptionList.length !== this.displayOptionList.length) throw new Error(`InputSelectionField - ${field} - Inconsistent option lists: ${JSON.stringify(this.selectOptionList)} != ${JSON.stringify(this.displayOptionList)}`);
     }
 }
 

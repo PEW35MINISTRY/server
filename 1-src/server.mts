@@ -34,6 +34,7 @@ import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notif
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
+import { initializeDatabase } from './2-services/2-database/database.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
 
@@ -49,6 +50,7 @@ const apiServer: Application = express();
 * SERVER INITIALIZATION *
 *************************/
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
+await initializeDatabase(); 
 await checkAWSAuthentication();
 
 
@@ -127,7 +129,7 @@ apiServer.get('/version', (request: Request, response: Response, next:NextFuncti
         response.status(200).send(`${packageJson.version} | ${SERVER_START_TIMESTAMP.toISOString()}`);
 
     } catch(error) {
-        log.warn('Failed to Parse Server Version:', error);
+        log.warn('Failed to Parse Server Version:', error, error.message);
         response.status(200).send(`Version Unavailable | ${SERVER_START_TIMESTAMP.toISOString()}`);
     }
 });

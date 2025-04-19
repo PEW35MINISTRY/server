@@ -21,13 +21,13 @@ const GetRDSSecretCredentials = async():Promise<AWSDatabaseSecrets> => {
         }));
         return JSON.parse(response.SecretString) as AWSDatabaseSecrets;
     } catch (error) {
-        await log.alert(`DATABASE | AWS Secret Manager failed to connect to RDS Secret: ${process.env.RDS_SECRET_NAME} in Region: ${process.env.RDS_SECRET_REGION}.`, error);
+        await log.alert(`DATABASE | AWS Secret Manager failed to connect to RDS Secret: ${process.env.RDS_SECRET_NAME} in Region: ${process.env.RDS_SECRET_REGION}.`, error, error.message);
         throw error;
     }
 }
 
 
-const initializeDatabase = async():Promise<SQL.Pool> => {
+export const initializeDatabase = async():Promise<SQL.Pool> => {
     console.log(`Initializing Database in ${getEnvironment()} Environment...`);
 
     if(DATABASE) {
@@ -77,7 +77,7 @@ const initializeDatabase = async():Promise<SQL.Pool> => {
 
     } catch (error) {
         await DATABASE.end();
-        await log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(DB_CONFIGURATIONS), error);
+        await log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(DB_CONFIGURATIONS), error, error.message);
         throw error;
     }
 
@@ -85,10 +85,7 @@ const initializeDatabase = async():Promise<SQL.Pool> => {
     return DATABASE;
 }
 
- /*  Initialize Database  & Wait*/
-await initializeDatabase();   
-
-
+ 
 /* Prevent SQL Injection Protocol:
 * 1) Use Prepared Statements, auto escape input strings
 * 2) Validate Column Names
@@ -110,7 +107,7 @@ export const query = async(query:string):Promise<SQL.RowDataPacket[]> =>
                 return [...postParseResultRows(rows)];
             })
         .catch((error) => {
-            log.db('DB Query Failed: ', query, error);
+            log.db('DB Query Failed: ', query, error, error.message);
             return [];
         });
 
@@ -139,7 +136,7 @@ export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPack
                     return [...postParseResultRows(rows)];
                 })
             .catch((error) => {
-                log.db('DB Execute Failed: ', query, JSON.stringify(fields), error);
+                log.db('DB Execute Failed: ', query, JSON.stringify(fields), error, error.message);
                 return [];
             });
     }
@@ -178,7 +175,7 @@ export const command = async(query:string, fields:any[]):Promise<CommandResponse
                     }
                 })
             .catch((error) => {
-                log.db('DB Command Failed: ', query, JSON.stringify(fields), error);
+                log.db('DB Command Failed: ', query, JSON.stringify(fields), error, error.message);
                 return undefined;
             });
     }
@@ -210,11 +207,11 @@ export const batch = async(query:string, fieldSets:any[][]):Promise<boolean|unde
                     }
                     })
                 .catch((err) => {
-                    log.db('DB Batch Failed: ', query, fieldSets.length, JSON.stringify(fieldSets), err);
+                    log.db('DB Batch Failed: ', query, fieldSets.length, JSON.stringify(fieldSets), err, err.message);
                     return undefined;
                 });
             } catch (error) {
-                log.error('DB Batch ERROR: ', query, fieldSets.length, error);
+                log.error('DB Batch ERROR: ', query, fieldSets.length, error, error.message);
                 return undefined;
             }
         }

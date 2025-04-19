@@ -171,8 +171,8 @@ export const DELETE_circle =  async(request: JwtCircleRequest, response: Respons
 /* Circle Profile Images */
 export const GET_circleImage = async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
     const filePath:string|undefined = (await DB_SELECT_CIRCLE(request.circleID)).image || undefined;
-    if(filePath !== undefined)
-        response.status(200).redirect(filePath);
+    if(filePath !== undefined) 
+        response.status(200).send(filePath);
     else
         next(new Exception(404, `Circle ${request.circleID} doesn't have a saved profile image`, 'No Image'));
 }

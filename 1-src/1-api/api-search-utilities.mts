@@ -103,7 +103,7 @@ export const searchList = async(searchType:SearchType, request:JwtSearchRequest)
         return searchDetail.filterResultList(request, resultList, searchFilter);
 
     } catch(error) {
-        log.error(`Exception occurred in searchList for:${searchType}`, JSON.stringify(request.query), error);
+        log.error(`Exception occurred in searchList for:${searchType}`, JSON.stringify(request.query), error, error.message);
         return undefined;
     }
 }

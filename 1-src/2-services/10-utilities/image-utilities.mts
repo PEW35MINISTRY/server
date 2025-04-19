@@ -32,7 +32,7 @@ dotenv.config();
         && isEnumValue(ImageTypeEnum, imageType.toUpperCase())
       );
     } catch(error) {
-        log.error('Error validating image URL', imageURL, process.env.IMAGE_BUCKET_NAME, error);
+        log.error('Error validating image URL', imageURL, process.env.IMAGE_BUCKET_NAME, error, error.message);
       return false;
     }
   };
@@ -88,7 +88,7 @@ export const uploadImage = async({id, imageType, fileName, imageBlob: imageBlob}
         return undefined;
 
     } catch(error) {
-        log.error(`Error - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Upload`, error);
+        log.error(`Error - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Upload`, error, error.message);
         return undefined;
     }
 }
@@ -117,7 +117,7 @@ export const clearImage = async(fileName:string):Promise<boolean> => {
         return true;
 
     } catch(error) {
-        log.error(`Error - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Delete`, error);
+        log.error(`Error - ${getEnvironment()} | ${process.env.IMAGE_BUCKET_NAME} S3 Image Delete`, error, error.message);
         return false;
     }
 }
@@ -144,7 +144,7 @@ export const downloadImageAndUpload = async({id, imageType, imageURL}:{id:number
         return await uploadImage({ id, imageType, fileName, imageBlob:imageBuffer });
 
       } catch (error) {
-        log.warn(`Error fetching image blob for ${id} ${imageType}`, imageURL, error);
+        log.warn(`Error fetching image blob for ${id} ${imageType}`, imageURL, error, error.message);
         return undefined;
       }
 }

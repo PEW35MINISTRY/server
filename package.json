@@ -12,6 +12,7 @@
     "postportal": "cp -r ../portal/build ../server/portal",
     "prebuild": "rimraf 0-compiled/",
     "build": "tsc",
+    "archive": "rm -rf 0-compiled && tsc && mkdir 0-compiled/archived && cp -r 0-compiled/* 0-compiled/archived && cp -r node_modules 0-compiled/archived && cp 0-compiled/3-lambda/index.mjs 0-compiled/archived && (cd 0-compiled/archived && zip -r ../../Lambda.zip .) && rm -rf 0-compiled/archived",
     "open": "start http://localhost:5000",
     "preserve": "npm run build",
     "serve": "node ./0-compiled/server.mjs",
