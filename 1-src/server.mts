@@ -3,6 +3,7 @@ dotenv.config();
 import fs, { readFileSync } from 'fs';
 import path, { join } from 'path';
 const __dirname = path.resolve();
+import { execSync } from 'child_process';
 import { createServer, request } from 'http';
 import express, { Application , Request, Response, NextFunction, response} from 'express';
 import { Server, Socket } from 'socket.io';
@@ -126,7 +127,10 @@ apiServer.get('/version', (request: Request, response: Response, next:NextFuncti
     try {
         const packageJsonPath:string = join(__dirname, 'package.json');
         const packageJson:{version:string} = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-        response.status(200).send(`${packageJson.version} | ${SERVER_START_TIMESTAMP.toISOString()}`);
+        const gitBranch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+        const gitHash = execSync('git rev-parse --short HEAD').toString().trim();
+
+        response.status(200).send(`${packageJson.version} | ${SERVER_START_TIMESTAMP.toISOString()} | ${gitBranch}@${gitHash}`);
 
     } catch(error) {
         log.warn('Failed to Parse Server Version:', error, error.message);
