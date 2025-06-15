@@ -32,7 +32,7 @@ export enum DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM {   //Allowed Interactions:
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
 export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
-    'userID', 'modelSourceEnvironment', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'isActive', 'walkLevel', 'image', 'notes', 'maxPartners'
+    'userID', 'modelSourceEnvironment', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'emailVerified', 'walkLevel', 'image', 'notes', 'maxPartners'
 ];
 
 export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
@@ -46,7 +46,7 @@ export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
     postalCode?: string, 
     dateOfBirth?: Date, 
     gender?: DATABASE_GENDER_ENUM,
-    isActive?: boolean,
+    emailVerified?: boolean,
     walkLevel?: number,
     image?: string,
     notes?: string,
@@ -60,11 +60,16 @@ export enum DATABASE_GENDER_ENUM {
 }
 
 export enum DATABASE_USER_ROLE_ENUM {
-    USER = 'USER',                             //General user only access to mobile app.
-    CIRCLE_LEADER = 'CIRCLE_LEADER',           //Allowed to create and manage small groups of users.
-    CONTENT_APPROVER = 'CONTENT_APPROVER',     //Special access to content overview.
-    DEVELOPER = 'DEVELOPER',                   //Full access to features; but not user data.
-    ADMIN = 'ADMIN',                           //All access and privileges.
+    ADMIN = 'ADMIN',                           // All access and privileges.
+    DEVELOPER = 'DEVELOPER',                   // Full access to features; but not user data.
+    CONTENT_APPROVER = 'CONTENT_APPROVER',     // Access to add content hosted on the application.
+    CIRCLE_MANAGER = 'CIRCLE_MANAGER',         // Can create circles and manage profiles of users within their circles.
+    CIRCLE_LEADER = 'CIRCLE_LEADER',           // Can create and manage small user groups (circles), including member approvals.
+    TEST_USER = 'TEST_USER',                   // Internal role for QA to stay separate from production users.
+    USER = 'USER',                             // Standard user role with access to mobile app features only.
+    DEMO_USER = 'DEMO_USER',                   // Temporary trial user with limited access.
+    INACTIVE = 'INACTIVE',                     // Permanently or indefinitely disabled account with no app access.
+    REPORTED = 'REPORTED'                      // Restricted account pending administrative review for flagged behavior.
 }
 
 

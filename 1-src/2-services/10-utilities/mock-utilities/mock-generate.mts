@@ -67,6 +67,7 @@ export const createMockUser = async(populateRelations = true):Promise<USER> => {
     /* Save Mock User | userID assigned by Database */
     if(await DB_INSERT_USER(user.getDatabaseProperties())) {
         user = await DB_SELECT_USER(new Map([['email', user.email], ['passwordHash', user.passwordHash]]));
+        await DB_INSERT_USER_ROLE({userID: user.userID, email: user.email, userRoleList: [DATABASE_USER_ROLE_ENUM.DEMO_USER]});
         log.event(`Mock Profile: ${user.userID} | '${user.displayName}' created.`);
 
     } else {
