@@ -6,7 +6,7 @@ import { searchList } from '../../../1-api/api-search-utilities.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
-import { PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { GENERAL_USER_ROLES, PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import { batch, command, execute, validateColumns } from '../database.mjs';
 import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
@@ -271,7 +271,6 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
 /**********************************
  *  USER SEARCH & CACHE QUERIES
  **********************************/
-const GENERAL_USERS:RoleEnum[] = [RoleEnum.USER, RoleEnum.TEST_USER, RoleEnum.DEMO_USER];
 const INACTIVE_USERS: RoleEnum[] = [RoleEnum.INACTIVE, RoleEnum.REPORTED];
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false, allSourceEnvironments = false, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean, allSourceEnvironments?:boolean, limit?:number}):Promise<ProfileListItem[]> => {
@@ -304,7 +303,7 @@ export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGener
                 + 'SELECT 1 FROM user_role '
                 + 'JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
                 + 'WHERE user_role.userID = user.userID '
-                + `AND user_role_defined.userRole NOT IN (${GENERAL_USERS.map(r => `'${r}'`).join(', ')}) `
+                + `AND user_role_defined.userRole NOT IN (${GENERAL_USER_ROLES.map(r => `'${r}'`).join(', ')}) `
                 + ') AND '
             : '')
         + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(', ')} )`} LIKE ? `
