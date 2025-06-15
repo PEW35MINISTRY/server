@@ -109,7 +109,7 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
 ];
 
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
-    new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: true, selectOptionList: Object.values(RoleEnum) }),
+    new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.CUSTOM, required: true, selectOptionList: Object.values(RoleEnum) }),
     new InputSelectionField({title: 'Source Environment', field: 'modelSourceEnvironment', required: true, type: InputType.SELECT_LIST, selectOptionList: Object.values(ModelSourceEnvironmentEnum), environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT]}),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, unique: true,  validationRegex: EMAIL_REGEX }),
     new InputSelectionField({title: 'Email Verified', field: 'emailVerified', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
@@ -137,7 +137,7 @@ export const SIGNUP_PROFILE_FIELDS_USER:InputField[] = [
 
 //SIGNUP all other roles
 export const SIGNUP_PROFILE_FIELDS:InputField[] = [    
-    new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.MULTI_SELECTION_LIST, required: true, selectOptionList: Object.values(RoleEnum)}),
+    new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.CUSTOM, required: true, selectOptionList: Object.values(RoleEnum)}),
     ...SIGNUP_PROFILE_FIELDS_USER,
 ];
 

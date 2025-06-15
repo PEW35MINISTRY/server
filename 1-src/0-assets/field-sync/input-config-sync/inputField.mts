@@ -22,6 +22,7 @@ export enum DeviceOSEnum {
 }
 
 export enum InputType {
+    CUSTOM = 'CUSTOM',
     TEXT = 'TEXT',
     NUMBER = 'NUMBER',
     EMAIL = 'EMAIL',
@@ -137,7 +138,7 @@ export class InputSelectionField extends InputField {
             this.validationMessage = 'Please Select'
         }
 
-        if(![InputType.SELECT_LIST, InputType.MULTI_SELECTION_LIST].includes(this.type)) throw new Error(`InputSelectionField - ${field} - Invalid type: ${type}`);
+        if(![InputType.SELECT_LIST, InputType.MULTI_SELECTION_LIST, InputType.CUSTOM].includes(this.type)) throw new Error(`InputSelectionField - ${field} - Invalid type: ${type}`);
         if(!Array.isArray(this.selectOptionList) || this.selectOptionList.length === 0) throw new Error(`InputSelectionField - ${field} - Empty Selection List`);
         if(!Array.isArray(this.displayOptionList) || this.selectOptionList.length !== this.displayOptionList.length) throw new Error(`InputSelectionField - ${field} - Inconsistent option lists: ${JSON.stringify(this.selectOptionList)} != ${JSON.stringify(this.displayOptionList)}`);
     }

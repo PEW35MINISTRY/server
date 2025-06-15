@@ -121,6 +121,8 @@ export default ({ field, value, getInputField, simpleValidationOnly = false }:{ 
 
 
     /* ----- GENERAL TYPE VALIDATIONS ----- */
+    } else if(field.type === InputType.CUSTOM) {
+        return { passed: true, message: 'Custom Validation', description: 'Custom Type - Bypass General Validations' };
 
     /* DATE ISO String */
     } else if(field.type === InputType.DATE) {
