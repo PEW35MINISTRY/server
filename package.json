@@ -18,7 +18,8 @@
     "serve": "node ./0-compiled/server.mjs",
     "server": "npm run serve",
     "start": "npm run build & npm run open & npm run serve",
-    "update": "npm run website && npm run portal && npm run start",
+    "sync-config": "node ./0-compiled/5-scripts/config-sync.mjs",
+    "update": "npm run sync-config && npm run website && npm run portal",
     "debug": "aws sso login & npm run serve",
     "clean": "rimraf node_modules/ package-lock.json 0-compiled/"
   },

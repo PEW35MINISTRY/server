@@ -5,6 +5,9 @@
 * Sync across all repositories: server, portal, mobile *
 ********************************************************/
 
+export const PLAIN_TEXT_REGEX = /^[ a-zA-Z0-9_-]+$/;
+export const DATE_REGEX = new RegExp(/^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)?$/); //1970-01-01T00:00:00.013Z
+
 export enum ENVIRONMENT_TYPE {
     LOCAL = 'LOCAL',
     DEVELOPMENT = 'DEVELOPMENT',
@@ -55,12 +58,13 @@ export default class InputField {
     required: boolean;
     unique: boolean;
     hide: boolean;
+    length: {min:number, max:number}|undefined;
     validationRegex: RegExp;
     validationMessage: string;
     environmentList: ENVIRONMENT_TYPE[];
 
-    constructor({title, field, customField, value, type=InputType.TEXT, required=false, unique=false, hide=false, validationRegex=new RegExp(/.+/), validationMessage='Invalid Input', environmentList=Object.values(ENVIRONMENT_TYPE) }
-        : {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, environmentList?:ENVIRONMENT_TYPE[]}) {
+    constructor({title, field, customField, value, type=InputType.TEXT, required=false, unique=false, hide=false, length, validationRegex, validationMessage, environmentList=Object.values(ENVIRONMENT_TYPE) }
+        : {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?:InputType, required?:boolean, unique?:boolean, hide?:boolean, length?:{min:number, max:number}, validationRegex?:RegExp, validationMessage?:string, environmentList?:ENVIRONMENT_TYPE[]}) {
         this.title = title;
         this.field = field;
         this.customField = customField;
@@ -69,9 +73,28 @@ export default class InputField {
         this.unique = unique;
         this.required = unique || required;
         this.hide = hide;
-        this.validationRegex = validationRegex;
-        this.validationMessage = validationMessage;
+        this.length = length;
+        this.validationMessage = validationMessage ?? ((validationRegex?.source === PLAIN_TEXT_REGEX.source) ? 'Plain Text Only' : 'Invalid Input');
         this.environmentList = environmentList ?? Object.values(ENVIRONMENT_TYPE);
+
+        /* Default Regex by InputType */
+        if(validationRegex !== undefined)
+            this.validationRegex = validationRegex;
+
+        else if([InputType.NUMBER, InputType.USER_ID_LIST, InputType.CIRCLE_ID_LIST].includes(this.type))
+            this.validationRegex = /^[0-9]+$/;
+
+        else if([InputType.TEXT, InputType.PARAGRAPH, InputType.CUSTOM_STRING_LIST].includes(this.type)) {
+            if(this.length?.min === 0)
+                this.validationRegex = /.*/;
+            else //Requires one non-whitespace
+                this.validationRegex = /\S/;
+
+        } else //Anything passes
+            this.validationRegex = /.*/;
+
+        /* Validations */
+        if(this.length && (typeof this.length.min !== 'number' || typeof this.length.max !== 'number' || this.length.min > this.length.max)) throw new Error(`InputSelectionField - ${this.field} - Invalid length: ${JSON.stringify(this.length)}`);
     };
 
     setValue(value: string): void {this.value = value; }
