@@ -271,33 +271,46 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
 /**********************************
  *  USER SEARCH & CACHE QUERIES
  **********************************/
+const GENERAL_USERS:RoleEnum[] = [RoleEnum.USER, RoleEnum.TEST_USER, RoleEnum.DEMO_USER];
+const INACTIVE_USERS: RoleEnum[] = [RoleEnum.INACTIVE, RoleEnum.REPORTED];
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false, allSourceEnvironments = false, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean, allSourceEnvironments?:boolean, limit?:number}):Promise<ProfileListItem[]> => {
     
     const rows = await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
-            + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
-            + `WHERE ${searchInactive ? 'userInfo.isActive = false ' : ''} `
-                + `${allSourceEnvironments ? '' :
-                    `${`${searchInactive ? 'AND' : ''} ( `
-                        + `        user.modelSourceEnvironment = '${getModelSourceEnvironment()}' `
-                        + '        OR ( '
-                        + '            CASE '
-                        + `                WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
-                        + `                WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
-                        + `                WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
-                        + '                ELSE false '
-                        + '            END '
-                        + '        ) '
-                        + '    ) '
-                    }`
-                }`
-                + `${(searchInactive || allSourceEnvironments) ? ' AND ' : ''}`
-                + `${excludeGeneralUsers ? `user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'USER' ) ` : ''}`
-                + `${(searchInactive || !allSourceEnvironments || excludeGeneralUsers) ? ' AND ' : ''}`
-                + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(', ')} )`} LIKE ? `
-            + `ORDER BY FIELD( user.modelSourceEnvironment, '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' ), `
-            + 'user.modifiedDT DESC '
-            + `LIMIT ${limit};`, [`%${searchTerm}%`]);
+        + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
+        + 'WHERE '
+        + (searchInactive
+            ? 'user_role.userRoleID IN ( '
+            + '    SELECT userRoleID FROM user_role_defined '
+            + `    WHERE userRole IN (${INACTIVE_USERS.map(r => `'${r}'`).join(', ')}) `
+            + ') AND '
+            : ''
+        )
+        + (!allSourceEnvironments
+            ? '( '
+                + `user.modelSourceEnvironment = '${getModelSourceEnvironment()}' `
+                    + 'OR ( '
+                        + 'CASE '
+                            + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+                            + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+                            + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+                            + 'ELSE FALSE '
+                        + 'END '
+                    + ') '
+                + ') AND '
+            : '')
+        + (excludeGeneralUsers
+            ? 'NOT EXISTS ( '
+                + 'SELECT 1 FROM user_role '
+                + 'JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
+                + 'WHERE user_role.userID = user.userID '
+                + `AND user_role_defined.userRole NOT IN (${GENERAL_USERS.map(r => `'${r}'`).join(', ')}) `
+                + ') AND '
+            : '')
+        + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(', ')} )`} LIKE ? `
+        + `ORDER BY FIELD( user.modelSourceEnvironment, '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' ), `
+        + 'user.modifiedDT DESC '
+        + `LIMIT ${limit};`, [`%${searchTerm}%`]);
  
     return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
