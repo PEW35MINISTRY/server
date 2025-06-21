@@ -51,7 +51,7 @@ export type InputValidationResult = {
     description:string 
 }
 
-type InputTypesAllowed = string | number | undefined; //Lists are identified and converted individually
+export type InputTypesAllowed = string | string [] | number | number[] | undefined; //Lists are identified and converted individually
 
 export default ({ field, value, getInputField, simpleValidationOnly = false }:{ field:InputField, value:InputTypesAllowed, getInputField:(field:string) => InputTypesAllowed, simpleValidationOnly:boolean }):InputValidationResult => {
 
@@ -61,9 +61,9 @@ export default ({ field, value, getInputField, simpleValidationOnly = false }:{ 
     if(value === undefined && field.required && !simpleValidationOnly) {
         return { passed: false, message: 'Required', description: `Missing required value for ${field.field}` };
 
-    /* UNDEFINED | Generally not allowed */
+    /* UNDEFINED | UI allowed for non-required | Server filters out in BASE_MODEL_UTILITY.constructByJson */
     } else if(value === undefined) {
-        return { passed: (simpleValidationOnly), message: 'Missing value', description: `Missing value for ${field.field}` };
+        return { passed: true, message: 'Missing value', description: `Optional value for ${field.field}` };
 
     /* NULL | Valid for clearing fields in database */
     } else if(value === null) {
@@ -74,23 +74,23 @@ export default ({ field, value, getInputField, simpleValidationOnly = false }:{ 
         return { passed: false, message: field.validationMessage, description: `Failed validation Regex: ${field.validationRegex}` };
 
     /* List Regex */
-    } else if(isListType(field.type) && Array.isArray(value) && validateListRegex(field, Array.from(value))) {
-        return { passed: false, message: validateListRegex(field, Array.from(value)) ?? 'Invalid', description: `Failed list validation Regex: ${field.validationRegex} for value: ${validateListRegex(field, Array.from(value))}` };
+    } else if(isListType(field.type) && Array.isArray(value) && validateListRegex(field, value)) {
+        return { passed: false, message: validateListRegex(field, value) ?? 'Invalid', description: `Failed list validation Regex: ${field.validationRegex} for value: ${validateListRegex(field, value)}` };
 
     /* Individual Length */
-    } else if((field.length !== undefined) && !isListType(field.type) && validateLength(field, value)) {
-        return { passed: false, message: validateLength(field, value) ?? 'Length', description: `Failed length min: ${field.length.min} and max: ${field.length.max} for value length: ${validateLength(field, value)}` };
+    } else if((field.length !== undefined) && !isListType(field.type) && validateLength(field, String(value))) {
+        return { passed: false, message: validateLength(field, String(value)) ?? 'Length', description: `Failed length min: ${field.length.min} and max: ${field.length.max} for value length: ${validateLength(field, String(value))}` };
 
     /* List Length */
-    } else if((field.length !== undefined) && isListType(field.type) && Array.isArray(value) && validateListEntryLength(field, Array.from(value))) {
-        return { passed: false, message: validateListEntryLength(field, Array.from(value)) ?? 'Length', description: `Failed list entry length min: ${field.length.min} and max: ${field.length.max} for value: ${validateListEntryLength(field, Array.from(value))}` };
+    } else if((field.length !== undefined) && isListType(field.type) && Array.isArray(value) && validateListEntryLength(field, value)) {
+        return { passed: false, message: validateListEntryLength(field, value) ?? 'Length', description: `Failed list entry length min: ${field.length.min} and max: ${field.length.max} for value: ${validateListEntryLength(field, value)}` };
 
 
     /* ----- INDIVIDUAL FIELD VALIDATIONS ----- */
 
     /* DATES | dateOfBirth */
     } else if(field.type === InputType.DATE && field.field === 'dateOfBirth') {
-        const date:Date = new Date(value);
+        const date:Date = new Date(String(value));
 
         if(isNaN(date.valueOf()))
             return { passed: false, message: 'Invalid date format.', description: `${field.title} must be a valid date ISO string.` };
@@ -116,7 +116,7 @@ export default ({ field, value, getInputField, simpleValidationOnly = false }:{ 
     /* CUSTOM FIELD */
     } else if(value === 'CUSTOM' && field.customField !== undefined 
         && (!(new RegExp(field.validationRegex).test(String(getInputField(field.customField) ?? '')))
-            || (field.length !== undefined && validateLength(field, getInputField(field.customField) ?? '')))) {
+            || (field.length !== undefined && validateLength(field, String(getInputField(field.customField) ?? ''))))) {
         return { passed: false, message: 'Custom invalid', description: `Invalid Custom field ${field.customField} for ${field.field}` };
 
 
@@ -126,7 +126,7 @@ export default ({ field, value, getInputField, simpleValidationOnly = false }:{ 
 
     /* DATE ISO String */
     } else if(field.type === InputType.DATE) {
-        const date: Date = new Date(value);
+        const date: Date = new Date(String(value));
 
         if(isNaN(date.valueOf())) {
             return { passed: false, message: 'Invalid date', description: `Invalid date format for ${field.field}.` };
@@ -134,7 +134,7 @@ export default ({ field, value, getInputField, simpleValidationOnly = false }:{ 
         //startDate and endDate are respective
         } else if(!simpleValidationOnly && field.field === 'startDate' && getInputField('endDate') !== undefined) {
                 const startDate = date;
-                const endDate = new Date(getInputField('endDate') ?? '');
+                const endDate = new Date(String(getInputField('endDate') ?? ''));
 
                 if(isNaN(endDate.valueOf()) || startDate > endDate) {
                     return { passed: false, message: 'Start is after end', description: `EndDate is not greater than startDate: startDate: ${value} | endDate: ${getInputField('endDate')}` };
@@ -146,8 +146,17 @@ export default ({ field, value, getInputField, simpleValidationOnly = false }:{ 
 
     /* RANGE_SLIDER */
     } else if((field instanceof InputRangeField) && (field.type === InputType.RANGE_SLIDER)
-        && !isNaN(Number(value)) && (Number(value) < Number(field.minValue) || Number(value) > Number(field.maxValue))) {
+            && !isNaN(Number(value)) && (Number(value) < Number(field.minValue) || Number(value) > Number(field.maxValue))) {
         return { passed: false, message: 'Out of range', description: `Range validation: Min: ${field.minValue}, Max: ${field.maxValue}, Value: ${value}` };
+
+    } else if((field instanceof InputRangeField) && (field.type === InputType.RANGE_SLIDER) && field.maxField 
+            && !isNaN(Number(getInputField(field.maxField))) && (Number(getInputField(field.maxField)) < Number(value) || Number(getInputField(field.maxField)) > Number(field.maxValue))) {
+        return { passed: false, message: 'Max Out of range', description: `Max Range validation: Min: ${field.minValue}, Max: ${field.maxValue}, Max Value: ${getInputField(field.maxField)}` };
+
+    /* Model ID Lists */
+    } else if((field.type === InputType.USER_ID_LIST || field.type === InputType.CIRCLE_ID_LIST) 
+        && (!Array.isArray(value) || !(value as number[]).every((i:number) => Number.isInteger(Number(i)) && Number(i) > 0))) {
+        return { passed: false, message: 'Invalid ID list', description: `Each ID in ${field.field} must be a positive integer. Value: ${JSON.stringify(value)}` };
 
     /* SELECT_LIST */
     } else if((field instanceof InputSelectionField) && (field.type === InputType.SELECT_LIST) 
@@ -156,7 +165,7 @@ export default ({ field, value, getInputField, simpleValidationOnly = false }:{ 
 
     /* MULTI_SELECTION_LIST */
     } else if((field instanceof InputSelectionField) && (field.type === InputType.MULTI_SELECTION_LIST) 
-            && (!Array.isArray(value) || !Array.from(value).every((item: any) => (field.selectOptionList.includes(`${item}`))))) {
+            && (!Array.isArray(value) || !(value as string[]).every((item:string) => (field.selectOptionList.includes(`${item}`))))) {
         return { passed: false, message: 'Invalid selection', description: `Multi-selection mismatch. Value: ${JSON.stringify(value)}, Options: ${JSON.stringify(field.selectOptionList)}` };
     }    
 

@@ -85,7 +85,7 @@ export const walkLevelOptions:Map<number, [string, string]> = new Map<number, [s
 //HTML date input supports: 'YYYY-MM-DD'
 export const getShortDate = (dateISO:string):string => dateISO.split('T')[0];
 export const getDOBMinDate = (role:RoleEnum = RoleEnum.USER):Date => getDateYearsAgo(100); //Oldest
-export const getDOBMaxDate = (role:RoleEnum = RoleEnum.USER):Date => (role === RoleEnum.USER) ? getDateYearsAgo(13) : getDateYearsAgo(18); //Youngest
+export const getDOBMaxDate = (role:RoleEnum = RoleEnum.USER):Date => [RoleEnum.USER, RoleEnum.TEST_USER, RoleEnum.USER].includes(role) ? getDateYearsAgo(13) : getDateYearsAgo(18); //Youngest
 
 /*****************************************
 *   FIELD LISTS: LOGIN | SIGNUP | EDIT
@@ -124,6 +124,7 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
 ];
 
 export const SIGNUP_PROFILE_FIELDS_USER:InputField[] = [
+    new InputField({title: 'Beta Token', field: 'betaToken', type: InputType.TEXT, required: true, length:{min:1, max:15}, validationRegex: new RegExp(/PAT/, 'i') }),
     new InputField({title: 'First Name', field: 'firstName', type: InputType.TEXT, required: true, length:{min:1, max:30} }),
     new InputField({title: 'Last Name', field: 'lastName', type: InputType.TEXT, required: true, length:{min:1, max:30} }),
     new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, required: true, unique: true, length:{min:5, max:15}, validationRegex: PLAIN_TEXT_REGEX }),
