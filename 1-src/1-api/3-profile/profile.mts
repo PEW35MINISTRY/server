@@ -20,30 +20,6 @@ import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-c
 import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
 
 
-//UI Helper Utility
-export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
-    response.status(200).send([...Object.keys(RoleEnum)]);
-}
-
-//Public URL | UI Helper to get list of fields user allowed to  edit 
-export const GET_SignupProfileFields = async(request: JwtRequest, response: Response, next: NextFunction) => {
-
-    const role: string = request.params.role || 'user';
-    
-    if(role.toLowerCase() === 'user')
-        response.status(200).send(SIGNUP_PROFILE_FIELDS_USER.map(field => field.toJSON()));
-    else
-        response.status(200).send(SIGNUP_PROFILE_FIELDS.map(field => field.toJSON()));
-}
-
-//Public URL | UI Helper to get list of fields user allowed to  edit 
-export const GET_EditProfileFields = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
-    
-    if(request.jwtUserRole === RoleEnum.ADMIN)
-        response.status(200).send(EDIT_PROFILE_FIELDS_ADMIN.map(field => field.toJSON()));
-    else
-        response.status(200).send(EDIT_PROFILE_FIELDS.map(field => field.toJSON()));
-}
 
 //Verifies Unique Profile Fields for realtime validations | userID excludes profile for editing
 //Uses Query Parameters: GET localhost:5000/resources/available-account?email=ethan@encouragingprayer.org&displayName=ethan
