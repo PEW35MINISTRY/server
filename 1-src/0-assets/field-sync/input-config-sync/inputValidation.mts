@@ -3,7 +3,7 @@ import { getDOBMaxDate, getDOBMinDate, RoleEnum } from './profile-field-config.m
 
 
 /* VALIDATION UTILITIES */
-export const getAgeFromDate = (date: Date):number => Math.floor((new Date().getTime() - date.getTime()+(25*60*60*1000)) / 31557600000);  //Reverse offset one day for delay
+export const getAgeFromDate = (date: Date):number => Math.floor((new Date().getTime() - date.getTime()+(25*60*60*1000)) / (365.25 * 24 * 60 * 60 * 1000));  //Reverse offset one day for delay
 
 //JSON: 'userRoleTokenList' | Searches Profile Input for max userRole for accurate validations
 export const getHighestRole = (roleMap:Map<string, string>|undefined):RoleEnum => Object.values(RoleEnum).reverse().find((role, index) => (roleMap?.has(RoleEnum[role]))) as RoleEnum ?? RoleEnum.USER;
