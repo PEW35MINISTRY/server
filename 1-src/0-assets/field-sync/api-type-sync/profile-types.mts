@@ -1,6 +1,4 @@
 /************* ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ *************/
-
-import { DeviceOSEnum } from '../input-config-sync/inputField.mjs';
 import { GenderEnum, ModelSourceEnvironmentEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
 import { CircleAnnouncementListItem, CircleListItem } from './circle-types.mjs'
 import { ContentListItem } from './content-types.mjs';
@@ -54,7 +52,7 @@ export interface ProfilePublicResponse extends ProfileListItem {
 };
 
 export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
-    'userID', 'modelSourceEnvironment', 'displayName', 'firstName', 'lastName', 'email', 'gender', 'postalCode', 'dateOfBirth', 'isActive', 'maxPartners', 'walkLevel', 'notes', 'image',
+    'userID', 'modelSourceEnvironment', 'displayName', 'firstName', 'lastName', 'email', 'gender', 'postalCode', 'dateOfBirth', 'emailVerified', 'maxPartners', 'walkLevel', 'notes', 'image',
     'userRole', 'userRoleList',
     'circleList', 'circleInviteList', 'circleRequestList', 'circleAnnouncementList',
     'partnerList', 'partnerPendingUserList', 'partnerPendingPartnerList',
@@ -72,7 +70,7 @@ export interface ProfileResponse {
     gender: GenderEnum,
     postalCode: string, 
     dateOfBirth: string,
-    isActive: boolean,
+    emailVerified: boolean,
     maxPartners: number,
     walkLevel: number,
     notes?: string,
@@ -104,7 +102,7 @@ export interface ProfileEditRequestBody {
     postalCode?: string, 
     dateOfBirth?: string, 
     gender?: GenderEnum,
-    isActive?: boolean,
+    emailVerified?: boolean,
     maxPartners?: number,
     walkLevel?: number,
     image?: string,

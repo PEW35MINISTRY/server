@@ -11,7 +11,6 @@ import { DB_SELECT_CONTENT_BY_URL, DB_UPDATE_CONTENT } from '../../2-services/2-
 import { ContentMetaDataResponseBody } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
-import { extractRegexMaxLength } from '../../2-services/10-utilities/utilities.mjs';
 
 
 /***************************************
@@ -101,8 +100,8 @@ export const fetchContentMetadata = async({type, source, url}:ContentMetaDataReq
     if (title === undefined) return undefined;
 
     const cleanedTitle = title.replace(/\s*\|\s*.*$/, '').trim();
-    const minConfigLength:number = extractRegexMaxLength(EDIT_CONTENT_FIELDS.find(field => field.field === 'title')?.validationRegex, true);
-    const maxConfigLength:number = extractRegexMaxLength(EDIT_CONTENT_FIELDS.find(field => field.field === 'title')?.validationRegex);
+    const minConfigLength:number = EDIT_CONTENT_FIELDS.find(field => field.field === 'title')?.length?.min ?? 0;
+    const maxConfigLength:number = EDIT_CONTENT_FIELDS.find(field => field.field === 'title')?.length?.max ?? Number.MAX_SAFE_INTEGER;
 
     return (cleanedTitle.length < Math.max(minConfigLength, MIN_TITLE_LENGTH)) 
         ? undefined
@@ -125,8 +124,8 @@ export const fetchContentMetadata = async({type, source, url}:ContentMetaDataReq
         cleanedDescription = cleanedDescription.replace(/[^.!?]*$/, '').trim();
     }
 
-    const minConfigLength:number = extractRegexMaxLength(EDIT_CONTENT_FIELDS.find(field => field.field === 'description')?.validationRegex, true);
-    const maxConfigLength:number = extractRegexMaxLength(EDIT_CONTENT_FIELDS.find(field => field.field === 'description')?.validationRegex);
+    const minConfigLength:number = EDIT_CONTENT_FIELDS.find(field => field.field === 'description')?.length?.min ?? 0;
+    const maxConfigLength:number = EDIT_CONTENT_FIELDS.find(field => field.field === 'description')?.length?.max ?? Number.MAX_SAFE_INTEGER;
 
     return (cleanedDescription.length < Math.max(minConfigLength, MIN_DESCRIPTION_LENGTH))
         ? undefined
