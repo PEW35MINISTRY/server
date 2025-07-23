@@ -107,7 +107,6 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_PROD, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
     new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, length:{min:5, max:15} }),
-    new InputRangeField({title: 'Max Partners', field: 'maxPartners', required: true, minValue: 0, maxValue: 10, type: InputType.RANGE_SLIDER}),
 ];
 
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
@@ -119,6 +118,7 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
     new InputSelectionField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),
     new InputField({title: 'Date of Birth', field: 'dateOfBirth', type: InputType.DATE, required: true, value: getDOBMaxDate(RoleEnum.USER).toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Must be age 13 or older.'  }),
     new InputRangeField({title: 'Walk Level', field: 'walkLevel', required: true, minValue: 1, maxValue: 10, type: InputType.RANGE_SLIDER }),
+    new InputRangeField({title: 'Max Partners', field: 'maxPartners', required: true, minValue: 0, maxValue: 10, type: InputType.RANGE_SLIDER}),
     new InputField({title: 'Image URI', field: 'image', type: InputType.TEXT, length:{min:5, max:2000}}),
     new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min:0, max:3000}, validationRegex:PLAIN_TEXT_REGEX}),
 ];
