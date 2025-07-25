@@ -22,7 +22,7 @@
     "serve": "node ./0-compiled/server.mjs",
     "server": "npm run serve",
     "start": "rimraf 0-compiled/ && tsc && node ./0-compiled/server.mjs",
-    "debug": "aws sso login && npm run start",
+    "dev": "aws sso login && npm run start",
 
     "sync-config": "node ./0-compiled/5-scripts/config-sync.mjs",
     "update": "npm run sync-config && npm run website && npm run portal & npm run postbuild",

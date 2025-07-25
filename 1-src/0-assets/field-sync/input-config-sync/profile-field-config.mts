@@ -9,10 +9,10 @@ import InputField, { ENVIRONMENT_TYPE, InputType, InputRangeField, InputSelectio
 export const EMAIL_REGEX = new RegExp(/^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/);
 
 export const PASSWORD_REGEX_DEV = new RegExp(/^.{5,}$/);
-export const PASSWORD_VALIDATION_MESSAGE_DEV = "Required, minimum 5 characters.";
+export const PASSWORD_VALIDATION_MESSAGE_DEV = "Minimum 5 characters";
 
 export const PASSWORD_REGEX_PROD = new RegExp(/^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-_]).{8,}$/);
-export const PASSWORD_VALIDATION_MESSAGE_PROD = "Required, one uppercase, lowercase, digit, special character (#?!@$%^&*-_), 8+ in length"
+export const PASSWORD_VALIDATION_MESSAGE_PROD = "Include: one uppercase, lowercase, digit, special character (#?!@$%^&*-_), 8+ in length"
 
 
 /***************************************
@@ -93,8 +93,9 @@ export const getDOBMaxDate = (role:RoleEnum = RoleEnum.USER):Date => [RoleEnum.U
 ******************************************/
 
 export const LOGIN_PROFILE_FIELDS:InputField[] = [
-    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true,  validationRegex: EMAIL_REGEX }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV }),
+    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, validationRegex: EMAIL_REGEX, validationMessage: 'Incomplete Format' }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Incomplete Format', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_PROD, validationMessage: 'Incomplete Format', environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
 ];
 
 //Note: extending list forces the order, may need a sortID or duplicating for now

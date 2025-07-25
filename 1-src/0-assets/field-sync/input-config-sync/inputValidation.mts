@@ -58,11 +58,11 @@ export default ({ field, value, getInputField, simpleValidationOnly = false }:{ 
     /* ----- UNIVERSAL VALIDATIONS ----- */
 
     /* Required Fields */
-    if(value === undefined && field.required && !simpleValidationOnly) {
+    if((value === undefined || String(value).trim().length === 0) && field.required && !simpleValidationOnly) {
         return { passed: false, message: 'Required', description: `Missing required value for ${field.field}` };
 
     /* UNDEFINED | UI allowed for non-required | Server filters out in BASE_MODEL_UTILITY.constructByJson */
-    } else if(value === undefined) {
+    } else if(value === undefined || String(value).trim().length === 0) {
         return { passed: true, message: 'Missing value', description: `Optional value for ${field.field}` };
 
     /* NULL | Valid for clearing fields in database */

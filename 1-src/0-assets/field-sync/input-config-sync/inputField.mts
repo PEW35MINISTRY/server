@@ -75,7 +75,7 @@ export default class InputField {
         this.required = unique || required;
         this.hide = hide;
         this.length = length;
-        this.validationMessage = validationMessage ?? ((validationRegex?.source === PLAIN_TEXT_REGEX.source) ? 'Plain Text Only' : 'Invalid Input');
+        this.validationMessage = validationMessage ?? ((validationRegex?.source === PLAIN_TEXT_REGEX.source) ? 'Alphanumeric, dashes, underscores only (no spaces)' : 'Invalid Input');
         this.environmentList = environmentList ?? Object.values(ENVIRONMENT_TYPE);
 
         /* Default Regex by InputType */
