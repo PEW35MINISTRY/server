@@ -240,7 +240,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
         + '    GROUP BY userID '
         + ') AS partnerCounts ON user.userID = partnerCounts.userID '
         + 'WHERE user.userID != ? '
-            + 'AND user.isActive = true '
+            + 'AND user.emailVerified = true '
             + `AND (( user.modelSourceEnvironment = ? ) `
                 + 'OR ( '
                 + '  CASE '

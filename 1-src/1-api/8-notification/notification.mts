@@ -35,7 +35,7 @@ export const POST_newNotificationDeviceUser = async (request:NotificationDeviceS
     if (deviceID < 0) return next(new Exception(500, `Failed to insert notification device for user: ${request.clientID}`, 'Failed to Save'));
         log.event(`Notification device created for user ${request.clientID} by user ${request.jwtUserID}`);
 
-    response.status(200).send(deviceID.toString());
+    response.status(200).send(deviceID?.toString() ?? 'DEVICE_ID');
 }
 
 export const GET_notificationDeviceList = async (request:JwtClientRequest, response:Response) => {
