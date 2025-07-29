@@ -1,5 +1,5 @@
 /***** ONLY DEPENDENCY: ./inputField - Define all other types locally *****/
-import InputField, { InputRangeField, InputSelectionField, InputType, makeDisplayText } from './inputField.mjs';
+import InputField, { InputRangeField, InputSelectionField, InputType, makeDisplayText, PLAIN_TEXT_REGEX } from './inputField.mjs';
 
 /*******************************************************
 *      CONTENT ARCHIVE FIELD CONFIGURATION FILE
@@ -84,17 +84,17 @@ export const extractYouTubeVideoId = (url:string):string|undefined => {
 **********************************************************************************/
 
 export const EDIT_CONTENT_FIELDS:InputField[] = [
-    new InputField({title: 'Embed URL', field: 'url', type: InputType.TEXT, required: true, unique: true, validationRegex: new RegExp(/^.{1,2000}$/), validationMessage: 'Required, max 2000 characters.' }),
+    new InputField({title: 'Embed URL', field: 'url', type: InputType.TEXT, required: true, unique: true, length:{min: 1, max: 2000} }),
     new InputSelectionField({title: 'Source', field: 'source', customField: 'customSource', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(ContentSourceEnum), validationRegex: new RegExp(/^[a-zA-Z0-9_ ]{3,50}$/), validationMessage: 'Custom Field has invalid format.'}),
     new InputSelectionField({title: 'Type', field: 'type', customField: 'customType', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(ContentTypeEnum), validationRegex: new RegExp(/^[a-zA-Z0-9_ ]{3,50}$/), validationMessage: 'Custom Field has invalid format.'}),
-    new InputField({title: 'Thumbnail URL', field: 'image', type: InputType.TEXT, validationRegex: new RegExp(/^.{1,2000}$/), validationMessage: 'Required, max 2000 characters.' }),
-    new InputField({title: 'Title', field: 'title', type: InputType.TEXT, required: true, validationRegex: new RegExp(/^.{1,50}$/), validationMessage: 'Required, max 50 characters.' }),
-    new InputField({title: 'Description', field: 'description',  type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{0,200}$/), validationMessage: 'Max 300 characters.'}),
-    new InputField({title: 'Topic / Keywords', field: 'keywordList', type: InputType.CUSTOM_STRING_LIST, validationRegex: new RegExp(/^.{1,3}$/), validationMessage: 'Invalid, Min 3 characters.'}),
+    new InputField({title: 'Thumbnail URL', field: 'image', type: InputType.TEXT, length:{min: 1, max: 2000} }),
+    new InputField({title: 'Title', field: 'title', type: InputType.TEXT, required: true, length:{min: 1, max: 50}, validationRegex:PLAIN_TEXT_REGEX }),
+    new InputField({title: 'Description', field: 'description',  type: InputType.PARAGRAPH, length:{min: 0, max: 300}, validationRegex:PLAIN_TEXT_REGEX }),
+    new InputField({title: 'Topic / Keywords', field: 'keywordList', type: InputType.CUSTOM_STRING_LIST, length:{min: 3, max: 15}, validationRegex:PLAIN_TEXT_REGEX }),
     new InputSelectionField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderSelectionEnum)}),
-    new InputRangeField({title: 'Age', field: 'minimumAge', maxField: 'maximumAge', minValue: 13, maxValue: 21, type: InputType.RANGE_SLIDER, required: true, validationRegex: new RegExp(/[0-9]+/), validationMessage: 'Required, age between 13-21.'}),
-    new InputRangeField({title: 'Walk Level', field: 'minimumWalkLevel', maxField: 'maximumWalkLevel', minValue: 1, maxValue: 10, type: InputType.RANGE_SLIDER, required: true, validationRegex: new RegExp(/[0-9]+/), validationMessage: 'Required, age between 1-10 and less than Maximum Walk Level.'}),
-    new InputField({title: 'Like Count', field: 'likeCount', type: InputType.NUMBER, validationRegex: new RegExp(/^[0-9]+$/)})
+    new InputRangeField({title: 'Age', field: 'minimumAge', maxField: 'maximumAge', minValue: 13, maxValue: 21, type: InputType.RANGE_SLIDER, required: true}),
+    new InputRangeField({title: 'Walk Level', field: 'minimumWalkLevel', maxField: 'maximumWalkLevel', minValue: 1, maxValue: 10, type: InputType.RANGE_SLIDER, required: true}),
+    new InputField({title: 'Like Count', field: 'likeCount', type: InputType.NUMBER})
 ];
 
 //Indicate Mobile Supported Sources | Assumes selectOptionList and displayOptionList indexes are synced
@@ -106,6 +106,6 @@ sourceField.selectOptionList.forEach((source:string, index:number) => {
 
 export const EDIT_CONTENT_FIELDS_ADMIN:InputField[] = [    
     ...EDIT_CONTENT_FIELDS,
-    new InputField({title: 'Recorder ID', field: 'recorderID', type: InputType.NUMBER, validationMessage: 'User is Required.' }),
-    new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, validationRegex: new RegExp(/^.{0,3000}$/), validationMessage: 'Max 3000 characters.'}),
+    new InputField({title: 'Recorder ID', field: 'recorderID', type: InputType.NUMBER }),
+    new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min: 0, max: 3000}, validationRegex:PLAIN_TEXT_REGEX }),
 ];

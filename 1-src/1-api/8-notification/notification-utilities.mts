@@ -30,7 +30,7 @@ const getPartnershipAcceptanceNotificationBody = (username:string) => `${usernam
 const getCircleInviteNotificationBody = (username:string, circleName:string) => `${username} has sent an invite to join ${circleName}`;
 
 const getStringifiedNotification = (body:string) => {
-    return JSON.stringify({default: `${body}`, GCM: JSON.stringify({ "data": { "body": `${body}`, "priority": "high" }}), APNS: JSON.stringify({"aps":{"content-available":1, "alert": `${body}`}})});
+    return JSON.stringify({default: `${body}`, GCM: JSON.stringify({ "data": { "body": `${body}`, "priority": "high"}}), APNS: JSON.stringify({"aps":{"content-available":1, "alert": `${body}`}})});
 }
 
 

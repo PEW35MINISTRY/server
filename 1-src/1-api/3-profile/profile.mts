@@ -20,40 +20,16 @@ import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-c
 import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
 
 
-//UI Helper Utility
-export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
-    response.status(200).send([...Object.keys(RoleEnum)]);
-}
-
-//Public URL | UI Helper to get list of fields user allowed to  edit 
-export const GET_SignupProfileFields = async(request: JwtRequest, response: Response, next: NextFunction) => {
-
-    const role: string = request.params.role || 'user';
-    
-    if(role.toLowerCase() === 'user')
-        response.status(200).send(SIGNUP_PROFILE_FIELDS_USER.map(field => field.toJSON()));
-    else
-        response.status(200).send(SIGNUP_PROFILE_FIELDS.map(field => field.toJSON()));
-}
-
-//Public URL | UI Helper to get list of fields user allowed to  edit 
-export const GET_EditProfileFields = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
-    
-    if(request.jwtUserRole === RoleEnum.ADMIN)
-        response.status(200).send(EDIT_PROFILE_FIELDS_ADMIN.map(field => field.toJSON()));
-    else
-        response.status(200).send(EDIT_PROFILE_FIELDS.map(field => field.toJSON()));
-}
 
 //Verifies Unique Profile Fields for realtime validations | userID excludes profile for editing
 //Uses Query Parameters: GET localhost:5000/resources/available-account?email=ethan@encouragingprayer.org&displayName=ethan
 export const GET_AvailableAccount =  async (request: Request, response: Response, next: NextFunction) => { //(ALL fields and values are case insensitive)
-    if(URL.parse(request.originalUrl).query === '')
-        new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`, 'Invalid Account');
+    const fieldMap:Map<string, string> = new Map(new URLSearchParams(URL.parse(request.originalUrl).query ?? '').entries());
 
-    const fieldMap:Map<string, string> = new Map(new URLSearchParams(URL.parse(request.originalUrl).query).entries());
-    const result:Boolean|undefined = await DB_UNIQUE_USER_EXISTS(fieldMap, true);
+    if(fieldMap.size === 0 || Array.from(fieldMap.values()).some(v => v.trim() === ''))
+        return next(new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`, 'Invalid Account'));
 
+    const result:boolean|undefined = await DB_UNIQUE_USER_EXISTS(fieldMap, true);
     if(result === undefined) 
         response.status(400).send(`Invalid Field Request: ${Array.from(fieldMap.keys()).join(', ')}`);
     else if(result === false) 
@@ -219,7 +195,7 @@ export const DELETE_userProfile = async (request: JwtClientRequest, response: Re
 export const GET_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
     const filePath:string|undefined = (await DB_SELECT_USER(new Map([['userID', request.clientID]]))).image || undefined;
     if(filePath !== undefined)
-        response.status(200).redirect(filePath);
+        response.status(200).send(filePath);
     else
         next(new Exception(404, `User ${request.clientID} doesn't have a saved profile image`, 'No Image'));
 }

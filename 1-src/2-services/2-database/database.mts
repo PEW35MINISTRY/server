@@ -27,7 +27,7 @@ const GetRDSSecretCredentials = async():Promise<AWSDatabaseSecrets> => {
 }
 
 
-const initializeDatabase = async():Promise<SQL.Pool> => {
+export const initializeDatabase = async():Promise<SQL.Pool> => {
     console.log(`Initializing Database in ${getEnvironment()} Environment...`);
 
     if(DATABASE) {
@@ -85,10 +85,7 @@ const initializeDatabase = async():Promise<SQL.Pool> => {
     return DATABASE;
 }
 
- /*  Initialize Database  & Wait*/
-await initializeDatabase();   
-
-
+ 
 /* Prevent SQL Injection Protocol:
 * 1) Use Prepared Statements, auto escape input strings
 * 2) Validate Column Names

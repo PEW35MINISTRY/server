@@ -37,7 +37,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   postalCode?: string;
   dateOfBirth?: Date;
   gender?: GenderEnum;
-  isActive?: boolean;
+  emailVerified?: boolean;
   walkLevel?: number;
   maxPartners: number;
   image?: string;
@@ -56,6 +56,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   partnerPendingPartnerList: PartnerListItem[] = []; //Transformed in DB to USER perspective | Includes: PENDING_CONTRACT_PARTNER
   newPrayerRequestList: PrayerRequestListItem[] = [];   //Recipient for dashboard preview
   ownedPrayerRequestList: PrayerRequestListItem[] = []; //Not resolved (pending) for which user is the Requestor
+  expiringPrayerRequestList: PrayerRequestListItem[] = []; // Owned prayer requests that are long term but past their set expiration date
   recommendedContentList: ContentListItem[] = [];
   contactList: ProfileListItem[] = [];
   profileAccessList: ProfileListItem[] = []; //Leaders
