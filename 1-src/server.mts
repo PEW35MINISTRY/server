@@ -3,6 +3,7 @@ dotenv.config();
 import fs, { readFileSync } from 'fs';
 import path, { join } from 'path';
 const __dirname = path.resolve();
+import { execSync } from 'child_process';
 import { createServer, request } from 'http';
 import express, { Application , Request, Response, NextFunction, response} from 'express';
 import { Server, Socket } from 'socket.io';

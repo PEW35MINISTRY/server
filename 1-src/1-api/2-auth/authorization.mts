@@ -25,7 +25,7 @@ export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: 
 
     //Verify JWT
     else if(!verifyJwt(request.headers['jwt'])) 
-        next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Invalid JWT for User: ${request.headers['jwt']}`));
+        next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Invalid JWT for User: ${request.headers['jwt']}`, 'Please Re-login'));
 
     //Inject jwtUserID into request object
     else {

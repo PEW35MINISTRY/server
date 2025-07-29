@@ -24,12 +24,12 @@ import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilit
 //Verifies Unique Profile Fields for realtime validations | userID excludes profile for editing
 //Uses Query Parameters: GET localhost:5000/resources/available-account?email=ethan@encouragingprayer.org&displayName=ethan
 export const GET_AvailableAccount =  async (request: Request, response: Response, next: NextFunction) => { //(ALL fields and values are case insensitive)
-    if(URL.parse(request.originalUrl).query === '')
-        new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`, 'Invalid Account');
+    const fieldMap:Map<string, string> = new Map(new URLSearchParams(URL.parse(request.originalUrl).query ?? '').entries());
 
-    const fieldMap:Map<string, string> = new Map(new URLSearchParams(URL.parse(request.originalUrl).query).entries());
-    const result:Boolean|undefined = await DB_UNIQUE_USER_EXISTS(fieldMap, true);
+    if(fieldMap.size === 0 || Array.from(fieldMap.values()).some(v => v.trim() === ''))
+        return next(new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`, 'Invalid Account'));
 
+    const result:boolean|undefined = await DB_UNIQUE_USER_EXISTS(fieldMap, true);
     if(result === undefined) 
         response.status(400).send(`Invalid Field Request: ${Array.from(fieldMap.keys()).join(', ')}`);
     else if(result === false) 

@@ -37,7 +37,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   postalCode?: string;
   dateOfBirth?: Date;
   gender?: GenderEnum;
-  isActive?: boolean;
+  emailVerified?: boolean;
   walkLevel?: number;
   maxPartners: number;
   image?: string;

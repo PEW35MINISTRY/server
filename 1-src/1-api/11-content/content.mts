@@ -11,8 +11,9 @@ import { ContentSourceEnum, ContentTypeEnum, EDIT_CONTENT_FIELDS, EDIT_CONTENT_F
 import { clearImage, clearImageCombinations, isURLImageFormatted, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ContentImageRequest, ContentMetaDataRequest } from './content-types.mjs';
 import { ContentMetaDataResponseBody } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
-import { isEnumValue, isURLValid } from '../../2-services/10-utilities/utilities.mjs';
+import { isEnumValue } from '../../2-services/10-utilities/utilities.mjs';
 import { contentCopyImageThumbnail, fetchContentMetadata } from './content-utilities.mjs';
+import { isURLValid } from '../../0-assets/field-sync/input-config-sync/inputValidation.mjs';
 
 
 
