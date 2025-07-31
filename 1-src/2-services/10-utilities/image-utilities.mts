@@ -4,9 +4,7 @@ import * as log from './logging/log.mjs';
 import { SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ImageTypeEnum } from '../../1-api/api-types.mjs';
 import { getEnvironment, getSHA256Hash, isEnumValue } from './utilities.mjs';
-import dotenv from 'dotenv';
 import { isURLValid } from '../../0-assets/field-sync/input-config-sync/inputValidation.mjs';
-dotenv.config(); 
 
 
 

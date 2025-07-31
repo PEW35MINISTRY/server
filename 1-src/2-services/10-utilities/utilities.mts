@@ -2,8 +2,6 @@ import { createHash } from 'crypto';
 import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-types.mjs';
-import dotenv from 'dotenv';
-dotenv.config(); 
 
 
 

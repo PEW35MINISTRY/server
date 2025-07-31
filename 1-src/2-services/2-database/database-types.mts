@@ -22,14 +22,10 @@ export interface DatabaseTableUsage {
 }
 
 export interface DatabaseUserStats extends DatabaseTableUsage {
-    active:number,
-    // verified: number,
+    emailVerified:number,
     walkLevelMap:Map<number, number>,
-
-    //User Role Totals
-    reported:number,
-    inactive:number,
     roleMap:Map<DATABASE_USER_ROLE_ENUM, number>,
+    unassignedUsers:number, //Without user_role, defaults to USER
 }
   
 

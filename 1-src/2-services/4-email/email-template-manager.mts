@@ -11,12 +11,12 @@ import * as log from '../10-utilities/logging/log.mjs';
 
 export enum EMAIL_TEMPLATE_TYPE {
     MESSAGE = 'MESSAGE',
-    ADMIN_REPORT = 'ADMIN_REPORT',
+    STATS_REPORT = 'STATS_REPORT',
 }
 
 const getTemplateFilePath = (type:EMAIL_TEMPLATE_TYPE):PathLike => {
     switch(type) {
-        case EMAIL_TEMPLATE_TYPE.ADMIN_REPORT: return path.join(__dirname, '1-src', '2-services', '4-email', 'templates', 'admin_report.html');
+        case EMAIL_TEMPLATE_TYPE.STATS_REPORT: return path.join(__dirname, '1-src', '2-services', '4-email', 'templates', 'stats_report.html');
         default: return path.join(__dirname, '1-src', '2-services', '4-email', 'templates', 'message.html'); //Simple Message
     }
 }

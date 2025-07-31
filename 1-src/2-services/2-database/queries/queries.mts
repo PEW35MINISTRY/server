@@ -60,17 +60,22 @@ export const DB_CALCULATE_USER_TABLE_STATS = async(): Promise<DatabaseUserStats>
         + 'SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 7 DAY THEN 1 ELSE 0 END) AS modified7Days, '
         + 'SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS modified30Days, '
         
-        + 'SUM(isActive = 1) AS active, '
+        + 'SUM(emailVerified = 1) AS emailVerified, '
         // + 'SUM(verifiedDT IS NOT NULL) AS verified, '
         + [1,2,3,4,5,6,7,8,9,10].map((level) => `SUM(walkLevel = ${level}) AS 'walkLevel_${level}'`).join(', \n') 
         + ', '
 
-        + Object.values(DATABASE_USER_ROLE_ENUM).map((role) => `
-            (SELECT COUNT(*) 
-                FROM user_role ur 
-                JOIN user_role_defined urd ON ur.userRoleID = urd.userRoleID 
-                WHERE urd.userRole = '${role}') AS ${role}
-            `).join(', \n')
+        + Object.values(DATABASE_USER_ROLE_ENUM).map((role) =>
+            `(SELECT COUNT(*) 
+                FROM user_role 
+                JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID 
+                WHERE user_role_defined.userRole = '${role}') AS ${role}`
+            ).join(', \n')
+
+        + `, (SELECT COUNT(*) 
+                FROM user 
+                LEFT JOIN user_role ON user.userID = user_role.userID 
+                WHERE user_role.userID IS NULL) AS NO_ROLE `
 
         + `FROM user;`); 
     
@@ -82,18 +87,16 @@ export const DB_CALCULATE_USER_TABLE_STATS = async(): Promise<DatabaseUserStats>
         modified24Hours: row?.modified24Hours ?? 0,
         modified7Days: row?.modified7Days ?? 0,
         modified30Days: row?.modified30Days ?? 0,
-        active: row?.active ?? 0,
-        // verified: row.verified,
+        emailVerified: row?.emailVerified ?? 0,
         walkLevelMap: new Map(
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => [
                 level, row ? (row[`walkLevel_${level}`] ?? 0) : 0
             ])
         ),
-        reported: row?.reported ?? 0,
-        inactive: row?.inactive ?? 0,
         roleMap: new Map(Object.values(DATABASE_USER_ROLE_ENUM).map(role => [
             role, row ? (row[role] ?? 0) : 0
         ])),
+        unassignedUsers: row?.NO_ROLE ?? 0,
     };
 };
 
