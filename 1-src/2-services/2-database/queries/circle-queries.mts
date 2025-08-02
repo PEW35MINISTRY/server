@@ -267,8 +267,8 @@ export const DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES = async(userID:number):Pr
         + 'LEFT JOIN circle_user ON circle_announcement.circleID = circle_user.circleID '
         + 'WHERE (( circle_user.userID = ? AND circle_user.status = ? ) OR circle.leaderID = ? ) '
         + 'AND circle_announcement.startDate < ? '
-        // + 'AND circle_announcement.endDate > ? '  //TODO enable once we have auto delete routines
-        + 'ORDER BY startDate ASC;', [userID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, userID, currentDate]);
+        + 'AND circle_announcement.endDate > ? '  //TODO create an auto delete routines
+        + 'ORDER BY startDate ASC;', [userID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, userID, currentDate, currentDate]);
 
     return [...rows.map(row => (CIRCLE_ANNOUNCEMENT.constructByDatabase(row as DATABASE_CIRCLE_ANNOUNCEMENT)))];
 }

@@ -1,7 +1,8 @@
 import { NextFunction, Response } from 'express';
-import { CircleEventListItem, CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
-import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleSearchRefineEnum, CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
-import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
+import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
+import InputField, { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../2-services/1-models/circleAnnouncementModel.mjs';
 import CIRCLE from '../../2-services/1-models/circleModel.mjs';
@@ -15,7 +16,6 @@ import { Exception, ImageTypeEnum } from '../api-types.mjs';
 import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest } from './circle-types.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
-import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleNotificationType } from '../8-notification/notification-types.mjs';
 import { sendNotificationCircle} from '../8-notification/notification-utilities.mjs';
 
@@ -37,7 +37,9 @@ export const GET_circle =  async(request: JwtCircleRequest, response: Response, 
 
     //Additional Details for all circle statuses
     circle.memberList = await DB_SELECT_CIRCLE_USER_LIST(circle.circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER);
-    circle.eventList = getCircleEventSampleList(request.circleID); //TODO Define Circle Event once Implemented
+    
+    if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL)
+        circle.eventList = getCircleEventSampleList(request.circleID); //TODO Define Circle Event once Implemented
 
     //Public Circle Details only
     if([CircleStatusEnum.NON_MEMBER, CircleStatusEnum.INVITE, CircleStatusEnum.REQUEST].includes(circle.requestorStatus) && (request.jwtUserRole !== RoleEnum.ADMIN)) { 

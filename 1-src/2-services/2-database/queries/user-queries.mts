@@ -14,6 +14,7 @@ import { DB_SELECT_USER_CONTENT_LIST } from './content-queries.mjs';
 import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 
 
 /**************************************************************************
@@ -102,6 +103,13 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
     user.circleRequestList = allCircleList.filter(circle => circle.status === CircleStatusEnum.REQUEST);
     user.circleInviteList = allCircleList.filter(circle => circle.status === CircleStatusEnum.INVITE);
     user.circleAnnouncementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES(user.userID);
+
+    //TEMPORARY for Beta
+    const betaWelcome:CIRCLE_ANNOUNCEMENT = new CIRCLE_ANNOUNCEMENT();
+    betaWelcome.message = "WELCOME TO THE BETA!\nHelp? -> support@encouragingprayer.org";
+    betaWelcome.startDate = new Date();
+    betaWelcome.endDate = new Date(Date.now() + (1000 * 60 * 60 * 24));
+    user.circleAnnouncementList.unshift(betaWelcome);
 
     /* Partnerships */
     const allPartnerList:PartnerListItem[] = await DB_SELECT_PARTNER_LIST(user.userID);
