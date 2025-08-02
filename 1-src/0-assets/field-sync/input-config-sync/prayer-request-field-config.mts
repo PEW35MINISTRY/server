@@ -44,7 +44,7 @@ export const CREATE_PRAYER_REQUEST_FIELDS:InputField[] = [
     new InputSelectionField({title: 'Category', field: 'tagList', type: InputType.MULTI_SELECTION_LIST, selectOptionList: Object.values(PrayerRequestTagEnum)}),
     new InputSelectionField({title: 'Duration', field: 'duration', type: InputType.SELECT_LIST, value: '7', selectOptionList:Array.from(PrayerRequestDurationsMap.values()), displayOptionList:Array.from(PrayerRequestDurationsMap.keys())}), //Mock Field for 'expirationDate'
     new InputField({title: 'Expiration Date', field: 'expirationDate', required: true, hide: true, type: InputType.DATE, value: getDateDaysFuture().toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Must be future date.' }),
-    new InputSelectionField({title: 'Remind Me', field: 'isOnGoing', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
+    new InputSelectionField({title: 'Remind Me', field: 'isOnGoing', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false'], displayOptionList: ['Yes', 'No']}),
     new InputField({title: 'Send to Contacts', field: 'addUserRecipientIDList', hide: true, type: InputType.USER_ID_LIST}),
     new InputField({title: 'Send to Circles', field: 'addCircleRecipientIDList', hide: true, type: InputType.CIRCLE_ID_LIST}),
 ];

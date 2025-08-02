@@ -34,7 +34,7 @@ export enum InputType {
     USER_ID_LIST = 'USER_ID_LIST',        //Indicate fetch & display user contact list
     CIRCLE_ID_LIST = 'CIRCLE_ID_LIST',    //Indicate fetch & display circle membership list
     CUSTOM_STRING_LIST = 'CUSTOM_STRING_LIST',
-    RANGE_SLIDER = 'MAX_MIN_SLIDER',
+    RANGE_SLIDER = 'RANGE_SLIDER',
 }
 
 export const isListType = (type:InputType):boolean => [InputType.MULTI_SELECTION_LIST, InputType.USER_ID_LIST, InputType.CIRCLE_ID_LIST, InputType.CUSTOM_STRING_LIST].includes(type)
@@ -75,7 +75,7 @@ export default class InputField {
         this.required = unique || required;
         this.hide = hide;
         this.length = length;
-        this.validationMessage = validationMessage ?? ((validationRegex?.source === PLAIN_TEXT_REGEX.source) ? 'Plain Text Only' : 'Invalid Input');
+        this.validationMessage = validationMessage ?? ((validationRegex?.source === PLAIN_TEXT_REGEX.source) ? 'Alphanumeric, dashes, underscores only (no spaces)' : 'Invalid Input');
         this.environmentList = environmentList ?? Object.values(ENVIRONMENT_TYPE);
 
         /* Default Regex by InputType */
