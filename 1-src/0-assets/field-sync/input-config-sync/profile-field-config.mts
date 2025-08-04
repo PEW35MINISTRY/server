@@ -107,7 +107,7 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_PROD, validationMessage: PASSWORD_VALIDATION_MESSAGE_PROD, environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_PROD, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
-    new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, length:{min:5, max:15} }),
+    new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, length:{min:5, max:15}, validationRegex:PLAIN_TEXT_REGEX}),
 ];
 
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
@@ -134,7 +134,7 @@ export const SIGNUP_PROFILE_FIELDS_USER:InputField[] = [
     new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_PROD, validationMessage: PASSWORD_VALIDATION_MESSAGE_PROD, environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_PROD, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
-    new InputField({title: 'Postal Code', field: 'postalCode', required: true, length:{min:5, max:15}, validationRegex:PLAIN_TEXT_REGEX}),
+    new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, length:{min:5, max:15}, validationRegex:PLAIN_TEXT_REGEX}),
     new InputSelectionField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),
     new InputField({title: 'Date of Birth', field: 'dateOfBirth', type: InputType.DATE, required: true, value: getDateYearsAgo(18).toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Invalid Selection' }),
 ];
