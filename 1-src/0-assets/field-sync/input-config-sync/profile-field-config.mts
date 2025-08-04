@@ -102,7 +102,7 @@ export const LOGIN_PROFILE_FIELDS:InputField[] = [
 export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'First Name', field: 'firstName', type: InputType.TEXT, required: true, length:{min:1, max:30}, validationRegex:PLAIN_TEXT_REGEX }),
     new InputField({title: 'Last Name', field: 'lastName', type: InputType.TEXT, required: true, length:{min:1, max:30}, validationRegex:PLAIN_TEXT_REGEX }),
-    new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, unique: true, length:{min:1, max:15}, validationRegex: PLAIN_TEXT_REGEX }),
+    new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, required: true, unique: true, length:{min:5, max:15}, validationRegex: PLAIN_TEXT_REGEX }),
     new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_DEV, validationMessage: PASSWORD_VALIDATION_MESSAGE_DEV, environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
     new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_PROD, validationMessage: PASSWORD_VALIDATION_MESSAGE_PROD, environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: false, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
@@ -113,7 +113,7 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
 export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
     new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.CUSTOM, selectOptionList: Object.values(RoleEnum) }),
     new InputSelectionField({title: 'Source Environment', field: 'modelSourceEnvironment', required: true, type: InputType.SELECT_LIST, selectOptionList: Object.values(ModelSourceEnvironmentEnum), environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT]}),
-    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, unique: true,  validationRegex: EMAIL_REGEX }),
+    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, unique: true,  validationRegex: EMAIL_REGEX }),
     new InputSelectionField({title: 'Email Verified', field: 'emailVerified', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     ...EDIT_PROFILE_FIELDS,
     new InputSelectionField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),
@@ -129,7 +129,7 @@ export const SIGNUP_PROFILE_FIELDS_USER:InputField[] = [
     new InputField({title: 'First Name', field: 'firstName', type: InputType.TEXT, required: true, length:{min:1, max:30} }),
     new InputField({title: 'Last Name', field: 'lastName', type: InputType.TEXT, required: true, length:{min:1, max:30} }),
     new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, required: true, unique: true, length:{min:5, max:15}, validationRegex: PLAIN_TEXT_REGEX }),
-    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, unique: true,  validationRegex: EMAIL_REGEX }),
+    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, unique: true,  validationRegex: EMAIL_REGEX }),
     new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: PASSWORD_VALIDATION_MESSAGE_DEV, environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
     new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_PROD, validationMessage: PASSWORD_VALIDATION_MESSAGE_PROD, environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
     new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
