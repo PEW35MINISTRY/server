@@ -265,6 +265,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
             + '    JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
             + `    WHERE user.userID = user_role.userID AND user_role_defined.userRole IN ('REPORTED', 'INACTIVE') `
             + ') '
+            + 'AND user.postalCode != ? ' //TODO Enhance with Proximity Feature
         + `ORDER BY (user.modelSourceEnvironment != '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}'), `
             + 'COALESCE( partnerCounts.partnerCount, 0 ) ASC, ' //Prioritize without any partners
             + 'RAND() '
@@ -282,6 +283,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
         maxDateOfBirth.toISOString(),
         user.walkLevel - walkLevelRange,
         user.walkLevel + walkLevelRange,
+        user.postalCode,
     ]);
 
     return [...rows.map(row => (USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem()))];
