@@ -1,7 +1,8 @@
 import { NextFunction, Response } from 'express';
-import { CircleEventListItem, CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
-import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleSearchRefineEnum, CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
-import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
+import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
+import InputField, { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../2-services/1-models/circleAnnouncementModel.mjs';
 import CIRCLE from '../../2-services/1-models/circleModel.mjs';
@@ -12,10 +13,9 @@ import { DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS, DB_IS_USER_ROLE } from '../../2
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { JwtCircleRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
-import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
+import { clearImage, clearImageByID, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest } from './circle-types.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
-import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleNotificationType } from '../8-notification/notification-types.mjs';
 import { sendNotificationCircle} from '../8-notification/notification-utilities.mjs';
 
@@ -37,7 +37,9 @@ export const GET_circle =  async(request: JwtCircleRequest, response: Response, 
 
     //Additional Details for all circle statuses
     circle.memberList = await DB_SELECT_CIRCLE_USER_LIST(circle.circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER);
-    circle.eventList = getCircleEventSampleList(request.circleID); //TODO Define Circle Event once Implemented
+    
+    if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL)
+        circle.eventList = getCircleEventSampleList(request.circleID); //TODO Define Circle Event once Implemented
 
     //Public Circle Details only
     if([CircleStatusEnum.NON_MEMBER, CircleStatusEnum.INVITE, CircleStatusEnum.REQUEST].includes(circle.requestorStatus) && (request.jwtUserRole !== RoleEnum.ADMIN)) { 
@@ -158,7 +160,7 @@ export const DELETE_circle =  async(request: JwtCircleRequest, response: Respons
     else if(await DB_DELETE_CIRCLE_USER_STATUS({userID: undefined, circleID: request.circleID}) === false)
         next(new Exception(500, `Failed to delete all user members for circle ${request.circleID}`, 'Removing Members Failed'));
         
-    else if(await clearImageCombinations({id: request.circleID, imageType: ImageTypeEnum.CIRCLE_PROFILE}) === false)
+    else if(await clearImageByID({id: request.circleID, imageType: ImageTypeEnum.CIRCLE_PROFILE}) === false)
         next(new Exception(500, `Failed to delete circle profile image for circle ${request.circleID}`, 'Profile Image Exists'));
 
     else if(await DB_DELETE_CIRCLE(request.circleID)) {
@@ -200,7 +202,7 @@ export const POST_circleImage = async(request: CircleImageRequest, response: Res
 }
 
 export const DELETE_circleImage = async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
-    if(await clearImageCombinations({id:request.circleID, imageType: ImageTypeEnum.CIRCLE_PROFILE}) && await DB_UPDATE_CIRCLE(request.circleID, new Map([['image', null]])))
+    if(await clearImageByID({id:request.circleID, imageType: ImageTypeEnum.CIRCLE_PROFILE}) && await DB_UPDATE_CIRCLE(request.circleID, new Map([['image', null]])))
         response.status(202).send(`Successfully deleted circle image for ${request.circleID}`);
     else
         next(new Exception(500, `Circle image deletion failed for ${request.circleID}`, 'Delete Failed'));

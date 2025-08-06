@@ -1,9 +1,10 @@
-import { DeleteObjectCommand, DeleteObjectCommandOutput, PutObjectCommand, PutObjectCommandOutput , S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, DeleteObjectCommandOutput, DeleteObjectsCommand, ListObjectsV2Command, PutObjectCommand, PutObjectCommandOutput , S3Client } from '@aws-sdk/client-s3';
 import axios from 'axios';
 import * as log from './logging/log.mjs';
 import { SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ImageTypeEnum } from '../../1-api/api-types.mjs';
-import { getEnvironment, getSHA256Hash, isEnumValue } from './utilities.mjs';
+import { getEnvironment, getSHA256Hash } from './utilities.mjs';
+import dotenv from 'dotenv';
 import { isURLValid } from '../../0-assets/field-sync/input-config-sync/inputValidation.mjs';
 
 
@@ -11,52 +12,43 @@ import { isURLValid } from '../../0-assets/field-sync/input-config-sync/inputVal
 /***************************
  * EXPORTED IMAGE HANDLING *
  ***************************/
-
-  export const isURLImageFormatted = (imageURL:string):boolean => {
+//Test URL to fit system hosted and 'ImageType_ID' prefix format
+export const isURLImageFormatted = (imageURL:string):boolean => {
     try {
-      const parsedUrl = new URL(imageURL);
-      const expectedHost = `${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com`;
-  
-      const fileName = parsedUrl.pathname.split('/').pop() ?? '';
-      const [imageType, idAndExtension] = fileName.split('_');
-      const [id, extension] = idAndExtension ? idAndExtension.split('.') : [undefined, undefined];
-  
-      return (
-        (parsedUrl.hostname === expectedHost)
-        && fileName
-        && imageType
-        && id
-        && extension
-        && SUPPORTED_IMAGE_EXTENSION_LIST.includes(extension.toLowerCase())
-        && isEnumValue(ImageTypeEnum, imageType.toUpperCase())
-      );
-    } catch(error) {
+        const parsedUrl:URL = new URL(imageURL);
+        const fileName:string = parsedUrl.pathname.split('/').pop() ?? '';
+
+        const match = fileName.match(/_(\d+)/);
+
+        return (
+            parsedUrl.hostname === `${process.env.IMAGE_BUCKET_NAME}.s3.amazonaws.com`
+            && !!match
+            && !Number.isNaN(Number(match[1]))
+            && Object.values(ImageTypeEnum).some(imageType => 
+                fileName.startsWith(getImageFileNamePrefix({ id: Number(match[1]), imageType })
+            ))
+        );
+    } catch (error) {
         log.error('Error validating image URL', imageURL, process.env.IMAGE_BUCKET_NAME, error, error.message);
-      return false;
+        return false;
     }
-  };
+};
+
+
+const getImageFileNamePrefix = ({ id, imageType }:{ id:number, imageType:ImageTypeEnum }):string => `${imageType.toLowerCase()}_${id}`;
 
   
 export const getImageFileName = ({id, imageType, fileName}:{id:number, imageType:ImageTypeEnum, fileName:string}):string|undefined => {
     const extension = fileName.split('.').pop(); //dot optional
     const currentTime = new Date().getTime().toString();
-    const fileNameHash = getSHA256Hash(`${imageType.toLowerCase()}_${id}_${currentTime}`);
+    const fileNameHash = getSHA256Hash(`${getImageFileNamePrefix({id, imageType})}_${currentTime}`);
     if(SUPPORTED_IMAGE_EXTENSION_LIST.includes(extension)) 
-        return `${imageType.toLowerCase()}_${id}_${fileNameHash}.${extension}`;
+        return `${getImageFileNamePrefix({id, imageType})}_${fileNameHash}.${extension}`;
     else {
         log.error('Image Upload to AWS S3 with unsupported file type.', extension, fileName, imageType, id);
         return undefined;
     }    
 }
-
-
-//Attempts all supported image extensions and return false for any error responses
-export const clearImageCombinations = async ({id, imageType}:{id:number, imageType:ImageTypeEnum}):Promise<boolean> =>
-    await SUPPORTED_IMAGE_EXTENSION_LIST.reduce(async(previousCall, extension) => {
-        const previousResult:boolean = await previousCall;
-        return clearImage(getImageFileName({id, imageType, fileName: extension})) && previousResult;
-    }, Promise.resolve(true));
-
 
 
  /******************************
@@ -121,6 +113,36 @@ export const clearImage = async(fileName:string):Promise<boolean> => {
     }
 }
 
+
+//Searches & deletes all matching prefix: `ImageType_ID` | Returns true on non error
+export const clearImageByID = async ({ id, imageType }:{ id:number, imageType:ImageTypeEnum }):Promise<boolean> => {
+    const prefix = getImageFileNamePrefix({ id, imageType });
+    try {
+        const client = new S3Client({ region: process.env.IMAGE_BUCKET_REGION });
+        const listResponse = await client.send(
+            new ListObjectsV2Command({
+                Bucket: process.env.IMAGE_BUCKET_NAME,
+                Prefix: prefix,
+            }));
+        const objectsToDelete = listResponse.Contents;
+
+        if(!objectsToDelete || objectsToDelete.length === 0)
+            return true;
+
+        const deleteResponse = await client.send(
+            new DeleteObjectsCommand({
+                Bucket: process.env.IMAGE_BUCKET_NAME,
+                Delete: { Objects: (listResponse.Contents || []).map(obj => ({ Key: obj.Key! })) },
+            }));
+
+        log.event(`Deleted ${deleteResponse?.Deleted?.length || 0} images with prefix`, prefix);
+        return true;
+
+    } catch(error) {
+        log.error(`Error deleting images with prefix ${prefix}`, error, error?.message);
+        return false;
+    }
+}
 
 
  /********************************

@@ -9,11 +9,12 @@ import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync
 import { GENERAL_USER_ROLES, PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import { batch, command, execute, validateColumns } from '../database.mjs';
-import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
+import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
 import { DB_SELECT_USER_CONTENT_LIST } from './content-queries.mjs';
 import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 
 
 /**************************************************************************
@@ -115,6 +116,13 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
     user.circleInviteList = allCircleList.filter(circle => circle.status === CircleStatusEnum.INVITE);
     user.circleAnnouncementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES(user.userID);
 
+    //TEMPORARY for Beta
+    const betaWelcome:CIRCLE_ANNOUNCEMENT = new CIRCLE_ANNOUNCEMENT();
+    betaWelcome.message = "WELCOME TO THE BETA!\nHelp? -> support@encouragingprayer.org";
+    betaWelcome.startDate = new Date();
+    betaWelcome.endDate = new Date(Date.now() + (1000 * 60 * 60 * 24));
+    user.circleAnnouncementList.unshift(betaWelcome);
+
     /* Partnerships */
     const allPartnerList:PartnerListItem[] = await DB_SELECT_PARTNER_LIST(user.userID);
     user.partnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PARTNER));
@@ -129,7 +137,7 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
 
     //Query via Search to use cached list
     user.contactList = await searchList(SearchType.CONTACT, generateJWTRequest(user.userID, user.getHighestRole()) as JwtSearchRequest) as ProfileListItem[];
-    if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES(user.userID, true);
+    if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES(user.userID, true);
 
     return user;
 }

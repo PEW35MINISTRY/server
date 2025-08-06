@@ -198,6 +198,11 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
             return false;
           } else return true;
         }));
+
+    } else if(field.field === 'password') {
+        if(value === undefined || value === null || value === '') {
+          return false;
+        } //Pass through to undefined for general password validations
     }
 
     //No Field Match
