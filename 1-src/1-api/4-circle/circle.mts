@@ -12,7 +12,7 @@ import { DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS, DB_IS_USER_ROLE } from '../../2
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { JwtCircleRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
-import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
+import { clearImage, clearImageByID, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { CircleAnnouncementCreateRequest, CircleImageRequest, JwtCircleClientRequest } from './circle-types.mjs';
 import getCircleEventSampleList from './circle-event-samples.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
@@ -158,7 +158,7 @@ export const DELETE_circle =  async(request: JwtCircleRequest, response: Respons
     else if(await DB_DELETE_CIRCLE_USER_STATUS({userID: undefined, circleID: request.circleID}) === false)
         next(new Exception(500, `Failed to delete all user members for circle ${request.circleID}`, 'Removing Members Failed'));
         
-    else if(await clearImageCombinations({id: request.circleID, imageType: ImageTypeEnum.CIRCLE_PROFILE}) === false)
+    else if(await clearImageByID({id: request.circleID, imageType: ImageTypeEnum.CIRCLE_PROFILE}) === false)
         next(new Exception(500, `Failed to delete circle profile image for circle ${request.circleID}`, 'Profile Image Exists'));
 
     else if(await DB_DELETE_CIRCLE(request.circleID)) {
@@ -200,7 +200,7 @@ export const POST_circleImage = async(request: CircleImageRequest, response: Res
 }
 
 export const DELETE_circleImage = async(request: JwtCircleRequest, response: Response, next: NextFunction) => {
-    if(await clearImageCombinations({id:request.circleID, imageType: ImageTypeEnum.CIRCLE_PROFILE}) && await DB_UPDATE_CIRCLE(request.circleID, new Map([['image', null]])))
+    if(await clearImageByID({id:request.circleID, imageType: ImageTypeEnum.CIRCLE_PROFILE}) && await DB_UPDATE_CIRCLE(request.circleID, new Map([['image', null]])))
         response.status(202).send(`Successfully deleted circle image for ${request.circleID}`);
     else
         next(new Exception(500, `Circle image deletion failed for ${request.circleID}`, 'Delete Failed'));

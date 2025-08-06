@@ -8,7 +8,7 @@ import InputField from '../../0-assets/field-sync/input-config-sync/inputField.m
 import CONTENT_ARCHIVE from '../../2-services/1-models/contentArchiveModel.mjs';
 import { CONTENT_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { ContentSourceEnum, ContentTypeEnum, EDIT_CONTENT_FIELDS, EDIT_CONTENT_FIELDS_ADMIN } from '../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
-import { clearImage, clearImageCombinations, isURLImageFormatted, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
+import { clearImage, clearImageByID, isURLImageFormatted, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ContentImageRequest, ContentMetaDataRequest } from './content-types.mjs';
 import { ContentMetaDataResponseBody } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import { isEnumValue } from '../../2-services/10-utilities/utilities.mjs';
@@ -151,7 +151,7 @@ export const POST_contentArchiveImage = async(request: ContentImageRequest, resp
 }
 
 export const DELETE_contentArchiveImage = async(request: ContentImageRequest, response: Response, next: NextFunction) => {
-    if(await clearImageCombinations({id:request.contentID, imageType: ImageTypeEnum.CONTENT_THUMBNAIL}) && await DB_UPDATE_CONTENT(request.contentID, new Map([['image', null]])))
+    if(await clearImageByID({id:request.contentID, imageType: ImageTypeEnum.CONTENT_THUMBNAIL}) && await DB_UPDATE_CONTENT(request.contentID, new Map([['image', null]])))
         response.status(202).send(`Successfully deleted circle image for ${request.contentID}`);
     else
         next(new Exception(500, `Circle image deletion failed for ${request.contentID}`, 'Delete Failed'));
