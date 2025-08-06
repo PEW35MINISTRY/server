@@ -37,7 +37,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   postalCode?: string;
   dateOfBirth?: Date;
   gender?: GenderEnum;
-  isActive?: boolean;
+  emailVerified?: boolean;
   walkLevel?: number;
   maxPartners: number;
   image?: string;
@@ -198,6 +198,11 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
             return false;
           } else return true;
         }));
+
+    } else if(field.field === 'password') {
+        if(value === undefined || value === null || value === '') {
+          return false;
+        } //Pass through to undefined for general password validations
     }
 
     //No Field Match

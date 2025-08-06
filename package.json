@@ -10,16 +10,23 @@
     "preportal": "rimraf portal/",
     "portal": "build-portal",
     "postportal": "cp -r ../portal/build ../server/portal",
+
+    "build:html": "node ./0-compiled/5-scripts/static-pages.mjs",
+    "build:version": " node ./0-compiled/5-scripts/version.mjs",
     "prebuild": "rimraf 0-compiled/",
     "build": "tsc",
-    "archive": "rm -rf 0-compiled && tsc && mkdir 0-compiled/archived && cp -r 0-compiled/* 0-compiled/archived && cp -r node_modules 0-compiled/archived && cp 0-compiled/3-lambda/index.mjs 0-compiled/archived && (cd 0-compiled/archived && zip -r ../../Lambda.zip .) && rm -rf 0-compiled/archived",
+    "postbuild": "npm run build:version && npm run build:html",
+    
     "open": "start http://localhost:5000",
     "preserve": "npm run build",
     "serve": "node ./0-compiled/server.mjs",
     "server": "npm run serve",
-    "start": "npm run build & npm run open & npm run serve",
-    "update": "npm run website && npm run portal && npm run start",
-    "debug": "aws sso login & npm run serve",
+    "start": "rimraf 0-compiled/ && tsc && node ./0-compiled/server.mjs",
+    "dev": "aws sso login && npm run start",
+
+    "sync-config": "node ./0-compiled/5-scripts/config-sync.mjs",
+    "update": "npm run sync-config && npm run website && npm run portal & npm run postbuild",
+    "archive": "rm -rf 0-compiled && tsc && mkdir 0-compiled/archived && cp -r 0-compiled/* 0-compiled/archived && cp -r node_modules 0-compiled/archived && cp 0-compiled/3-lambda/index.mjs 0-compiled/archived & (cd 0-compiled/archived && zip -r ../../Lambda.zip .) & rm -rf 0-compiled/archived",
     "clean": "rimraf node_modules/ package-lock.json 0-compiled/"
   },
   "dependencies": {

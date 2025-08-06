@@ -5,6 +5,9 @@
 * Sync across all repositories: server, portal, mobile *
 ********************************************************/
 
+export const PLAIN_TEXT_REGEX = /^[ a-zA-Z0-9_-]+$/;
+export const DATE_REGEX = new RegExp(/^\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z)?$/); //1970-01-01T00:00:00.013Z
+
 export enum ENVIRONMENT_TYPE {
     LOCAL = 'LOCAL',
     DEVELOPMENT = 'DEVELOPMENT',
@@ -19,6 +22,7 @@ export enum DeviceOSEnum {
 }
 
 export enum InputType {
+    CUSTOM = 'CUSTOM',
     TEXT = 'TEXT',
     NUMBER = 'NUMBER',
     EMAIL = 'EMAIL',
@@ -30,7 +34,7 @@ export enum InputType {
     USER_ID_LIST = 'USER_ID_LIST',        //Indicate fetch & display user contact list
     CIRCLE_ID_LIST = 'CIRCLE_ID_LIST',    //Indicate fetch & display circle membership list
     CUSTOM_STRING_LIST = 'CUSTOM_STRING_LIST',
-    RANGE_SLIDER = 'MAX_MIN_SLIDER',
+    RANGE_SLIDER = 'RANGE_SLIDER',
 }
 
 export const isListType = (type:InputType):boolean => [InputType.MULTI_SELECTION_LIST, InputType.USER_ID_LIST, InputType.CIRCLE_ID_LIST, InputType.CUSTOM_STRING_LIST].includes(type)
@@ -55,12 +59,13 @@ export default class InputField {
     required: boolean;
     unique: boolean;
     hide: boolean;
+    length: {min:number, max:number}|undefined;
     validationRegex: RegExp;
     validationMessage: string;
     environmentList: ENVIRONMENT_TYPE[];
 
-    constructor({title, field, customField, value, type=InputType.TEXT, required=false, unique=false, hide=false, validationRegex=new RegExp(/.+/), validationMessage='Invalid Input', environmentList=Object.values(ENVIRONMENT_TYPE) }
-        : {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?: InputType, required?:boolean, unique?:boolean, hide?:boolean, validationRegex?: RegExp, validationMessage?: string, environmentList?:ENVIRONMENT_TYPE[]}) {
+    constructor({title, field, customField, value, type=InputType.TEXT, required=false, unique=false, hide=false, length, validationRegex, validationMessage, environmentList=Object.values(ENVIRONMENT_TYPE) }
+        : {title:string, field:string, customField?:string | undefined, value?:string | undefined, type?:InputType, required?:boolean, unique?:boolean, hide?:boolean, length?:{min:number, max:number}, validationRegex?:RegExp, validationMessage?:string, environmentList?:ENVIRONMENT_TYPE[]}) {
         this.title = title;
         this.field = field;
         this.customField = customField;
@@ -69,9 +74,28 @@ export default class InputField {
         this.unique = unique;
         this.required = unique || required;
         this.hide = hide;
-        this.validationRegex = validationRegex;
-        this.validationMessage = validationMessage;
+        this.length = length;
+        this.validationMessage = validationMessage ?? ((validationRegex?.source === PLAIN_TEXT_REGEX.source) ? 'Alphanumeric, dashes, underscores only (no spaces)' : 'Invalid Input');
         this.environmentList = environmentList ?? Object.values(ENVIRONMENT_TYPE);
+
+        /* Default Regex by InputType */
+        if(validationRegex !== undefined)
+            this.validationRegex = validationRegex;
+
+        else if([InputType.NUMBER, InputType.USER_ID_LIST, InputType.CIRCLE_ID_LIST].includes(this.type))
+            this.validationRegex = /^[0-9]+$/;
+
+        else if([InputType.TEXT, InputType.PARAGRAPH, InputType.CUSTOM_STRING_LIST].includes(this.type)) {
+            if(this.length?.min === 0)
+                this.validationRegex = /.*/;
+            else //Requires one non-whitespace
+                this.validationRegex = /\S/;
+
+        } else //Anything passes
+            this.validationRegex = /.*/;
+
+        /* Validations */
+        if(this.length && (typeof this.length.min !== 'number' || typeof this.length.max !== 'number' || this.length.min > this.length.max)) throw new Error(`InputSelectionField - ${this.field} - Invalid length: ${JSON.stringify(this.length)}`);
     };
 
     setValue(value: string): void {this.value = value; }
@@ -114,7 +138,7 @@ export class InputSelectionField extends InputField {
             this.validationMessage = 'Please Select'
         }
 
-        if(![InputType.SELECT_LIST, InputType.MULTI_SELECTION_LIST].includes(this.type)) throw new Error(`InputSelectionField - ${field} - Invalid type: ${type}`);
+        if(![InputType.SELECT_LIST, InputType.MULTI_SELECTION_LIST, InputType.CUSTOM].includes(this.type)) throw new Error(`InputSelectionField - ${field} - Invalid type: ${type}`);
         if(!Array.isArray(this.selectOptionList) || this.selectOptionList.length === 0) throw new Error(`InputSelectionField - ${field} - Empty Selection List`);
         if(!Array.isArray(this.displayOptionList) || this.selectOptionList.length !== this.displayOptionList.length) throw new Error(`InputSelectionField - ${field} - Inconsistent option lists: ${JSON.stringify(this.selectOptionList)} != ${JSON.stringify(this.displayOptionList)}`);
     }
@@ -144,9 +168,24 @@ export class InputRangeField extends InputField {
  * UTILITIES *
  *************/
 
-//Converts underscores to spaces and capitalizes each word
-export const makeDisplayText = (text:string = ''):string => text.toLowerCase().split(/[_\s]+/).map((s) => s.charAt(0).toUpperCase() + s.substring(1)).join(' ');
+//Capitalizes Each Word
+export const makeDisplayText = (text:string = ''):string => text
+    .replace(/([a-z])([A-Z][a-z])/g, '$1 $2') //camelCase & ALL_CAPS
+    .replace(/[_\s]+/g, ' ') //Underscores
+    .trim().split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()).join(' ');
+
 export const makeDisplayList = (list:string[]):string[] => list.map(value => makeDisplayText(value));
+
+export const makeAbbreviatedText = (text:string = '', { keepFirstWord = false, keepLastWord = false, separator = '. ', minWordLength = 1, maxInitials = undefined }: {
+                                                        keepFirstWord?:boolean, keepLastWord?:boolean, separator?:string, minWordLength?:number, maxInitials?:number} = {}):string =>
+  makeDisplayText(text).split(' ')
+    .filter(w => w.length >= minWordLength)
+    .map((w, i, a) =>
+      (keepFirstWord && i === 0) || (keepLastWord && i === a.length - 1)
+        ? w: w.charAt(0).toUpperCase()
+    )
+    .slice(0, maxInitials ?? Number.MAX_VALUE).join(separator) + (separator.includes('.') ? '.' : '');
+
 
 //For parsing JSON Response vs FIELD_LIST and optional field properties
 export const checkFieldName = (FIELD_LIST:InputField[], fieldName:string, required?:boolean, unique?:boolean, hide?:boolean):boolean =>

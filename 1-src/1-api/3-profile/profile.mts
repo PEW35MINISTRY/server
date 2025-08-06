@@ -4,13 +4,13 @@ import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
-import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_CONTACT_CACHE, DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { getEmailLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, generateJWTRequest, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
-import { clearImage, clearImageCombinations, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
+import { clearImage, clearImageByID, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ProfileEditRequest, ProfileEditWalkLevelRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { DB_DELETE_PARTNERSHIP } from '../../2-services/2-database/queries/partner-queries.mjs';
@@ -20,40 +20,16 @@ import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-c
 import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
 
 
-//UI Helper Utility
-export const GET_RoleList = (request: Request, response: Response, next: NextFunction) => {
-    response.status(200).send([...Object.keys(RoleEnum)]);
-}
-
-//Public URL | UI Helper to get list of fields user allowed to  edit 
-export const GET_SignupProfileFields = async(request: JwtRequest, response: Response, next: NextFunction) => {
-
-    const role: string = request.params.role || 'user';
-    
-    if(role.toLowerCase() === 'user')
-        response.status(200).send(SIGNUP_PROFILE_FIELDS_USER.map(field => field.toJSON()));
-    else
-        response.status(200).send(SIGNUP_PROFILE_FIELDS.map(field => field.toJSON()));
-}
-
-//Public URL | UI Helper to get list of fields user allowed to  edit 
-export const GET_EditProfileFields = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
-    
-    if(request.jwtUserRole === RoleEnum.ADMIN)
-        response.status(200).send(EDIT_PROFILE_FIELDS_ADMIN.map(field => field.toJSON()));
-    else
-        response.status(200).send(EDIT_PROFILE_FIELDS.map(field => field.toJSON()));
-}
 
 //Verifies Unique Profile Fields for realtime validations | userID excludes profile for editing
 //Uses Query Parameters: GET localhost:5000/resources/available-account?email=ethan@encouragingprayer.org&displayName=ethan
 export const GET_AvailableAccount =  async (request: Request, response: Response, next: NextFunction) => { //(ALL fields and values are case insensitive)
-    if(URL.parse(request.originalUrl).query === '')
-        new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`, 'Invalid Account');
+    const fieldMap:Map<string, string> = new Map(new URLSearchParams(URL.parse(request.originalUrl).query ?? '').entries());
 
-    const fieldMap:Map<string, string> = new Map(new URLSearchParams(URL.parse(request.originalUrl).query).entries());
-    const result:Boolean|undefined = await DB_UNIQUE_USER_EXISTS(fieldMap, true);
+    if(fieldMap.size === 0 || Array.from(fieldMap.values()).some(v => v.trim() === ''))
+        return next(new Exception(400, `Missing Details: Please supply -email- and/or -displayName- query parameters in request.  Including -userID- excludes profile.`, 'Invalid Account'));
 
+    const result:boolean|undefined = await DB_UNIQUE_USER_EXISTS(fieldMap, true);
     if(result === undefined) 
         response.status(400).send(`Invalid Field Request: ${Array.from(fieldMap.keys()).join(', ')}`);
     else if(result === false) 
@@ -76,7 +52,7 @@ export const GET_publicProfile =  async (request: JwtClientRequest, response: Re
 export const GET_profileAccessUserList =  async (request: JwtRequest, response: Response, next: NextFunction) => { 
 
     if(isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole:request.jwtUserRole}))
-        response.status(200).send(await DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES(request.jwtUserID, true));
+        response.status(200).send(await DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES(request.jwtUserID, true));
     
     else {
         log.warn(`Unauthorized profile access attempt: User: ${request.jwtUserID} with userRole: ${request.jwtUserRole} asked for profile access list`);
@@ -206,7 +182,7 @@ export const DELETE_userProfile = async (request: JwtClientRequest, response: Re
     else if(await DB_DELETE_USER_ROLE({userID: request.clientID, userRoleList: undefined}) === false)
         next(new Exception(500, `Failed to delete all user roles of user ${request.clientID}`, 'Linked User Roles Exists'));
 
-    else if(await clearImageCombinations({id: request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) === false)
+    else if(await clearImageByID({id: request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) === false)
         next(new Exception(500, `Failed to delete profile image for user ${request.clientID}`, 'Linked Profile Image Exists'));
 
     else if(await DB_DELETE_USER(request.clientID))
@@ -249,7 +225,7 @@ export const POST_profileImage = async(request: ProfileImageRequest, response: R
 
 export const DELETE_profileImage = async(request: JwtClientRequest, response: Response, next: NextFunction) => {
 
-    if(await clearImageCombinations({id:request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) && await DB_UPDATE_USER(request.clientID, new Map([['image', null]])))
+    if(await clearImageByID({id:request.clientID, imageType: ImageTypeEnum.USER_PROFILE}) && await DB_UPDATE_USER(request.clientID, new Map([['image', null]])))
         response.status(202).send(`Successfully deleted profile image for ${request.clientID}`);
     else
         next(new Exception(500, `Profile image deletion failed for ${request.clientID}`, 'Delete Failed'));

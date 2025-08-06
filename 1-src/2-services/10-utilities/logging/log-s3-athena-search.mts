@@ -54,7 +54,7 @@ export const athenaSearchS3Logs = async(type:LogType, searchTerm:string, startTi
     const query = 
         'WITH ranked AS ( '
         + `SELECT ${Array.from(LOG_ENTRY.JSONFieldDetails.entries()).filter(([key]) => key !== 'timestamp').map((([key]) => key)).join(', ')}, `
-            + 'logs_dev.timestamp AS ts, '
+            + 'timestamp AS ts, '
             
             /* +18 points for every whole string match surrounded by word boundaries or symbols */
             + `CASE 
@@ -81,15 +81,15 @@ export const athenaSearchS3Logs = async(type:LogType, searchTerm:string, startTi
         + `FROM ${process.env.LOG_ATHENA_DATABASE}.${process.env.LOG_ATHENA_TABLE} `
 
         /* Filter via partitions defined in S3 key | (Athena will query in parallel) */
-        + `WHERE logs_dev.type = '${type}' `
-            + `AND logs_dev.year >= ${startDate.getFullYear()} AND logs_dev.year <= ${endDate.getFullYear()} `  //year is always sequential
+        + `WHERE type = '${type}' `
+            + `AND year >= ${startDate.getFullYear()} AND year <= ${endDate.getFullYear()} `  //year is always sequential
             + `${(startDate.getMonth() <= endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) //Months within same year
-                ? `AND logs_dev.month >= ${startDate.getMonth() + 1} AND logs_dev.month <= ${endDate.getMonth() + 1} ` : ''}`
+                ? `AND month >= ${startDate.getMonth() + 1} AND month <= ${endDate.getMonth() + 1} ` : ''}`
 
             + `${(startDate.getDate() <= endDate.getDate() && startDate.getMonth() === endDate.getMonth() && startDate.getFullYear() === endDate.getFullYear()) //Days within same month
-                ? `AND logs_dev.day >= ${startDate.getDate()} AND logs_dev.day <= ${endDate.getDate()} ` : ''}`
+                ? `AND day >= ${startDate.getDate()} AND day <= ${endDate.getDate()} ` : ''}`
 
-            + `AND logs_dev.timestamp >= ${startDate.getTime()} AND logs_dev.timestamp <= ${endDate.getTime()} `
+            + `AND timestamp >= ${startDate.getTime()} AND timestamp <= ${endDate.getTime()} `
         +') '
 
         //Apply placeholders for empty columns, otherwise omitted in results array | ('timestamp' is a SQL keyword)

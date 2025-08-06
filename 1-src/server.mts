@@ -3,6 +3,7 @@ dotenv.config();
 import fs, { readFileSync } from 'fs';
 import path, { join } from 'path';
 const __dirname = path.resolve();
+import { execSync } from 'child_process';
 import { createServer, request } from 'http';
 import express, { Application , Request, Response, NextFunction, response} from 'express';
 import { Server, Socket } from 'socket.io';
@@ -21,10 +22,10 @@ import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 //Import Routes
 import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
 import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogPartitionBucket, POST_LogResetFile } from './1-api/1-utility/log.mjs';
-import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
+import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateCircleManagerMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware, authenticateLeaderMiddleware, authenticateDemoUserMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
-import { GET_EditProfileFields, GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_RoleList, GET_SignupProfileFields, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
+import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
@@ -72,61 +73,52 @@ chatIO.use((socket, next)=> {
 CHAT(chatIO);
 
 /* Middleware  */
-// apiServer.use(express.static(path.join(process.env.SERVER_PATH || __dirname, 'build')));
-// apiServer.use(bodyParser.json());
-// apiServer.use(bodyParser.urlencoded({ extended: true }));
-// apiServer.use(bodyParser.raw());
 apiServer.use(cors());
-
-/********************
- HTTP Routes
- *********************/
- publicServer.use(cors());
- publicServer.use(express.static(path.join(process.env.SERVER_PATH || __dirname, 'website')));
- publicServer.get('/', (request: Request, response: Response) => {
-     response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html'));
- });
  
-/********************
- Unauthenticated Routes
+/***************************************
+ *   Unauthenticated Public Routes     *
+ * Order Matters, executes First Match *
+ ***************************************/
+apiServer.use(['/', '/website'], express.static(path.join(process.env.SERVER_PATH || __dirname, 'website')));
+// apiServer.get('/', (request:Request, response:Response) => response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html')));
+
+apiServer.get('/website/*', (request:Request, response:Response) => response.status(301).redirect('/website'));
+apiServer.get('/website', (request:Request, response:Response) => response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html')));
+
+apiServer.use(['/portal', '/login', '/signup'], express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
+
+apiServer.get('/portal', (request:Request, response:Response) => {
+  response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
+});
+
+apiServer.get(['/portal', '/portal/*', '/login', '/signup'], (request:Request, response:Response) => {
+  response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
+});
+
+
+
+/*********************
+ * PUBLIC API ROUTES *
  *********************/
+apiServer.use(express.json()); //Formatting Request Body
 
-/* Routes  */ //Order Matters: First Matches
-apiServer.use(express.static(path.join(process.env.SERVER_PATH || __dirname, 'website')));
-apiServer.get('/', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html'));
-});
+apiServer.get('/resources/available-account', GET_AvailableAccount); //Utility for available email/username
 
-apiServer.get('/website/*', (request: Request, response: Response) => {
-    response.status(301).redirect('/website');
-});
+apiServer.post('/subscribe', POST_emailSubscribe);
 
-apiServer.get('/website', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html'));
-});
+apiServer.post('/signup', POST_signup); //Optional query: populate=true
 
-apiServer.use(express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
-apiServer.get('/portal/*', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
-});
-
-apiServer.get('/portal', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
-});
-
-apiServer.get('/login', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
-});
-
-apiServer.get('/signup', (request: Request, response: Response) => {
-    response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
-});
+apiServer.post('/login', POST_login);
 
 apiServer.get('/version', (request: Request, response: Response, next:NextFunction) => {
     try {
         const packageJsonPath:string = join(__dirname, 'package.json');
         const packageJson:{version:string} = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-        response.status(200).send(`${packageJson.version} | ${SERVER_START_TIMESTAMP.toISOString()}`);
+        const version = packageJson.version ?? '0.0.0';
+        const environment = process.env.ENVIRONMENT ?? 'ENVIRONMENT';
+        const gitBranch = process.env.GIT_BUILD_BRANCH ?? 'BRANCH';
+        const gitCommit = process.env.GIT_BUILD_COMMIT ?? 'COMMIT';
+        response.status(200).send(`${version} | ${environment} | ${gitBranch} @ ${gitCommit} | ${SERVER_START_TIMESTAMP.toISOString()}`);
 
     } catch(error) {
         log.warn('Failed to Parse Server Version:', error, error.message);
@@ -135,19 +127,32 @@ apiServer.get('/version', (request: Request, response: Response, next:NextFuncti
 });
 
 
-//Formatting Request Body
-apiServer.use(express.json());
+/************************************************************************** 
+*             STATIC HTML WEBPAGES                                        *
+* Automatically picks up html files in: 0-compiled/0-assets/static-pages/ *
+* Unmatched routes return 404 (not-found.html)                            *
+***************************************************************************/
+//Production uses AWS CDN
+if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) {
+  apiServer.use('/assets', express.static(path.join(__dirname, '1-src', '0-assets', 'public')));
+}
 
-apiServer.post('/subscribe', POST_emailSubscribe);
+apiServer.get('/*', (request:JwtRequest, response:Response, next:NextFunction) => {
+  if(request.path.startsWith('/api')) //All other mis-matches receive 404
+    return next();
 
-apiServer.get('/resources/role-list', GET_RoleList);
-apiServer.get('/resources/available-account', GET_AvailableAccount);
+  const requestedPath = request.path.endsWith('/') ? request.path.slice(0, -1) : request.path;
+  const htmlFilePath = path.join(__dirname, '0-compiled', '0-assets', 'static-pages', requestedPath + '.html');
 
-apiServer.get('/resources/signup-fields/:role?', GET_SignupProfileFields);
+  fs.access(htmlFilePath, fs.constants.F_OK, (err) => {
+    if(err) {
+      response.status(404).sendFile(path.join(__dirname, '0-compiled', '0-assets', 'static-pages', 'not-found.html'));
+    } else {
+      response.status(200).sendFile(htmlFilePath);
+    }
+  });
+});
 
-apiServer.post('/signup', POST_signup); //Optional query: populate=true
-
-apiServer.post('/login', POST_login);
 
 
 /************************************************************/
@@ -164,8 +169,6 @@ apiServer.post('/api/authenticate', POST_JWTLogin);
 apiServer.post('/api/logout', POST_logout);
 
 apiServer.get('/api/contacts', GET_userContacts); //Returns id and Name
-
-apiServer.get('/api/user/profile/edit-fields', GET_EditProfileFields);
 
 apiServer.get('/api/search-list/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => GET_SearchList(undefined, request, response, next)); //(Handles authentication)
 
@@ -249,6 +252,9 @@ apiServer.delete('/api/user/:client/contact-list-cache', DELETE_contactCache);
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
 
+apiServer.use('/api/user/:client/mock-prayer-request', (request:JwtRequest, response:Response, next:NextFunction) => authenticateDemoUserMiddleware(request, response, next));
+apiServer.get('/api/user/:client/mock-prayer-request', GET_createMockPrayerRequest);
+
 apiServer.post('/api/user/:client/notification/device', POST_newNotificationDeviceUser)
 apiServer.delete('/api/user/:client/notification/device/:device', DELETE_notificationDevice);
 apiServer.post('/api/user/:client/notification/device/:device/verify', POST_verifyNotificationDeviceUser)
@@ -314,16 +320,23 @@ apiServer.use(bodyParser.raw({type: SUPPORTED_IMAGE_EXTENSION_LIST.map(ext => `i
 apiServer.post('/api/leader/circle/:circle/image/:file', POST_circleImage);
 
 
-/******************************************************************/
-/* Authenticate Current CIRCLE_LEADER role (Circle not specified) */
-/******************************************************************/
+/*******************************************************************/
+/* Authenticate Current CIRCLE_MANAGER role (Circle not specified) */
+/*******************************************************************/
 apiServer.use('/api/leader', (request:JwtRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
-
-apiServer.get('/api/leader/profile-access', GET_profileAccessUserList);
 
 apiServer.post('/api/leader/circle', POST_newCircle);
 
+apiServer.use('/api/leader/mock-circle', (request:JwtRequest, response:Response, next:NextFunction) => authenticateDemoUserMiddleware(request, response, next));
 apiServer.get('/api/leader/mock-circle', GET_createMockCircle);
+
+
+/*******************************************************************/
+/* Authenticate Current CIRCLE_MANAGER role (Circle not specified) */
+/*******************************************************************/
+apiServer.use('/api/manager', (request:JwtRequest, response:Response, next:NextFunction) => authenticateCircleManagerMiddleware(request, response, next));
+
+apiServer.get('/api/manager/profile-access', GET_profileAccessUserList);
 
 
 /**************************************/
@@ -368,7 +381,6 @@ apiServer.get('/api/admin/log/:type/download', (request:LogEntryNewRequest, resp
 apiServer.post('/api/admin/log/:type/report', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogEmailReport(undefined, request, response, next));
 
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
-apiServer.get('/api/admin/client/:client/mock-prayer-request', GET_createMockPrayerRequest);
 apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdmin);
 
 apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDetailAdmin);
@@ -423,7 +435,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)
         response.status(error.status || 500).send(errorResponse);
 
-    else if (getEnvironment() !== ENVIRONMENT_TYPE.PRODUCTION) {
+    else {
         const debugResponse:ServerDebugErrorResponse = {
             ...errorResponse,
             message: message,

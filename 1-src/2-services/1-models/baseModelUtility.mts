@@ -1,7 +1,8 @@
-import InputField, { InputType, isListType, InputSelectionField, InputRangeField } from "../../0-assets/field-sync/input-config-sync/inputField.mjs";
+import InputField, { InputType, isListType, InputSelectionField, InputRangeField, ENVIRONMENT_TYPE } from "../../0-assets/field-sync/input-config-sync/inputField.mjs";
+import validateInputFields, { InputValidationResult } from '../../0-assets/field-sync/input-config-sync/inputValidation.mjs';
 import { JwtClientRequest } from "../../1-api/2-auth/auth-types.mjs";
 import { Exception } from "../../1-api/api-types.mjs";
-import { getEnvironment, isURLValid } from "../10-utilities/utilities.mjs";
+import { getEnvironment } from "../10-utilities/utilities.mjs";
 import * as log from "../10-utilities/logging/log.mjs";
 import BASE_MODEL from "./baseModel.mjs";
 
@@ -162,8 +163,9 @@ export default {
         const relevantFields:InputField[] = fieldList.filter((field: InputField) => field.environmentList.includes(getEnvironment()));
 
         for(let field of relevantFields) {
-            if(field.required && jsonObj[field.field] === undefined && currentModel[currentModel.getPropertyFromJsonField(field.field)] === undefined ) {
-                return new Exception(400, `${model.modelType} | ${field.title} is Required.`, `${field.title} is Required.`);
+            if(field.required && currentModel[currentModel.getPropertyFromJsonField(field.field)] === undefined 
+                && (jsonObj[field.field] === undefined || jsonObj[field.field] === null || jsonObj[field.field] === '')) {
+                    return new Exception(400, `${model.modelType} | ${field.title} is Required.`, `${field.title} is Required.`);
 
             } else if(jsonObj[field.field] === undefined) {
                 continue;
@@ -172,10 +174,18 @@ export default {
 
             const modelValidateResult:boolean|undefined = await model.validateModelSpecificField({field, value: jsonObj[field.field], jsonObj});
             if(modelValidateResult === false) {
-                log.warn(`${model.modelType} | ${field.field} failed model specific validations.`);
+                if(field.required)
+                    return new Exception(400, `${model.modelType} | ${field.title} input failed to validate.`, `${field.title} is invalid and required.`);
+                else
+                    log.warn(`${model.modelType} | ${field.field} failed model specific validations.`);
 
-            } else if(modelValidateResult === undefined && model.hasProperty(field.field) && validateInput({field, value: jsonObj[field.field], jsonObj}) === false) {
-                log.warn(`${model.modelType} | ${field.field} failed field-config validations.`);
+            } else if(modelValidateResult === undefined && model.hasProperty(field.field) && !validateInput({field, value: jsonObj[field.field], jsonObj}).passed) {
+                const result:InputValidationResult = validateInput({field, value: jsonObj[field.field], jsonObj});
+
+                if(field.required)
+                    return new Exception(400, `${model.modelType} | ${field.title} failed validation: ${result.description}.`, `${field.title}: ${result.message}`);
+                else
+                    log.warn(`${model.modelType} | ${field.field} failed field-config validations:`, jsonObj[field.field], result.description);
 
             } else {
                 try {
@@ -187,7 +197,7 @@ export default {
                         throw `${model.modelType} | ${model.ID} | Failed parseModelSpecificField`;
                     
                     else if(!model.hasProperty(field.field)) {
-                        log.warn('*Skipping non model recognized field', model.modelType, field.field, JSON.stringify(jsonObj[field.field]));
+                        if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('*Skipping non model recognized field', model.modelType, field.field, JSON.stringify(jsonObj[field.field]));
                         continue;
 
                     } else
@@ -203,10 +213,6 @@ export default {
                 }
                 continue;
             } 
-
-            if(field.required) {
-                return new Exception(400, `${model.modelType} | ${field.title} input failed to validate.`, `${field.title} is invalid and required.`);
-            }
         }
         model.isValid = true;
         return model;
@@ -252,70 +258,21 @@ const parseInput = ({field, value}:{field:InputField, value:any}):any => {
 /************************************************
 * PRIVATE | validateInput using validationRegex *
 *************************************************/
-const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:Object}):boolean => {
+const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, jsonObj:Object}):InputValidationResult => {
 
-    /* Field Exists */
-    if(value === undefined)
-        return false;
+    /* UNDEFINED */
+    if(value === undefined) {
+        return { passed: true, message: "Missing", description: "Value is undefined" };
 
-    if(value === null) //Valid for clearing fields in database
-        return true;
+    /* NULL | Valid for clearing fields in database */
+    } else if(value === null) {
+        return { passed: true, message: "Cleared", description: "Value is null" };
 
-    /* List Validate each element against general validationRegex from config */
-    else if(isListType(field.type) && Array.isArray(field.value) && Array.from(field.value).some((element) => !(new RegExp(field.validationRegex).test(value)))){
-        log.warn(`Validating input for ${field.field}; failed list validation Regex: ${field.validationRegex}`, JSON.stringify(value));
-        return false;
-
-    /* Validate general validationRegex from config */
-    } else if(!isListType(field.type) && !(new RegExp(field.validationRegex).test(value))){
-        log.warn(`Validating input for ${field.field}; failed validation Regex: ${field.validationRegex}`, value);
-        return false;
-
-    } else if(field.type === InputType.DATE) {
-        const date:Date = new Date(value);
-
-        if(isNaN(date.valueOf())) 
-            return false;
-
-        else if(field.field === 'startDate' && jsonObj['endDate'] !== undefined) {
-            const startDate = date;
-            const endDate = new Date(jsonObj['endDate']);
-
-            if(isNaN(endDate.valueOf()) || startDate > endDate) {
-                log.warn(`Validating input for ${field.field}; failed: endDate is not greater than startDate`, value, jsonObj['endDate']);
-                return false;
-            }
-        }
-
-    /* RANGE_SLIDER */
-    } else if((field instanceof InputRangeField) && (field.type === InputType.RANGE_SLIDER) && !isNaN(Number(value)) && (Number(value) < Number(field.minValue) || Number(value) > Number(field.maxValue))) {
-        return false;
-        
-    /* SELECT_LIST */
-    } else if((field instanceof InputSelectionField) && (field.type === InputType.SELECT_LIST) && !field.selectOptionList.includes(`${value}`)) {
-        log.warn(`Validating input for ${field.field}; failed not included in select option list`, value, JSON.stringify(field.selectOptionList));
-        return false;
-
-    /* MULTI_SELECTION_LIST */
-    } else if((field instanceof InputSelectionField) && (field.type === InputType.MULTI_SELECTION_LIST) && ( !Array.isArray(value)
-        || !Array.from(value).every((item:any)=>{
-            if(!field.selectOptionList.includes(`${item}`)) {
-                log.warn(`Validating input for ${field.field}; multi selection; missing value in select option list`, item, JSON.stringify(field.selectOptionList));
-                return false;
-            } else return true;
-        }))) {
-            log.warn(`Validating input for ${field.field};  multi selection; mismatched multiple select option list`, JSON.stringify(value), JSON.stringify(field.selectOptionList));
-        return false;
-
-    } else if((field.type === InputType.TEXT) && ['url', 'image'].includes(field.field.toLowerCase()) && !isURLValid(value)) {
-        log.warn(`Validating input for ${field.field}; failed: isURLValid`, value);
-        return false;
-    }
-
-    /* CUSTOM FIELD */
-    if(field.customField !== undefined && value === 'CUSTOM' 
-        && ((jsonObj[field.customField] === undefined) || !(new RegExp(field.validationRegex).test(jsonObj['customType']))))
-            return false;
-
-    return true;
+    } else {    
+        const result:InputValidationResult = validateInputFields({ field, value, getInputField:(f) => jsonObj[f], simpleValidationOnly: false });
+    
+        if(!result.passed) log.warn('Failed Validation:', value, result.description);
+    
+        return result;
+    };
 }

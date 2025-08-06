@@ -1,0 +1,523 @@
+/************************************* 
+* Core Styling for Static HTML Pages *
+**************************************/
+
+/* Global Variables */
+:root {
+    --background: whitesmoke;
+    --red: #b12020;
+    --blue: #62d0f5;
+    --blue-dark: #003f89;
+    --gray-dark: #303030;
+    --gray-light: #a9a9a9;
+    --t-black: rgba(0, 0, 0, 0.5);
+    --t-white: rgba(255, 255, 255, 0.2);
+
+    --radius: 4px;
+    --page-height: 100vh;
+
+    --screen-mobile: 576px;
+    --screen-tablet: 768px;
+    --screen-laptop: 991px;
+    --screen-desktop: 1200px;
+}
+
+
+/* Page Setup */
+html {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 300;
+    font-size: 22px;
+    letter-spacing: 0.04rem;
+    color: black;
+    background-color: var(--background);
+
+    width: 100vw;
+    height: 100vh;
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+}
+
+/* Note: Header defined at bottom of styles-core.css */
+
+body {
+    width: 100vw;
+    min-height: 100vh;
+    margin: 0;
+    overflow: hidden;
+}
+
+
+#content,
+.content {
+    max-width: 800px;
+    width: 100%;
+    padding: 1rem;
+    margin: 0 auto;
+    margin-bottom: 3.0rem;
+}
+
+.center,
+.action-button {
+    display: block;
+    text-align: center;
+    margin: 2.0rem auto 0 auto;
+}
+
+@media screen and (max-width: 1200px) {
+    html {
+        font-size: 18px;
+    }
+}
+
+@media screen and (max-width: 991px) {
+    html {
+        font-size: 15px;
+    }
+
+    .content-center {
+        max-width: 100%;
+    }
+}
+
+@media screen and (max-width: 576px) {
+    html {
+        font-size: 13px;
+    }
+}
+
+div,
+span,
+section,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+    padding: 0;
+    margin: 0;
+}
+
+hr {
+    border: none;
+    border-bottom: 1px solid var(--blue);
+    margin: 1.0rem 0;
+}
+
+/* Hide Elements */
+.none,
+.hide {
+    display: none;
+    height: 0;
+    width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+@media screen and (max-width: 576px) {
+    .hide-mobile {
+        display: none;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .hide-tablet {
+        display: none;
+    }
+}
+
+
+/* Text Styles */
+h1,
+.header {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 2rem;
+    color: var(--red);
+}
+
+h2,
+.sub-header {
+    font-family: 'Playfair Display', serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: var(--red);
+}
+
+h3,
+h4,
+label,
+.title {
+    font-family: 'EB Garamond', serif;
+    font-weight: 500;
+    font-size: 1.2rem;
+    color: var(--blue);
+}
+
+h4,
+h5 {
+    color: var(--red);
+}
+
+h1, h2, h3, h4, h5, h6,
+ol, ul {
+    margin-top: 0.75rem;
+}
+
+li {
+    margin-top: 0.50rem;
+}
+
+h5,
+h6,
+p,
+.text {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 300;
+    font-size: 1rem;
+    color: black;
+    margin: 0;
+}
+
+h6,
+.detail {
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.85rem;
+    color: var(--blue);
+}
+
+.indent {
+      margin-left: 1.0rem;
+}
+
+
+/* Links */
+a,
+.link, li::marker {
+    width: fit-content;
+    text-decoration: none;
+    font-weight: 400;
+    color: var(--blue)
+}
+
+a:hover,
+.link:hover {
+    color: var(--blue);
+}
+
+
+/* Buttons */
+button {
+    font-family: 'EB Garamond', serif;
+    font-weight: 600;
+    font-size: 1.3rem;
+
+    background-color: var(--red);
+    border: 1px solid transparent;
+    color: white;
+    border-radius: var(--radius);
+
+    min-width: 15rem;
+    padding: 0.15rem 1rem;
+    margin: 0.5rem;
+    cursor: pointer;
+}
+
+button:hover {
+    color: white;
+    background-color: var(--blue);
+}
+
+.primary-button-blue {
+    background-color: var(--blue);
+    color: white;
+}
+
+.primary-button-blue:hover {
+    background-color: var(--red);
+    color: white;
+}
+
+.alternative-button {
+    background-color: transparent;
+    border: 1px solid var(--blue);
+    border-radius: 0;
+
+    color: var(--blue);
+    font-size: 0.9em;
+}
+
+.alternative-action-button {
+    background-color: transparent;
+    border: none;
+    border-top: 1px solid var(--blue);
+    border-radius: 0;
+
+    color: var(--blue);
+    font-size: 0.9em;
+
+    margin-top: 0;
+}
+
+.alternative-action-button:hover {
+    border: 1px solid var(--blue);
+}
+
+
+/* Action button - lower right, ~90% down */
+.floating-action-button {
+    position: fixed;
+    bottom: 10vh;
+    right: 1rem;
+    z-index: 10;
+    box-shadow: 0 2px 6px var(--t-black);
+}
+
+/* Back button - upper left, ~20% down */
+.floating-back-button {
+    position: fixed;
+    top: 20vh;
+    left: 1rem;
+    display: flex;
+    align-items: center;
+    z-index: 10;
+    padding-left: 2.4rem;
+    box-shadow: 0 2px 6px var(--t-black);
+}
+
+.floating-back-button::before {
+    content: '←';
+    font-size: 1.4rem;
+    margin-right: 0.6rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+
+/* Icon Button */
+.icon-button {
+    display: grid;
+    grid-auto-flow: column;
+    align-items: baseline;
+    color: var(--blue);
+    background: none;
+    border: none;
+    margin: 0;
+    padding: 0.3rem 1rem;
+}
+
+.icon-button .icon-button-icon,
+.icon-button .icon-button-label {
+    font-family: 'EB Garamond';
+    font-weight: 500;
+    font-size: 1.15rem;
+    color: var(--blue);
+}
+
+.icon-button .icon-button-icon {
+    font-size: 1.5rem;
+    max-width: 1.5rem;
+}
+
+.icon-button .icon-button-label {
+    margin-left: 0.5rem;
+}
+
+@media screen and (max-width: 576px) {
+    .icon-button .icon-button-label {
+        display: none;
+    }
+}
+
+.icon-button:hover {
+    background: var(--blue);
+    cursor: pointer;
+}
+
+.icon-button:hover .icon-button-icon,
+.icon-button:hover .icon-button-label {
+    color: white;
+}
+
+
+/* Input Fields */
+input,
+select,
+textarea {
+    background-color: white;
+    border: 1px solid var(--blue);
+    border-radius: 4px;
+    font-family: 'Roboto';
+    font-weight: 300;
+    font-size: 0.9rem;
+    text-align: left;
+    margin: 0.25rem 0;
+    padding: 0.15rem 0.7rem;
+}
+
+input,
+textarea {
+    border: none;
+    border-bottom: 1px solid var(--blue);
+    border-radius: 0;
+}
+
+input:hover,
+input:active,
+textarea:hover,
+textarea:active {
+    border: 1px solid var(--blue);
+    border-radius: 4px;
+}
+
+textarea {
+    height: 5rem;
+}
+
+
+/* IMAGES */
+img {
+    object-fit: contain;
+    margin: 0 auto;
+}
+
+@media screen and (max-width: 991px) {
+    img {
+        max-width: 90vw;
+    }
+}
+
+.image-round {
+    border-radius: calc(2 * var(--radius));
+}
+
+.image-circle {
+    border-radius: 50%;
+}
+
+.icon {
+    height: 2rem;
+    width: auto;
+    max-width: 2rem;
+}
+
+#logo {
+    width: 10vw;
+    min-width: 150px;
+    object-fit: cover;
+    object-position: center;
+}
+
+@media screen and (max-width: 991px) {
+    #logo {
+        min-width: 100px;
+    }
+}
+
+
+/* HEADER */
+#header-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    width: 100vw;
+    padding: 0;
+    margin: 0;
+    z-index: 0;
+
+    background-color: var(--red);
+    border-radius: 0;
+}
+
+#header-menu {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    align-items: center;
+    gap: 1.5rem;
+
+    padding-top: 1rem;
+    padding-right: 5vw;
+    margin-left: auto;
+    z-index: 2;
+}
+
+.header-menu-link {
+    color: white;
+}
+
+.header-menu-link:hover {
+    border-bottom: 1px solid var(--blue);
+    color: var(--blue);
+}
+
+#header-action-button:hover {
+    background-color: white;
+    color: var(--blue);
+}
+
+/* Logo and Title */
+#header-title {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 3vw;
+    z-index: 2;
+    cursor: pointer;
+}
+
+#header-title-logo {
+    height: 5rem;
+    margin: 1.0rem;
+}
+
+#header-title-text {
+    font-size: 4rem;
+    color: white;
+    white-space: wrap;
+}
+
+@media screen and (max-width: 768px) {
+    #header-title-text {
+        font-size: 3.0rem;
+    }
+}
+
+#header-curve-wrapper {
+  position: relative;
+  width: 100%;
+  z-index: 1;
+}
+
+#header-pew35-logo {
+  position: absolute;
+  top: 1.5rem;
+  right: 10vw;
+  height: 4rem;
+  z-index: 2;
+}
+
+
+/* SVG Header Shape Overlay */
+#header-curve {
+    position: relative;
+    height: 4rem;
+    width: 100%;
+    background-color: transparent;
+    overflow: hidden;
+    z-index: 1;
+}
+
+#header-curve svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#header-curve path {
+    fill: var(--red);
+    stroke: none;
+}

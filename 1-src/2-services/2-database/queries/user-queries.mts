@@ -6,14 +6,15 @@ import { searchList } from '../../../1-api/api-search-utilities.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
-import { PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { GENERAL_USER_ROLES, PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import { batch, command, execute, validateColumns } from '../database.mjs';
-import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
+import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
 import { DB_SELECT_USER_CONTENT_LIST } from './content-queries.mjs';
 import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 
 
 /**************************************************************************
@@ -103,6 +104,13 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
     user.circleInviteList = allCircleList.filter(circle => circle.status === CircleStatusEnum.INVITE);
     user.circleAnnouncementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES(user.userID);
 
+    //TEMPORARY for Beta
+    const betaWelcome:CIRCLE_ANNOUNCEMENT = new CIRCLE_ANNOUNCEMENT();
+    betaWelcome.message = "WELCOME TO THE BETA!\nHelp? -> support@encouragingprayer.org";
+    betaWelcome.startDate = new Date();
+    betaWelcome.endDate = new Date(Date.now() + (1000 * 60 * 60 * 24));
+    user.circleAnnouncementList.unshift(betaWelcome);
+
     /* Partnerships */
     const allPartnerList:PartnerListItem[] = await DB_SELECT_PARTNER_LIST(user.userID);
     user.partnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PARTNER));
@@ -117,7 +125,7 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
 
     //Query via Search to use cached list
     user.contactList = await searchList(SearchType.CONTACT, generateJWTRequest(user.userID, user.getHighestRole()) as JwtSearchRequest) as ProfileListItem[];
-    if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES(user.userID, true);
+    if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES(user.userID, true);
 
     return user;
 }
@@ -271,33 +279,45 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
 /**********************************
  *  USER SEARCH & CACHE QUERIES
  **********************************/
+const INACTIVE_USERS: RoleEnum[] = [RoleEnum.INACTIVE, RoleEnum.REPORTED];
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false, allSourceEnvironments = false, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean, allSourceEnvironments?:boolean, limit?:number}):Promise<ProfileListItem[]> => {
     
     const rows = await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
-            + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
-            + `WHERE ${searchInactive ? 'userInfo.isActive = false ' : ''} `
-                + `${allSourceEnvironments ? '' :
-                    `${`${searchInactive ? 'AND' : ''} ( `
-                        + `        user.modelSourceEnvironment = '${getModelSourceEnvironment()}' `
-                        + '        OR ( '
-                        + '            CASE '
-                        + `                WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
-                        + `                WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
-                        + `                WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
-                        + '                ELSE false '
-                        + '            END '
-                        + '        ) '
-                        + '    ) '
-                    }`
-                }`
-                + `${(searchInactive || allSourceEnvironments) ? ' AND ' : ''}`
-                + `${excludeGeneralUsers ? `user_role.userRoleID < ( SELECT userRoleID FROM user_role_defined WHERE userRole = 'USER' ) ` : ''}`
-                + `${(searchInactive || !allSourceEnvironments || excludeGeneralUsers) ? ' AND ' : ''}`
-                + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(', ')} )`} LIKE ? `
-            + `ORDER BY FIELD( user.modelSourceEnvironment, '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' ), `
-            + 'user.modifiedDT DESC '
-            + `LIMIT ${limit};`, [`%${searchTerm}%`]);
+        + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
+        + 'WHERE '
+        + (searchInactive
+            ? 'user_role.userRoleID IN ( '
+            + '    SELECT userRoleID FROM user_role_defined '
+            + `    WHERE userRole IN (${INACTIVE_USERS.map(r => `'${r}'`).join(', ')}) `
+            + ') AND '
+            : ''
+        )
+        + (!allSourceEnvironments
+            ? '( '
+                + `user.modelSourceEnvironment = '${getModelSourceEnvironment()}' `
+                    + 'OR ( '
+                        + 'CASE '
+                            + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+                            + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}') `
+                            + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' THEN user.modelSourceEnvironment IN ('${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}') `
+                            + 'ELSE FALSE '
+                        + 'END '
+                    + ') '
+                + ') AND '
+            : '')
+        + (excludeGeneralUsers
+            ? 'NOT EXISTS ( '
+                + 'SELECT 1 FROM user_role '
+                + 'JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
+                + 'WHERE user_role.userID = user.userID '
+                + `AND user_role_defined.userRole NOT IN (${GENERAL_USER_ROLES.map(r => `'${r}'`).join(', ')}) `
+                + ') AND '
+            : '')
+        + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(', ')} )`} LIKE ? `
+        + `ORDER BY FIELD( user.modelSourceEnvironment, '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' ), `
+        + 'user.modifiedDT DESC '
+        + `LIMIT ${limit};`, [`%${searchTerm}%`]);
  
     return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
