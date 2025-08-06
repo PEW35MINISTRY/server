@@ -22,7 +22,7 @@ import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 //Import Routes
 import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
 import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogPartitionBucket, POST_LogResetFile } from './1-api/1-utility/log.mjs';
-import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateLeaderMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware } from './1-api/2-auth/authorization.mjs';
+import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateCircleManagerMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware, authenticateLeaderMiddleware, authenticateDemoUserMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
 import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
@@ -252,6 +252,9 @@ apiServer.delete('/api/user/:client/contact-list-cache', DELETE_contactCache);
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
 
+apiServer.use('/api/user/:client/mock-prayer-request', (request:JwtRequest, response:Response, next:NextFunction) => authenticateDemoUserMiddleware(request, response, next));
+apiServer.get('/api/user/:client/mock-prayer-request', GET_createMockPrayerRequest);
+
 apiServer.post('/api/user/:client/notification/device', POST_newNotificationDeviceUser)
 apiServer.delete('/api/user/:client/notification/device/:device', DELETE_notificationDevice);
 apiServer.post('/api/user/:client/notification/device/:device/verify', POST_verifyNotificationDeviceUser)
@@ -317,16 +320,23 @@ apiServer.use(bodyParser.raw({type: SUPPORTED_IMAGE_EXTENSION_LIST.map(ext => `i
 apiServer.post('/api/leader/circle/:circle/image/:file', POST_circleImage);
 
 
-/******************************************************************/
-/* Authenticate Current CIRCLE_LEADER role (Circle not specified) */
-/******************************************************************/
+/*******************************************************************/
+/* Authenticate Current CIRCLE_MANAGER role (Circle not specified) */
+/*******************************************************************/
 apiServer.use('/api/leader', (request:JwtRequest, response:Response, next:NextFunction) => authenticateLeaderMiddleware(request, response, next));
-
-apiServer.get('/api/leader/profile-access', GET_profileAccessUserList);
 
 apiServer.post('/api/leader/circle', POST_newCircle);
 
+apiServer.use('/api/leader/mock-circle', (request:JwtRequest, response:Response, next:NextFunction) => authenticateDemoUserMiddleware(request, response, next));
 apiServer.get('/api/leader/mock-circle', GET_createMockCircle);
+
+
+/*******************************************************************/
+/* Authenticate Current CIRCLE_MANAGER role (Circle not specified) */
+/*******************************************************************/
+apiServer.use('/api/manager', (request:JwtRequest, response:Response, next:NextFunction) => authenticateCircleManagerMiddleware(request, response, next));
+
+apiServer.get('/api/manager/profile-access', GET_profileAccessUserList);
 
 
 /**************************************/
@@ -371,7 +381,6 @@ apiServer.get('/api/admin/log/:type/download', (request:LogEntryNewRequest, resp
 apiServer.post('/api/admin/log/:type/report', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogEmailReport(undefined, request, response, next));
 
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
-apiServer.get('/api/admin/client/:client/mock-prayer-request', GET_createMockPrayerRequest);
 apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdmin);
 
 apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDetailAdmin);
@@ -426,7 +435,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)
         response.status(error.status || 500).send(errorResponse);
 
-    else if (getEnvironment() !== ENVIRONMENT_TYPE.PRODUCTION) {
+    else {
         const debugResponse:ServerDebugErrorResponse = {
             ...errorResponse,
             message: message,

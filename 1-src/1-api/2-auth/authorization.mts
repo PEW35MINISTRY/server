@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
-import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES as DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_IS_USER_PARTNER_ANY_STATUS } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DB_IS_PRAYER_REQUEST_REQUESTOR, DB_IS_RECIPIENT_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
@@ -44,6 +44,19 @@ export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: 
 
             next();
         }
+    }
+}
+
+/* Authenticate current DEMO_USER role */
+export const authenticateDemoUserMiddleware = async(request:JwtRequest, response:Response, next:NextFunction):Promise<void> => {
+
+    if(await DB_IS_ANY_USER_ROLE(request.jwtUserID, [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.DEMO_USER])) {
+
+        log.auth(`AUTHENTICATED :: DEMO USER :: status verified: User: ${request.jwtUserID} is a Demo User Role`);
+        next();
+
+    } else {
+        next(new Exception(401, `FAILED AUTHENTICATED :: DEMO USER :: User: ${request.jwtUserID} is not a Demo User Role.`, 'Demo Required'));
     }
 }
 
@@ -161,7 +174,7 @@ export const authenticateClientAccessMiddleware = async(request: JwtClientReques
     //Verify Requestor Authorization
     if((request.jwtUserID === request.clientID)
         || (request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
-        || (await DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES({userID: request.clientID, leaderID: request.jwtUserID}))) {
+        || (await DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES({userID: request.clientID, leaderID: request.jwtUserID}))) {
 
             request.clientID = request.clientID;
             log.auth(`AUTHENTICATED :: PROFILE :: profile status verified: User: ${request.jwtUserID} has access to Client: ${request.clientID}`);
@@ -216,11 +229,12 @@ export const authenticateCircleLeaderMiddleware = async(request: JwtCircleReques
     }
 }
 
+
 /* Authenticate current CIRCLE_LEADER role (Circle not specified) (JWT could be stale) */
-export const authenticateLeaderMiddleware = async(request: JwtRequest, response: Response, next: NextFunction):Promise<void> => {
+export const authenticateLeaderMiddleware = async(request:JwtRequest, response:Response, next:NextFunction):Promise<void> => {
 
     if((isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: request.jwtUserRole}) 
-            && await DB_IS_ANY_USER_ROLE(request.jwtUserID, [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER]))) {
+            && await DB_IS_ANY_USER_ROLE(request.jwtUserID, [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER, DATABASE_USER_ROLE_ENUM.CIRCLE_MANAGER]))) {
 
         log.auth(`AUTHENTICATED :: LEADER :: status verified: User: ${request.jwtUserID} is a Leader Role`);
         next();
@@ -229,6 +243,22 @@ export const authenticateLeaderMiddleware = async(request: JwtRequest, response:
         next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.jwtUserID} is not a Leader Role.`, 'Leader Required'));
     }
 }
+
+
+/* Authenticate CIRCLE_MANAGER role; ability to modify member profiles | (Circle not specified) (JWT could be stale) */
+export const authenticateCircleManagerMiddleware = async(request:JwtRequest, response:Response, next:NextFunction):Promise<void> => {
+
+    if((isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_MANAGER, currentMaxUserRole: request.jwtUserRole}) 
+            && await DB_IS_ANY_USER_ROLE(request.jwtUserID, [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.CIRCLE_MANAGER]))) {
+
+        log.auth(`AUTHENTICATED :: CIRCLE MANAGER :: status verified: User: ${request.jwtUserID} is a Circle Manager Role`);
+        next();
+
+    } else {
+        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE MANAGER :: User: ${request.jwtUserID} is not a Circle Manager Role.`, 'Manager Required'));
+    }
+}
+
 
 /* Extract Content Parameter | cache: request.contentID */
 export const extractContentMiddleware = async(request: JwtContentRequest, response: Response, next: NextFunction):Promise<void> => {

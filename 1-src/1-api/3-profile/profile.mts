@@ -4,7 +4,7 @@ import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
-import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_CONTACT_CACHE, DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
@@ -52,7 +52,7 @@ export const GET_publicProfile =  async (request: JwtClientRequest, response: Re
 export const GET_profileAccessUserList =  async (request: JwtRequest, response: Response, next: NextFunction) => { 
 
     if(isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole:request.jwtUserRole}))
-        response.status(200).send(await DB_SELECT_MEMBERS_OF_ALL_LEADER_CIRCLES(request.jwtUserID, true));
+        response.status(200).send(await DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES(request.jwtUserID, true));
     
     else {
         log.warn(`Unauthorized profile access attempt: User: ${request.jwtUserID} with userRole: ${request.jwtUserRole} asked for profile access list`);
