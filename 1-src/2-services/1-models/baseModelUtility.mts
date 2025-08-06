@@ -163,8 +163,9 @@ export default {
         const relevantFields:InputField[] = fieldList.filter((field: InputField) => field.environmentList.includes(getEnvironment()));
 
         for(let field of relevantFields) {
-            if(field.required && jsonObj[field.field] === undefined && currentModel[currentModel.getPropertyFromJsonField(field.field)] === undefined ) {
-                return new Exception(400, `${model.modelType} | ${field.title} is Required.`, `${field.title} is Required.`);
+            if(field.required && currentModel[currentModel.getPropertyFromJsonField(field.field)] === undefined 
+                && (jsonObj[field.field] === undefined || jsonObj[field.field] === null || jsonObj[field.field] === '')) {
+                    return new Exception(400, `${model.modelType} | ${field.title} is Required.`, `${field.title} is Required.`);
 
             } else if(jsonObj[field.field] === undefined) {
                 continue;
