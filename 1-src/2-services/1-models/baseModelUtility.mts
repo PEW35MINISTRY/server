@@ -200,8 +200,14 @@ export default {
                         if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('*Skipping non model recognized field', model.modelType, field.field, JSON.stringify(jsonObj[field.field]));
                         continue;
 
-                    } else
-                        model[field.field] = parseInput({field:field, value:jsonObj[field.field]});
+                    } else {
+                        model[field.field] = parseInput({field, value:jsonObj[field.field]});
+
+                        /* Max Field | Already validated within validateInput */
+                        if(field instanceof InputRangeField && field.maxField && model.hasProperty(field.maxField)) {
+                            model[field.maxField] = parseInput({field, value:jsonObj[field.maxField]});
+                        }
+                    }
 
                 } catch(error) {
                     log.warn(`Failed to parse profile field: ${field.field} with value:`, JSON.stringify(jsonObj[field.field]), error, error.message);

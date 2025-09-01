@@ -424,7 +424,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     const notification = error.notification || ((status == 400) ? 'Missing details'
                             : (status == 401) ? 'Sorry not permitted'
                             : (status == 404) ? 'Not found'
-                            : (status == 413) ? 'File larger than 5mb'
+                            : (status == 413) ? `File larger than ${process.env.IMAGE_UPLOAD_SIZE}`
                             : 'Unknown error has occurred');
 
     const errorResponse:ServerErrorResponse = {
@@ -454,7 +454,10 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     /* Logging API Errors */
     if(status < 400) log.event(`API | ${status} | Event:`, message);
     else if(status === 400) log.warn('API | 400 | User Request Invalid:', message);
-    else if(status === 401) log.auth('API   401 | User Unauthorized:', message);
+    else if(status === 401) log.auth('API | 401 | User Unauthorized:', message);
+    else if(status === 403 || (status === 405)) log.auth('API | 403 | Forbidden Request:', message);
+    else if(status === 413) log.warn(`API | 413 | File larger than ${process.env.IMAGE_UPLOAD_SIZE}:`, message);
+
     else if(status === 404 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('API | 404 | Request Not Found:', message);
-    else log.errorWithoutTrace(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
+    else if(status !== 404) log.errorWithoutTrace(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
 });
