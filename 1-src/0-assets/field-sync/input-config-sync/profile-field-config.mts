@@ -121,7 +121,7 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
     new InputRangeField({title: 'Walk Level', field: 'walkLevel', required: true, minValue: 1, maxValue: 10, type: InputType.RANGE_SLIDER }),
     new InputRangeField({title: 'Max Partners', field: 'maxPartners', required: true, minValue: 0, maxValue: 10, type: InputType.RANGE_SLIDER}),
     new InputField({title: 'Image URI', field: 'image', type: InputType.TEXT, length:{min:5, max:2000}}),
-    new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min:0, max:3000}, validationRegex:PLAIN_TEXT_REGEX}),
+    new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min:0, max:3000}}),
 ];
 
 export const SIGNUP_PROFILE_FIELDS_USER:InputField[] = [

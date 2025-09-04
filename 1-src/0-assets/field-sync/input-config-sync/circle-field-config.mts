@@ -46,7 +46,7 @@ export const getDateDaysFuture = (days: number = 14):Date => {
 
 export const CIRCLE_FIELDS:InputField[] = [
     new InputField({title: 'Name', field: 'name',  required: true, type: InputType.TEXT, length:{min: 1, max: 100}, validationRegex:PLAIN_TEXT_REGEX }),
-    new InputField({title: 'Description', field: 'description',  required: true, type: InputType.PARAGRAPH, length:{min: 1, max: 225}, validationRegex:PLAIN_TEXT_REGEX }),
+    new InputField({title: 'Description', field: 'description',  required: true, type: InputType.PARAGRAPH, length:{min: 1, max: 225} }),
     new InputField({title: 'Universal Invite Token', field: 'inviteToken', required: true, type: InputType.TEXT, length:{min: 5, max: 15}, validationRegex:/^[a-zA-Z0-9_-]+$/, validationMessage: 'Case-sensitive, no spaces.' }),
     new InputField({title: 'Postal Code', field: 'postalCode', required: true, type: InputType.TEXT, length:{min: 5, max: 15}, validationRegex:PLAIN_TEXT_REGEX }),
 ];
@@ -56,7 +56,7 @@ export const CIRCLE_FIELDS_ADMIN:InputField[] = [
     new InputSelectionField({title: 'Active Account', field: 'isActive', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     ...CIRCLE_FIELDS,
     new InputField({title: 'Image URI', field: 'image', type: InputType.TEXT, length:{min: 5, max: 2000}}),
-    new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min: 0, max: 3000}, validationRegex:PLAIN_TEXT_REGEX }),
+    new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min: 0, max: 3000} }),
 ];
 
 export const CIRCLE_ANNOUNCEMENT_FIELDS:InputField[] = [

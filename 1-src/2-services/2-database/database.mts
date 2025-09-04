@@ -58,8 +58,6 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
     
         DB_CONFIGURATIONS = {
             ...DB_CONFIGURATIONS,
-            host: RDScredentials.host,
-            database: RDScredentials.dbname,
             user: RDScredentials.username,
             password: RDScredentials.password,
         };
