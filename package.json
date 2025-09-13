@@ -16,6 +16,7 @@
     "//": " --- Server --- ",
     "build:html": "node ./0-compiled/5-scripts/static-pages.mjs",
     "build:version": " node ./0-compiled/5-scripts/version.mjs",
+    "update:lambda:env": "node ./0-compiled/5-scripts/update-lambda-env.mjs",
     "prebuild": "rimraf 0-compiled/",
     "build": "tsc",
     "postbuild": "npm run build:version && npm run build:html",
@@ -29,7 +30,7 @@
 
     "sync-config": "node ./0-compiled/5-scripts/config-sync.mjs",
     "update": "npm run sync-config && npm run website && npm run portal & npm run postbuild",
-    "archive": "rm -rf 0-compiled && tsc && mkdir 0-compiled/archived && cp -r 0-compiled/* 0-compiled/archived && cp -r node_modules 0-compiled/archived && cp 0-compiled/3-lambda/index.mjs 0-compiled/archived & (cd 0-compiled/archived && zip -r ../../Lambda.zip .) & rm -rf 0-compiled/archived",
+    "archive": "./scripts/prayer-request.sh",
     "clean": "rimraf node_modules/ package-lock.json 0-compiled/"
   },
   "dependencies": {
@@ -37,6 +38,7 @@
     "@aws-sdk/client-s3": "^3.417.0",
     "@aws-sdk/client-secrets-manager": "^3.565.0",
     "@aws-sdk/client-sns": "^3.709.0",
+    "@aws-sdk/client-lambda": "^3.883.0",
     "@types/jsonwebtoken": "^9.0.2",
     "argon2": "^0.41.1",
     "axios": "^1.5.0",
