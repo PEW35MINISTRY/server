@@ -12,7 +12,6 @@
     "postportal": "cp -r ../portal/build ../server/portal",
     "build:html": "node ./0-compiled/5-scripts/static-pages.mjs",
     "build:version": " node ./0-compiled/5-scripts/version.mjs",
-    "update:lambda:env": "node ./0-compiled/5-scripts/update-lambda-env.mjs",
     "prebuild": "rimraf 0-compiled/",
     "build": "tsc",
     "postbuild": "npm run build:version && npm run build:html",
@@ -29,7 +28,6 @@
   },
   "dependencies": {
     "@aws-sdk/client-athena": "^3.744.0",
-    "@aws-sdk/client-lambda": "^3.883.0",
     "@aws-sdk/client-s3": "^3.417.0",
     "@aws-sdk/client-secrets-manager": "^3.565.0",
     "@aws-sdk/client-sns": "^3.709.0",
