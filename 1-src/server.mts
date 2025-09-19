@@ -3,12 +3,12 @@ dotenv.config();
 import fs, { readFileSync } from 'fs';
 import path, { join } from 'path';
 const __dirname = path.resolve();
-import { execSync } from 'child_process';
 import { createServer, request } from 'http';
 import express, { Application , Request, Response, NextFunction, response} from 'express';
 import { Server, Socket } from 'socket.io';
 import bodyParser from 'body-parser';
 import cors from 'cors';
+import { schedule } from 'node-cron';
 
 //Import Types
 import { checkAWSAuthentication, getEnvironment } from './2-services/10-utilities/utilities.mjs';
@@ -38,7 +38,6 @@ import * as log from './2-services/10-utilities/logging/log.mjs';
 import { initializeDatabase } from './2-services/2-database/database.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
-import { schedule } from 'node-cron';
 import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-request-expired-script.mjs';
 
 /********************
@@ -59,7 +58,7 @@ await checkAWSAuthentication();
 //*** CRON JOBS ***/
 
 // run at 15:00 UTC - 9am CST
-schedule("* 15 * * *", async () => answerAndNotifyPrayerRequests())
+schedule("* 15 * * *", async () => getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && answerAndNotifyPrayerRequests());
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
@@ -371,7 +370,7 @@ apiServer.post('/api/content-archive/:content/image/:file', POST_contentArchiveI
 apiServer.use('/api/admin', (request:JwtAdminRequest, response:Response, next:NextFunction) => authenticateAdminMiddleware(request, response, next));
 
 // custom scripts
-apiServer.post('/api/admin/execute/prayer-request-expired-script', POST_PrayerRequestExpiredScript)
+apiServer.post('/api/admin/execute/prayer-request-expired-script', POST_PrayerRequestExpiredScript);
 
 apiServer.get('/api/admin/mock-user', GET_createMockUser); //Optional query: populate=true
 
