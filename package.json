@@ -19,7 +19,7 @@
     "prebuild": "rimraf 0-compiled/",
     "build": "tsc",
     "postbuild": "npm run build:version && npm run build:html",
-    
+
     "open": "start http://localhost:5000",
     "preserve": "npm run build",
     "serve": "node ./0-compiled/server.mjs",
@@ -29,7 +29,6 @@
 
     "sync-config": "node ./0-compiled/5-scripts/config-sync.mjs",
     "update": "npm run sync-config && npm run website && npm run portal & npm run postbuild",
-    "archive": "rm -rf 0-compiled && tsc && mkdir 0-compiled/archived && cp -r 0-compiled/* 0-compiled/archived && cp -r node_modules 0-compiled/archived && cp 0-compiled/3-lambda/index.mjs 0-compiled/archived & (cd 0-compiled/archived && zip -r ../../Lambda.zip .) & rm -rf 0-compiled/archived",
     "clean": "rimraf node_modules/ package-lock.json 0-compiled/"
   },
   "dependencies": {
@@ -50,6 +49,7 @@
     "metascraper-image": "^5.45.9",
     "metascraper-title": "^5.45.9",
     "mysql2": "3.11.3",
+    "node-cron": "^4.2.1",
     "path": "^0.12.7",
     "rimraf": "5.0.10",
     "socket.io": "^4.5.4",
