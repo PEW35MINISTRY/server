@@ -1,7 +1,6 @@
 import { ExpiredPrayerRequest } from "../../1-api/5-prayer-request/prayer-request-types.mjs";
 import { sendNotificationMessage } from "../../1-api/8-notification/notification-utilities.mjs";
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
-import { closeDatabaseConnection, initializeDatabase } from "../../2-services/2-database/database.mjs";
 import { DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED, DB_UPDATE_RESOLVE_PRAYER_REQUEST_BATCH } from "../../2-services/2-database/queries/prayer-request-queries.mjs";
 
 const DEFAULT_EXPIRED_PRAYER_REQUEST_QUERY_LIMIT = 100;
@@ -40,7 +39,6 @@ export const answerShortTermExpiredPrayerRequestsBatch = async ():Promise<void> 
   }
 }
 
-
 const notifyExpiringPrayerRequestOwners = async (expiredPrayerRequests:ExpiredPrayerRequest[]):Promise<boolean> => {
 
     for (const expiredPrayerRequest of expiredPrayerRequests) {
@@ -51,30 +49,9 @@ const notifyExpiringPrayerRequestOwners = async (expiredPrayerRequests:ExpiredPr
     return true;
 }
 
-const answerAndNotifyPrayerRequests = async () => {
-  await initializeDatabase();
+export const answerAndNotifyPrayerRequests = async () => {
 
-    try {  
-      await notifyLongTermExpiredPrayerRequestsBatch();
-      await answerShortTermExpiredPrayerRequestsBatch(); 
+    await notifyLongTermExpiredPrayerRequestsBatch();
+    await answerShortTermExpiredPrayerRequestsBatch(); 
 
-      const response = {
-        statusCode: 200,
-        message: 'Success',
-      };
-  
-      await closeDatabaseConnection();
-      return response;
-  
-    } catch(e) {
-      await closeDatabaseConnection();
-      const response = {
-        statusCode: 500,
-        message: JSON.stringify(e.message),
-        trace: e.toString()
-      };
-      return response;
-    }
-};
-
-await answerAndNotifyPrayerRequests();
+}

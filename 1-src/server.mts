@@ -38,6 +38,8 @@ import * as log from './2-services/10-utilities/logging/log.mjs';
 import { initializeDatabase } from './2-services/2-database/database.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
+import { schedule } from 'node-cron';
+import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-request-expired-script.mjs';
 
 /********************
     EXPRESS SEVER
@@ -54,6 +56,8 @@ const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.lo
 await initializeDatabase(); 
 await checkAWSAuthentication();
 
+//*** CRON JOBS ***/
+schedule("* * * * *", async () => answerAndNotifyPrayerRequests())
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
