@@ -50,8 +50,6 @@ const notifyExpiringPrayerRequestOwners = async (expiredPrayerRequests:ExpiredPr
 }
 
 export const answerAndNotifyPrayerRequests = async () => {
-
     await notifyLongTermExpiredPrayerRequestsBatch();
     await answerShortTermExpiredPrayerRequestsBatch(); 
-
 }

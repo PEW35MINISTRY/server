@@ -20,7 +20,7 @@ import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRe
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 
 //Import Routes
-import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
+import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser, POST_PrayerRequestExpiredScript } from './1-api/api.mjs';
 import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogPartitionBucket, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateCircleManagerMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware, authenticateLeaderMiddleware, authenticateDemoUserMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
@@ -57,7 +57,7 @@ await initializeDatabase();
 await checkAWSAuthentication();
 
 //*** CRON JOBS ***/
-schedule("* * * * *", async () => answerAndNotifyPrayerRequests())
+//schedule("* * * * *", async () => answerAndNotifyPrayerRequests())
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
@@ -367,6 +367,9 @@ apiServer.post('/api/content-archive/:content/image/:file', POST_contentArchiveI
 /* Authenticate Current ADMIN Role */
 /***********************************/
 apiServer.use('/api/admin', (request:JwtAdminRequest, response:Response, next:NextFunction) => authenticateAdminMiddleware(request, response, next));
+
+// custom scripts
+apiServer.post('/api/admin/execute/prayer-request-expired-script', POST_PrayerRequestExpiredScript)
 
 apiServer.get('/api/admin/mock-user', GET_createMockUser); //Optional query: populate=true
 

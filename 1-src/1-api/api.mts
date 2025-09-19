@@ -2,13 +2,14 @@ import express, {Router, Request, Response, NextFunction} from 'express';
 import { Exception } from './api-types.mjs';
 import CIRCLE from '../2-services/1-models/circleModel.mjs';
 import USER from '../2-services/1-models/userModel.mjs';
-import { JwtClientRequest, JwtRequest } from './2-auth/auth-types.mjs';
+import { JwtAdminRequest, JwtClientRequest, JwtRequest } from './2-auth/auth-types.mjs';
 import { createMockCircle, createMockPrayerRequest, createMockUser, populateDemoRelations } from '../2-services/10-utilities/mock-utilities/mock-generate.mjs';
 import { DB_SELECT_USER } from '../2-services/2-database/queries/user-queries.mjs';
 import { CreateDemoRequest } from './3-profile/profile-types.mjs';
 import PRAYER_REQUEST from '../2-services/1-models/prayerRequestModel.mjs';
 import { getEnvironment } from '../2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { answerAndNotifyPrayerRequests } from '../3-lambda/prayer-request/prayer-request-expired-script.mjs';
 
 const router:Router = express.Router();
 
@@ -68,4 +69,16 @@ export const GET_createMockPrayerRequest = async(request:JwtClientRequest, respo
         response.status(202).send(prayerRequest.toJSON());
     else
         next(new Exception(500, `Failed to create a mock prayer request: ${prayerRequest.topic} of user ${request.clientID}.`, 'Create Failed'));
+}
+
+/******************
+ * CUSTOM SCRIPTS *
+ ******************/
+
+export const POST_PrayerRequestExpiredScript = async(request:JwtAdminRequest, response:Response, next:NextFunction) => {
+
+    // invoke the script asynchronously
+    answerAndNotifyPrayerRequests()
+
+    return response.status(202).send();
 }
