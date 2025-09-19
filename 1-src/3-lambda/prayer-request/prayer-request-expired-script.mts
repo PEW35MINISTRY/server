@@ -26,12 +26,12 @@ export const answerShortTermExpiredPrayerRequestsBatch = async ():Promise<void> 
   let done = false;
   const limit = DEFAULT_EXPIRED_PRAYER_REQUEST_QUERY_LIMIT;
   let cursor = 0;
-  log.event('PRAYER REQUEST NOTIFIER LAMBDA  :: RESOLVING PRAYER REQUESTS')
+  log.event('PRAYER REQUEST NOTIFIER LAMBDA :: RESOLVING PRAYER REQUESTS')
 
   while (done === false) {
       const result = await DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED(0, limit, cursor);
       
-      //await DB_UPDATE_RESOLVE_PRAYER_REQUEST_BATCH(result.map((prayerRequest) => prayerRequest.prayerRequestID));
+      await DB_UPDATE_RESOLVE_PRAYER_REQUEST_BATCH(result.map((prayerRequest) => prayerRequest.prayerRequestID));
 
       if (result.length < limit || result.length === 0) done = true;
       else cursor = result[result.length-1].prayerRequestID;
