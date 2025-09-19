@@ -26,6 +26,7 @@ const GetRDSSecretCredentials = async():Promise<AWSDatabaseSecrets> => {
     }
 }
 
+export const closeDatabaseConnection = async () => DATABASE.end();
 
 export const initializeDatabase = async():Promise<SQL.Pool> => {
     console.log(`Initializing Database in ${getEnvironment()} Environment...`);
