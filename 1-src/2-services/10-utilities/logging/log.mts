@@ -13,6 +13,19 @@ export const alert = async(...messages:any[]):Promise<boolean> => {
         // && (!SEND_LOG_EMAILS || await sendLogAlertEmail(entry));
 }
 
+export const all = async (...messages:any[]):Promise<boolean> => {
+    const entry:LOG_ENTRY = new LOG_ENTRY(LogType.ERROR, messages);
+    let success = true;
+
+    for(const type of Object.values(LogType)) {
+        entry.type = type;
+        success = success && (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+                          && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
+    }
+
+    return success;
+}
+
 export const error = async(...messages:any[]):Promise<boolean> => {
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.ERROR, messages, getStackTrace());
 

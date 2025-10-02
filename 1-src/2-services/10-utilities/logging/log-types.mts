@@ -19,6 +19,7 @@ export const LOG_SEARCH_DEFAULT_TIMESPAN = (7 * 24 * 60 * 60 * 1000); //7 days
 export const LOG_SEARCH_DEFAULT_MAX_ENTRIES = 500;
 export const LOG_DEFAULT_ERROR_PERCENTAGE = 0.67;
 
+export let PRINT_LOGS_TO_CONSOLE = (process.env.PRINT_LOGS_TO_CONSOLE !== undefined) ? (process.env.PRINT_LOGS_TO_CONSOLE === 'true') : (getEnvironment() === ENVIRONMENT_TYPE.LOCAL);
 
 export let SAVE_LOGS_LOCALLY = (process.env.SAVE_LOGS_LOCALLY !== undefined) ? (process.env.SAVE_LOGS_LOCALLY === 'true') : true;
 export const setSaveLogsLocally = (saveLocally:boolean):void => { SAVE_LOGS_LOCALLY = saveLocally; }

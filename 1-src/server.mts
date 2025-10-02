@@ -11,8 +11,8 @@ import cors from 'cors';
 import { schedule } from 'node-cron';
 
 //Import Types
-import { checkAWSAuthentication, getEnvironment } from './2-services/10-utilities/utilities.mjs';
-import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST } from './0-assets/field-sync/input-config-sync/inputField.mjs';
+import { checkAWSAuthentication, getEnvironment, toStringArray } from './2-services/10-utilities/utilities.mjs';
+import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST, SENSITIVE_KEYWORDS } from './0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
@@ -475,32 +475,36 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
         notification: notification
     }
 
+    const debugResponse:ServerDebugErrorResponse = {
+        ...errorResponse,
+        message: message,
+        action: action,
+        jwtUserID: (request as JwtRequest).jwtUserID ?? -1,
+        jwtUserRole: (request as JwtRequest)?.jwtUserRole ?? 'UNKNOWN',
+        type: request.method,
+        url: request.originalUrl,
+        params: JSON.stringify(request.params),
+        query: JSON.stringify(request.query),
+        header: request.headers,
+        body: request.body,
+    };
+
     if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)
         response.status(error.status || 500).send(errorResponse);
 
-    else {
-        const debugResponse:ServerDebugErrorResponse = {
-            ...errorResponse,
-            message: message,
-            action: action,
-            type: request.method,
-            url: request.originalUrl,
-            params: JSON.stringify(request.params),
-            query: JSON.stringify(request.query),
-            header: request.headers,
-            body: request.body,
-        };
-
+    else
         response.status(error.status || 500).send(debugResponse);
-    }
+
 
     /* Logging API Errors */
-    if(status < 400) log.event(`API | ${status} | Event:`, message);
-    else if(status === 400) log.warn('API | 400 | User Request Invalid:', message);
+    const sanitizedRequestFields:string[] = toStringArray(debugResponse, SENSITIVE_KEYWORDS, 100);
+
+    if(status < 400) log.event(`API | ${status} | Event:`, message, ...sanitizedRequestFields);
+    else if(status === 400) log.warn('API | 400 | User Request Invalid:', message, ...sanitizedRequestFields);
     else if(status === 401) log.auth('API | 401 | User Unauthorized:', message);
-    else if(status === 403 || (status === 405)) log.auth('API | 403 | Forbidden Request:', message);
+    else if(status === 403 || (status === 405)) log.auth('API | 403 | Forbidden Request:', message, ...sanitizedRequestFields);
     else if(status === 413) log.warn(`API | 413 | File larger than ${process.env.IMAGE_UPLOAD_SIZE}:`, message);
 
     else if(status === 404 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('API | 404 | Request Not Found:', message);
-    else if(status !== 404) log.errorWithoutTrace(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
+    else if(status !== 404) log.errorWithoutTrace(`API | ${status} | Server Error:`, message, ...sanitizedRequestFields);
 });

@@ -113,3 +113,54 @@ export const sanitizeKeyValuePairs = (pairs:Record<string, string|number>, { key
 
     return result;
 }
+
+
+//Converts any object into array of strings; optional field sanitization
+export const toStringArray = (initialObject:any, sanitizePropertyKeywords:string[] = [], maxFieldLength:number = 100):string[] => {
+    const result:string[] = [];
+
+    const calculateRecursiveProperty = (obj:any, fieldPath='') => {
+        if(obj === null) {
+            result.push(`${fieldPath}: null`);
+            return;
+
+        } else if(obj === undefined) {
+            result.push(`${fieldPath}: ${obj}`);
+            return;
+
+        //Truncate long fields
+        } else if(typeof obj !== 'object') {
+            result.push(`${fieldPath}: ${String(obj).length > maxFieldLength ? String(obj).slice(0, maxFieldLength)+'...' : String(obj)}`);
+            return;
+
+        //Iterate arrays, adds current fieldPath as a prefix
+        } else if(Array.isArray(obj)) {
+            for(const [idx,item] of obj.entries()) calculateRecursiveProperty(item, `${fieldPath}[${idx}]`);
+            return;
+        }
+
+        /* Redacting & Filtering */
+        const objects:[string, any][] = [];
+        for(const [field, value] of Object.entries(obj)) {
+            const fullPath = fieldPath ? `${fieldPath}.${field}` : field;
+            //Redact fields that include substring from sanitizeFields case-insensitive
+            if(sanitizePropertyKeywords.some(field => fullPath.toLowerCase().includes(field.toLowerCase()))) {
+                result.push(`${fullPath}: [REDACTED]`);
+            //Objects are sorted to the end for readability
+            } else if(value !== null && typeof value === 'object') {
+                objects.push([field,value]);
+            } else {
+                result.push(`${fullPath}: ${String(value).length > maxFieldLength ? String(value).slice(0,maxFieldLength)+'...' : String(value)}`);
+            }
+        }
+
+        //Recursively format objects
+        for(const [k,v] of objects) {
+            const fullPath = fieldPath ? `${fieldPath}.${k}` : k;
+            calculateRecursiveProperty(v, fullPath);
+        }
+    };
+
+    calculateRecursiveProperty(initialObject);
+    return result;
+};
