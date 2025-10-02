@@ -79,7 +79,6 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
         throw error;
     }
 
-    log.warn(`Database initialized in ${getEnvironment()} Environment with Default Model Source Environment as ${getModelSourceEnvironment()}.`);
     return DATABASE;
 }
 
