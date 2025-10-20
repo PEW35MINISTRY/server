@@ -58,7 +58,7 @@ await checkAWSAuthentication();
 //*** CRON JOBS ***/
 
 // run at 15:00 UTC - 9am CST
-schedule("* 15 * * *", async () => getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && answerAndNotifyPrayerRequests());
+schedule("0 15 * * *", async () => getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && answerAndNotifyPrayerRequests());
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
