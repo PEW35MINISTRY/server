@@ -3,20 +3,23 @@
   "version": "1.0.0",
   "main": "./0-compiled/server.mjs",
   "scripts": {
-    "//": " --- Server --- ",
-    "prewebsite": "rimraf website/",
-    "website": "build-website",
+    "//": " --- Website --- ",
+    "prewebsite": "rimraf website/build",
+    "website": "cd ../website && npm run build",
     "postwebsite": "cp -r ../website/build ../server/website",
-    "preportal": "rimraf portal/",
-    "portal": "build-portal",
+
+    "//": " --- Portal --- ",
+    "preportal": "rimraf portal/build",
+    "portal": "cd ../portal && npm run build",
     "postportal": "cp -r ../portal/build ../server/portal",
 
+    "//": " --- Server --- ",
     "build:html": "node ./0-compiled/5-scripts/static-pages.mjs",
     "build:version": " node ./0-compiled/5-scripts/version.mjs",
     "prebuild": "rimraf 0-compiled/",
     "build": "tsc",
     "postbuild": "npm run build:version && npm run build:html",
-    
+
     "open": "start http://localhost:5000",
     "preserve": "npm run build",
     "serve": "node ./0-compiled/server.mjs",
@@ -26,7 +29,6 @@
 
     "sync-config": "node ./0-compiled/5-scripts/config-sync.mjs",
     "update": "npm run sync-config && npm run website && npm run portal & npm run postbuild",
-    "archive": "rm -rf 0-compiled && tsc && mkdir 0-compiled/archived && cp -r 0-compiled/* 0-compiled/archived && cp -r node_modules 0-compiled/archived && cp 0-compiled/3-lambda/index.mjs 0-compiled/archived & (cd 0-compiled/archived && zip -r ../../Lambda.zip .) & rm -rf 0-compiled/archived",
     "clean": "rimraf node_modules/ package-lock.json 0-compiled/"
   },
   "dependencies": {
@@ -48,6 +50,7 @@
     "metascraper-image": "^5.45.9",
     "metascraper-title": "^5.45.9",
     "mysql2": "3.11.3",
+    "node-cron": "^4.2.1",
     "nodemailer": "^6.10.0",
     "path": "^0.12.7",
     "rimraf": "5.0.10",

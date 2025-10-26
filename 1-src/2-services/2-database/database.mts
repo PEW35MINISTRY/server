@@ -26,7 +26,6 @@ const GetRDSSecretCredentials = async():Promise<AWSDatabaseSecrets> => {
     }
 }
 
-
 export const initializeDatabase = async():Promise<SQL.Pool> => {
     console.log(`Initializing Database in ${getEnvironment()} Environment...`);
 
@@ -58,8 +57,6 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
     
         DB_CONFIGURATIONS = {
             ...DB_CONFIGURATIONS,
-            host: RDScredentials.host,
-            database: RDScredentials.dbname,
             user: RDScredentials.username,
             password: RDScredentials.password,
         };

@@ -3,12 +3,12 @@ dotenv.config();
 import fs, { readFileSync } from 'fs';
 import path, { join } from 'path';
 const __dirname = path.resolve();
-import { execSync } from 'child_process';
 import { createServer, request } from 'http';
 import express, { Application , Request, Response, NextFunction, response} from 'express';
 import { Server, Socket } from 'socket.io';
 import bodyParser from 'body-parser';
 import cors from 'cors';
+import { schedule } from 'node-cron';
 
 //Import Types
 import { checkAWSAuthentication, getEnvironment } from './2-services/10-utilities/utilities.mjs';
@@ -20,7 +20,7 @@ import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRe
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 
 //Import Routes
-import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser } from './1-api/api.mjs';
+import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser, POST_PrayerRequestExpiredScript } from './1-api/api.mjs';
 import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogPartitionBucket, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateCircleManagerMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware, authenticateLeaderMiddleware, authenticateDemoUserMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
@@ -38,6 +38,7 @@ import * as log from './2-services/10-utilities/logging/log.mjs';
 import { initializeDatabase } from './2-services/2-database/database.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
+import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-request-expired-script.mjs';
 import { sendEmailLogReport, sendEmailMessage, sendEmailUserReport } from './2-services/4-email/email.mjs';
 import { EMAIL_SENDER_ADDRESS } from './2-services/4-email/email-types.mjs';
 
@@ -64,6 +65,10 @@ const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.lo
 await initializeDatabase(); 
 await checkAWSAuthentication();
 
+//*** CRON JOBS ***/
+
+// run at 15:00 UTC - 9am CST
+schedule("0 15 * * *", async () => getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && answerAndNotifyPrayerRequests());
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
@@ -374,6 +379,9 @@ apiServer.post('/api/content-archive/:content/image/:file', POST_contentArchiveI
 /***********************************/
 apiServer.use('/api/admin', (request:JwtAdminRequest, response:Response, next:NextFunction) => authenticateAdminMiddleware(request, response, next));
 
+// custom scripts
+apiServer.post('/api/admin/execute/prayer-request-expired-script', POST_PrayerRequestExpiredScript);
+
 apiServer.get('/api/admin/mock-user', GET_createMockUser); //Optional query: populate=true
 
 apiServer.use(express.text());
@@ -434,7 +442,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     const notification = error.notification || ((status == 400) ? 'Missing details'
                             : (status == 401) ? 'Sorry not permitted'
                             : (status == 404) ? 'Not found'
-                            : (status == 413) ? 'File larger than 5mb'
+                            : (status == 413) ? `File larger than ${process.env.IMAGE_UPLOAD_SIZE}`
                             : 'Unknown error has occurred');
 
     const errorResponse:ServerErrorResponse = {
@@ -464,8 +472,10 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     /* Logging API Errors */
     if(status < 400) log.event(`API | ${status} | Event:`, message);
     else if(status === 400) log.warn('API | 400 | User Request Invalid:', message);
-    else if(status === 401) log.auth('API   401 | User Unauthorized:', message);
-    else if(status === 404) {
-        if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('API | 404 | Request Not Found:', message);
-    } else log.errorWithoutTrace(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
+    else if(status === 401) log.auth('API | 401 | User Unauthorized:', message);
+    else if(status === 403 || (status === 405)) log.auth('API | 403 | Forbidden Request:', message);
+    else if(status === 413) log.warn(`API | 413 | File larger than ${process.env.IMAGE_UPLOAD_SIZE}:`, message);
+
+    else if(status === 404 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) log.warn('API | 404 | Request Not Found:', message);
+    else if(status !== 404) log.errorWithoutTrace(`API | ${status} | Server Error:`, message, JSON.stringify(errorResponse));
 });
