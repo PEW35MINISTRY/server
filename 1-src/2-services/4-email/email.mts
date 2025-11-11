@@ -9,7 +9,7 @@ import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inp
 import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { sendLogTextEmail, sendTemplateEmail, sendTextEmail } from './email-transporter.mjs';
 import { htmlSummaryTable } from './components/email-template-table.mjs';
-import { htmlPartnershipBlock, renderEmailCircle, renderEmailCircleAnnouncements, renderEmailCircleAnnouncementsAll, renderEmailCircleList, renderEmailPartnership, renderEmailProfile } from './components/email-template-items.mjs';
+import { htmlPartnershipBlock, htmlProfileBlock, renderEmailCircle, renderEmailCircleAnnouncements, renderEmailCircleAnnouncementsAll, renderEmailCircleList, renderEmailPartnership, renderEmailProfile } from './components/email-template-items.mjs';
 import { htmlHeader, htmlTitle, htmlText, htmlNumberedList, htmlBulletList, htmlSection, htmlAccessCode, htmlActionButton, htmlFooter, htmlVerticalSpace, htmlDetailList } from './components/email-template-components.mjs';
 import { renderDatabaseTableUsage, htmlUserStats, htmlUserRoleDistribution, htmlUserWalkLevelDistribution, renderLogList } from './components/email-template-renders.mjs';
 import { formatDate, getEmailSignature } from './email-utilities.mjs';
@@ -74,7 +74,8 @@ const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, u
 /************************
  * HTML REPORT HANDLERS *
  *************************/
-export const sendEmailUserReport = async() => {
+export const sendEmailUserReport = async(...userIDList:number[]) => {
+    const recipientMap = await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
     const subscriptionList:WebsiteSubscription[] = await DB_SELECT_EMAIL_SUBSCRIPTION_RECENT(90);
     const unassignedProfileList:NewPartnerListItem[] = await DB_SELECT_UNASSIGNED_PARTNER_USER_LIST(200);
     const pendingPartnershipList:[NewPartnerListItem, NewPartnerListItem][] = await DB_SELECT_PENDING_PARTNER_PAIR_LIST(200);
@@ -120,11 +121,7 @@ export const sendEmailUserReport = async() => {
         verticalSpacing: 5
     });
 
-    const successfullySent:boolean = await sendTemplateEmail(
-        `EP User Status | ${makeDisplayText(getEnvironment())} Environment`, templateHtml,
-        EMAIL_SENDER_ADDRESS.SYSTEM, new Map([[-1, EMAIL_SENDER_ADDRESS.ADMIN]]));
-
-    return successfullySent;
+    return await sendTemplateEmail(`EP User Status | ${makeDisplayText(getEnvironment())} Environment`, templateHtml, EMAIL_SENDER_ADDRESS.SYSTEM, recipientMap);
 }
 
 
@@ -155,7 +152,9 @@ export const sendEmailLogAlert = async(entry:LOG_ENTRY, ...userIDList:number[]) 
     });
 
 
-export const sendEmailLogReport = async():Promise<boolean> => {
+export const sendEmailLogReport = async(...userIDList:number[]):Promise<boolean> => {
+    const recipientMap = await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
+
     const textBody:string =
         `SERVER STATUS REPORT\n`
         + `Date:${new Date().toISOString()}\n`
@@ -171,13 +170,5 @@ export const sendEmailLogReport = async():Promise<boolean> => {
         + '\n\n'
         + `== See Latest Logs ==\n${process.env.ENVIRONMENT_BASE_URL}/portal/logs`;
 
-    const successfullySent:boolean = await sendLogTextEmail(
-        `EP Server Status | ${makeDisplayText(getEnvironment())} Environment`, 
-        textBody, new Map([[-1, EMAIL_SENDER_ADDRESS.ADMIN]]));
-
-    return successfullySent;
+    return await sendLogTextEmail(`EP Server Status | ${makeDisplayText(getEnvironment())} Environment`, textBody, recipientMap);
 }
-function htmlProfileBlock(profile: NewPartnerListItem): any {
-    throw new Error('Function not implemented.');
-}
-

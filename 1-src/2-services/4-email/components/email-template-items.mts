@@ -24,7 +24,7 @@ export const renderEmailProfile = async(userID:number, includeUserID?:boolean, d
 
 
 /* PROFILE */
-const htmlProfileBlock = (profile:ProfileListItem, includeUserID:boolean = false, details:[string, string][] = []):string =>
+export const htmlProfileBlock = (profile:ProfileListItem, includeUserID:boolean = false, details:[string, string][] = []):string =>
     `<table border="0" cellspacing="0" cellpadding="0" class="full_width" align="left" role="presentation">
         <tr>
             <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
