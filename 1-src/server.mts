@@ -397,7 +397,7 @@ apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDe
 apiServer.patch('/api/admin/notification/device/:device', PATCH_notificationDeviceAdmin);
 
 apiServer.use('/api/admin/email/report/:type/client/:client', (request:EmailReportRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
-apiServer.post('/api/admin/email/report/:type/client/:client', POST_EmailReport);
+apiServer.post('/api/admin/email/report/:type/client/:client', (request:EmailReportRequest, response:Response, next:NextFunction) => POST_EmailReport(undefined, request, response, next));
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));

@@ -12,9 +12,13 @@ import { sendEmailLogReport, sendEmailUserReport } from '../../2-services/4-emai
  * EMAIL REPORTING & MESSAGING ROUTES *
  **************************************/
 
-export const POST_EmailReport = async(reportType:EmailReport, request:EmailReportRequest, response:Response, next:NextFunction) => {
-    if(!(reportType in EmailReport))
-        return next(new Exception(400, `Invalid 'type' parameter :: ${request.params.type}`, 'Invalid Report Type'));
+export const POST_EmailReport = async(reportType:EmailReport|undefined, request:EmailReportRequest, response:Response, next:NextFunction) => {
+    if(reportType === undefined) {
+        reportType = EmailReport[String(request.params.type ?? '').toUpperCase().trim() as keyof typeof EmailReport];
+    
+        if(reportType === undefined) 
+            return next(new Exception(400, `Invalid 'type' parameter :: ${request.params.type}`, 'Invalid Report Type'));
+    }
 
     let success = false;
     switch(reportType) {
