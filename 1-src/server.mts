@@ -39,16 +39,6 @@ import { initializeDatabase } from './2-services/2-database/database.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
 import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-request-expired-script.mjs';
-import { sendEmailLogReport, sendEmailMessage, sendEmailUserReport } from './2-services/4-email/email.mjs';
-import { EMAIL_SENDER_ADDRESS } from './2-services/4-email/email-types.mjs';
-
-
-sendEmailMessage('Super IMPORTANT', 'Did you recieve my message?', EMAIL_SENDER_ADDRESS.SERVER, -1);
-
-// sendEmailLogReport();
-
-
-// sendEmailUserReport();
 
 /********************
     EXPRESS SEVER

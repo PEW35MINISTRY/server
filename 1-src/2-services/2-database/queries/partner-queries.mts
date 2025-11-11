@@ -90,21 +90,21 @@ export const DB_SELECT_PARTNERSHIP = async(userID:number, partnerID:number):Prom
 export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PARTNER_STATUS_ENUM):Promise<PartnerListItem[]> => {
 
     const rows:RowDataPacket[] = (status === undefined) ?
-            await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+            await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
                 + 'FROM partner '
                 + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
                 + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
                 + `AND status NOT IN ('FAILED', 'ENDED');`, [userID, userID, userID])
 
         : ([DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER].includes(status)) ?
-            await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+            await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
                 + 'FROM partner '
                 + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
                 + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
                 + `AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
                 , [userID, userID, userID])
     
-            : await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+            : await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
                 + 'FROM partner '
                 + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
                 + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
@@ -112,7 +112,7 @@ export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PART
 
     //Filtered to match userID perspective
     return rows.map(row => convertPartnershipPerspective(userID, row.userID, row.partnerID,
-        {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '',
+        {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', contractDT: row.partnerContractDT, partnershipDT: row.partnershipDT,
                 status: PartnerStatusEnum[row.status]}))
             .filter((partner:PartnerListItem) => (!status || DATABASE_PARTNER_STATUS_ENUM[partner.status] === status));
 }
@@ -120,26 +120,29 @@ export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PART
 
 export const DB_SELECT_PENDING_PARTNER_LIST = async(userID?:number):Promise<PartnerListItem[]> => {
     const rows:RowDataPacket[] = (userID !== undefined) ?    
-        await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+        await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
             + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
             + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
-            + `AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
+            + `AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER') `
+            + 'ORDER BY partner.modifiedDT DESC;'
             , [userID, userID, userID])
 
-        : await query('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status ' 
+        : await query('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
             + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-            + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
+            + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER') `
+            + 'ORDER BY partner.modifiedDT DESC;'
             );
 
     return [...rows.map(row => convertPartnershipPerspective(userID || -1, row.userID, row.partnerID,
-        {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', status: PartnerStatusEnum[row.status]}))];
+        {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', contractDT: row.partnerContractDT, partnershipDT: row.partnershipDT,
+            status: PartnerStatusEnum[row.status]}))];
 }
 
 /* ADMIN Utility */
-export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[NewPartnerListItem, NewPartnerListItem][]> => {
-    const rows:RowDataPacket[] = await query('SELECT status, userContractDT, partnerContractDT, user.*, '
+export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async(limit:number = 100):Promise<[NewPartnerListItem, NewPartnerListItem][]> => {
+    const rows:RowDataPacket[] = await execute('SELECT status, userContractDT, partnerContractDT, user.*, '
             + `${USER_TABLE_COLUMNS.map((column:string) => `client.${column} as ${camelCase('client', column)}`).join(', ')} `
             + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID) '
@@ -153,7 +156,9 @@ export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async():Promise<[NewPartnerLi
                     + 'THEN 2 '
                 + 'ELSE 3 '
             + 'END, '
-            + 'partner.modifiedDT DESC;'
+            + 'partner.modifiedDT DESC '
+            + 'LIMIT ?;'
+            , [limit]
         );
 
     //Only here does userID match status

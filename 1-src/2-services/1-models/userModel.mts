@@ -21,7 +21,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   static modelType:string = 'USER';
 
   //Static list of class property fields | (This is display-responses; NOT edit-access -> see: profile-field-config.mts)
-  static DATABASE_IDENTIFYING_PROPERTY_LIST = ['firstName', 'lastName', 'displayName', 'email']; //exclude: usedID, complex types, and lists
+  static DATABASE_IDENTIFYING_PROPERTY_LIST = ['firstName', 'lastName', 'displayName', 'email']; //exclude: userID, complex types, and lists
   static PUBLIC_PROPERTY_LIST = PROFILE_PUBLIC_PROPERTY_LIST;
   static NEW_PARTNER_PROPERTY_LIST = PROFILE_NEW_PARTNER_PROPERTY_LIST;
   static USER_PROPERTY_LIST = PROFILE_PROPERTY_LIST;

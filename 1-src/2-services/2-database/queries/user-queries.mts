@@ -88,7 +88,7 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     return await DB_POPULATE_USER_PROFILE(USER.constructByDatabase(rows[0] as DATABASE_USER));
 }
 
-
+//Assembles recipientMap for sending emails
 export const DB_SELECT_USER_BATCH_EMAIL_MAP = async(userIDList:number[]):Promise<Map<number, string>> => {
     if(userIDList.length === 0 || !Array.isArray(userIDList) || !userIDList.every(id => typeof id === 'number')) {
         log.db('DB_SELECT_USER_BATCH_EMAIL_MAP Invalid userIDList:', JSON.stringify(userIDList));

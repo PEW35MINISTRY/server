@@ -12,6 +12,9 @@ import { getLogFilePath } from '../10-utilities/logging/log-types.mjs';
  * Core email transport functionality for sending AWS SES Emails *
  * Intended to be used by handlers in email.mts                  * 
  *****************************************************************/
+ 
+//TODO ENVIRONMENT VARIABLE
+
 const client: SESClient = new SESClient({
     region: 'us-east-1',
     //credentials: //Established with SSO login
@@ -66,7 +69,7 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
         });
 
         const result = await client.send(command);
-        return true;
+        return result.$metadata.httpStatusCode === 200;
     } catch (error) {
         log.error('Failed to send HTML email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap), 'with body: ', htmlBody);
         return false;
@@ -104,7 +107,7 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:EM
                 },
             },
             ReplyToAddresses: [
-                senderAddress === EMAIL_SENDER_ADDRESS.ADMIN ? EMAIL_SENDER_ADDRESS.ADMIN : EMAIL_SENDER_ADDRESS.SUPPORT
+                (senderAddress === EMAIL_SENDER_ADDRESS.ADMIN) ? EMAIL_SENDER_ADDRESS.ADMIN : EMAIL_SENDER_ADDRESS.SUPPORT
             ],
         });
 
@@ -168,7 +171,7 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
         ].join('\r\n')).join('\r\n');
 
         const rawMessage = [
-            `From: ${EMAIL_SENDER_ADDRESS.SERVER}`,
+            `From: ${EMAIL_SENDER_ADDRESS.SYSTEM}`,
             `To: ${recipientAddresses.join(', ')}`,
             `Subject: ${subject}`,
             'MIME-Version: 1.0',
@@ -183,7 +186,7 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
             RawMessage: {
                 Data: Buffer.from(rawMessage)
             },
-            Source: EMAIL_SENDER_ADDRESS.SERVER,
+            Source: EMAIL_SENDER_ADDRESS.SYSTEM,
             Destinations: recipientAddresses
         });
 

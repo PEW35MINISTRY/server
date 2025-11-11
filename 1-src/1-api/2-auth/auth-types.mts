@@ -12,12 +12,16 @@ import { JwtResponseBody, LoginRequestBody } from '../../0-assets/field-sync/api
 * Server: Additional Types Declared in: 0-assets\field-sync\api-type-sync\auth-types.ts *
 *****************************************************************************************/
 
+export type WebsiteSubscription = {
+    email:string,
+    role?:string, //Not RoleEnum | [USER, LEADER, FINANCIAL SUPPORTER]
+    note?:string,
+
+    createdDT?:Date //Set by Database
+}
+
 export interface SubscribePost extends Request {
-    body: {
-        email:string,
-        role?:string, //Not RoleEnum | [USER, LEADER, FINANCIAL SUPPORTER]
-        note?:string
-    }
+    body: WebsiteSubscription
 }
 
 export interface JwtData extends JwtPayload {
