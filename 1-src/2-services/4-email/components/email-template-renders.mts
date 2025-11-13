@@ -18,21 +18,24 @@ export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:
     
     for(const tableName of tableNames) {
         const stats = await DB_CALCULATE_TABLE_USAGE(tableName);
+        const existing24 = Math.max(0, stats.totalRows - stats.created24Hours);
+        const existing7  = Math.max(0, stats.totalRows - stats.created7Days);
+        const existing30 = Math.max(0, stats.totalRows - stats.created30Days);
         
         rowList.push([makeDisplayText(tableName),
             stats.totalRows,
             stats.created24Hours,
-            stats.totalRows ? ((stats.modified24Hours / stats.totalRows) * 100).toFixed(2) + '%' : '0%',
+            (existing24 > 0) ? ((stats.modified24Hours / existing24) * 100).toFixed(2) + '%' : '0%',
             stats.created7Days,
-            stats.totalRows ? ((stats.modified7Days / stats.totalRows) * 100).toFixed(2) + '%' : '0%',
+            (existing7 > 0) ? ((stats.modified7Days / existing7) * 100).toFixed(2) + '%' : '0%',
             stats.created30Days, 
-            stats.totalRows ? ((stats.modified30Days / stats.totalRows) * 100).toFixed(2) + '%' : '0%'
+            (existing30 > 0) ? ((stats.modified30Days / existing30) * 100).toFixed(2) + '%' : '0%'
         ]);
     }
     
     return html ? htmlSummaryTable('Database Table Usage', ['Table', 'Total', '24H', '24H(m)', 'W', 'W(m)', 'M', 'M(m)'], 
-                                    rowList, [['New Growth:', 'These are new row entries in the last 24 hours, week, and month.'],
-                                              ['Continual Usage:', '(m) notation is the percentage of existing rows modified</em>']])
+                                    rowList, [['* New Growth:', 'These are new row entries in the last 24 hours, past week, and month.'],
+                                              ['* Continual Usage:', '(m) notation is the percentage of existing rows modified']])
 
         : renderLabeledRowTable('Database Table Usage', ['Table', 'Total', '24H', '24H(m)', 'W', 'W(m)', 'M', 'M(m)'], 
                             rowList, ['* New Growth: These are new row entries in the last 24 hours, week, and month.',
@@ -46,7 +49,7 @@ export const htmlUserStats = async():Promise<string> => {
     return htmlSummaryPairList('User Statistics', new Map<string, string | number>([
         ['Total Users', stats.totalRows],
         ['Active', stats.emailVerified],
-        ['Active as %', stats.totalRows ? ((stats.emailVerified / stats.totalRows) * 100).toFixed(2) + '%' : '0%'],
+        ['Active as %', (stats.totalRows > 0) ? ((stats.emailVerified / stats.totalRows) * 100).toFixed(2) + '%' : '0%'],
         ['Users', stats.roleMap.get(DATABASE_USER_ROLE_ENUM.USER)],
         ['Users (Unassigned)', stats.unassignedUsers],
         ['Demo Users', stats.roleMap.get(DATABASE_USER_ROLE_ENUM.DEMO_USER)],

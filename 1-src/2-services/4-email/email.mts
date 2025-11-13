@@ -72,13 +72,18 @@ const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, u
 /************************
  * HTML REPORT HANDLERS *
  *************************/
-export const sendEmailUserReport = async(recipientEmail:string, ...userIDList:number[]) => {
+export const sendEmailUserReport = async(recipientEmail:string, ...userIDList:number[]):Promise<boolean> => {
     const recipientMap = recipientEmail ? new Map<number, string>([[-1, recipientEmail]]) : await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
+    const templateHtml = await assembleUserReportHTML();
+    return await sendTemplateEmail(`EP User Status | ${makeDisplayText(getEnvironment())} Environment`, templateHtml, EMAIL_SENDER_ADDRESS.SYSTEM, recipientMap);
+}
+
+export const assembleUserReportHTML = async():Promise<string> => {
     const subscriptionList:WebsiteSubscription[] = await DB_SELECT_EMAIL_SUBSCRIPTION_RECENT(90);
     const unassignedProfileList:NewPartnerListItem[] = await DB_SELECT_UNASSIGNED_PARTNER_USER_LIST(200);
     const pendingPartnershipList:[NewPartnerListItem, NewPartnerListItem][] = await DB_SELECT_PENDING_PARTNER_PAIR_LIST(200);
 
-    const templateHtml = await applyTemplate({type: EMAIL_TEMPLATE_TYPE.TABLE_ROWS,
+    return await applyTemplate({type: EMAIL_TEMPLATE_TYPE.TABLE_ROWS,
         replacementMap: new Map([[EMAIL_REPLACEMENT.EMAIL_SUBJECT, 'User Status Report']]),
         bodyList: [
             htmlHeader(),
@@ -120,8 +125,6 @@ export const sendEmailUserReport = async(recipientEmail:string, ...userIDList:nu
         ],
         verticalSpacing: 5
     });
-
-    return await sendTemplateEmail(`EP User Status | ${makeDisplayText(getEnvironment())} Environment`, templateHtml, EMAIL_SENDER_ADDRESS.SYSTEM, recipientMap);
 }
 
 
@@ -129,7 +132,7 @@ export const sendEmailUserReport = async(recipientEmail:string, ...userIDList:nu
  * LOGS & ADMIN REPORT HANDLERS *
  ********************************/
 //TODO Auto determine recipients
-export const sendEmailLogAlert = async(entry:LOG_ENTRY, ...userIDList:number[]) => 
+export const sendEmailLogAlert = async(entry:LOG_ENTRY, ...userIDList:number[]):Promise<boolean> => 
     sendBrandedEmail({
         subject: `EP Alert: System ${entry.type}`,
         sender: EMAIL_SENDER_ADDRESS.SYSTEM,
@@ -154,9 +157,12 @@ export const sendEmailLogAlert = async(entry:LOG_ENTRY, ...userIDList:number[]) 
 
 export const sendEmailLogReport = async(recipientEmail:string, ...userIDList:number[]):Promise<boolean> => {
     const recipientMap = recipientEmail ? new Map<number, string>([[-1, recipientEmail]]) : await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
+    const textBody = await assembleLogReportText();
+    return await sendLogTextEmail(`EP Server Status | ${makeDisplayText(getEnvironment())} Environment`, textBody, recipientMap);
+}
 
-    const textBody:string =
-        `SERVER STATUS REPORT\n`
+export const assembleLogReportText = async():Promise<string> => {
+    return `SERVER STATUS REPORT\n`
         + `Date:${new Date().toISOString()}\n`
         + `Environment:${getEnvironment()}`
         + '\n\n'
@@ -169,6 +175,4 @@ export const sendEmailLogReport = async(recipientEmail:string, ...userIDList:num
         + await renderLogList(LogType.DB, 25, false)
         + '\n\n'
         + `== See Latest Logs ==\n${process.env.ENVIRONMENT_BASE_URL}/portal/logs`;
-
-    return await sendLogTextEmail(`EP Server Status | ${makeDisplayText(getEnvironment())} Environment`, textBody, recipientMap);
 }
