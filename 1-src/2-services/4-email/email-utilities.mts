@@ -5,7 +5,7 @@
  * INDEPENDENT EMAIL UTILITIES *
  *******************************/
 
-import { EMAIL_SENDER_ADDRESS } from "./email-types.mjs";
+import { EMAIL_SENDER_ADDRESS, EmailSenderAddress  } from "./email-types.mjs";
 
 export const formatDate = (value?:Date|string, includeTime?:boolean, timeZone:string = 'America/Chicago'):string => {
     if(!value) return '';
@@ -28,7 +28,7 @@ export const formatDate = (value?:Date|string, includeTime?:boolean, timeZone:st
 };
 
 
-export const getEmailSignature = (sender:EMAIL_SENDER_ADDRESS): string[] => {
+export const getEmailSignature = (sender:EmailSenderAddress): string[] => {
   switch(sender) {
     case EMAIL_SENDER_ADDRESS.ADMIN:
       return ['— EP Admin Team'];

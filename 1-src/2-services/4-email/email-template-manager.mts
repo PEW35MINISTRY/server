@@ -1,8 +1,7 @@
-import { PathLike } from 'fs';
-import fs, { readFileSync } from 'fs';
-import path, { join } from 'path';
-const __dirname = path.resolve();
 import * as log from '../10-utilities/logging/log.mjs';
+import fs, { PathLike, readFileSync } from 'fs';
+import path from 'path';
+const __dirname = path.resolve();
 import { htmlVerticalSpace } from './components/email-template-components.mjs';
 
 
@@ -24,8 +23,8 @@ const getTemplateFilePath = (type:EMAIL_TEMPLATE_TYPE):PathLike => {
     }
 }
 
-//String replacements in html templates
-export enum EMAIL_REPLACEMENTS {
+//String replacements in html templates; (Must still occur in corresponding template)
+export enum EMAIL_REPLACEMENT {
     EMAIL_SUBJECT = '[EMAIL_SUBJECT]',
     MESSAGE = '[MESSAGE]',
     DATE = '[DATE]',
@@ -34,8 +33,8 @@ export enum EMAIL_REPLACEMENTS {
 }
 
 
-export const applyTemplate=async({type, replacementMap=new Map<EMAIL_REPLACEMENTS,string>(), bodyList = [], verticalSpacing = 0}:
-                                {type:EMAIL_TEMPLATE_TYPE; replacementMap?:Map<EMAIL_REPLACEMENTS,string>; bodyList?:string[]; verticalSpacing?:number}):Promise<string|undefined> => {
+export const applyTemplate=async({type, replacementMap=new Map<EMAIL_REPLACEMENT,string>(), bodyList = [], verticalSpacing = 0}:
+                                {type:EMAIL_TEMPLATE_TYPE; replacementMap?:Map<EMAIL_REPLACEMENT,string>; bodyList?:string[]; verticalSpacing?:number}):Promise<string|undefined> => {
     try {
         let html:string = await readFileSync(getTemplateFilePath(type), 'utf-8');
 
@@ -45,7 +44,7 @@ export const applyTemplate=async({type, replacementMap=new Map<EMAIL_REPLACEMENT
         }
 
         //Custom Body Components
-        html = html.replace(EMAIL_REPLACEMENTS.BODY, bodyList.map(row => BODY_EXPECTING_TABLE_ROWS.includes(type) ? 
+        html = html.replace(EMAIL_REPLACEMENT.BODY, bodyList.map(row => BODY_EXPECTING_TABLE_ROWS.includes(type) ? 
             `<tr><td align="center" valign="top">${row}</td></tr>`
             : row
         ).join(verticalSpacing ? 

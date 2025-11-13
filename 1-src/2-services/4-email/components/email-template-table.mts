@@ -41,7 +41,7 @@ export const htmlSummaryTable=(title:string, columnLabelList:string[], rowList:(
     `<table width="100%" border="0" cellspacing="0" cellpadding="0" role="presentation" align="center" style="margin:0 auto;">
         <tr>
             <td align="center" valign="top">
-                <table width="${EMAIL_CONTENT_MAX_WIDTH}" border="0" cellspacing="0" cellpadding="0" class="full_width" role="presentation" align="center" style="margin:0 auto;">
+                <table max-width="${EMAIL_CONTENT_MAX_WIDTH}" border="0" cellspacing="0" cellpadding="0" class="full_width" role="presentation" align="center" style="margin:0 auto;">
                     <tr>
                         <td>
                             ${htmlTitle(title, 'center', EMAIL_COLOR.PRIMARY)}
@@ -63,7 +63,7 @@ export const htmlSummaryTable=(title:string, columnLabelList:string[], rowList:(
                                             ).join('')}
                                         </tr>`
                                     ).join('')}
-                                    ${htmlVerticalSpace(10)}
+                                    ${details.length ? htmlVerticalSpace(10) : ''}
                                     ${htmlDetailTableRows(details, columnLabelList.length)}
                                 </tbody>
                             </table>
@@ -73,3 +73,20 @@ export const htmlSummaryTable=(title:string, columnLabelList:string[], rowList:(
             </td>
         </tr>
     </table>`;
+
+    
+//Two COlumn Table
+export const htmlSummaryPairList = (title:string, valueMap:Map<string, string | number>):string =>
+    `<div style="width:100%; margin:0 auto; max-width:${EMAIL_CONTENT_MAX_WIDTH};">
+        ${htmlTitle(title)}
+        <table width="100%" border="0" cellspacing="0" cellpadding="4" role="presentation"
+            style="border-collapse:collapse; font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT};
+                   color:${EMAIL_COLOR.BLACK}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
+            ${Array.from(valueMap.entries()).map(([key, value]) =>
+                `<tr>
+                    <td align="left" valign="top" style="font-weight:bold; padding:4px 8px; color:${EMAIL_COLOR.BLACK};">${key}</td>
+                    <td align="right" valign="top" style="padding:4px 8px; color:${EMAIL_COLOR.BLACK};">${value}</td>
+                </tr>`
+            ).join('\n')}
+        </table>
+    </div>`;

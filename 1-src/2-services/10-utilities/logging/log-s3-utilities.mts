@@ -1,5 +1,7 @@
 import { NextFunction, Response } from 'express';
 import { Readable } from 'stream';
+import dotenv from 'dotenv';
+dotenv.config(); 
 import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, ListObjectsV2CommandOutput, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import LOG_ENTRY from './logEntryModel.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';

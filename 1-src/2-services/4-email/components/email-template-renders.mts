@@ -5,8 +5,8 @@ import LOG_ENTRY from "../../10-utilities/logging/logEntryModel.mjs";
 import { DATABASE_TABLE, DATABASE_USER_ROLE_ENUM } from "../../2-database/database-types.mjs";
 import { DB_CALCULATE_TABLE_USAGE, DB_CALCULATE_USER_TABLE_STATS } from "../../2-database/queries/queries.mjs";
 import { EMAIL_FONT_FAMILY, EMAIL_FONT_SIZE, EMAIL_COLOR } from "../email-types.mjs";
-import { htmlSummaryPairList, htmlTitle } from "./email-template-components.mjs";
-import { htmlSummaryTable, renderLabeledRowTable } from "./email-template-table.mjs";
+import { htmlTitle } from "./email-template-components.mjs";
+import { htmlSummaryPairList, htmlSummaryTable, renderLabeledRowTable } from "./email-template-table.mjs";
 
 
 

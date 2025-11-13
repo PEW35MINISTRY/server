@@ -396,8 +396,9 @@ apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdm
 apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDetailAdmin);
 apiServer.patch('/api/admin/notification/device/:device', PATCH_notificationDeviceAdmin);
 
+apiServer.post('/api/admin/email/report/:type', POST_EmailReport);
 apiServer.use('/api/admin/email/report/:type/client/:client', (request:EmailReportRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
-apiServer.post('/api/admin/email/report/:type/client/:client', (request:EmailReportRequest, response:Response, next:NextFunction) => POST_EmailReport(undefined, request, response, next));
+apiServer.post('/api/admin/email/report/:type/client/:client', POST_EmailReport);
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));

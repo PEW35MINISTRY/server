@@ -4,9 +4,9 @@ import { EMAIL_COLOR, EMAIL_CONTENT_MAX_WIDTH, EMAIL_FONT_FAMILY, EMAIL_FONT_SIZ
 /**************************
 * GENERAL BODY COMPONENTS *
 ***************************/  
-export const htmlSection = (text:string, textAlign:'left'|'center'|'right' = 'center'):string => htmlVerticalSpace(30) +
+export const htmlSection = (text:string, textAlign:'left'|'center'|'right' = 'center', fontColor:EMAIL_COLOR = EMAIL_COLOR.PRIMARY):string => htmlVerticalSpace(30) +
     `<div align="${textAlign}" style="width:100%; padding:${getNumericFontSize(EMAIL_FONT_SIZE.SECTION) * 2}px auto ${getNumericFontSize(EMAIL_FONT_SIZE.SECTION)}px auto;">
-        <div style="display:inline-block; width:80%; text-align:${textAlign}; font-family:${EMAIL_FONT_FAMILY.SECTION}; font-size:${EMAIL_FONT_SIZE.SECTION}; color:${EMAIL_COLOR.PRIMARY}; font-weight:bold; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.SECTION, 1.5)}; padding: 0px; border-bottom:1px solid ${EMAIL_COLOR.PRIMARY};">${text}</div></div>`;
+        <div style="display:inline-block; width:80%; text-align:${textAlign}; font-family:${EMAIL_FONT_FAMILY.SECTION}; font-size:${EMAIL_FONT_SIZE.SECTION}; color:${fontColor}; font-weight:bold; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.SECTION, 1.5)}; padding: 0px; border-bottom:1px solid ${fontColor};">${text}</div></div>`;
 
 export const htmlTitle = (text:string, textAlign:'left'|'center'|'right' = 'left', fontColor:EMAIL_COLOR = EMAIL_COLOR.ACCENT):string => `<div style="width:100%; text-align:${textAlign}; font-family:${EMAIL_FONT_FAMILY.TITLE}; font-size:${EMAIL_FONT_SIZE.TITLE}; color:${fontColor}; font-weight:bold; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TITLE, 2)};">${text}</div>`;
 
@@ -93,22 +93,6 @@ export const htmlFooter = (signatureLines?:string[]):string =>
     </table>`;
 
 
-
-export const htmlSummaryPairList = (title:string, valueMap:Map<string, string | number>):string =>
-    `<div style="width:100%; margin:0 auto;">
-        ${htmlTitle(title)}
-        <table width="100%" border="0" cellspacing="0" cellpadding="4" role="presentation"
-            style="border-collapse:collapse; font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT};
-                   color:${EMAIL_COLOR.GRAY_DARK}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
-            ${Array.from(valueMap.entries()).map(([key, value]) =>
-                `<tr>
-                    <td align="left" valign="top" style="font-weight:bold; padding:4px 8px; color:${EMAIL_COLOR.BLUE_DARK};">${key}</td>
-                    <td align="left" valign="top" style="padding:4px 8px; color:${EMAIL_COLOR.GRAY_DARK};">${value}</td>
-                </tr>`
-            ).join('\n')}
-        </table>
-    </div>`;
-
 type StringList = (string | StringList)[];
 
 export const htmlBulletList = (list:StringList, title?:string):string => `${title ? htmlTitle(title) : ''}${htmlList(list, 'BULLET')}`;
@@ -135,11 +119,11 @@ const htmlList=(items:StringList, mode:'BULLET' | 'NUMBER'):string => {
         });
 
         if(mode === 'NUMBER') {
-            const type = numberSymbols[level % numberSymbols.length];
-            const attrs = type !== '1' ? ` type="${type}"` : '';
-            return `<ol${attrs} style="margin:0; padding-left:20px; font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLACK}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">${htmlParts.join('')}</ol>`;
+            const numerical:string = numberSymbols[level % numberSymbols.length];
+            const attributeType:string = (numerical !== '1') ? ` type="${numerical}"` : '';
+            return `<ol${attributeType} style="margin:0; padding-left:20px; font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLACK}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">${htmlParts.join('')}</ol>`;
         } else {
-            const symbol = bulletSymbols[level % bulletSymbols.length];
+            const symbol:string = bulletSymbols[level % bulletSymbols.length];
             return `<ul style="list-style-type:${symbol}; margin:0; padding-left:20px; font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLACK}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">${htmlParts.join('')}</ul>`;
         }
     };
@@ -150,8 +134,8 @@ const htmlList=(items:StringList, mode:'BULLET' | 'NUMBER'):string => {
 
 export const htmlAccessCode=(code:number|string, title?:string):string=>{
     const digits:string[] = String(code).split('');
-    const boxes:string = digits.map(d => 
-        `<span style="display:inline-block; margin:20px 6px; padding:10px 14px; border:2px solid ${EMAIL_COLOR.ACCENT}; border-radius:6px; min-width:28px; text-align:center; font-family:${EMAIL_FONT_FAMILY.SECTION}; font-size:${EMAIL_FONT_SIZE.SECTION}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.SECTION)}; font-weight:bold; color:${EMAIL_COLOR.BLACK};">${d}</span>`
+    const boxes:string = digits.map((digit) => 
+        `<span style="display:inline-block; margin:20px 6px; padding:10px 14px; border:2px solid ${EMAIL_COLOR.ACCENT}; border-radius:6px; min-width:28px; text-align:center; font-family:${EMAIL_FONT_FAMILY.SECTION}; font-size:${EMAIL_FONT_SIZE.SECTION}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.SECTION)}; font-weight:bold; color:${EMAIL_COLOR.BLACK};">${digit}</span>`
     ).join('');
     
     return `<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" align="center" style="width:100%; max-width:${EMAIL_CONTENT_MAX_WIDTH}; margin:0 auto; border-collapse:collapse;">

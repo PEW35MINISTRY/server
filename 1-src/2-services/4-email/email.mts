@@ -1,23 +1,21 @@
 import * as log from '../10-utilities/logging/log.mjs';
 import LOG_ENTRY from '../10-utilities/logging/logEntryModel.mjs';
-import { EMAIL_SENDER_ADDRESS } from './email-types.mjs';
-import { applyTemplate, EMAIL_REPLACEMENTS, EMAIL_TEMPLATE_TYPE } from './email-template-manager.mjs';
-import { DB_SELECT_USER, DB_SELECT_USER_BATCH_EMAIL_MAP } from '../2-database/queries/user-queries.mjs';
-import USER from '../1-models/userModel.mjs';
-import { getEnvironment } from '../10-utilities/utilities.mjs';
-import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { EMAIL_COLOR, EMAIL_SENDER_ADDRESS, EmailSenderAddress  } from './email-types.mjs';
 import { sendLogTextEmail, sendTemplateEmail, sendTextEmail } from './email-transporter.mjs';
-import { htmlSummaryTable } from './components/email-template-table.mjs';
-import { htmlPartnershipBlock, htmlProfileBlock, renderEmailCircle, renderEmailCircleAnnouncements, renderEmailCircleAnnouncementsAll, renderEmailCircleList, renderEmailPartnership, renderEmailProfile } from './components/email-template-items.mjs';
-import { htmlHeader, htmlTitle, htmlText, htmlNumberedList, htmlBulletList, htmlSection, htmlAccessCode, htmlActionButton, htmlFooter, htmlVerticalSpace, htmlDetailList } from './components/email-template-components.mjs';
+import { htmlPartnershipBlock, htmlProfileBlock } from './components/email-template-items.mjs';
+import { applyTemplate, EMAIL_REPLACEMENT, EMAIL_TEMPLATE_TYPE } from './email-template-manager.mjs';
+import { htmlHeader, htmlTitle, htmlText, htmlSection, htmlAccessCode, htmlActionButton, htmlFooter, htmlVerticalSpace, htmlDetailList } from './components/email-template-components.mjs';
 import { renderDatabaseTableUsage, htmlUserStats, htmlUserRoleDistribution, htmlUserWalkLevelDistribution, renderLogList } from './components/email-template-renders.mjs';
 import { formatDate, getEmailSignature } from './email-utilities.mjs';
+import { DB_SELECT_USER, DB_SELECT_USER_BATCH_EMAIL_MAP } from '../2-database/queries/user-queries.mjs';
+import { getEnvironment } from '../10-utilities/utilities.mjs';
+import { DATABASE_TABLE } from '../2-database/database-types.mjs';
+import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { WebsiteSubscription } from '../../1-api/2-auth/auth-types.mjs';
 import { DB_SELECT_EMAIL_SUBSCRIPTION_RECENT } from '../2-database/queries/queries.mjs';
 import { NewPartnerListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST } from '../2-database/queries/partner-queries.mjs';
-import { DATABASE_TABLE } from '../2-database/database-types.mjs';
 
 
 
@@ -28,7 +26,7 @@ export const sendEmailMessage = async(subject:string, message:string, ...userIDL
     sendBrandedEmail({subject, sender:EMAIL_SENDER_ADDRESS.ADMIN, userIDList, bodyList:[htmlText(message)], 
         getPlainTextBody:(name) => [...(name ? [name + ','] : []), message, '\n', ...getEmailSignature(EMAIL_SENDER_ADDRESS.ADMIN)].join('\n')});
 
-export const sendEmailAction = async({subject, message, buttonTitle, buttonList, sender=EMAIL_SENDER_ADDRESS.SYSTEM, userIDList}:{subject:string, message?:string, buttonTitle?:string, buttonList:{label:string; link:string; style?:'PRIMARY'|'ACCENT'|'OUTLINE'}[], sender?:EMAIL_SENDER_ADDRESS, userIDList:number[]}) =>
+export const sendEmailAction = async({subject, message, buttonTitle, buttonList, sender=EMAIL_SENDER_ADDRESS.SYSTEM, userIDList}:{subject:string, message?:string, buttonTitle?:string, buttonList:{label:string; link:string; style?:'PRIMARY'|'ACCENT'|'OUTLINE'}[], sender?:EmailSenderAddress, userIDList:number[]}) =>
     sendBrandedEmail({subject, sender, userIDList, bodyList:[
         ...(message ? [htmlText(message)] : []),
         htmlActionButton(buttonList, buttonTitle)
@@ -36,7 +34,7 @@ export const sendEmailAction = async({subject, message, buttonTitle, buttonList,
     getPlainTextBody:(name) => [...(name ? [name + ','] : []), message, '\n\n', ...buttonList.map(b=>`\n${b.label}: ${b.link}`), '\n\n', ...getEmailSignature(sender)].join('\n')});
 
 
-export const sendEmailToken = async({subject, token, message, buttonTitle, buttonList, sender=EMAIL_SENDER_ADDRESS.SYSTEM, userIDList}:{subject:string, token:string, message?:string, buttonTitle?:string, buttonList?:{label:string; link:string; style?:'PRIMARY'|'ACCENT'|'OUTLINE'}[], sender?:EMAIL_SENDER_ADDRESS, userIDList:number[]}) =>
+export const sendEmailToken = async({subject, token, message, buttonTitle, buttonList, sender=EMAIL_SENDER_ADDRESS.SYSTEM, userIDList}:{subject:string, token:string, message?:string, buttonTitle?:string, buttonList?:{label:string; link:string; style?:'PRIMARY'|'ACCENT'|'OUTLINE'}[], sender?:EmailSenderAddress, userIDList:number[]}) =>
     sendBrandedEmail({subject, sender, userIDList, bodyList:[
         ...(message ? [htmlText(message)] : []),
         htmlAccessCode(token),
@@ -46,12 +44,12 @@ export const sendEmailToken = async({subject, token, message, buttonTitle, butto
 
 
 //Applies header/footer and provides plainText fallback
-const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, userIDList, bodyList, getPlainTextBody}:{subject:string, sender:EMAIL_SENDER_ADDRESS, userIDList:number[], bodyList:string[], getPlainTextBody?:(name?:string) => string}):Promise<boolean> => {
+const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, userIDList, bodyList, getPlainTextBody}:{subject:string, sender:EmailSenderAddress, userIDList:number[], bodyList:string[], getPlainTextBody?:(name?:string) => string}):Promise<boolean> => {
     const recipientMap = await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList); //Validated in sendTemplateEmail
     const firstName:string|undefined = (userIDList.length === 1) ? (await DB_SELECT_USER(new Map([['userID', userIDList[0]]]), false))?.firstName : undefined;
 
     const html = await applyTemplate({type: EMAIL_TEMPLATE_TYPE.SIMPLE,
-        replacementMap: new Map([[EMAIL_REPLACEMENTS.EMAIL_SUBJECT, subject]]),
+        replacementMap: new Map([[EMAIL_REPLACEMENT.EMAIL_SUBJECT, subject]]),
         bodyList: [
             htmlHeader(firstName ? (firstName + ',') : undefined),
             ...bodyList,
@@ -74,17 +72,18 @@ const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, u
 /************************
  * HTML REPORT HANDLERS *
  *************************/
-export const sendEmailUserReport = async(...userIDList:number[]) => {
-    const recipientMap = await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
+export const sendEmailUserReport = async(recipientEmail:string, ...userIDList:number[]) => {
+    const recipientMap = recipientEmail ? new Map<number, string>([[-1, recipientEmail]]) : await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
     const subscriptionList:WebsiteSubscription[] = await DB_SELECT_EMAIL_SUBSCRIPTION_RECENT(90);
     const unassignedProfileList:NewPartnerListItem[] = await DB_SELECT_UNASSIGNED_PARTNER_USER_LIST(200);
     const pendingPartnershipList:[NewPartnerListItem, NewPartnerListItem][] = await DB_SELECT_PENDING_PARTNER_PAIR_LIST(200);
 
     const templateHtml = await applyTemplate({type: EMAIL_TEMPLATE_TYPE.TABLE_ROWS,
-        replacementMap: new Map([[EMAIL_REPLACEMENTS.EMAIL_SUBJECT, 'User Status Report']]),
+        replacementMap: new Map([[EMAIL_REPLACEMENT.EMAIL_SUBJECT, 'User Status Report']]),
         bodyList: [
             htmlHeader(),
-            htmlSection('User Status Report'),
+            htmlSection('User Status Report', 'left', EMAIL_COLOR.ACCENT),
+            htmlVerticalSpace(30),
             await renderDatabaseTableUsage([DATABASE_TABLE.USER], true),
             await htmlUserStats(),
             await htmlUserRoleDistribution(),
@@ -93,7 +92,7 @@ export const sendEmailUserReport = async(...userIDList:number[]) => {
             htmlTitle('Prayer Request Trends:'),
             await renderDatabaseTableUsage([DATABASE_TABLE.PRAYER_REQUEST, DATABASE_TABLE.PRAYER_REQUEST_COMMENT], true),
 
-            htmlSection('Partnerships'),
+            htmlSection('Partnerships', 'left', EMAIL_COLOR.ACCENT),
             await renderDatabaseTableUsage([DATABASE_TABLE.PARTNER], true),
 
             htmlTitle('Unassigned Users:'),
@@ -105,12 +104,13 @@ export const sendEmailUserReport = async(...userIDList:number[]) => {
             htmlActionButton([{label:'Partnership Management', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/partnership/pending`, style:'PRIMARY'}]),
 
             ...(subscriptionList.length ? [
-                htmlSection('Website Subscriptions:'),
+                htmlSection('Website Subscriptions:', 'left', EMAIL_COLOR.ACCENT),
                 await renderDatabaseTableUsage([DATABASE_TABLE.SUBSCRIPTION], true),
                 htmlDetailList(subscriptionList.map(sub => [
                     formatDate(sub.createdDT),
                     [sub.email, sub.role, sub.note].filter(Boolean).join(' | ')
-                ]))] : []),
+                ]))] 
+                : []),
 
             htmlDetailList([
                 ['Information Generated (CST):', formatDate(new Date(), true)],
@@ -152,8 +152,8 @@ export const sendEmailLogAlert = async(entry:LOG_ENTRY, ...userIDList:number[]) 
     });
 
 
-export const sendEmailLogReport = async(...userIDList:number[]):Promise<boolean> => {
-    const recipientMap = await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
+export const sendEmailLogReport = async(recipientEmail:string, ...userIDList:number[]):Promise<boolean> => {
+    const recipientMap = recipientEmail ? new Map<number, string>([[-1, recipientEmail]]) : await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
 
     const textBody:string =
         `SERVER STATUS REPORT\n`

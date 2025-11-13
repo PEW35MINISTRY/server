@@ -5,6 +5,7 @@ import { EmailReport } from '../../0-assets/field-sync/api-type-sync/utility-typ
 import { EmailReportRequest } from './email-types.mjs';
 import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { sendEmailLogReport, sendEmailUserReport } from '../../2-services/4-email/email.mjs';
+import { EMAIL_ADDRESS_REGEX_SIMPLE } from '../../2-services/4-email/email-types.mjs';
 
 
 
@@ -12,26 +13,38 @@ import { sendEmailLogReport, sendEmailUserReport } from '../../2-services/4-emai
  * EMAIL REPORTING & MESSAGING ROUTES *
  **************************************/
 
-export const POST_EmailReport = async(reportType:EmailReport|undefined, request:EmailReportRequest, response:Response, next:NextFunction) => {
-    if(reportType === undefined) {
-        reportType = EmailReport[String(request.params.type ?? '').toUpperCase().trim() as keyof typeof EmailReport];
-    
-        if(reportType === undefined) 
-            return next(new Exception(400, `Invalid 'type' parameter :: ${request.params.type}`, 'Invalid Report Type'));
-    }
+//Accepts either request.clientID or query ?email=address
+export const POST_EmailReport = async(request:EmailReportRequest, response:Response, next:NextFunction) => {
+    const reportType:EmailReport|undefined = EmailReport[String(request.params.type ?? '').toUpperCase().trim() as keyof typeof EmailReport];
+    const emailRecipient:string|undefined = request.query.email;
 
+    if(reportType === undefined) 
+        return next(new Exception(400, `Invalid 'type' parameter :: ${request.params.type}`, 'Invalid Report Type'));
+
+    else if(emailRecipient && request.clientID)
+        return next(new Exception(400, 'Provide either ?email= OR clientID, not both.', 'Invalid Recipient'));
+
+    else if(!emailRecipient && !request.clientID)
+        return next(new Exception(400, 'Recipient missing. Provide ?email= or clientID.', 'Invalid Recipient'));
+
+    else if(emailRecipient && !EMAIL_ADDRESS_REGEX_SIMPLE.test(emailRecipient))
+        return next(new Exception(400, `Invalid email format: ${emailRecipient}`, 'Invalid Email'));
+
+
+    /* Await Email Report Sending */
     let success = false;
     switch(reportType) {
         case EmailReport.LOG:
-            success = await sendEmailLogReport(request.clientID);
+            success = await sendEmailLogReport(emailRecipient, request.clientID);
             break;
         case EmailReport.USER:
-            success = await sendEmailUserReport(request.clientID);
+            success = await sendEmailUserReport(emailRecipient, request.clientID);
             break;
         default:
             return next(new Exception(500, `Email Report: ${reportType}, not supported in POST_EmailReport`, `${makeDisplayText(reportType)} Report Unavailable`));
     }
 
+    
     if(success)
             return response.status(200).json({ success:true, message:`${makeDisplayText(reportType)} email report sent successfully!` });
     else

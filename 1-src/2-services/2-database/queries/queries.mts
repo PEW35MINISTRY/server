@@ -10,23 +10,29 @@ import { WebsiteSubscription } from '../../../1-api/2-auth/auth-types.mjs';
 * TABLES: subscription
 ******************************/
  
-export const DB_CALCULATE_TABLE_USAGE = async (tableName:DATABASE_TABLE):Promise<DatabaseTableUsage> => {
+export const DB_CALCULATE_TABLE_USAGE = async(tableName:DATABASE_TABLE):Promise<DatabaseTableUsage> => {
     const supportedDTs = TABLES_SUPPORTING_DT.get(tableName);
+
+    if(!supportedDTs)
+        log.warn('DB_CALCULATE_TABLE_USAGE', 'Table does not support DT fields:', tableName);
   
-    const [row] = supportedDTs ? [undefined] 
+    const [row] = !supportedDTs ? [undefined] 
         : await query('SELECT '
             + 'COUNT(*) AS totalRows'
             + (supportedDTs.includes('createdDT') ? 
-                + ', SUM(CASE WHEN createdDT >= NOW() - INTERVAL 1 DAY THEN 1 ELSE 0 END) AS created24Hours'
+                  ', SUM(CASE WHEN createdDT >= NOW() - INTERVAL 1 DAY THEN 1 ELSE 0 END) AS created24Hours'
                 + ', SUM(CASE WHEN createdDT >= NOW() - INTERVAL 7 DAY THEN 1 ELSE 0 END) AS created7Days'
                 + ', SUM(CASE WHEN createdDT >= NOW() - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS created30Days'
                 : '')
             + (supportedDTs.includes('modifiedDT') ? 
-                + ', SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 1 DAY THEN 1 ELSE 0 END) AS modified24Hours'
+                  ', SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 1 DAY THEN 1 ELSE 0 END) AS modified24Hours'
                 + ', SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 7 DAY THEN 1 ELSE 0 END) AS modified7Days'
                 + ', SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS modified30Days'
                 : '')
             + ` FROM ${tableName};`);   
+
+    if(row && (row.created30Days === 0) && (row.modified30Days === 0))
+        log.warn('DB_CALCULATE_TABLE_USAGE', 'Table supports DT fields but returned all zeros', tableName, row);
   
     return {
       totalRows: row?.totalRows ?? 0,
@@ -50,7 +56,6 @@ export const DB_CALCULATE_USER_TABLE_STATS = async():Promise<DatabaseUserStats> 
         + 'SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS modified30Days, '
         
         + 'SUM(emailVerified = 1) AS emailVerified, '
-        // + 'SUM(verifiedDT IS NOT NULL) AS verified, '
         + [1,2,3,4,5,6,7,8,9,10].map((level) => `SUM(walkLevel = ${level}) AS 'walkLevel_${level}'`).join(', \n') 
         + ', '
 

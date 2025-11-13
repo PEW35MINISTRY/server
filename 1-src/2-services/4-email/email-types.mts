@@ -1,20 +1,24 @@
 
 
-export enum EMAIL_SENDER_ADDRESS {
-    SYSTEM = 'server@encouragingprayer.org',
-    // ADMIN = 'admin@encouragingprayer.org',
-    // SUPPORT = 'support@encouragingprayer.org',
 
-    // SERVER = 'ethanjohnsrud@gmail.com',
-    ADMIN = 'ethanjohnsrud@gmail.com',
-    SUPPORT = 'ethanjohnsrud@gmail.com',
-}
+/****************************
+* EMAIL DEFAULTS & CONTROLS *
+*****************************/
+export const EMAIL_SENDER_ADDRESS = {
+  SYSTEM: `system@${process.env.EMAIL_DOMAIN}`,
+  ADMIN: `admin@${process.env.EMAIL_DOMAIN}`,
+  SUPPORT: `support@${process.env.EMAIL_DOMAIN}`,
+} 
 
+export type EmailSenderAddress = typeof EMAIL_SENDER_ADDRESS[keyof typeof EMAIL_SENDER_ADDRESS];
 
+//Stronger validation in input configs
+export const EMAIL_ADDRESS_REGEX_SIMPLE:RegExp = new RegExp(/^[^\s@]+@[^\s@]+\.(com|net|org|io|edu|tech)$/i);
 
-export const DEFAULT_PROFILE_URL:string = 'https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/assets/images/icons/profile-icon-blue.png';
+export const DEFAULT_PROFILE_URL:string = `${process.env.ASSET_URL}/images/icons/profile-icon-blue.png`;
 
-export const DEFAULT_CIRCLE_URL:string = 'https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/assets/images/icons/circle-icon-blue.png';
+export const DEFAULT_CIRCLE_URL:string = `${process.env.ASSET_URL}/icons/circle-icon-blue.png`;
+
 
 /* EMAIL STYLING */
 export enum EMAIL_COLOR {
@@ -40,11 +44,11 @@ export enum EMAIL_FONT_FAMILY {
 }
 
 export enum EMAIL_FONT_SIZE {
-    HEADER   = '50px',  //htmlHeader
-    SECTION  = '32px',  //htmlSectionHeader
-    TITLE    = '25px',  //htmlTitle
-    TEXT     = '15px',  //htmlText, tables
-    DETAIL   = '11px',  //finer details, notes
+    HEADER   = '50px',
+    SECTION  = '32px',
+    TITLE    = '25px',
+    TEXT     = '15px',
+    DETAIL   = '11px',
 }
 
 /* EMAIL LAYOUT UTILITIES */

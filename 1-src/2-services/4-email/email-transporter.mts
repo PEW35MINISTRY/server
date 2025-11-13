@@ -1,8 +1,7 @@
 import { SESClient, SendEmailCommand, SendRawEmailCommand } from '@aws-sdk/client-ses';
-import nodemailer from 'nodemailer';
-import fs, { readFileSync } from 'fs';
+import fs from 'fs';
 import * as log from '../10-utilities/logging/log.mjs';
-import { EMAIL_SENDER_ADDRESS, EmailAttachment } from './email-types.mjs';
+import { EMAIL_ADDRESS_REGEX_SIMPLE, EMAIL_SENDER_ADDRESS, EmailAttachment, EmailSenderAddress } from './email-types.mjs';
 import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { getLogFilePath } from '../10-utilities/logging/log-types.mjs';
 
@@ -13,26 +12,16 @@ import { getLogFilePath } from '../10-utilities/logging/log-types.mjs';
  * Intended to be used by handlers in email.mts                  * 
  *****************************************************************/
  
-//TODO ENVIRONMENT VARIABLE
-
-const client: SESClient = new SESClient({
-    region: 'us-east-1',
+const client:SESClient = new SESClient({
+    region: process.env.EMAIL_SES_REGION,
     //credentials: //Established with SSO login
 });
-
-const transporter = nodemailer.createTransport({
-    SES: { ses: client, aws: { SendEmailCommand } }
-});
-
-
-//Stronger validation in input configs
-const EMAIL_ADDRESS_REGEX_SIMPLE: RegExp = new RegExp(/^[^\s@]+@[^\s@]+\.(com|net|org|io|edu|tech)$/i);
 
 
 /********************************************************
 * HTML TEMPLATE EMAILS | (Does not support attachments) *
 *********************************************************/
-export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAddress:EMAIL_SENDER_ADDRESS, recipientMap:Map<number, string>):Promise<boolean> => {
+export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAddress:EmailSenderAddress, recipientMap:Map<number, string>):Promise<boolean> => {
     try {
         /* Validate Recipients */
         const recipientAddresses: string[] = [...recipientMap.entries()]
@@ -43,7 +32,7 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
                 } else return true;
             }).map(([userID, email]) => email);
 
-        if(recipientAddresses.length === 0) {
+        if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(senderAddress)) {
             console.error('Blocked HTML Email - No valid recipients', JSON.stringify(recipientMap), subject);
             return false;
         }
@@ -69,9 +58,9 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
         });
 
         const result = await client.send(command);
-        return result.$metadata.httpStatusCode === 200;
+        return (result.$metadata.httpStatusCode === 200);
     } catch (error) {
-        log.error('Failed to send HTML email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap), 'with body: ', htmlBody);
+        log.error('Failed to send HTML email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap));
         return false;
     }
 }
@@ -80,7 +69,7 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
 /****************************************************
 * TEXT EMAILS | (Simple Plain Text w/o attachments) *
 *****************************************************/
-export const sendTextEmail = async(subject:string, text:string, senderAddress:EMAIL_SENDER_ADDRESS, recipientMap:Map<number, string>):Promise<boolean> => {
+export const sendTextEmail = async(subject:string, text:string, senderAddress:EmailSenderAddress, recipientMap:Map<number, string>):Promise<boolean> => {
     try {
         const recipientAddresses:string[] = [...recipientMap.entries()]
             .filter(([userID, email]) => {
@@ -90,7 +79,7 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:EM
                 } else return true;
             }).map(([userID, email]) => email);
 
-        if(recipientAddresses.length === 0) {
+        if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(senderAddress)) {
             console.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
             return false;
         }
@@ -111,8 +100,8 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:EM
             ],
         });
 
-        await client.send(command);
-        return true;
+        const result = await client.send(command);
+        return (result.$metadata.httpStatusCode === 200);
     } catch (error) {
         log.error('Failed to send TEXT email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap), 'with text body: ', text); return false;
     }
@@ -133,7 +122,7 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
                     } else return true;
                 }).map(([userID, email]) => email);
 
-        if(recipientAddresses.length === 0) {
+        if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(EMAIL_SENDER_ADDRESS.SYSTEM)) {
             console.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
             return false;
         }
@@ -190,10 +179,10 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
             Destinations: recipientAddresses
         });
 
-        await client.send(command);
-        return true;
+        const result = await client.send(command);
+        return (result.$metadata.httpStatusCode === 200);
     } catch (error) {
-        log.error('Failed to send LOG attachment email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap), 'with body: ', text);
+        log.error('Failed to send LOG attachment email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap));
         return false;
     }
 }

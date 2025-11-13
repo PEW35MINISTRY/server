@@ -142,7 +142,7 @@ export const DB_SELECT_PENDING_PARTNER_LIST = async(userID?:number):Promise<Part
 
 /* ADMIN Utility */
 export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async(limit:number = 100):Promise<[NewPartnerListItem, NewPartnerListItem][]> => {
-    const rows:RowDataPacket[] = await execute('SELECT status, userContractDT, partnerContractDT, user.*, '
+    const rows:RowDataPacket[] = await query('SELECT status, userContractDT, partnerContractDT, user.*, '
             + `${USER_TABLE_COLUMNS.map((column:string) => `client.${column} as ${camelCase('client', column)}`).join(', ')} `
             + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID) '
@@ -157,9 +157,7 @@ export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async(limit:number = 100):Pro
                 + 'ELSE 3 '
             + 'END, '
             + 'partner.modifiedDT DESC '
-            + 'LIMIT ?;'
-            , [limit]
-        );
+            + `LIMIT ${limit};`);
 
     //Only here does userID match status
     return rows.map(row => ([
