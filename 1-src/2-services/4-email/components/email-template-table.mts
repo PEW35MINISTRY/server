@@ -30,7 +30,7 @@ export const renderLabeledRowTable  = (title:string, columnLabelList:string[], r
       const values = row.slice(1)
         .map((cell, i) => `${columnLabelList[i + 1]}: ${cell}`)
         .join(' | ');
-      return `${label}\n  ${values}`;
+      return `${label}\n  ${values}\n`;
     }),
     ...(footerText.length ? [...footerText] : [])
   ].join('\n') + '\n\n';

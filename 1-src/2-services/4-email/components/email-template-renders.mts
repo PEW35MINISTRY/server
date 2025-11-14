@@ -13,7 +13,7 @@ import { htmlSummaryPairList, htmlSummaryTable, renderLabeledRowTable } from "./
 /***********************************
 * CUSTOM IMPLEMENTATION COMPONENTS *
 ************************************/
-export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:boolean = true):Promise<string> =>{
+export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:boolean = true, title:string = 'Database Table Usage'):Promise<string> =>{
     const rowList:(number|string)[][] = [];
     
     for(const tableName of tableNames) {
@@ -33,11 +33,11 @@ export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:
         ]);
     }
     
-    return html ? htmlSummaryTable('Database Table Usage', ['Table', 'Total', '24H', '24H(m)', 'W', 'W(m)', 'M', 'M(m)'], 
+    return html ? htmlSummaryTable(title, ['Table', 'Total', '24H', '24H(m)', 'W', 'W(m)', 'M', 'M(m)'], 
                                     rowList, [['* New Growth:', 'These are new row entries in the last 24 hours, past week, and month.'],
                                               ['* Continual Usage:', '(m) notation is the percentage of existing rows modified']])
 
-        : renderLabeledRowTable('Database Table Usage', ['Table', 'Total', '24H', '24H(m)', 'W', 'W(m)', 'M', 'M(m)'], 
+        : renderLabeledRowTable(title, ['Table', 'Total', '24H', '24H(m)', 'W', 'W(m)', 'M', 'M(m)'], 
                             rowList, ['* New Growth: These are new row entries in the last 24 hours, week, and month.',
                                       '* Continual Usage: (m) notation is the percentage of existing rows modified']);
 }

@@ -24,14 +24,14 @@ import { DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_
 ****************************************/
 export const sendEmailMessage = async(subject:string, message:string, ...userIDList:number[]):Promise<boolean> =>
     sendBrandedEmail({subject, sender:EMAIL_SENDER_ADDRESS.ADMIN, userIDList, bodyList:[htmlText(message)], 
-        getPlainTextBody:(name) => [...(name ? [name + ','] : []), message, '\n', ...getEmailSignature(EMAIL_SENDER_ADDRESS.ADMIN)].join('\n')});
+        getAlternativeTextBody:(name) => [...(name ? [name + ','] : []), message, '\n', ...getEmailSignature(EMAIL_SENDER_ADDRESS.ADMIN)].join('\n')});
 
 export const sendEmailAction = async({subject, message, buttonTitle, buttonList, sender=EMAIL_SENDER_ADDRESS.SYSTEM, userIDList}:{subject:string, message?:string, buttonTitle?:string, buttonList:{label:string; link:string; style?:'PRIMARY'|'ACCENT'|'OUTLINE'}[], sender?:EmailSenderAddress, userIDList:number[]}) =>
     sendBrandedEmail({subject, sender, userIDList, bodyList:[
         ...(message ? [htmlText(message)] : []),
         htmlActionButton(buttonList, buttonTitle)
     ],
-    getPlainTextBody:(name) => [...(name ? [name + ','] : []), message, '\n\n', ...buttonList.map(b=>`\n${b.label}: ${b.link}`), '\n\n', ...getEmailSignature(sender)].join('\n')});
+    getAlternativeTextBody:(name) => [...(name ? [name + ','] : []), message, '\n\n', ...buttonList.map(b=>`\n${b.label}: ${b.link}`), '\n\n', ...getEmailSignature(sender)].join('\n')});
 
 
 export const sendEmailToken = async({subject, token, message, buttonTitle, buttonList, sender=EMAIL_SENDER_ADDRESS.SYSTEM, userIDList}:{subject:string, token:string, message?:string, buttonTitle?:string, buttonList?:{label:string; link:string; style?:'PRIMARY'|'ACCENT'|'OUTLINE'}[], sender?:EmailSenderAddress, userIDList:number[]}) =>
@@ -40,11 +40,12 @@ export const sendEmailToken = async({subject, token, message, buttonTitle, butto
         htmlAccessCode(token),
         ...(message ? [htmlActionButton(buttonList, buttonTitle)] : []),
     ],
-    getPlainTextBody:(name) => [...(name ? [name + ','] : []), message, '\n\n', ...buttonList.map(b=>`\n${b.label}: ${b.link}`), '\n\n', ...getEmailSignature(sender)].join('\n')});
+    getAlternativeTextBody:(name) => [...(name ? [name + ','] : []), message, '\n\n', ...buttonList.map(b=>`\n${b.label}: ${b.link}`), '\n\n', ...getEmailSignature(sender)].join('\n')});
 
 
 //Applies header/footer and provides plainText fallback
-const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, userIDList, bodyList, getPlainTextBody}:{subject:string, sender:EmailSenderAddress, userIDList:number[], bodyList:string[], getPlainTextBody?:(name?:string) => string}):Promise<boolean> => {
+const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, userIDList, bodyList, getAlternativeTextBody}
+                              :{subject:string, sender:EmailSenderAddress, userIDList:number[], bodyList:string[], getAlternativeTextBody?:(name?:string) => string}):Promise<boolean> => {
     const recipientMap = await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList); //Validated in sendTemplateEmail
     const firstName:string|undefined = (userIDList.length === 1) ? (await DB_SELECT_USER(new Map([['userID', userIDList[0]]]), false))?.firstName : undefined;
 
@@ -61,8 +62,8 @@ const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, u
     const successfullySent:boolean = await sendTemplateEmail(subject, html, sender, recipientMap);
 
     //Re-attempt | Failed logging handled in sendTemplateEmail
-    if(!successfullySent && getPlainTextBody && (recipientMap.size === 1) && (sender === EMAIL_SENDER_ADDRESS.SYSTEM)) {
-        return await sendTextEmail(subject, getPlainTextBody(firstName), sender, recipientMap);
+    if(!successfullySent && getAlternativeTextBody && (recipientMap.size === 1) && (sender === EMAIL_SENDER_ADDRESS.SYSTEM)) {
+        return await sendTextEmail(subject, getAlternativeTextBody(firstName), sender, recipientMap);
     }
     return successfullySent;
 }
@@ -101,7 +102,7 @@ export const assembleUserReportHTML = async():Promise<string> => {
             await renderDatabaseTableUsage([DATABASE_TABLE.PARTNER], true),
 
             htmlTitle('Unassigned Users:'),
-            ...unassignedProfileList.slice(0, 10).map(profile => htmlProfileBlock(profile)),
+            ...unassignedProfileList.slice(0, 10).map(profile => htmlProfileBlock(profile, true)),
             htmlDetailList([['Total Unassigned Users:', `${unassignedProfileList.length}`]]),
 
             htmlPartnershipBlock(pendingPartnershipList.slice(0, 10).map(partnerPair => ({ profile: partnerPair[0], partner: partnerPair[1] })), 'Pending Partnerships:', true, [['Total Pending Partnerships:', `${pendingPartnershipList.length}`]]),
@@ -145,7 +146,7 @@ export const sendEmailLogAlert = async(entry:LOG_ENTRY, ...userIDList:number[]):
             htmlSection('Latest Error Logs'),
             await renderLogList(LogType.ERROR, 25, true)
         ],
-        getPlainTextBody:(name) =>
+        getAlternativeTextBody:(name) =>
             [...(name?[name]:[]),
             entry.toString(),
             `\nPortal Logs: ${entry.fileKey}`,
@@ -166,7 +167,11 @@ export const assembleLogReportText = async():Promise<string> => {
         + `Date:${new Date().toISOString()}\n`
         + `Environment:${getEnvironment()}`
         + '\n\n'
-        + await renderDatabaseTableUsage([DATABASE_TABLE.USER, DATABASE_TABLE.PARTNER, DATABASE_TABLE.CIRCLE, DATABASE_TABLE.CIRCLE_ANNOUNCEMENT, DATABASE_TABLE.CIRCLE_USER, DATABASE_TABLE.PRAYER_REQUEST, DATABASE_TABLE.CONTENT, DATABASE_TABLE.SUBSCRIPTION], false)
+        + await renderDatabaseTableUsage([DATABASE_TABLE.USER, DATABASE_TABLE.PARTNER, DATABASE_TABLE.SUBSCRIPTION], false, 'User Database Usage')
+        + '\n\n'
+        + await renderDatabaseTableUsage([DATABASE_TABLE.CIRCLE, DATABASE_TABLE.CIRCLE_USER, DATABASE_TABLE.CIRCLE_ANNOUNCEMENT], false, 'Circle Database Usage')
+        + '\n\n'
+        + await renderDatabaseTableUsage([DATABASE_TABLE.PRAYER_REQUEST, DATABASE_TABLE.CONTENT], false, 'Content Database Usage')
         + '\n\n'
         + await renderLogList(LogType.ERROR, 50, false)
         + '\n\n'

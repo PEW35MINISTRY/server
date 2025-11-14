@@ -20,7 +20,7 @@ export const GET_EmailReport = async(request:EmailReportRequest, response:Respon
         return next(new Exception(400, `Invalid 'type' parameter :: ${request.params.type}`, 'Invalid Report Type'));
 
     let body:string = '';
-    switch(reportType){
+    switch(reportType) {
         case EmailReport.LOG:
             body = await assembleLogReportText();
             response.setHeader('Content-Type', 'text/plain');
@@ -59,7 +59,7 @@ export const POST_EmailReport = async(request:EmailReportRequest, response:Respo
 
 
     /* Await Email Report Sending */
-    let success = false;
+    let success:boolean = false;
     switch(reportType) {
         case EmailReport.LOG:
             success = await sendEmailLogReport(emailRecipient, request.clientID);
@@ -73,7 +73,7 @@ export const POST_EmailReport = async(request:EmailReportRequest, response:Respo
 
 
     if(success)
-            return response.status(200).json({ success:true, message:`${makeDisplayText(reportType)} email report sent successfully!` });
+        return response.status(200).json({ success:true, message:`${makeDisplayText(reportType)} email report sent successfully!` });
     else
         return next(new Exception(500, 'Email report failed to send', 'Email Delivery Failure'));
 }
