@@ -173,6 +173,8 @@ export const assembleLogReportText = async():Promise<string> => {
         + '\n\n'
         + await renderDatabaseTableUsage([DATABASE_TABLE.PRAYER_REQUEST, DATABASE_TABLE.CONTENT], false, 'Content Database Usage')
         + '\n\n'
+        + await renderDatabaseTableUsage([DATABASE_TABLE.USER_CACHE, DATABASE_TABLE.CONTACT_CACHE, DATABASE_TABLE.CIRCLE_CACHE], false, 'Database Search Cache')
+        + '\n\n'
         + await renderLogList(LogType.ERROR, 50, false)
         + '\n\n'
         + await renderLogList(LogType.WARN, 25, false)

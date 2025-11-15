@@ -44,29 +44,45 @@ export enum DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM {   //Allowed Interactions:
 
 export enum DATABASE_TABLE {
     USER = 'user',
+    PARTNER = 'partner',
+
     CIRCLE = 'circle',
     CIRCLE_ANNOUNCEMENT = 'circle_announcement',
     CIRCLE_USER = 'circle_user',
-    PARTNER = 'partner',
+
     PRAYER_REQUEST = 'prayer_request',
     PRAYER_REQUEST_COMMENT = 'prayer_request_comment',
+
     CONTENT = 'content',
+
+    SUBSCRIPTION = 'subscription',
     NOTIFICATION_DEVICE = 'notification_device',
-    SUBSCRIPTION = 'subscription'
+
+    USER_CACHE = 'user_search_cache',
+    CONTACT_CACHE = 'user_contact_cache',
+    CIRCLE_CACHE = 'circle_search_cache',
 }
 
 //Configuration for Reports on Database Tables
 export const TABLES_SUPPORTING_DT: Map<DATABASE_TABLE, Array<'createdDT' | 'modifiedDT'>> = new Map([
     [DATABASE_TABLE.USER, ['createdDT', 'modifiedDT']],
+    [DATABASE_TABLE.PARTNER, ['createdDT', 'modifiedDT']],
+
     [DATABASE_TABLE.CIRCLE, ['createdDT', 'modifiedDT']],
     [DATABASE_TABLE.CIRCLE_ANNOUNCEMENT, ['createdDT']],
     [DATABASE_TABLE.CIRCLE_USER, ['modifiedDT']],
-    [DATABASE_TABLE.PARTNER, ['createdDT', 'modifiedDT']],
+
     [DATABASE_TABLE.PRAYER_REQUEST, ['createdDT', 'modifiedDT']],
     [DATABASE_TABLE.PRAYER_REQUEST_COMMENT, ['createdDT']],
+
     [DATABASE_TABLE.CONTENT, ['createdDT', 'modifiedDT']],
+
+    [DATABASE_TABLE.SUBSCRIPTION, ['createdDT']],
     [DATABASE_TABLE.NOTIFICATION_DEVICE, ['createdDT', 'modifiedDT']],
-    [DATABASE_TABLE.SUBSCRIPTION, ['createdDT']]
+
+    [DATABASE_TABLE.USER_CACHE, ['createdDT']],
+    [DATABASE_TABLE.CONTACT_CACHE, ['createdDT']],
+    [DATABASE_TABLE.CIRCLE_CACHE, ['createdDT']],
 ]);
 
 
