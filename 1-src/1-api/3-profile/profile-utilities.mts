@@ -27,7 +27,7 @@ export const filterContactList = async(request:JwtSearchRequest, contactList:Pro
     const searchTerm:string = request.query.search || '';
 
     if(searchTerm.length >= SEARCH_MIN_CHARS) {
-        const resultList = contactList.filter((contact:ProfileListItem) => `${contact.displayName} ${contact.firstName}`.includes(searchTerm));
+        const resultList = contactList.filter((contact:ProfileListItem) => `${contact.displayName ?? ''} ${contact.firstName ?? ''}`.toLowerCase().includes(searchTerm));
 
         //Indicates hit cache limit -> redirect to USER database search
         if(resultList.length === 0 && contactList.length === LIST_LIMIT) {

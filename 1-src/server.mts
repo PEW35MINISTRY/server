@@ -39,6 +39,9 @@ import { initializeDatabase } from './2-services/2-database/database.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
 import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-request-expired-script.mjs';
+import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_FLUSH_USER_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/user-queries.mjs';
+import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/circle-queries.mjs';
+
 
 /********************
     EXPRESS SEVER
@@ -56,9 +59,16 @@ await initializeDatabase();
 await checkAWSAuthentication();
 
 //*** CRON JOBS ***/
+if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) {
+  //Run at 15:00 UTC - 9am CST
+  schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
 
-// run at 15:00 UTC - 9am CST
-schedule("0 15 * * *", async () => getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && answerAndNotifyPrayerRequests());
+  //Run at 08:00-8:02 UTC - 2AM CST
+  schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
+  schedule("1 8 * * *", async () => DB_FLUSH_CONTACT_CACHE_ADMIN());
+  schedule("2 8 * * *", async () => DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN());
+}
+
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
