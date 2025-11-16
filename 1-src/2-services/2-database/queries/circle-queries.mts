@@ -183,10 +183,12 @@ export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:strin
         + '            END '
         + '        ) '
         + '    ) '
-        + `AND ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS(${columnList.join(', ')} )`} LIKE ? `
-        + `LIMIT ${limit};`,
-    
-    [`%${searchTerm}%`]);
+        + 'AND ( '
+            + columnList.map(column => `LOWER(circle.${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')
+        + ' ) '
+        + 'ORDER BY circle.modifiedDT DESC '
+        + `LIMIT ${limit};`,    
+    [...Array(columnList.length).fill(`${searchTerm}`)]);
  
     return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
 }
@@ -215,7 +217,7 @@ export const DB_INSERT_CIRCLE_SEARCH_CACHE = async({searchTerm, searchRefine, ci
     + `VALUES ( ?, ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), modelSourceEnvironment=VALUES(modelSourceEnvironment), stringifiedCircleItemList=VALUES(stringifiedCircleItemList);`,
      [searchTerm, searchRefine, getModelSourceEnvironment(), JSON.stringify(circleList)]); 
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return ((response !== undefined) && (response.affectedRows > 0));
 }
 
 export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<boolean> => {
@@ -223,7 +225,7 @@ export const DB_DELETE_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefi
 
     const response:CommandResponseType = await command('DELETE FROM circle_search_cache WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getModelSourceEnvironment()]);
 
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return ((response !== undefined) && (response.affectedRows > 0));
 }
 
 export const DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN = async():Promise<boolean> => {
