@@ -33,7 +33,7 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
             }).map(([userID, email]) => email);
 
         if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(senderAddress)) {
-            console.error('Blocked HTML Email - No valid recipients', JSON.stringify(recipientMap), subject);
+            log.error('Blocked HTML Email - No valid recipients', JSON.stringify(recipientMap), subject);
             return false;
         }
 
@@ -80,7 +80,7 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:Em
             }).map(([userID, email]) => email);
 
         if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(senderAddress)) {
-            console.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
+            log.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
             return false;
         }
 
@@ -123,7 +123,7 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
                 }).map(([userID, email]) => email);
 
         if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(EMAIL_SENDER_ADDRESS.SYSTEM)) {
-            console.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
+            log.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
             return false;
         }
 

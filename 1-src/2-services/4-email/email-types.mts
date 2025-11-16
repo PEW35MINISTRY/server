@@ -13,7 +13,7 @@ export const EMAIL_SENDER_ADDRESS = {
 export type EmailSenderAddress = typeof EMAIL_SENDER_ADDRESS[keyof typeof EMAIL_SENDER_ADDRESS];
 
 //Stronger validation in input configs
-export const EMAIL_ADDRESS_REGEX_SIMPLE:RegExp = new RegExp(/^[^\s@]+@[^\s@]+\.(com|net|org|io|edu|tech)$/i);
+export const EMAIL_ADDRESS_REGEX_SIMPLE:RegExp = new RegExp(/^[^\s@]+@[^\s@]+\.[^\s@]+$/i);
 
 export const DEFAULT_PROFILE_URL:string = `${process.env.ASSET_URL}/images/icons/profile-icon-blue.png`;
 
