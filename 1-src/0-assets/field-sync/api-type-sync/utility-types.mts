@@ -22,6 +22,13 @@ export interface ServerDebugErrorResponse extends ServerErrorResponse {
 };
 
 
+/* EMAIL TYPES & HANDLING */
+export enum EmailReport {
+    USER = 'USER',
+    LOG = 'LOG'
+}
+
+
 /* SERVER LOG CATEGORIES & TYPES */
 //Server Additional Types: 1-src\2-services\10-utilities\logging\log-types.mts
 export enum LogLocation {

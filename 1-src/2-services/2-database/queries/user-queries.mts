@@ -88,6 +88,18 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     return await DB_POPULATE_USER_PROFILE(USER.constructByDatabase(rows[0] as DATABASE_USER));
 }
 
+//Assembles recipientMap for sending emails
+export const DB_SELECT_USER_BATCH_EMAIL_MAP = async(userIDList:number[]):Promise<Map<number, string>> => {
+    if(userIDList.length === 0 || !Array.isArray(userIDList) || !userIDList.every(id => typeof id === 'number')) {
+        log.db('DB_SELECT_USER_BATCH_EMAIL_MAP Invalid userIDList:', JSON.stringify(userIDList));
+        return new Map();
+    }
+
+    const placeholders = userIDList.map(() => '?').join(',');
+    const rows = await execute(`SELECT userID, email FROM user WHERE userID IN (${placeholders})`, userIDList);
+    return rows.reduce((map, row) => map.set(row.userID ?? -1, row.email ?? ''), new Map<number, string>());
+}
+
 
 //POPULATE FULL USER PROFILE: including roleList, circleList, partnerList, prayerRequestList, contactList
 export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {

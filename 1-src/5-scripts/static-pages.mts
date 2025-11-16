@@ -11,7 +11,8 @@
  * 
  * Usage: Run during build. Make sure ASSET_URL is set.
  */
-
+import dotenv from 'dotenv';
+dotenv.config(); 
 import { readFile, writeFile, mkdir, readdir, stat } from 'fs/promises';
 import path from 'path';
 import { getEnvironment } from '../2-services/10-utilities/utilities.mjs';

@@ -8,8 +8,6 @@ import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync
 import { writeLogFile } from './log-local-utilities.mjs';
 import { Exception } from '../../../1-api/api-types.mjs';
 import { LOG_SEARCH_DEFAULT_MAX_ENTRIES, LOG_SEARCH_DEFAULT_TIMESPAN, MAX_PARALLEL_CONNECTIONS } from './log-types.mjs';
-import dotenv from 'dotenv';
-dotenv.config(); 
 /* DO NOT IMPORT [ log from '/10-utilities/logging/log.mjs' ] to AVOID INFINITE LOOP */
 
 
