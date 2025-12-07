@@ -1,7 +1,7 @@
 import * as log from './log.mjs';
 import { LogListItem, LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { getEnvironment } from '../utilities.mjs';
+import { getEnvironment, stringifyErrorMessage } from '../utilities.mjs';
 import { LOG_SIMILAR_TIME_RANGE, LOG_SOURCE, PRINT_LOGS_TO_CONSOLE } from './log-types.mjs';
 import { AthenaFieldSchema } from '../athena.mjs';
 
@@ -24,11 +24,7 @@ export default class LOG_ENTRY {
         this.fileKey = fileKey;
         this.source = source;
 
-        this.messages = messages.map(m => 
-            (m === undefined) ? 'UNDEFINED' 
-            : (m === null) ? 'NULL' 
-            : (typeof m !== 'string') ? JSON.stringify(m)
-            : (m.trim && m.trim().length === 0) ? 'BLANK' : m);
+        this.messages = messages.map(m => stringifyErrorMessage(m));
 
         this.stackTrace = stackTrace.filter(s => ((typeof s === 'string') && (s.length > 0)));
 
@@ -79,14 +75,14 @@ export default class LOG_ENTRY {
 
     /* AWS S3 Storage */
     static createDayS3KeyPrefix = (type:LogType, date:Date):string => {
-        const year:number = date.getFullYear();
-        const month:string = String(date.getMonth() + 1).padStart(2, '0');
-        const day:string = String(date.getDate()).padStart(2, '0');
+        const year:number = date.getUTCFullYear();
+        const month:string = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const day:string = String(date.getUTCDate()).padStart(2, '0');
         return `type=${type}/year=${year}/month=${month}/day=${day}/`;
     }
 
     static createHourS3KeyPrefix = (type:LogType, date:Date):string => {
-        const hour:string = String(date.getHours()).padStart(2, '0');
+        const hour:string = String(date.getUTCHours()).padStart(2, '0');
         return `${LOG_ENTRY.createDayS3KeyPrefix(type, date)}hour=${hour}/`;
     }
 

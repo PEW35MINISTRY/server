@@ -11,7 +11,8 @@
  * 
  * Usage: Run during build. Make sure ASSET_URL is set.
  */
-
+import dotenv from 'dotenv';
+dotenv.config(); 
 import { readFile, writeFile, mkdir, readdir, stat } from 'fs/promises';
 import path from 'path';
 import { getEnvironment } from '../2-services/10-utilities/utilities.mjs';
@@ -23,6 +24,7 @@ if(!(process.env.ASSET_URL) && getEnvironment() !== ENVIRONMENT_TYPE.LOCAL) {
 }
 
 const ASSET_URL = process.env.ASSET_URL || 'http://localhost:3000/assets';
+const ENVIRONMENT_BASE_URL = process.env.ENVIRONMENT_BASE_URL || 'http://localhost:5000';
 
 //Relative Paths from /0-compiled/5-scripts/
 const SOURCE_DIRECTORY = path.join('.', '1-src', '0-assets', 'static-pages');
@@ -43,9 +45,12 @@ const processHtmlFiles = async(src:string, dest:string) => {
       if(fileStat.isDirectory()) {
         await processHtmlFiles(srcPath, destPath); // Recursive call
       } else if (entry.name.endsWith('.html')) {
-        const content = await readFile(srcPath, 'utf-8');
-        const replaced = content.replace(/{{ASSET_URL}}/g, ASSET_URL);
-        await writeFile(destPath, replaced, 'utf-8');
+        let content = await readFile(srcPath, 'utf-8');
+
+        content = content.replace(/{{ASSET_URL}}/g, ASSET_URL);
+        content = content.replace(/{{ENVIRONMENT_BASE_URL}}/g, ENVIRONMENT_BASE_URL);
+
+        await writeFile(destPath, content, 'utf-8');
         console.log(`✓ Static Page: ${entry.name}`);
       }
     }

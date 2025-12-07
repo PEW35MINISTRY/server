@@ -88,6 +88,18 @@ export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<
     return await DB_POPULATE_USER_PROFILE(USER.constructByDatabase(rows[0] as DATABASE_USER));
 }
 
+//Assembles recipientMap for sending emails
+export const DB_SELECT_USER_BATCH_EMAIL_MAP = async(userIDList:number[]):Promise<Map<number, string>> => {
+    if(userIDList.length === 0 || !Array.isArray(userIDList) || !userIDList.every(id => typeof id === 'number')) {
+        log.db('DB_SELECT_USER_BATCH_EMAIL_MAP Invalid userIDList:', JSON.stringify(userIDList));
+        return new Map();
+    }
+
+    const placeholders = userIDList.map(() => '?').join(',');
+    const rows = await execute(`SELECT userID, email FROM user WHERE userID IN (${placeholders})`, userIDList);
+    return rows.reduce((map, row) => map.set(row.userID ?? -1, row.email ?? ''), new Map<number, string>());
+}
+
 
 //POPULATE FULL USER PROFILE: including roleList, circleList, partnerList, prayerRequestList, contactList
 export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
@@ -307,17 +319,19 @@ export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGener
                 + ') AND '
             : '')
         + (excludeGeneralUsers
-            ? 'NOT EXISTS ( '
+            ? 'EXISTS ( '
                 + 'SELECT 1 FROM user_role '
                 + 'JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
                 + 'WHERE user_role.userID = user.userID '
                 + `AND user_role_defined.userRole NOT IN (${GENERAL_USER_ROLES.map(r => `'${r}'`).join(', ')}) `
                 + ') AND '
             : '')
-        + `${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(', ')} )`} LIKE ? `
+        + '('
+            + columnList.map(column => `LOWER(user.${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')
+        + ') '
         + `ORDER BY FIELD( user.modelSourceEnvironment, '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.DEVELOPMENT}', '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}' ), `
         + 'user.modifiedDT DESC '
-        + `LIMIT ${limit};`, [`%${searchTerm}%`]);
+        + `LIMIT ${limit};`, [...Array(columnList.length).fill(`${searchTerm}`)]);
  
     return [...rows.map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
@@ -341,13 +355,13 @@ export const DB_SELECT_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine
 }
 
 //Updates on Duplicate | Only caches searches including users with 'USER' Role
-export const DB_INSERT_USER_SEARCH_CACHE = async({searchTerm, searchRefine: searchRefine, userList}:{searchTerm:string, searchRefine:UserSearchRefineEnum, userList:ProfileListItem[]}):Promise<boolean> => {
+export const DB_INSERT_USER_SEARCH_CACHE = async({searchTerm, searchRefine, userList}:{searchTerm:string, searchRefine:UserSearchRefineEnum, userList:ProfileListItem[]}):Promise<boolean> => {
 
     const response:CommandResponseType = await command(`INSERT INTO user_search_cache ( searchTerm, searchRefine, stringifiedProfileItemList, modelSourceEnvironment ) `
     + `VALUES ( ?, ?, ?, ? ) ON DUPLICATE KEY UPDATE searchTerm=VALUES(searchTerm) , searchRefine=VALUES(searchRefine), stringifiedProfileItemList=VALUES(stringifiedProfileItemList), modelSourceEnvironment=VALUES(modelSourceEnvironment);`,
      [searchTerm, searchRefine, JSON.stringify(userList), getModelSourceEnvironment()]); 
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return ((response !== undefined) && (response.affectedRows > 0));
 }
 
 export const DB_DELETE_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine:UserSearchRefineEnum):Promise<boolean> => {
@@ -355,7 +369,7 @@ export const DB_DELETE_USER_SEARCH_CACHE = async(searchTerm:string, searchRefine
 
     const response:CommandResponseType = await command('DELETE FROM user_search_cache WHERE searchTerm = ? AND searchRefine = ? AND modelSourceEnvironment = ?;', [searchTerm, searchRefine, getModelSourceEnvironment()]);
 
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return ((response !== undefined) && (response.affectedRows > 0));
 }
 
 export const DB_FLUSH_USER_SEARCH_CACHE_ADMIN = async():Promise<boolean> => {
@@ -486,7 +500,7 @@ export const DB_INSERT_CONTACT_CACHE = async({userID, userList}:{userID:number, 
         + `VALUES ( ?, ?, ? ) ON DUPLICATE KEY UPDATE userID=VALUES(userID), stringifiedProfileItemList=VALUES(stringifiedProfileItemList), modelSourceEnvironment=VALUES(modelSourceEnvironment);`,
      [userID, JSON.stringify(userList), getModelSourceEnvironment()]); 
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return ((response !== undefined) && (response.affectedRows > 0));
 }
 
 export const DB_DELETE_CONTACT_CACHE = async(userID:number):Promise<boolean> => {
@@ -494,7 +508,7 @@ export const DB_DELETE_CONTACT_CACHE = async(userID:number):Promise<boolean> => 
 
     const response:CommandResponseType = await command('DELETE FROM user_contact_cache WHERE userID = ? AND modelSourceEnvironment = ?;', [ userID, getModelSourceEnvironment() ]);
 
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return ((response !== undefined) && (response.affectedRows > 0));
 }
 
 export const DB_DELETE_CONTACT_CACHE_BATCH = async(userIDList:number[]):Promise<boolean> => {

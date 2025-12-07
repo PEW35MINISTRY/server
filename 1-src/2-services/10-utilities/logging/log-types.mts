@@ -1,10 +1,18 @@
-import { PathLike } from 'fs';
+import { PathLike, readFileSync } from 'fs';
 import path from 'path';
 const __dirname = path.resolve();
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { getEnvironment } from '../utilities.mjs';
+import { EmailAttachment } from '../../4-email/email-types.mjs';
 
+
+export enum LOG_SOURCE {
+    NEW = 'NEW',
+    S3_KEY = 'S3_KEY',
+    JSON = 'JSON',
+    TEXT = 'TEXT'
+}
 
 /* LOGGING CONTROLS */
 export const LOG_SEARCH_DEFAULT_TIMESPAN = (7 * 24 * 60 * 60 * 1000); //7 days
@@ -58,12 +66,3 @@ export const getLogFilePath = (type:LogType):PathLike => {
         default:return LOG_ERROR_FILE;
     }
 }
-
-
-export enum LOG_SOURCE {
-    NEW = 'NEW',
-    S3_KEY = 'S3_KEY',
-    JSON = 'JSON',
-    TEXT = 'TEXT'
-}
-
