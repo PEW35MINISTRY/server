@@ -9,7 +9,7 @@ import { DB_SELECT_CIRCLE } from '../../2-services/2-database/queries/circle-que
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { DeviceVerificationResponseType, NotificationDeviceSignup } from '../../0-assets/field-sync/api-type-sync/notification-types.mjs';
 import { DeviceOSEnum, ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/env-utilities.mjs';
 
 const snsClient = new SNSClient({ region: process.env.SNS_REGION });
 

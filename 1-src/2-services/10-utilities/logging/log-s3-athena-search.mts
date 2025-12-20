@@ -1,6 +1,6 @@
 import { StartQueryExecutionCommand } from '@aws-sdk/client-athena';
 import { AthenaQueryResult, searchAthenaQuery, updateAthenaPartitions } from '../athena.mjs';
-import { getEnvironment } from '../utilities.mjs';
+import { getEnvironment } from '../env-utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import LOG_ENTRY from './logEntryModel.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';

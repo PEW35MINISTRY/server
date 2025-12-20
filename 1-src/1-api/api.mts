@@ -7,7 +7,7 @@ import { createMockCircle, createMockPrayerRequest, createMockUser, populateDemo
 import { DB_SELECT_USER } from '../2-services/2-database/queries/user-queries.mjs';
 import { CreateDemoRequest } from './3-profile/profile-types.mjs';
 import PRAYER_REQUEST from '../2-services/1-models/prayerRequestModel.mjs';
-import { getEnvironment } from '../2-services/10-utilities/utilities.mjs';
+import { getEnvironment } from '../2-services/10-utilities/env-utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { answerAndNotifyPrayerRequests } from '../3-lambda/prayer-request/prayer-request-expired-script.mjs';
 

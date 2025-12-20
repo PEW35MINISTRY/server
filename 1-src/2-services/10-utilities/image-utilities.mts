@@ -3,7 +3,8 @@ import axios from 'axios';
 import * as log from './logging/log.mjs';
 import { SUPPORTED_IMAGE_EXTENSION_LIST } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ImageTypeEnum } from '../../1-api/api-types.mjs';
-import { getEnvironment, getSHA256Hash } from './utilities.mjs';
+import { getEnvironment } from './env-utilities.mjs';
+import { getSHA256Hash } from './utilities.mjs';
 import { isURLValid } from '../../0-assets/field-sync/input-config-sync/inputValidation.mjs';
 
 

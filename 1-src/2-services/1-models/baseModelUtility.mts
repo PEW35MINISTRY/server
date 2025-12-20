@@ -2,7 +2,7 @@ import InputField, { InputType, isListType, InputSelectionField, InputRangeField
 import validateInputFields, { InputValidationResult } from '../../0-assets/field-sync/input-config-sync/inputValidation.mjs';
 import { JwtClientRequest } from "../../1-api/2-auth/auth-types.mjs";
 import { Exception } from "../../1-api/api-types.mjs";
-import { getEnvironment } from "../10-utilities/utilities.mjs";
+import { getEnvironment } from "../10-utilities/env-utilities.mjs";
 import * as log from "../10-utilities/logging/log.mjs";
 import BASE_MODEL from "./baseModel.mjs";
 
