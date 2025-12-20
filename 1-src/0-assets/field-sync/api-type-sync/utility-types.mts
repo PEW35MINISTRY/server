@@ -9,11 +9,12 @@ export interface ServerErrorResponse {
 };
 
 export interface ServerDebugErrorResponse extends ServerErrorResponse {
-    status: number,
+    status:number,
     notification: string,
     jwtUserID: number,
     jwtUserRole: string,
     message: string,
+    timestamp: string,
     action: string,
     type: string,
     url: string,

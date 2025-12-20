@@ -151,7 +151,7 @@ const verifyEnvironmentVariables = ():boolean => {
     
     const environment:ENVIRONMENT_TYPE|undefined = getEnvironment();
     if(environment === undefined)
-        throw new Error(`ENV Validation FAILED - Missing ENVIRONMENT variable:${environment}`);
+        throw new Error(`ENV Validation FAILED - Missing ENVIRONMENT variable: ${environment}`);
 
     let isValid:boolean = true;
     for(const [variableName, definition] of Object.entries(REQUIRED_ENV_CONFIGURATION)) {
@@ -160,17 +160,17 @@ const verifyEnvironmentVariables = ():boolean => {
         const dependents:string[] = definition.dependent ?? [];
 
         if(requirement === Requirement.REQUIRED && value === undefined) {
-            console.error(`[REQUIRED] Missing Env:${variableName}${definition.description ? ` - ${definition.description}` : ''}`);
+            console.error(`[REQUIRED] Missing Env: ${variableName}${definition.description ? ` - ${definition.description}` : ''}`);
             isValid = false;
 
         } else if(requirement === Requirement.RECOMMENDED && value === undefined)
-            console.warn(`[RECOMMENDED] Missing Env:${variableName}${definition.description ? ` - ${definition.description}` : ''}`);
+            console.warn(`[RECOMMENDED] Missing Env: ${variableName}${definition.description ? ` - ${definition.description}` : ''}`);
 
         //Dependents are therefore required
         for(const dependentName of dependents) {
             const dependentValue:string | undefined = getEnvExists(dependentName);
             if(dependentValue === undefined || dependentValue.toLowerCase() === 'false') { //Boolean cannot be false
-                console.error(`[DEPENDENT] Missing Env:${variableName} is set, so ${dependentName} must also be set${definition.description ? `\n${variableName}: ${definition.description}` : ''}`);
+                console.error(`[DEPENDENT] Missing Env: ${variableName} is set, so ${dependentName} must also be set${definition.description ? `\n${variableName}: ${definition.description}` : ''}`);
                 isValid = false;
             }
         }

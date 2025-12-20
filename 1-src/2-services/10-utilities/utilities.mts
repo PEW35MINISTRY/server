@@ -11,7 +11,7 @@ import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-t
  *  - Effects new models & search cache                       *
  *  - Only applies to user table; circles inherit from leader *
  **************************************************************/
-export const getEnv = <T=string,>(name:string, expectedType:'string' | 'number' | 'boolean' = 'string', defaultValue?:T):T | undefined => getEnvBase<T>(log.error, name, expectedType, defaultValue);
+export const getEnv = <T=string,>(name:string, expectedType:'string' | 'number' | 'boolean' = 'string', defaultValue?:T):T | undefined => getEnvBase<T>(log.warn, name, expectedType, defaultValue);
 
 export const getEnvEnum = <T extends Record<string, string>>(name:string, enumObject:T, defaultValue?:T[keyof T]):T[keyof T]|undefined => getEnvEnumBase<T>(log.error, name, enumObject, defaultValue);
 

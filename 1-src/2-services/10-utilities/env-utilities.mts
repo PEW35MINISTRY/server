@@ -14,7 +14,7 @@ export const getEnvironment = ():ENVIRONMENT_TYPE => {
     if(environmentValue === ENVIRONMENT_TYPE.DEVELOPMENT) return ENVIRONMENT_TYPE.DEVELOPMENT;
     if(environmentValue === ENVIRONMENT_TYPE.PRODUCTION) return ENVIRONMENT_TYPE.PRODUCTION;
 
-    throw new Error(`Missing ENVIRONMENT variable:${environmentValue}`);
+    throw new Error(`Missing ENVIRONMENT variable: ${environmentValue}`);
 }
 
 export const isEnvironment = (...environments:ENVIRONMENT_TYPE[]):boolean => environments.includes(getEnvironment());

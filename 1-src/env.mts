@@ -1,5 +1,5 @@
 /**********************************************************************************************
- * WHY env.mjs EXISTS AND MUST BE IMPORTED FIRST
+ * Reasoning for env.mjs EXISTS AND MUST BE IMPORTED FIRST
  *
  * ES modules evaluate the entire import graph before executing module code.
  * If any module reads process.env at the top level, and dotenv has not run yet,
@@ -27,5 +27,5 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 //Evaluate required Environment Variables
-import verifyEnvironmentVariables from './5-scripts/initializeVerification.mjs';
+import verifyEnvironmentVariables from './5-scripts/env-verification.mjs';
 verifyEnvironmentVariables();
