@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
-import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { getEnvBase, getEnvEnumBase, getEnvironment } from './env-utilities.mjs';
+import * as log from '../10-utilities/logging/log.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-types.mjs';
 
 
@@ -10,8 +11,10 @@ import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-t
  *  - Effects new models & search cache                       *
  *  - Only applies to user table; circles inherit from leader *
  **************************************************************/
-/* Parse Environment | (Don't default to PRODUCTION for security) */
-export const getEnvironment = ():ENVIRONMENT_TYPE => ENVIRONMENT_TYPE[process.env.ENVIRONMENT as keyof typeof ENVIRONMENT_TYPE] || ENVIRONMENT_TYPE.DEVELOPMENT;
+export const getEnv = <T=string,>(name:string, expectedType:'string' | 'number' | 'boolean' = 'string', defaultValue?:T):T | undefined => getEnvBase<T>(log.error, name, expectedType, defaultValue);
+
+export const getEnvEnum = <T extends Record<string, string>>(name:string, enumObject:T, defaultValue?:T[keyof T]):T[keyof T]|undefined => getEnvEnumBase<T>(log.error, name, enumObject, defaultValue);
+
 
 export const getModelSourceEnvironment = (): DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM => {
     return DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM[process.env.DEFAULT_MODEL_SOURCE_ENVIRONMENT as keyof typeof DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM] 
