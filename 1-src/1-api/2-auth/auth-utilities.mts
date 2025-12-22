@@ -1,9 +1,10 @@
 import jwtPackage, { JwtPayload } from 'jsonwebtoken';
+import crypto from 'crypto';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_POPULATE_USER_PROFILE, DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
-import { JwtData, JwtRequest } from './auth-types.mjs';
+import { JwtData } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { DB_SELECT_USER_CONTENT_LIST } from '../../2-services/2-database/queries/content-queries.mjs';
@@ -184,6 +185,19 @@ export const assembleLoginResponse = async(loginMethod:LoginMethod, userProfile:
         userProfile: userProfile.toJSON(),
         service: loginMethod
     }
+}
+
+
+
+/*************************
+ * USER TOKEN MANAGEMENT *
+*************************/
+
+export const generateToken = (length:number = 32, type:'NUMERIC' | 'BYTES' = 'BYTES'):string => {
+    if(type === 'NUMERIC')
+        return crypto.randomInt(0, Math.pow(10, length)).toString().padStart(length, '0');
+    else
+        return crypto.randomBytes(length).toString().replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); //URL safe
 }
 
 

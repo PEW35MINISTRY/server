@@ -3,12 +3,13 @@ import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USE
 import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES as DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_IS_USER_PARTNER_ANY_STATUS } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DB_IS_PRAYER_REQUEST_REQUESTOR, DB_IS_RECIPIENT_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
 import { getJWTData as getJwtData, isMaxRoleGreaterThan, verifyJWT as verifyJwt } from './auth-utilities.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { DB_IS_USER_EMAIL_VERIFIED } from '../../2-services/2-database/queries/user-queries.mjs';
 
 
 
@@ -216,16 +217,18 @@ export const authenticateCircleMembershipMiddleware = async(request: JwtCircleRe
 /* Authenticate leader of specified circle and re-verify leader role (JWT could be stale) | extractCircleMiddleware cached: request.circleID */
 export const authenticateCircleLeaderMiddleware = async(request: JwtCircleRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    if((request.jwtUserRole === RoleEnum.ADMIN 
-            && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
-        || (isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: request.jwtUserRole}) 
-            && await DB_IS_CIRCLE_LEADER({leaderID: request.jwtUserID, circleID: request.circleID}))) {
+    if((request.jwtUserRole !== RoleEnum.ADMIN 
+            || !(await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN)))
+        && (!isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: request.jwtUserRole}) 
+            || !(await DB_IS_CIRCLE_LEADER({leaderID: request.jwtUserID, circleID: request.circleID}))))
+        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE LEADER :: User: ${request.jwtUserID} denied access to circle: ${request.circleID}`));
 
+    else if(!(await DB_IS_USER_EMAIL_VERIFIED(request.jwtUserID)))
+        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE LEADER :: User: ${request.jwtUserID} Email is not verified.`, 'Verify Email Required'));
+
+    else {
         log.auth(`AUTHENTICATED :: CIRCLE LEADER :: status verified: User: ${request.jwtUserID} is a Circle Leader of circle: ${request.circleID}`);
         next();
-
-    } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE LEADER :: User: ${request.jwtUserID} denied access to circle: ${request.circleID}`));
     }
 }
 
@@ -233,14 +236,16 @@ export const authenticateCircleLeaderMiddleware = async(request: JwtCircleReques
 /* Authenticate current CIRCLE_LEADER role (Circle not specified) (JWT could be stale) */
 export const authenticateLeaderMiddleware = async(request:JwtRequest, response:Response, next:NextFunction):Promise<void> => {
 
-    if((isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: request.jwtUserRole}) 
-            && await DB_IS_ANY_USER_ROLE(request.jwtUserID, [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER, DATABASE_USER_ROLE_ENUM.CIRCLE_MANAGER]))) {
+    if(!isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: request.jwtUserRole}) 
+            || !(await DB_IS_ANY_USER_ROLE(request.jwtUserID, [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER, DATABASE_USER_ROLE_ENUM.CIRCLE_MANAGER])))
+        next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.jwtUserID} is not a Leader Role.`, 'Leader Required'));
 
+    else if(!(await DB_IS_USER_EMAIL_VERIFIED(request.jwtUserID)))
+        next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.jwtUserID} Email is not verified.`, 'Verify Email Required'));
+
+    else {
         log.auth(`AUTHENTICATED :: LEADER :: status verified: User: ${request.jwtUserID} is a Leader Role`);
         next();
-
-    } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: LEADER :: User: ${request.jwtUserID} is not a Leader Role.`, 'Leader Required'));
     }
 }
 
@@ -248,14 +253,16 @@ export const authenticateLeaderMiddleware = async(request:JwtRequest, response:R
 /* Authenticate CIRCLE_MANAGER role; ability to modify member profiles | (Circle not specified) (JWT could be stale) */
 export const authenticateCircleManagerMiddleware = async(request:JwtRequest, response:Response, next:NextFunction):Promise<void> => {
 
-    if((isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_MANAGER, currentMaxUserRole: request.jwtUserRole}) 
-            && await DB_IS_ANY_USER_ROLE(request.jwtUserID, [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.CIRCLE_MANAGER]))) {
+    if(!isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_MANAGER, currentMaxUserRole: request.jwtUserRole}) 
+            || !(await DB_IS_ANY_USER_ROLE(request.jwtUserID, [DATABASE_USER_ROLE_ENUM.ADMIN, DATABASE_USER_ROLE_ENUM.CIRCLE_MANAGER])))
+        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE MANAGER :: User: ${request.jwtUserID} is not a Circle Manager Role.`, 'Manager Required'));
 
+    else if(!(await DB_IS_USER_EMAIL_VERIFIED(request.jwtUserID)))
+        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE MANAGER :: User: ${request.jwtUserID} Email is not verified.`, 'Verify Email Required'));
+
+    else {
         log.auth(`AUTHENTICATED :: CIRCLE MANAGER :: status verified: User: ${request.jwtUserID} is a Circle Manager Role`);
         next();
-
-    } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: CIRCLE MANAGER :: User: ${request.jwtUserID} is not a Circle Manager Role.`, 'Manager Required'));
     }
 }
 
@@ -275,23 +282,29 @@ export const extractContentMiddleware = async(request: JwtContentRequest, respon
 
 export const authenticateContentApproverMiddleware = async(request: JwtRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    if(isMaxRoleGreaterThan({testUserRole: RoleEnum.CONTENT_APPROVER, currentMaxUserRole: request.jwtUserRole})) {
+    if(isMaxRoleGreaterThan({testUserRole: RoleEnum.CONTENT_APPROVER, currentMaxUserRole: request.jwtUserRole}) !== true)
+        next(new Exception(401, `FAILED AUTHENTICATED :: CONTENT_APPROVER :: User: ${request.jwtUserID} is not an CONTENT_APPROVER.`, 'Content Approver Required'));
+
+    else if(!(await DB_IS_USER_EMAIL_VERIFIED(request.jwtUserID)))
+        next(new Exception(401, `FAILED AUTHENTICATED :: CONTENT_APPROVER :: User: ${request.jwtUserID} Email is not verified.`, 'Verify Email Required'));
+    
+    else {
         log.auth(`AUTHENTICATED :: CONTENT_APPROVER :: status verified: User: ${request.jwtUserID} is an CONTENT_APPROVER`);
         next();
-
-    } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: CONTENT_APPROVER :: User: ${request.jwtUserID} is not an CONTENT_APPROVER.`, 'Content Approver Required'));
     }
 }
 
 /* Authenticate current ADMIN role (JWT could be stale) */
 export const authenticateAdminMiddleware = async(request: JwtRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    if(request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN)) {
+    if(request.jwtUserRole !== RoleEnum.ADMIN || !(await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN)))
+        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.jwtUserID} is not an ADMIN.`, 'Admin Required'));
+
+    else if(!(await DB_IS_USER_EMAIL_VERIFIED(request.jwtUserID)))
+        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.jwtUserID} Email is not verified.`, 'Verify Email Required'));
+    
+    else {
         log.auth(`AUTHENTICATED :: ADMIN :: status verified: User: ${request.jwtUserID} is an ADMIN`);
         next();
-
-    } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.jwtUserID} is not an ADMIN.`, 'Admin Required'));
     }
 }

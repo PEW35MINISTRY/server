@@ -6,7 +6,8 @@ import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFIL
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import { DB_DELETE_CONTACT_CACHE, DB_DELETE_USER, DB_DELETE_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_INSERT_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_SELECT_USER_ROLES, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_DELETE_CONTACT_CACHE, DB_DELETE_USER, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_INSERT_USER_ROLE, DB_SELECT_USER_ROLES, DB_DELETE_USER_ROLE } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { getEmailLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, generateJWTRequest, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
@@ -18,6 +19,7 @@ import { InputRangeField } from '../../0-assets/field-sync/input-config-sync/inp
 import { searchList } from '../api-search-utilities.mjs';
 import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
+import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
 
 
 
@@ -112,6 +114,8 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             if(loginDetails) {
                 newProfile.userID = loginDetails.userID;
                 newProfile.isValid = true;
+
+                await sendUserEmailVerification(newProfile.userID, newProfile.email, newProfile.firstName);
 
                 if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
 
