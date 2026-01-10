@@ -3,30 +3,24 @@
   "version": "1.0.0",
   "main": "./0-compiled/server.mjs",
   "scripts": {
-    "//": " --- Website --- ",
+    "//": " --- Server --- ",
     "prewebsite": "rimraf website/build",
     "website": "cd ../website && npm run build",
     "postwebsite": "cp -r ../website/build ../server/website",
-
-    "//": " --- Portal --- ",
     "preportal": "rimraf portal/build",
     "portal": "cd ../portal && npm run build",
     "postportal": "cp -r ../portal/build ../server/portal",
-
-    "//": " --- Server --- ",
     "build:html": "node ./0-compiled/5-scripts/static-pages.mjs",
     "build:version": " node ./0-compiled/5-scripts/version.mjs",
     "prebuild": "rimraf 0-compiled/",
     "build": "tsc",
     "postbuild": "npm run build:version && npm run build:html",
-
     "open": "start http://localhost:5000",
     "preserve": "npm run build",
     "serve": "node ./0-compiled/server.mjs",
     "server": "npm run serve",
     "start": "rimraf 0-compiled/ && tsc && node ./0-compiled/server.mjs",
     "dev": "aws sso login && npm run start",
-
     "sync-config": "node ./0-compiled/5-scripts/config-sync.mjs",
     "update": "npm run sync-config && npm run website && npm run portal & npm run postbuild",
     "clean": "rimraf node_modules/ package-lock.json 0-compiled/"
@@ -35,6 +29,7 @@
     "@aws-sdk/client-athena": "^3.744.0",
     "@aws-sdk/client-s3": "^3.417.0",
     "@aws-sdk/client-secrets-manager": "^3.565.0",
+    "@aws-sdk/client-ses": "^3.782.0",
     "@aws-sdk/client-sns": "^3.709.0",
     "@types/jsonwebtoken": "^9.0.2",
     "argon2": "^0.41.1",

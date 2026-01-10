@@ -120,8 +120,11 @@ export const DB_DELETE_CONTENT = async(contentID:number):Promise<boolean> => { /
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<ContentListItem[]> => {
     const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
-    + `WHERE ${(columnList.length == 1) ? columnList[0] : `CONCAT_WS( ${columnList.join(`, ' ', `)} )`} LIKE ? `
-    + `LIMIT ${limit};`, [`%${searchTerm}%`]);
+    + 'WHERE ( '
+        + columnList.map(column => `LOWER(${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')
+    + ' ) '
+    + `ORDER BY content.likeCount DESC `
+    + `LIMIT ${limit};`, [...Array(columnList.length).fill(`${searchTerm}`)]);
  
     return [...rows.map(row => ({contentID: row.contentID || -1, 
         type: row.type, 

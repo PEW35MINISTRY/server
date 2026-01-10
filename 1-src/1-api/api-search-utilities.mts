@@ -40,6 +40,8 @@ export const GET_SearchList = async(searchType:SearchType|undefined, request:Jwt
 /**************************
  * GENERIC SEARCH PROCESS *
  **************************/
+const DEBUG_SEARCH:boolean = String(process.env.DEBUG_SEARCH || '').trim().toLowerCase() === 'true';
+
 export const searchList = async(searchType:SearchType, request:JwtSearchRequest):Promise<DisplayItemType[]|undefined> => {
     //Precaution since all fields are parsed from input or reference config: SearchDetailServer
     try {
@@ -47,19 +49,19 @@ export const searchList = async(searchType:SearchType, request:JwtSearchRequest)
         let searchTerm:string = request.query.search || '';
         const searchRefine:string = searchDetail.searchRefineList.includes(request.query.refine || '') ? request.query.refine : 'ALL';
         const searchFilter:string = request.query.filter || '';
-        const ignoreCache:boolean = (request.query.ignoreCache === 'true');
+        const ignoreCache:boolean = String(request.query.ignoreCache).toLowerCase() === 'true';
         const resultList:DisplayItemType[] = [];
 
         if(searchDetail.searchByIDMap.has(searchRefine)) {
             const searchID:number|typeof NaN = parseInt(searchTerm.trim());
             if(isNaN(searchID)) {
                 log.warn(`ID Searching Error: ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}'`, searchID);
-                return [];
+                return [];  //(205) Empty indicates successful search, but zero matches
                 
             } else {
                 const searchResults = await searchDetail.searchByIDMap.get(searchRefine)(searchID);
                 resultList.push(...(Array.isArray(searchResults) ? searchResults : [searchResults]));
-                log.event(`Searching: [${searchRefine}] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}'`, resultList.length || 'Zero Matches');
+                DEBUG_SEARCH && log.event(`Searching: [${searchRefine}] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}'`, resultList.length || 'Zero Matches');
             }
         } else {
             let searchResultList:DisplayItemType[]|undefined; //Undefined indicates no result yet
@@ -69,13 +71,14 @@ export const searchList = async(searchType:SearchType, request:JwtSearchRequest)
                 searchTerm = `DEFAULT-${request.jwtUserID}`; //For unique cache save
                 searchResultList = await searchDetail.fetchDefaultList(request.jwtUserID);
 
-                if(searchResultList !== undefined) log.event(`Searching: [Default Result] ${searchDetail.displayTitle} for '${searchTerm}'`, searchResultList.length || 'Zero Matches');
+                if(searchResultList !== undefined && DEBUG_SEARCH) log.event(`Searching: [Default Result] ${searchDetail.displayTitle} for '${searchTerm}'`, searchResultList.length || 'Zero Matches');
 
             /* Search Cache */
-            } else if(searchDetail.cacheAvailable && !ignoreCache && (searchDetail.searchCache !== searchDetail.defaultPromiseList))
+            } else if(searchDetail.cacheAvailable && !ignoreCache && (searchDetail.searchCache !== searchDetail.defaultPromiseList)) {
                 searchResultList = await searchDetail.searchCache(request, searchTerm, searchRefine);
 
-                if(searchResultList !== undefined) log.event(`Searching: [Cache Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}'`, searchResultList.length || 'Zero Matches');
+                if(searchResultList !== undefined && DEBUG_SEARCH) log.event(`Searching: [Cache Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}'`, searchResultList.length || 'Zero Matches');
+            }
 
             /* Execute Search */ 
             if(searchDetail.executeSearch === searchDetail.defaultPromiseList)
@@ -84,17 +87,18 @@ export const searchList = async(searchType:SearchType, request:JwtSearchRequest)
             else if(searchResultList === undefined) {
                 searchResultList = await searchDetail.executeSearch(request, searchTerm, searchDetail.refineDatabaseMapping.get(searchRefine));
 
-                if(searchResultList !== undefined) log.event(`Searching: [Query Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}' | ignoreCache: ${ignoreCache}`, searchResultList.length || 'Zero Matches');
+                if(searchResultList !== undefined && DEBUG_SEARCH) log.event(`Searching: [Query Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}' | ignoreCache: ${ignoreCache}`, searchResultList.length || 'Zero Matches');
 
                 /* NO RESULT IDENTIFIED */ 
                 else {
                     searchResultList = [];
-                    log.event(`Searching: [Zero Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}' | ignoreCache: ${ignoreCache}`);
+                    DEBUG_SEARCH && log.event(`Searching: [Zero Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}' | ignoreCache: ${ignoreCache}`);
                 }
 
                 /* Save to Cache (Including empty lists) */
-                if((searchDetail.cacheAvailable && !ignoreCache && (searchDetail.saveCache !== searchDetail.defaultPromiseBoolean)) && await searchDetail.saveCache(request, searchTerm, searchRefine, searchResultList))
-                    log.event(`Searching: (Cache Saved) ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}'`, searchResultList.length || 'Zero Matches');
+                if((searchDetail.cacheAvailable && !ignoreCache && (searchDetail.saveCache !== searchDetail.defaultPromiseBoolean)) 
+                        && await searchDetail.saveCache(request, searchTerm, searchRefine, searchResultList))
+                    DEBUG_SEARCH && log.event(`Searching: (Cache Saved) ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}'`, searchResultList.length || 'Zero Matches');
             }
 
             resultList.push(...searchResultList);

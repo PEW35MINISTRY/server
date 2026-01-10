@@ -18,6 +18,7 @@ import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
 import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest, LogSearchRequest, LogEntryNewRequest } from './1-api/2-auth/auth-types.mjs';
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
+import { EmailReportRequest } from './1-api/9-email/email-types.mjs';
 
 //Import Routes
 import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser, POST_PrayerRequestExpiredScript } from './1-api/api.mjs';
@@ -32,6 +33,7 @@ import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveIm
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
 import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceDetailAdmin, GET_notificationDeviceList, PATCH_notificationDeviceAdmin, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser } from './1-api/8-notification/notification.mjs';
+import { GET_EmailReport, POST_EmailReport } from './1-api/9-email/email.mjs';
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
@@ -39,6 +41,9 @@ import { initializeDatabase } from './2-services/2-database/database.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
 import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-request-expired-script.mjs';
+import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_FLUSH_USER_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/user-queries.mjs';
+import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/circle-queries.mjs';
+
 
 /********************
     EXPRESS SEVER
@@ -56,9 +61,16 @@ await initializeDatabase();
 await checkAWSAuthentication();
 
 //*** CRON JOBS ***/
+if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)) {
+  //Run at 15:00 UTC - 9am CST
+  schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
 
-// run at 15:00 UTC - 9am CST
-schedule("0 15 * * *", async () => getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && answerAndNotifyPrayerRequests());
+  //Run at 08:00-8:02 UTC - 2AM CST
+  schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
+  schedule("1 8 * * *", async () => DB_FLUSH_CONTACT_CACHE_ADMIN());
+  schedule("2 8 * * *", async () => DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN());
+}
+
 
 //***LOCAL ENVIRONMENT****/ only HTTP | AWS uses loadBalancer to redirect HTTPS
 const chatIO:Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any> = new Server(httpServer, { 
@@ -393,6 +405,11 @@ apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdm
 
 apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDetailAdmin);
 apiServer.patch('/api/admin/notification/device/:device', PATCH_notificationDeviceAdmin);
+
+apiServer.get('/api/admin/email/report/:type', GET_EmailReport);
+apiServer.post('/api/admin/email/report/:type', POST_EmailReport);
+apiServer.use('/api/admin/email/report/:type/client/:client', (request:EmailReportRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
+apiServer.post('/api/admin/email/report/:type/client/:client', POST_EmailReport);
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));

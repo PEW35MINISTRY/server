@@ -1,9 +1,7 @@
 import { createHash } from 'crypto';
-import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
+import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-types.mjs';
-import dotenv from 'dotenv';
-dotenv.config(); 
 
 
 
@@ -48,3 +46,41 @@ export const camelCase = (...terms:string[]) => terms.filter(term => term !== un
 export const isEnumValue = <T,>(enumObj: T, value: any): value is T[keyof T] => Object.values(enumObj).includes(value as T[keyof T]);
       
 export const getSHA256Hash = (value:string) => createHash('sha256').update(value).digest('hex');
+
+
+
+/***************************************
+*  THOROUGH ERROR CONVERSION FOR LOGS  *
+* Supporting AWS SDK V3 Error Response *
+****************************************/
+export const stringifyErrorMessage = (message:any):string => {
+  try {
+    if(message === undefined) return 'UNDEFINED';
+    else if(message === null) return 'NULL';
+
+    //AWS SDK V3 Error Object
+    else if(message?.Error?.Code && message?.Error?.Message)
+      return `${message.Error.Code}: ${message.Error.Message}`;
+
+    //AWS SDK V2 & JS Error object
+    else if(message instanceof Error)
+      return `${message.name}: ${message.message}`;
+
+    else if(typeof message === 'object') {
+      try {
+        return JSON.stringify(message);
+      } catch {
+        console.log('UNSERIALIZABLE log message:', message);
+        return '[UNSERIALIZABLE]';
+      }
+    }
+
+    else if(typeof message === 'string')
+      return (message.trim().length === 0) ? 'BLANK' : message;
+
+    else
+        return String(message);
+  } catch {
+    return '[UNSERIALIZABLE]';
+  }
+}
