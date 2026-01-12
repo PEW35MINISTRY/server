@@ -109,7 +109,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             if(insertRoleList.length > 0 && !(await DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList})))
                 log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
 
-            const loginDetails:LoginResponseBody = await getEmailLogin(newProfile.email, request.body['password'], false);
+            const loginDetails:LoginResponseBody|Exception = await getEmailLogin(newProfile.email, request.body['password'], false);
 
             if(loginDetails) {
                 newProfile.userID = loginDetails.userID;

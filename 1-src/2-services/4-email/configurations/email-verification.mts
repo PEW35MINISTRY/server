@@ -3,7 +3,7 @@ import { generateToken } from '../../../1-api/2-auth/auth-utilities.mjs';
 import { DATABASE_TOKEN_TYPE_ENUM } from '../../2-database/database-types.mjs';
 import { DB_SELECT_UNVERIFIED_EMAIL_MAP } from '../../2-database/queries/user-queries.mjs';
 import { DB_INSERT_TOKEN, DB_DELETE_TOKEN, DB_INSERT_TOKEN_BATCH, DB_DELETE_TOKEN_BATCH } from '../../2-database/queries/user-security-queries.mjs';
-import { htmlHeader, htmlFooter, htmlText, htmlActionButton } from '../components/email-template-components.mjs';
+import { htmlHeader, htmlFooter, htmlText, htmlActionButton, htmlAccessCode } from '../components/email-template-components.mjs';
 import { applyTemplate, EMAIL_TEMPLATE_TYPE, EMAIL_REPLACEMENT } from '../email-template-manager.mjs';
 import { sendTemplateEmail } from '../email-transporter.mjs';
 import { EMAIL_SENDER_ADDRESS } from '../email-types.mjs';
@@ -20,11 +20,12 @@ const sendVerifyEmail = async({userID, email, token, firstName}:{userID:number, 
         replacementMap: new Map([[EMAIL_REPLACEMENT.EMAIL_SUBJECT, 'Verify Email Address']]),
         bodyList: [
             htmlHeader(firstName ? (firstName + ',') : undefined),
-            htmlText('Please verify your email address to complete your account setup. Click the button below to confirm your email. This request is time-limited for your security.'),
+            htmlText('Please verify your email address to complete your Encouraging Prayer account setup. Click the button below to confirm your email. This request is time-limited for your security.  Note: Email verification is required before resetting your password.'),
+            ...(token.length < 10 ? [htmlAccessCode(token, 'Enter in the EP app:')] : []),
             htmlActionButton([
-                {label:'Verify Email', link:`${process.env.ENVIRONMENT_BASE_URL}/verify-email-confirm?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`, style:'PRIMARY'},
-                //TODO generate a User Report to possibly delete account
-                //{label:'Not Me', link:`${process.env.ENVIRONMENT_BASE_URL}/verify-email/report?email=${encodeURIComponent(email)}`, style:'PRIMARY'}, 
+                //TODO generate a User Report to possibly delete account following review
+                {label:'Not Me', link:`${process.env.ENVIRONMENT_BASE_URL}/api/report-token?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`, style:'OUTLINE'}, 
+                {label:'Verify Email', link:`${process.env.ENVIRONMENT_BASE_URL}/api/email-verify?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`, style:'ACCENT'},
             ]),
             htmlFooter(),
         ],
@@ -37,7 +38,7 @@ const sendVerifyEmail = async({userID, email, token, firstName}:{userID:number, 
 
 /* Send Email Address Verification Email with embedded Token */
 export const sendUserEmailVerification  = async(userID:number, email:string, firstName?:string):Promise<boolean> => {
-    const token:string = generateToken();
+    const token:string = generateToken(); //Simple enter during sign-up flow
 
     if(await DB_INSERT_TOKEN({userID, token, type:DATABASE_TOKEN_TYPE_ENUM.EMAIL_VERIFY, expirationDT: new Date(Date.now() + ((Number(process.env.EMAIL_VERIFY_TOKEN_MS) || (36 * 60 * 60 * 1000))))}) == false) { //36 hours
             log.error('sendEmailVerification CANCELED - failed to insert token', userID);
@@ -64,7 +65,7 @@ export const sendEmailVerificationReminderBatch = async():Promise<boolean> => {
     const expirationDT:Date = new Date(Date.now() + (Number(process.env.EMAIL_VERIFY_TOKEN_MS) || (36 * 60 * 60 * 1000))); //36 hours
 
     const tokenEntryList:{userID:number; token:string; type:DATABASE_TOKEN_TYPE_ENUM; expirationDT:Date}[] =
-        Array.from(unverifiedUserMap.keys()).map(userID => ({userID, token:generateToken(), type:DATABASE_TOKEN_TYPE_ENUM.EMAIL_VERIFY, expirationDT}));
+        Array.from(unverifiedUserMap.keys()).map(userID => ({userID, token:generateToken(32, 'BYTES'), type:DATABASE_TOKEN_TYPE_ENUM.EMAIL_VERIFY, expirationDT}));
 
     if(await DB_INSERT_TOKEN_BATCH(tokenEntryList) == false) {
         log.error('sendEmailVerificationReminderBatch CANCELED - failed to insert token batch');

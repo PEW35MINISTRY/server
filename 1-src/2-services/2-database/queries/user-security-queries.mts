@@ -115,7 +115,19 @@ export const DB_SELECT_TOKEN_EXISTS = async(entry:DATABASE_TOKEN):Promise<boolea
         + 'AND ( expirationDT IS NULL OR expirationDT > NOW() ) '
         + 'LIMIT 1;', [entry.userID, entry.type, entry.token]);
 
-    return ((rows !== undefined) && (rows.length > 0));
+    return ((rows !== undefined) && (rows.length == 1));
+}
+
+//Only deletes if valid token is found
+export const DB_CONSUME_TOKEN = async(entry:DATABASE_TOKEN):Promise<boolean> => {
+    const result = await command('DELETE FROM token '
+        + 'WHERE userID = ? AND type = ? AND token = ? '
+        + 'AND (expirationDT IS NULL OR expirationDT > NOW()) '
+        + 'LIMIT 1;',
+        [entry.userID, entry.type, entry.token]
+    );
+
+    return ((result !== undefined) && (result.affectedRows === 1));
 }
 
 export const DB_SELECT_TOKEN_USER_ALL = async({userID, type}:{userID:number, type?:DATABASE_TOKEN_TYPE_ENUM}):Promise<DATABASE_TOKEN[]> => {
@@ -141,8 +153,8 @@ export const DB_INSERT_TOKEN = async(entry:DATABASE_TOKEN):Promise<boolean> => {
 
     const response:CommandResponseType = await command('INSERT INTO token ( userID, type, token, expirationDT ) VALUES '
         + '( ?, ?, ?, ? ) '
-        + 'ON DUPLICATE KEY UPDATE '
-        + 'userID = VALUES(userID), type = VALUES(type), expirationDT = VALUES(expirationDT);',
+        + 'ON DUPLICATE KEY UPDATE ' //Combination of userID and DATABASE_TOKEN_TYPE_ENUM
+        + 'token = VALUES(token), expirationDT = VALUES(expirationDT);',
         [entry.userID, entry.type, entry.token, entry.expirationDT ?? null]); //null implies unlimited
 
     return ((response !== undefined) && (response.affectedRows > 0));
@@ -169,9 +181,9 @@ export const DB_INSERT_TOKEN_BATCH = async(entryList:DATABASE_TOKEN[]):Promise<b
 export const DB_DELETE_TOKEN = async(token:string):Promise<boolean> => {
 
     const response:CommandResponseType = await command('DELETE FROM token '
-        + 'WHERE token = ?;', [token]);
+        + 'WHERE token = ? LIMIT 1;', [token]);
 
-    return (response !== undefined);  //Success on non-error
+    return response?.affectedRows === 1;
 }
 
 //Batch delete multiple tokens at once

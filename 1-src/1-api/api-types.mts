@@ -8,7 +8,7 @@ import BASE_MODEL from '../2-services/1-models/baseModel.mjs';
 import CIRCLE from '../2-services/1-models/circleModel.mjs';
 import CONTENT_ARCHIVE from '../2-services/1-models/contentArchiveModel.mjs';
 import USER from '../2-services/1-models/userModel.mjs';
-import { DB_SELECT_USER, DB_SELECT_CONTACT_LIST, DB_SELECT_USER_SEARCH_CACHE, DB_SELECT_USER_SEARCH, DB_INSERT_USER_SEARCH_CACHE, DB_IS_ANY_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_SELECT_CONTACT_CACHE, DB_INSERT_CONTACT_CACHE, DB_FLUSH_CONTACT_CACHE_ADMIN } from '../2-services/2-database/queries/user-queries.mjs';
+import { DB_SELECT_USER, DB_SELECT_CONTACT_LIST, DB_SELECT_USER_SEARCH_CACHE, DB_SELECT_USER_SEARCH, DB_INSERT_USER_SEARCH_CACHE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_SELECT_CONTACT_CACHE, DB_INSERT_CONTACT_CACHE, DB_FLUSH_CONTACT_CACHE_ADMIN } from '../2-services/2-database/queries/user-queries.mjs';
 import { CircleSearchRefineEnum } from '../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { filterListByCircleStatus } from './4-circle/circle-utilities.mjs';
 import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_INSERT_CIRCLE_SEARCH_CACHE, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_SEARCH, DB_SELECT_CIRCLE_SEARCH_CACHE, DB_SELECT_LATEST_CIRCLES, DB_SELECT_USER_CIRCLES } from '../2-services/2-database/queries/circle-queries.mjs';

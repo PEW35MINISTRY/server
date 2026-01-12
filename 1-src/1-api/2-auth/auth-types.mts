@@ -24,7 +24,7 @@ export interface SubscribePost extends Request {
 }
 
 export interface TokenReportRequest extends Request {
-    params: {
+    query: {
         token:string
     }
 }
@@ -36,7 +36,7 @@ export interface EmailTokenInitializeRequest extends JwtClientRequest {
 }
 
 export interface EmailVerifyConfirmRequest extends Request {
-    params: {
+    query: {
         email:string,
         token:string,
     }

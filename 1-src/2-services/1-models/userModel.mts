@@ -33,11 +33,12 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   lastName?: string;
   displayName?: string;  //Unique
   email?: string;        //Unique
+  isEmailVerified?: boolean;
+  emailVerifiedDT?:string; //set in database
   passwordHash?: string;
   postalCode?: string;
   dateOfBirth?: Date;
   gender?: GenderEnum;
-  emailVerified?: boolean;
   walkLevel?: number;
   maxPartners: number;
   image?: string;

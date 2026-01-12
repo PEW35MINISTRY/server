@@ -66,9 +66,8 @@ await checkAWSAuthentication();
 if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)) {
   //Run at 15:00 UTC - 9am CST
   schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
-  //Run at 15:00 UTC - Mondays 9am CST
-  schedule("1 15 * * 1", async () => sendEmailVerificationReminderBatch());
-
+  //Run at 01:00 UTC - Sundays 7pm CST
+  schedule("1 1 * * 1", async () => sendEmailVerificationReminderBatch());
 
   //Run at 08:00-8:02 UTC - 2AM CST
   schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
@@ -108,13 +107,13 @@ apiServer.use(['/', '/website'], express.static(path.join(process.env.SERVER_PAT
 apiServer.get('/website/*', (request:Request, response:Response) => response.status(301).redirect('/website'));
 apiServer.get('/website', (request:Request, response:Response) => response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html')));
 
-apiServer.use(['/portal', '/login', '/signup', '/reset-password'], express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
+apiServer.use(['/portal', '/login', '/signup', '/password-forgot', '/password-reset'], express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
 
 apiServer.get('/portal', (request:Request, response:Response) => {
   response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
-apiServer.get(['/portal', '/portal/*', '/login', '/signup', '/reset-password'], (request:Request, response:Response) => {
+apiServer.get(['/portal', '/portal/*', '/login', '/signup', '/password-forgot', '/password-reset'], (request:Request, response:Response) => {
   response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
@@ -179,9 +178,9 @@ apiServer.get('/*', (request:JwtRequest, response:Response, next:NextFunction) =
 
 /* Public Email Actions */
 apiServer.get('/api/report-token', GET_reportUserToken); //Unrequested tokens, callback in email
-apiServer.get('/api/verify-email-confirm', GET_emailVerifyConfirm);
-apiServer.post('/api/reset-password', POST_resetPasswordInitialize);
-apiServer.post('/api/reset-password-confirm', POST_resetPasswordConfirm);
+apiServer.get('/api/email-verify-confirm', GET_emailVerifyConfirm);
+apiServer.post('/api/password-forgot', POST_resetPasswordInitialize);
+apiServer.post('/api/password-reset', POST_resetPasswordConfirm);
 
 
 /************************************************************/

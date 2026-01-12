@@ -98,7 +98,7 @@ export const DB_SELECT_USER_BATCH_EMAIL_MAP = async(userIDList:number[]):Promise
 
     const placeholders = userIDList.map(() => '?').join(',');
     const rows = await execute('SELECT userID, email FROM user '
-        + 'WHERE emailVerified = true '
+        + 'WHERE isEmailVerified = true '
         + `AND userID IN (${placeholders});`,
         userIDList);
     return rows.reduce((map, row) => map.set(row.userID ?? -1, row.email ?? ''), new Map<number, string>());
@@ -107,7 +107,7 @@ export const DB_SELECT_USER_BATCH_EMAIL_MAP = async(userIDList:number[]):Promise
 //Assembles recipientMap for sending reminder email to unverified email addresses
 export const DB_SELECT_UNVERIFIED_EMAIL_MAP = async(minAccountAgeDays:number = 3, maxAccountAgeDays = 30):Promise<Map<number, {firstName:string, email:string}>> => {
     const rows = await execute('SELECT userID, firstName, email FROM user '
-        + 'WHERE emailVerified = false '
+        + 'WHERE isEmailVerified = false '
         + 'AND createdDT <= (UTC_TIMESTAMP() - INTERVAL ? DAY) '
         + 'AND createdDT >= (UTC_TIMESTAMP() - INTERVAL ? DAY);',
         [minAccountAgeDays, maxAccountAgeDays]);
@@ -116,10 +116,12 @@ export const DB_SELECT_UNVERIFIED_EMAIL_MAP = async(minAccountAgeDays:number = 3
 }
 
 export const DB_IS_USER_EMAIL_VERIFIED = async(userID:number):Promise<boolean> => {
-    const rows = await execute('SELECT emailVerified ' + 'FROM user '
-        + 'WHERE user.userID = ?;', [userID]);
+    const rows = await execute('SELECT 1 ' + 'FROM user '
+        + 'WHERE user.userID = ? '
+            + 'AND isEmailVerified = 1 '
+            + 'AND emailVerifiedDT IS NOT NULL;', [userID]);
 
-    return ((rows !== undefined) && (rows.length > 0) && (rows[0].emailVerified == true));
+    return ((rows !== undefined) && (rows.length > 0));
 }
 
 

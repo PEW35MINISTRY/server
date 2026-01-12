@@ -140,6 +140,7 @@ const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.USER, token:str
 ***************************/
 export enum LoginMethod {
     JWT = 'JWT',
+    TOKEN = 'TOKEN',
     EMAIL = 'EMAIL',
     APPLE = 'APPLE',
     GOOGLE = 'GOOGLE',
@@ -193,7 +194,7 @@ export const assembleLoginResponse = async(loginMethod:LoginMethod, userProfile:
  * USER TOKEN MANAGEMENT *
 *************************/
 
-export const generateToken = (length:number = 32, type:'NUMERIC' | 'BYTES' = 'BYTES'):string => {
+export const generateToken = (length:number = 6, type:'NUMERIC' | 'BYTES' = 'NUMERIC'):string => {
     if(type === 'NUMERIC')
         return crypto.randomInt(0, Math.pow(10, length)).toString().padStart(length, '0');
     else

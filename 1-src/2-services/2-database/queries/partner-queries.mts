@@ -244,8 +244,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
         + ') AS partnerCounts ON user.userID = partnerCounts.userID '
         + 'WHERE user.userID != ? '
 
-            //TEMPORARY: To enable Partner search until Email Service is implemented [#72]
-            //+ 'AND user.emailVerified = true '
+            + 'AND user.isEmailVerified = true ' //Required for matches but NOT requesting user b/c of initialization flow prompting
             
             + `AND (( user.modelSourceEnvironment = ? ) `
                 + 'OR ( '

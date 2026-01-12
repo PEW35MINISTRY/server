@@ -92,7 +92,7 @@ export const TABLES_SUPPORTING_DT: Map<DATABASE_TABLE, Array<'createdDT' | 'modi
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
 export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
-    'userID', 'modelSourceEnvironment', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'emailVerified', 'walkLevel', 'image', 'notes', 'maxPartners'
+    'userID', 'modelSourceEnvironment', 'firstName', 'lastName', 'isEmailVerified', 'postalCode', 'dateOfBirth', 'gender', 'walkLevel', 'maxPartners', 'image', 'notes',
 ];
 
 export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
@@ -102,15 +102,16 @@ export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
     lastName?: string,
     displayName?: string,  //Unique
     email?: string,        //Unique
+    isEmailVerified?: boolean,
+    emailVerifiedDT?: Date|null,
     passwordHash?: string,
     postalCode?: string, 
     dateOfBirth?: Date, 
     gender?: DATABASE_GENDER_ENUM,
-    emailVerified?: boolean,
     walkLevel?: number,
+    maxPartners: number,
     image?: string,
     notes?: string,
-    maxPartners: number,
     userRole?: DATABASE_USER_ROLE_ENUM, //Top role from table user_role_defined
 };
 

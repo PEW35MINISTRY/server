@@ -9,7 +9,7 @@ import { DB_INSERT_EMAIL_SUBSCRIPTION } from '../../2-services/2-database/querie
 import { DB_SELECT_USER, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { sendEmailAction } from '../../2-services/4-email/email.mjs';
-import { DB_DELETE_TOKEN, DB_INSERT_TOKEN, DB_SELECT_TOKEN, DB_SELECT_TOKEN_EXISTS, DB_SELECT_TOKEN_USER_ALL } from '../../2-services/2-database/queries/user-security-queries.mjs';
+import { DB_CONSUME_TOKEN, DB_DELETE_TOKEN, DB_INSERT_TOKEN, DB_SELECT_TOKEN, DB_SELECT_TOKEN_USER_ALL } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import { DATABASE_TOKEN, DATABASE_TOKEN_TYPE_ENUM } from '../../2-services/2-database/database-types.mjs';
 import { InputValidationResult } from '../../0-assets/field-sync/input-config-sync/inputValidation.mjs';
 import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
@@ -24,21 +24,24 @@ import { sendUserEmailVerification } from '../../2-services/4-email/configuratio
  *********************/
 
  //General Callback for users to report unrequested tokens
- export const GET_reportUserToken = async(request:TokenReportRequest, response: Response, next: NextFunction) => {
-    if((request.params.token === undefined) || (String((request.params.token).length === 0)))
+ //Note: Additional details can be included as query parameters for logging
+ export const GET_reportUserToken = async(request:TokenReportRequest, response:Response, next:NextFunction) => {
+    const { token, ...additionalQueryArguments } = request.query;
+
+    if((token === undefined) || (token.length === 0))
         return next(new Exception(400, `Invalid token request.`, 'Invalid Request'));
+    else
+        response.status(303).redirect(`${process.env.ENVIRONMENT_BASE_URL}/confirmation`); //Always success
 
-    const entry:DATABASE_TOKEN | undefined = await DB_SELECT_TOKEN(request.params.token);
+    const entry:DATABASE_TOKEN | undefined = await DB_SELECT_TOKEN(token);
     if(entry !== undefined) {
-        log.warn('SECURITY EVENT: User reported unrequested token; token deleted - POST_reportUserToken', entry.userID, entry.type, `createdDT=${entry.createdDT}`, `expirationDT=${entry.expirationDT ?? 'NULL'}`);
-        await DB_DELETE_TOKEN(request.body.token);
+        log.warn('SECURITY EVENT: User reported unrequested token; token deleted - POST_reportUserToken', entry.userID, entry.type, `createdDT=${entry.createdDT}`, `expirationDT=${entry.expirationDT ?? 'NULL'}`, additionalQueryArguments);
+        await DB_DELETE_TOKEN(request.query.token);
     }
-
-    return response.status(200).send('Token Deleted.'); //TODO redirect to static page
 }
 
 
- export const POST_emailVerifyResend = async(request:EmailTokenInitializeRequest, response: Response, next: NextFunction) => {
+ export const POST_emailVerifyResend = async(request:EmailTokenInitializeRequest, response:Response, next:NextFunction) => {
 
     if(validateInput({ field:PASSWORD_RESET_PROFILE_FIELDS.find((f:InputField) => f.field === 'email') as InputField, value: request.body.email, getInputField:(f:string) => request.body[f], simpleValidationOnly:false }).passed == false)
         return next(new Exception(400, `Invalid email format.`, `Invalid Email`));
@@ -46,41 +49,39 @@ import { sendUserEmailVerification } from '../../2-services/4-email/configuratio
         response.send('Email Verification Sent.'); //Always return success to prevent email enumeration
 
     const userProfile:USER = await DB_SELECT_USER(new Map([['email', request.body.email]]), false);
-    if(userProfile.isValid && !userProfile.emailVerified)
+    if(userProfile.isValid && !userProfile.isEmailVerified)
         await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
     else
-        log.warn(`POST_emailVerifyResend not sent – profile existing: isValid=${userProfile.isValid}, emailVerified=${userProfile.emailVerified}`, userProfile.userID, userProfile.email);
+        log.warn(`POST_emailVerifyResend not sent – profile existing: isValid=${userProfile.isValid}, isEmailVerified=${userProfile.isEmailVerified}`, userProfile.userID, userProfile.email);
 }
 
 
- export const GET_emailVerifyConfirm = async(request:EmailVerifyConfirmRequest, response: Response, next: NextFunction) => {
-    const userProfile:USER = await DB_SELECT_USER(new Map([['email', request.params.email]]), false);
+ export const GET_emailVerifyConfirm = async(request:EmailVerifyConfirmRequest, response:Response, next:NextFunction) => {
+    const email:string = request.query.email;
+    const token:string = request.query.token;
+    const userProfile:USER = await DB_SELECT_USER(new Map([['email', email]]), false);
 
     if(userProfile.isValid == false)
-        next(new Exception(401, `Email Verification Failed.`, 'Invalid User'));
+        log.error(`GET_emailVerifyConfirm - Email Verification Failed – user not found`, email);
 
-    else if((request.params.token === undefined) || (String(request.params.token).length === 0))
-        next(new Exception(400, `Invalid email verification request.`, 'Invalid Request'));
+    else if((request.query.token === undefined) || (String(request.query.token).length === 0))
+        log.error(`GET_emailVerifyConfirm - Email Verification Failed – missing token`, email, token);
 
-    else if(await DB_SELECT_TOKEN_EXISTS({
-                userID:userProfile.userID,
-                type:DATABASE_TOKEN_TYPE_ENUM.EMAIL_VERIFY,
-                token:request.params.token,
-            }) == false)
-        next(new Exception(401, `Email Verification Failed.`, 'Invalid Token'));
+    else if(await DB_CONSUME_TOKEN({ userID:userProfile.userID, type:DATABASE_TOKEN_TYPE_ENUM.EMAIL_VERIFY, token:token }) == false)
+        log.error(`GET_emailVerifyConfirm - Email Verification Failed – token consumption failed`, email);
 
-    else if(await DB_DELETE_TOKEN(request.params.token) == false)
-        next(new Exception(500, `Email Verification Failed.`, 'Token Consume Failed'));
-
-    else if(await DB_UPDATE_USER(userProfile.userID, new Map([['emailVerified', true]])) == false)
-        next(new Exception(500, `Email Verification Failed.`, 'Email Update Failed'));
+    else if(await DB_UPDATE_USER(userProfile.userID, new Map([['isEmailVerified', true]])) == false)
+        log.error(`GET_emailVerifyConfirm - Email Verification Failed – DB failed to update isEmailVerified status`, email);
 
     else
-        return response.status(200).send('Email Verified Successfully.');
+        return response.status(303).redirect(`${process.env.ENVIRONMENT_BASE_URL}/confirmation`);
+
+    //Any Failed Situations
+    return response.status(303).redirect(`${process.env.ENVIRONMENT_BASE_URL}/failed`);
 }
 
 
-export const POST_login =  async(request: LoginRequest, response: Response, next: NextFunction) => {
+export const POST_login =  async(request:LoginRequest, response:Response, next:NextFunction) => {
     const loginDetails:LoginResponseBody = await getEmailLogin(request.body['email'], request.body['password'], true);
 
     if(loginDetails)
@@ -105,16 +106,19 @@ export const POST_emailSubscribe = async(request:SubscribePost, response:Respons
 
 
 /* Password Reset */
-export const POST_resetPasswordInitialize = async(request:EmailTokenInitializeRequest, response: Response, next: NextFunction) => {
+export const POST_resetPasswordInitialize = async(request:EmailTokenInitializeRequest, response:Response, next:NextFunction) => {
 
     if(validateInput({ field: PASSWORD_RESET_PROFILE_FIELDS.find((f:InputField) => f.field === 'email'), value: request.body.email, getInputField:(f:string) => request.body[f], simpleValidationOnly:false }).passed == false)
         return next(new Exception(400, `Invalid email format.`, `Invalid Email`));
     else
-        response.send('Password Reset Initialized.');     //Always return success to prevent email enumeration
+        response.status(200).send('Password Reset Initialized.');     //Always return success to prevent email enumeration
 
 
     const userProfile:USER = await DB_SELECT_USER(new Map([['email', request.body.email]]), false);
-    if(userProfile.isValid && userProfile.emailVerified) {
+    if(userProfile.isValid && !userProfile.isEmailVerified)
+        await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
+
+    else if(userProfile.isValid) {
         const token:string = generateToken();
         const expirationDate:Date = new Date(Date.now() + (Number(process.env.PASSWORD_RESET_TOKEN_MS) || (15 * 60 * 1000)));
 
@@ -128,8 +132,8 @@ export const POST_resetPasswordInitialize = async(request:EmailTokenInitializeRe
                         This request is time-limited for your security.  
                         If you did not initiate this request, your account may be at risk. 
                         Please click the “Not Me” button so we can secure your account and prevent unauthorized access.`,
-                    buttonList: [{label:'Not Me', link:`${process.env.ENVIRONMENT_BASE_URL}/report-token?token=${encodeURIComponent(token)}`, style:'OUTLINE'},
-                                {label:'Reset Password', link:`${process.env.ENVIRONMENT_BASE_URL}/reset-password?email=${encodeURIComponent(userProfile.email)}&token=${encodeURIComponent(token)}`, style:'PRIMARY'}],
+                    buttonList: [{label:'Not Me', link:`${process.env.ENVIRONMENT_BASE_URL}/api/report-token?email=${encodeURIComponent(userProfile.email)}&token=${encodeURIComponent(token)}`, style:'OUTLINE'},
+                                {label:'Reset Password', link:`${process.env.ENVIRONMENT_BASE_URL}/password-reset?email=${encodeURIComponent(userProfile.email)}&token=${encodeURIComponent(token)}`, style:'PRIMARY'}],
                     userIDList: [userProfile.userID],
 
                 }) == false) {
@@ -140,10 +144,10 @@ export const POST_resetPasswordInitialize = async(request:EmailTokenInitializeRe
 }
 
 
-export const POST_resetPasswordConfirm = async(request:PasswordResetConfirmRequest, response: Response, next: NextFunction) => {
+export const POST_resetPasswordConfirm = async(request:PasswordResetConfirmRequest, response:Response, next:NextFunction) => {
     const userProfile:USER = await DB_SELECT_USER(new Map([['email', request.body.email]]), false);
 
-    if((userProfile.isValid == false) || (userProfile.emailVerified == false))
+    if((userProfile.isValid == false) || (userProfile.isEmailVerified == false))
         next(new Exception(401, `Password Reset Failed.`, 'Invalid User'));
 
     else {
@@ -157,11 +161,8 @@ export const POST_resetPasswordConfirm = async(request:PasswordResetConfirmReque
             }
         }
 
-        if(await DB_SELECT_TOKEN_EXISTS({userID:userProfile.userID, type:DATABASE_TOKEN_TYPE_ENUM.PASSWORD_RESET, token:request.body.token}) == false)
-            next(new Exception(401, `Password Reset Failed.`, 'Invalid Token'));
-
-        else if(await DB_DELETE_TOKEN(request.body.token) == false)
-            next(new Exception(500, `Password Reset Failed.`, 'Token Consume Failed'));
+        if(await DB_CONSUME_TOKEN({userID:userProfile.userID, type:DATABASE_TOKEN_TYPE_ENUM.PASSWORD_RESET, token:request.body.token}) == false)
+            next(new Exception(401, `Password Reset Failed.`, 'Token Consume Failed'));
 
         else if(await DB_UPDATE_USER(userProfile.userID, new Map([['passwordHash', await generatePasswordHash(request.body.password)]])) == false)
             next(new Exception(500, `Password Reset Failed.`, 'Password Save Failed'));
