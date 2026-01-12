@@ -59,6 +59,13 @@ export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
     'newPrayerRequestList', 'ownedPrayerRequestList', 'expiringPrayerRequestList', 'recommendedContentList', 'contactList', 'profileAccessList'
 ];
 
+//Must first verify email and auto-login through POST_emailVerifyAndLogin
+export interface SignupProfileResponse {
+    userID:number,
+    userRole:RoleEnum,
+    email:string
+}
+
 export interface ProfileResponse {
     userID: number, 
     modelSourceEnvironment: ModelSourceEnvironmentEnum,

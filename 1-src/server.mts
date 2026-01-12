@@ -26,7 +26,7 @@ import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateCircleManagerMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware, authenticateLeaderMiddleware, authenticateDemoUserMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin, POST_resetPasswordConfirm, POST_resetPasswordInitialize, GET_userActiveTokensAdmin, POST_emailVerifyResend, GET_reportUserToken, GET_emailVerifyConfirm } from './1-api/2-auth/auth.mjs';
-import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
+import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList, POST_emailVerifyAndLogin } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
@@ -178,7 +178,8 @@ apiServer.get('/*', (request:JwtRequest, response:Response, next:NextFunction) =
 
 /* Public Email Actions */
 apiServer.get('/api/report-token', GET_reportUserToken); //Unrequested tokens, callback in email
-apiServer.get('/api/email-verify-confirm', GET_emailVerifyConfirm);
+apiServer.get('/api/email-verify', GET_emailVerifyConfirm);
+apiServer.post('/api/email-verify', POST_emailVerifyAndLogin);
 apiServer.post('/api/password-forgot', POST_resetPasswordInitialize);
 apiServer.post('/api/password-reset', POST_resetPasswordConfirm);
 

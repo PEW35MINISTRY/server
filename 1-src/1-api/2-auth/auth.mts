@@ -81,14 +81,16 @@ import { sendUserEmailVerification } from '../../2-services/4-email/configuratio
 }
 
 
+/* EMAIL LOGIN */
+//Note: getEmailLogin triggers email verification if needed
 export const POST_login =  async(request:LoginRequest, response:Response, next:NextFunction) => {
-    const loginDetails:LoginResponseBody = await getEmailLogin(request.body['email'], request.body['password'], true);
+    const loginDetails:LoginResponseBody|Exception = await getEmailLogin(request.body['email'], request.body['password'], true);
 
-    if(loginDetails)
-        response.status(202).send(loginDetails);
-    else
-        next(new Exception(404, `Login Failed: Credentials do not match our records.`, 'Invalid Credentials'));
-};
+    if(loginDetails instanceof Exception)
+        return next(loginDetails);
+    else 
+        return response.status(201).send(loginDetails);
+}
 
 
 //Website Email Subscribe for Updates | Note: request.role is NOT RoleEnum | [USER, LEADER, FINANCIAL SUPPORTER]
@@ -167,8 +169,13 @@ export const POST_resetPasswordConfirm = async(request:PasswordResetConfirmReque
         else if(await DB_UPDATE_USER(userProfile.userID, new Map([['passwordHash', await generatePasswordHash(request.body.password)]])) == false)
             next(new Exception(500, `Password Reset Failed.`, 'Password Save Failed'));
 
-        else
-            return response.status(201).send(await assembleLoginResponse(LoginMethod.EMAIL, userProfile, true));
+        else {
+            const loginDetails:LoginResponseBody|Exception = await assembleLoginResponse(LoginMethod.TOKEN, userProfile, false);
+            if(loginDetails instanceof Exception)
+                return next(loginDetails);
+            else 
+                return response.status(201).send(loginDetails);
+        }
     }
 }
 

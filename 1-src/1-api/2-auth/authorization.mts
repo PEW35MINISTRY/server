@@ -3,7 +3,7 @@ import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USE
 import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES as DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_IS_USER_PARTNER_ANY_STATUS } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DB_IS_PRAYER_REQUEST_REQUESTOR, DB_IS_RECIPIENT_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
@@ -287,11 +287,11 @@ export const authenticateContentApproverMiddleware = async(request: JwtRequest, 
 /* Authenticate current ADMIN role (JWT could be stale) */
 export const authenticateAdminMiddleware = async(request: JwtRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    if(request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN)) {
+    if(request.jwtUserRole !== RoleEnum.ADMIN || !(await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN)))
+        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.jwtUserID} is not an ADMIN.`, 'Admin Required'));
+    
+    else {
         log.auth(`AUTHENTICATED :: ADMIN :: status verified: User: ${request.jwtUserID} is an ADMIN`);
         next();
-
-    } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.jwtUserID} is not an ADMIN.`, 'Admin Required'));
     }
 }
