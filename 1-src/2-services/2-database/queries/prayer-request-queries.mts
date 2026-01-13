@@ -1,6 +1,6 @@
 import * as log from '../../10-utilities/logging/log.mjs';
 import { batch, command, execute, validateColumns } from '../database.mjs';
-import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PRAYER_REQUEST, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
+import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PRAYER_REQUEST, DATABASE_PRAYER_REQUEST_COMMENT, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
@@ -107,9 +107,7 @@ export const DB_INSERT_AND_SELECT_PRAYER_REQUEST = async(fieldMap:Map<string, an
         return new PRAYER_REQUEST(undefined);
     }
 
-    const prayerRequest = PRAYER_REQUEST.constructByDatabase(rows[0] as DATABASE_PRAYER_REQUEST); 
-    prayerRequest.requestorProfile = {userID: rows[0].requestorID, firstName: rows[0].requestorFirstName, displayName: rows[0].requestorDisplayName, image: rows[0].requestorImage};
-    return prayerRequest; 
+    return PRAYER_REQUEST.constructByDatabase(rows[0] as DATABASE_PRAYER_REQUEST); 
 }
 
 export const DB_UPDATE_PRAYER_REQUEST = async(prayerRequestID:number, fieldMap:Map<string, any>):Promise<boolean> => {
@@ -198,9 +196,7 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:num
     + 'AND ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ) '
     + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]); 
  
-    return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
-            requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage},
-            createdDT: row.createdDT, modifiedDT: row.modifiedDT}))];
+    return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
 
 //List for circle of all prayer requests where they are the intended recipient
@@ -213,9 +209,7 @@ export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, limit
     + 'WHERE prayer_request_recipient.circleID = ? '
     + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [circleID]); 
  
-    return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
-            requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage},
-            createdDT: row.createdDT, modifiedDT: row.modifiedDT}))];
+    return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
 
 //List of all prayer request created by user | optional filters: isResolved
@@ -235,9 +229,7 @@ export const DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST = async(userID:number, isRe
             + 'WHERE requestorID = ? '
             + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID]); 
  
-    return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
-            requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage},
-            createdDT: row.createdDT, modifiedDT: row.modifiedDT}))];
+    return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
 
 export const DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST = async(userID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
@@ -251,9 +243,7 @@ export const DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST = async(userID:numb
         + 'AND expirationDate < CURRENT_DATE() '
         + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID]);
 
-    return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
-        requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage},
-        createdDT: row.createdDT, modifiedDT: row.modifiedDT}))];
+    return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
 
 /*************************************
@@ -407,8 +397,7 @@ export const DB_SELECT_PRAYER_REQUEST_COMMENT_LIST = async(prayerRequestID:numbe
     + 'WHERE prayerRequestID = ? '
     + 'ORDER BY createdDT DESC;', [prayerRequestID]); 
  
-    return [...rows.map(row => ({commentID: row.commentID || -1, prayerRequestID: row.prayerRequestID || -1, message: row.message || '', likeCount: row.likeCount || 0,
-            commenterProfile: {userID: row.commenterID, firstName: row.commenterFirstName, displayName: row.commenterDisplayName, image: row.commenterImage}}))];
+    return PRAYER_REQUEST.constructByDatabaseCommentList(rows as DATABASE_PRAYER_REQUEST_COMMENT[]);
 }
 
 //Used to identify commentID
@@ -421,8 +410,7 @@ export const DB_SELECT_PRAYER_REQUEST_COMMENT = async({prayerRequestID, commente
       [prayerRequestID, commenterID, message]); 
 
     if(rows.length === 1) 
-        return ({commentID: rows[0].commentID || -1, prayerRequestID: rows[0].prayerRequestID || -1, message: rows[0].message || '', likeCount: rows[0].likeCount || 0,
-                commenterProfile: {userID: rows[0].commenterID, firstName: rows[0].commenterFirstName, displayName: rows[0].commenterDisplayName, image: rows[0].commenterImage}});
+       return PRAYER_REQUEST.constructByDatabaseCommentList(rows as DATABASE_PRAYER_REQUEST_COMMENT[])[0];
 
     else {
         log.warn(`DB_SELECT_PRAYER_REQUEST_COMMENT ${rows.length ? 'MULTIPLE' : 'NONE'} COMMENTS IDENTIFIED`, prayerRequestID, commenterID, message, JSON.stringify(rows));
@@ -475,7 +463,5 @@ export const DB_SELECT_PRAYER_REQUEST_LIST_BY_USER_SOURCE_ENVIRONMENT = async(so
         + `LIMIT ${limit};`,
     [sourceEnvironment, maxUserShares, maxCircleShares]); 
 
-    return [...rows.map(row => ({prayerRequestID: row.prayerRequestID || -1, topic: row.topic || '', prayerCount: row.prayerCount || 0, tagList: PRAYER_REQUEST.prayerRequestParseTags(row.tagListStringified),
-        requestorProfile: {userID: row.requestorID, firstName: row.requestorFirstName, displayName: row.requestorDisplayName, image: row.requestorImage},
-        createdDT: row.createdDT, modifiedDT: row.modifiedDT}))];
+    return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }

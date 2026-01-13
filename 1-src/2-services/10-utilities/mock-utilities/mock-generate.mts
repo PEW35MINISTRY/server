@@ -94,7 +94,7 @@ export const createMockPrayerRequest = async(userID:number):Promise<PRAYER_REQUE
     request.topic = detail.topic;
     request.description = detail.description;
     request.tagList = detail.categoryList;
-    request.prayerCount = randomRange(500);
+    request.prayerCountTotal = randomRange(500);
     request.isOnGoing = true;
     request.expirationDate = getDateDaysFuture(90);
     request.isValid = true;
@@ -124,8 +124,8 @@ export const createMockPrayerRequest = async(userID:number):Promise<PRAYER_REQUE
     /* Comment Likes */
     request.commentList = await DB_SELECT_PRAYER_REQUEST_COMMENT_LIST(request.prayerRequestID);
     for(const comment of request.commentList) {
-        comment.likeCount = randomRange(150);
-        await DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT(comment.commentID, comment.likeCount);
+        comment.likeCountTotal = randomRange(150);
+        await DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT(comment.commentID, comment.likeCountTotal);
     }
 
 

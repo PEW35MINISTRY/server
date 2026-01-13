@@ -215,7 +215,7 @@ export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_C
     'prayerRequestID', 'prayerCount', 'isOnGoing', 'isResolved', 'tagListStringified'
 ];
 
-export type DATABASE_PRAYER_REQUEST = {
+export interface DATABASE_PRAYER_REQUEST {
     prayerRequestID: number, 
     requestorID: number, 
     topic: string,
@@ -226,6 +226,48 @@ export type DATABASE_PRAYER_REQUEST = {
     tagListStringified: string,
     expirationDate: Date
 };
+
+
+//prayer_request joint table parsed in PRAYER_REQUEST.constructByDatabase
+export const PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS,
+    'requestorProfile', 'prayerCountRecipient', 'prayerCountTotal', 'createdDT', 'modifiedDT'
+];
+
+export interface DATABASE_PRAYER_REQUEST_EXTENDED extends DATABASE_PRAYER_REQUEST {
+    //requestorProfile:ProfileListItem
+    requestorFirstName?:string;
+    requestorDisplayName?:string;
+    requestorImage?:string;
+
+    //Joint Table Queries
+    prayerCountRecipient?:number;
+    prayerCountTotal?:number;
+}
+
+
+/******************************************************************** 
+*      Database `prayer_request_comment` 
+*********************************************************************/
+export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS = [ 'commentID', 'prayerRequestID', 'commenterID', 'message', 'createdDT' ];
+
+export interface DATABASE_PRAYER_REQUEST_COMMENT {
+  commentID: number;
+  prayerRequestID: number;
+  commenterID: number;
+  message: string;
+  createdDT: Date;
+}
+
+export interface DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED extends DATABASE_PRAYER_REQUEST_COMMENT {
+    //commenterProfile:ProfileListItem
+    commenterFirstName?:string;
+    commenterDisplayName?:string;
+    commenterImage?:string;
+
+    //Joint Table Queries
+    likeCountTotal?:number;
+    likedByRecipient?:boolean;
+}
 
 
 /******************************************************************** 
