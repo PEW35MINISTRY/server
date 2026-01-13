@@ -15,7 +15,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     //Static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = ['requestorID', 'topic', 'description']; //exclude: prayerRequestID, complex types, and lists
-    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
+    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'createdDT', 'modifiedDT', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
 
     prayerRequestID: number = -1;
     requestorID: number;
@@ -26,6 +26,10 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     isResolved: boolean;
     tagList: PrayerRequestTagEnum[] = [];
     expirationDate: Date;
+
+    //Database - Read Only
+    createdDT:Date;
+    modifiedDT:Date;
 
     //Query separate Tables
     requestorProfile?: ProfileListItem;
@@ -119,5 +123,5 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     override getUniqueDatabaseProperties = (baseModel:PRAYER_REQUEST):Map<string, any> => PRAYER_REQUEST.getUniqueDatabaseProperties(this, baseModel);
 
-    override  toListItem = ():PrayerRequestListItem => ({prayerRequestID: this.prayerRequestID, requestorProfile: this.requestorProfile, topic: this.topic, prayerCount: this.prayerCount, tagList: this.tagList});
+    override  toListItem = ():PrayerRequestListItem => ({prayerRequestID: this.prayerRequestID, requestorProfile: this.requestorProfile, topic: this.topic, prayerCount: this.prayerCount, tagList: this.tagList, createdDT: this.createdDT?.toISOString(), modifiedDT: this.modifiedDT.toISOString()});
 };

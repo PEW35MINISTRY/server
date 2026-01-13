@@ -19,6 +19,8 @@ export interface PrayerRequestListItem {
     topic: string,
     prayerCount: number,
     tagList?: PrayerRequestTagEnum[], 
+    createdDT:string,
+    modifiedDT:string
 }
 
 export interface PrayerRequestCommentListItem {
@@ -39,6 +41,9 @@ export interface PrayerRequestResponseBody {
     isResolved: boolean,
     tagList?: PrayerRequestTagEnum[],
     expirationDate: string,
+    createdDT: string,
+    modifiedDT: string,
+
     commentList?: PrayerRequestCommentListItem[],
     userRecipientList?: ProfileListItem[],
     circleRecipientList?: CircleListItem[],
