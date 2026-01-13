@@ -163,7 +163,11 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
         || !(await verifyPassword(userProfile.passwordHash, password)))
             return new Exception(404, 'Login Failed: Credentials do not match our records.', 'Invalid Credentials');
 
-    else if(!userProfile.isEmailVerified) {
+    else if(!userProfile.isEmailVerified 
+        && (userProfile.isRole(RoleEnum.ADMIN)
+            || isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: userProfile.getHighestRole()})
+            || !userProfile.isRole(RoleEnum.DEMO_USER))) { //Skip Demo Profiles, except for high access roles
+
         await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
         return new Exception(403, 'Email address is not verified.', 'Email Not Verified');
     }
