@@ -52,6 +52,9 @@ export const CIRCLE_FIELDS:InputField[] = [
 ];
 
 export const CIRCLE_FIELDS_ADMIN:InputField[] = [
+    new InputField({title: 'Circle ID', field: 'circleID', type: InputType.READ_ONLY }),
+    new InputField({title: 'Circle Created', field: 'createdDT', type: InputType.READ_ONLY }),
+    new InputField({title: 'Last Modified', field: 'modifiedDT', type: InputType.READ_ONLY }), 
     new InputField({title: 'Leader ID', field: 'leaderID', type: InputType.NUMBER,  required: true }),
     new InputSelectionField({title: 'Active Account', field: 'isActive', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     ...CIRCLE_FIELDS,

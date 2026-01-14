@@ -12,6 +12,7 @@ import { PrayerRequestCommentRequest, PrayerRequestPatchRequest, PrayerRequestPo
 import { DB_SELECT_CIRCLE_SEARCH, DB_SELECT_CIRCLE_USER_IDS } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { sendTemplateNotification, sendNotificationCircle} from '../8-notification/notification-utilities.mjs';
 import { CircleNotificationType, NotificationType } from '../8-notification/notification-types.mjs';
+import { PrayerRequestCommentListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 
 
 /*************************************
@@ -205,13 +206,14 @@ export const POST_prayerRequestComment = async (request: PrayerRequestCommentReq
     const message:string = request.body.message;
     
     if((message !== undefined) && new RegExp(validationRegex).test(message)
-        &&  await DB_INSERT_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID, commenterID: request.jwtUserID, message: message}))
+        &&  await DB_INSERT_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID, commenterID: request.jwtUserID, message: message})) {
 
-        response.status(200).send(
-            await DB_SELECT_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID, commenterID: request.jwtUserID, message})); //Returns undefined in error
-    else {
-        next(new Exception(500, `Comment failed validation for prayer request ${request.prayerRequestID}`, 'Failed Validation'));
+        const comment:PrayerRequestCommentListItem | undefined = await DB_SELECT_PRAYER_REQUEST_COMMENT({prayerRequestID: request.prayerRequestID, commenterID: request.jwtUserID, message}); 
+        if(comment !== undefined) 
+            return response.status(200).send(comment);
     }
+
+    next(new Exception(500, `Comment failed validation for prayer request ${request.prayerRequestID}`, 'Failed Validation'));
 };
 
 

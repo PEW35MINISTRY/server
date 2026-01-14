@@ -58,6 +58,8 @@ export interface CircleResponse {
     requestorID: number,
     requestorStatus: CircleStatusEnum
     image?: string,
+    createdDT: string,
+    modifiedDT: string,
 };
 
 export interface CircleLeaderResponse extends CircleResponse  {

@@ -63,8 +63,11 @@ export const EDIT_PRAYER_REQUEST_FIELDS:InputField[] = [
 ];
 
 export const PRAYER_REQUEST_FIELDS_ADMIN:InputField[] = [
+    new InputField({title: 'Prayer Request ID', field: 'prayerRequestID', type: InputType.READ_ONLY }),
+    new InputField({title: 'Created', field: 'createdDT', type: InputType.READ_ONLY }),
+    new InputField({title: 'Last Modified', field: 'modifiedDT', type: InputType.READ_ONLY }), 
     ...EDIT_PRAYER_REQUEST_FIELDS,
-    new InputField({title: 'Prayer Count', field: 'prayerCount', type: InputType.NUMBER})
+    new InputField({title: 'Prayer Count', field: 'prayerCount', type: InputType.READ_ONLY})
 ];
 
 export const PRAYER_REQUEST_COMMENT_FIELDS:InputField[] = [

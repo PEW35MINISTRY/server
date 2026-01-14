@@ -5,7 +5,7 @@ import { CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/ci
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
-import { CIRCLE_TABLE_COLUMNS, DATABASE_CIRCLE } from '../2-database/database-types.mjs';
+import { CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_EDIT, DATABASE_CIRCLE } from '../2-database/database-types.mjs';
 import BASE_MODEL from './baseModel.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
 
@@ -18,7 +18,7 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
     static PUBLIC_PROPERTY_LIST = ['circleID', 'leaderID', 'name', 'description', 'postalCode', 'image', 'requestorID', 'requestorStatus', 'leaderProfile', 'memberList', 'eventList'];
     static MEMBER_PROPERTY_LIST = [...CIRCLE.PUBLIC_PROPERTY_LIST, 'announcementList', 'prayerRequestList', 'pendingRequestList', 'pendingInviteList'];
     static LEADER_PROPERTY_LIST = [...CIRCLE.MEMBER_PROPERTY_LIST, 'inviteToken'];
-    static PROPERTY_LIST = [...CIRCLE.LEADER_PROPERTY_LIST, 'isActive','notes'];
+    static PROPERTY_LIST = [...CIRCLE.LEADER_PROPERTY_LIST, 'isActive','notes', 'createdDT', 'modifiedDT'];
 
     circleID: number = -1;
     leaderID: number;
@@ -29,6 +29,10 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
     inviteToken?: string;
     image?: string;
     notes?: string;
+
+    //Database - Read Only
+    createdDT:Date;
+    modifiedDT:Date;
 
     //Query separate Tables
     requestorID: number = -1;
@@ -55,6 +59,7 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
     override get IDProperty():string { return 'circleID'; }
 
     override get DATABASE_COLUMN_LIST():string[] { return CIRCLE_TABLE_COLUMNS; }
+    override get DATABASE_COLUMN_EDIT_LIST():string[] { return CIRCLE_TABLE_COLUMNS_EDIT; }    
     override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return CIRCLE.DATABASE_IDENTIFYING_PROPERTY_LIST; }
     override get PROPERTY_LIST():string[] { return CIRCLE.PROPERTY_LIST; }
     

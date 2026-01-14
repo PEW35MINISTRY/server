@@ -91,8 +91,12 @@ export const TABLES_SUPPORTING_DT: Map<DATABASE_TABLE, Array<'createdDT' | 'modi
 ********************************************************************/
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
-export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
-    'userID', 'modelSourceEnvironment', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'emailVerified', 'walkLevel', 'image', 'notes', 'maxPartners'
+export const USER_TABLE_COLUMNS_EDIT:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
+    'modelSourceEnvironment', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'emailVerified', 'walkLevel', 'image', 'notes', 'maxPartners'
+];
+
+export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_EDIT,
+    'userID', 'createdDT', 'modifiedDT'
 ];
 
 export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
@@ -166,8 +170,13 @@ export enum DATABASE_PARTNER_STATUS_ENUM {
 ********************************************************************/
 export const CIRCLE_TABLE_COLUMNS_REQUIRED:string[] = [ 'leaderID', 'name' ];
 
-export const CIRCLE_TABLE_COLUMNS:string[] = [ ...CIRCLE_TABLE_COLUMNS_REQUIRED,
-    'circleID', 'description', 'postalCode', 'isActive', 'inviteToken', 'image', 'notes'
+export const CIRCLE_TABLE_COLUMNS_EDIT:string[] = [ ...CIRCLE_TABLE_COLUMNS_REQUIRED,
+    'isActive', 'inviteToken', 'description', 'postalCode', 'image', 'notes'
+];
+
+export const CIRCLE_TABLE_COLUMNS:string[] = [ ...CIRCLE_TABLE_COLUMNS_EDIT,
+    'circleID', 'createdDT', 'modifiedDT'
+
 ];
 
 export type DATABASE_CIRCLE = {  //Optional Fields for PATCH/UPDATE
@@ -193,8 +202,12 @@ export enum DATABASE_CIRCLE_STATUS_ENUM {
 *********************************************************************/
 export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED:string[] = [ 'circleID', 'message', 'endDate' ];
 
+export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT:string[] = [ ...CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED,
+    'startDate'
+];
+
 export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS:string[] = [ ...CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED,
-    'announcementID', 'startDate'
+    'announcementID', 'createdDT'
 ];
 
 export type DATABASE_CIRCLE_ANNOUNCEMENT = {
@@ -211,8 +224,12 @@ export type DATABASE_CIRCLE_ANNOUNCEMENT = {
 *********************************************************************/
 export const PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED:string[] = [ 'requestorID', 'topic', 'description', 'expirationDate' ];
 
-export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED,
-    'prayerRequestID', 'prayerCount', 'isOnGoing', 'isResolved', 'tagListStringified'
+export const PRAYER_REQUEST_TABLE_COLUMNS_EDIT:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED,
+    'prayerRequestID', 'isOnGoing', 'isResolved', 'tagListStringified'
+];
+
+export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_EDIT,
+    'prayerCount', 'createdDT', 'modifiedDT'
 ];
 
 export interface DATABASE_PRAYER_REQUEST {
@@ -220,17 +237,19 @@ export interface DATABASE_PRAYER_REQUEST {
     requestorID: number, 
     topic: string,
     description: string,
-    prayerCount: number,
     isOnGoing: boolean,
     isResolved: boolean,
-    tagListStringified: string,
-    expirationDate: Date
+    tagListStringified?: string,
+    expirationDate: Date,
+    prayerCount: number,
+    createdDT: Date,
+    modifiedDT: Date
 };
 
 
 //prayer_request joint table parsed in PRAYER_REQUEST.constructByDatabase
 export const PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS,
-    //'requestorDisplayName', 'requestorFirstName', 'requestorImage', //Assembled into requestorProfile
+    //Expects ('requestorDisplayName', 'requestorFirstName', 'requestorImage'), //Assembled into requestorProfile
     'prayerCountRecipient', 'createdDT', 'modifiedDT'
 ];
 
@@ -248,7 +267,11 @@ export interface DATABASE_PRAYER_REQUEST_EXTENDED extends DATABASE_PRAYER_REQUES
 /******************************************************************** 
 *      Database `prayer_request_comment` 
 *********************************************************************/
-export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS = [ 'commentID', 'prayerRequestID', 'commenterID', 'message', 'createdDT' ];
+export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS_REQUIRED = [ 'prayerRequestID', 'commenterID', 'message' ];
+
+export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS = [ ...PRAYER_REQUEST_COMMENT_TABLE_COLUMNS_REQUIRED,
+    'commentID', 'likeCount', 'createdDT'   //Read only
+];
 
 export interface DATABASE_PRAYER_REQUEST_COMMENT {
   commentID: number;
@@ -265,7 +288,7 @@ export interface DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED extends DATABASE_PRAYE
     commenterImage?:string;
 
     //Joint Table Queries
-    likeCountTotal?:number;
+    likeCount?:number;
     likedByRecipient?:boolean;
 }
 
@@ -302,7 +325,9 @@ export type DATABASE_CONTENT = {
     maximumAge: number, 
     minimumWalkLevel: number, 
     maximumWalkLevel: number, 
-    notes?: string
+    notes?: string,
+    createdDT: Date,
+    modifiedDT: Date
 };
 
 

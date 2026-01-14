@@ -53,6 +53,7 @@ export interface ProfilePublicResponse extends ProfileListItem {
 
 export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
     'userID', 'modelSourceEnvironment', 'displayName', 'firstName', 'lastName', 'email', 'gender', 'postalCode', 'dateOfBirth', 'emailVerified', 'maxPartners', 'walkLevel', 'notes', 'image',
+    'createdDT', 'modifiedDT', 
     'userRole', 'userRoleList',
     'circleList', 'circleInviteList', 'circleRequestList', 'circleAnnouncementList',
     'partnerList', 'partnerPendingUserList', 'partnerPendingPartnerList',
@@ -75,6 +76,9 @@ export interface ProfileResponse {
     walkLevel: number,
     notes?: string,
     image?: string,
+    createdDT: string,
+    modifiedDT: string,
+
     userRoleList: RoleEnum[],
     circleList?: CircleListItem[],
     circleInviteList?: CircleListItem[],

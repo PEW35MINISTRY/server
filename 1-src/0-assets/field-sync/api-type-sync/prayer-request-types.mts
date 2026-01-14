@@ -30,7 +30,7 @@ export interface PrayerRequestCommentListItem {
     prayerRequestID: number,
     commenterProfile: ProfileListItem, 
     message: string,
-    likeCountTotal: number,
+    likeCount: number,
     likedByRecipient: boolean,
     createdDT:string,
 }

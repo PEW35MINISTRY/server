@@ -80,6 +80,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
     override get IDProperty():string { return 'contentID'; }
  
     override get DATABASE_COLUMN_LIST():string[] { return CONTENT_TABLE_COLUMNS; }
+    override get DATABASE_COLUMN_EDIT_LIST():string[] { return CONTENT_TABLE_COLUMNS; }
     override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return CONTENT_ARCHIVE.DATABASE_IDENTIFYING_PROPERTY_LIST; }
     override get PROPERTY_LIST():string[] { return CONTENT_ARCHIVE.PROPERTY_LIST; }
 

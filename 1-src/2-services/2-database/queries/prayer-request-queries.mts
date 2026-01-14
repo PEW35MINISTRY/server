@@ -1,6 +1,6 @@
 import * as log from '../../10-utilities/logging/log.mjs';
 import { batch, command, execute, validateColumns } from '../database.mjs';
-import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PRAYER_REQUEST, DATABASE_PRAYER_REQUEST_COMMENT, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
+import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PRAYER_REQUEST, DATABASE_PRAYER_REQUEST_COMMENT, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_EDIT, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
@@ -24,8 +24,8 @@ import { ExpiredPrayerRequest } from '../../../1-api/5-prayer-request/prayer-req
 */
 
 /* REQUIRED VALIDATION ONLY WHEN COLUMNS ARE INPUTS */
-const validatePrayerRequestColumns = (inputMap:Map<string, any>, includesRequired:boolean = false):boolean => 
-    validateColumns(inputMap, includesRequired, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED);
+const validatePrayerRequestColumns = (inputMap:Map<string, any>, forEditing:boolean, includesRequired:boolean):boolean =>
+    validateColumns(inputMap, includesRequired, forEditing ? PRAYER_REQUEST_TABLE_COLUMNS_EDIT : PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED);
 
 
 /***************************
@@ -77,7 +77,7 @@ export const DB_IS_PRAYER_REQUEST_REQUESTOR = async({prayerRequestID, userID}:{p
 
 export const DB_INSERT_PRAYER_REQUEST = async(fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
-    if(!validatePrayerRequestColumns(fieldMap)) {
+    if(!validatePrayerRequestColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_PRAYER_REQUEST; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return false;
     }
@@ -112,7 +112,7 @@ export const DB_INSERT_AND_SELECT_PRAYER_REQUEST = async(fieldMap:Map<string, an
 
 export const DB_UPDATE_PRAYER_REQUEST = async(prayerRequestID:number, fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
-    if(!validatePrayerRequestColumns(fieldMap)) {
+    if(!validatePrayerRequestColumns(fieldMap, true, false)) {
         log.db('Query Rejected: DB_UPDATE_PRAYER_REQUEST; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return false;
     }

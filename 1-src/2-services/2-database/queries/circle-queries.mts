@@ -1,6 +1,6 @@
 import * as log from '../../10-utilities/logging/log.mjs';
 import { command, execute, validateColumns } from '../database.mjs';
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_EDIT, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
@@ -25,11 +25,11 @@ import { GENERAL_USER_ROLES } from '../../../0-assets/field-sync/input-config-sy
 */
 
 /* REQUIRED VALIDATION ONLY WHEN COLUMNS ARE INPUTS */
-const validateCircleColumns = (inputMap:Map<string, any>, includesRequired:boolean = false):boolean => 
-    validateColumns(inputMap, includesRequired, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED);
+const validateCircleColumns = (inputMap:Map<string, any>, forEditing:boolean, includesRequired:boolean = false):boolean =>
+    validateColumns(inputMap, includesRequired, forEditing ? CIRCLE_TABLE_COLUMNS_EDIT : CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED);
 
-const validateCircleAnnouncementColumns = (inputMap:Map<string, any>):boolean => 
-    validateColumns(inputMap, true, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED);
+const validateCircleAnnouncementColumns = (inputMap:Map<string, any>, forEditing:boolean, includesRequired:boolean):boolean =>
+    validateColumns(inputMap, includesRequired, forEditing ? CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT : CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED);
 
 
 /********************
@@ -113,7 +113,7 @@ export const DB_SELECT_LATEST_CIRCLES = async(limit:number = LIST_LIMIT):Promise
 
 export const DB_SELECT_CIRCLE_IDS = async(fieldMap:Map<string, any>):Promise<number[]> => {
     //Validate Columns prior to Query
-    if(!validateCircleColumns(fieldMap)) {
+    if(!validateCircleColumns(fieldMap, false, false)) {
         log.db('Query Rejected: DB_SELECT_CIRCLE_IDS; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return [];
     }
@@ -128,7 +128,7 @@ export const DB_SELECT_CIRCLE_IDS = async(fieldMap:Map<string, any>):Promise<num
 
 export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
-    if(!validateCircleColumns(fieldMap)) {
+    if(!validateCircleColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_CIRCLE; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return false;
     }
@@ -143,7 +143,7 @@ export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<boolean
 
 export const DB_UPDATE_CIRCLE = async(circleID:number, fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
-    if(!validateCircleColumns(fieldMap)) {
+    if(!validateCircleColumns(fieldMap, true, false)) {
         log.db('Query Rejected: DB_UPDATE_CIRCLE; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return false;
     }
@@ -277,7 +277,7 @@ export const DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES = async(userID:number):Pr
 
 export const DB_INSERT_CIRCLE_ANNOUNCEMENT = async(fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
-    if(!validateCircleAnnouncementColumns(fieldMap)) {
+    if(!validateCircleAnnouncementColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_CIRCLE_ANNOUNCEMENT; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return false;
     }
