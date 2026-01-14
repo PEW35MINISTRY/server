@@ -15,7 +15,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     //Static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = ['requestorID', 'topic', 'description']; //exclude: prayerRequestID, complex types, and lists
-    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'createdDT', 'modifiedDT', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
+    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'prayerCount', 'createdDT', 'modifiedDT', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
 
     prayerRequestID: number = -1;
     requestorID: number;
@@ -25,6 +25,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     isResolved: boolean;
     tagList: PrayerRequestTagEnum[] = [];
     expirationDate: Date;
+    prayerCount:number = 0;
 
     //Database - Read Only
     createdDT:Date;
@@ -32,7 +33,6 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     //Query separate Tables
     prayerCountRecipient: number = 0;
-    prayerCountTotal: number = 0;
     requestorProfile?: ProfileListItem;
     userRecipientList: ProfileListItem[] = [];
     circleRecipientList: CircleListItem[] = [];
@@ -89,16 +89,15 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
             
             //Joint Tables included in Extended Query
             ['prayerCountRecipient', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => (newPrayerRequest.prayerCountRecipient = DB.prayerCountRecipient ?? 0)],
-            ['prayerCountTotal', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => (newPrayerRequest.prayerCountTotal = DB.prayerCountTotal ?? 0)],
-            ['requestorProfile', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => {
-                if(DB.requestorFirstName ?? DB.requestorDisplayName ?? DB.requestorImage) {
-                    newPrayerRequest.requestorProfile = {
-                        userID: DB.requestorID,
-                        firstName: DB.requestorFirstName ?? '',
-                        displayName: DB.requestorDisplayName ?? '',
-                        image: DB.requestorImage ?? '',
-                    }}}],
+            ['requestorID', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => {
+                newPrayerRequest.requestorID = DB.requestorID;
 
+                newPrayerRequest.requestorProfile = {
+                    userID: DB.requestorID,
+                    firstName: DB.requestorFirstName ?? '',
+                    displayName: DB.requestorDisplayName ?? '',
+                    image: DB.requestorImage ?? '',
+                }}],
           ])});
 
     //Clone database model values only (not copying references for ListItems)
@@ -108,7 +107,6 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
             ['tagList', (currentPrayerRequest:PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => {newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(JSON.stringify(currentPrayerRequest.tagList))}],
             ['requestorProfile', (currentPrayerRequest:PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => { /* Skipping */ }],
             ['prayerCountRecipient', (currentPrayerRequest:PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => { /* Skipping */ }],
-            ['prayerCountTotal', (currentPrayerRequest:PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => { /* Skipping */ }]
           ])});
 
     override constructByClone = <PRAYER_REQUEST,>():PRAYER_REQUEST => PRAYER_REQUEST.constructByClone(this) as PRAYER_REQUEST;
@@ -150,7 +148,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
         requestorProfile: this.requestorProfile,
         prayerCountRecipient: this.prayerCountRecipient,
-        prayerCountTotal: this.prayerCountTotal,
+        prayerCount: this.prayerCount,
     });
 
 

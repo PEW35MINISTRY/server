@@ -230,7 +230,8 @@ export interface DATABASE_PRAYER_REQUEST {
 
 //prayer_request joint table parsed in PRAYER_REQUEST.constructByDatabase
 export const PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS,
-    'requestorProfile', 'prayerCountRecipient', 'prayerCountTotal', 'createdDT', 'modifiedDT'
+    //'requestorDisplayName', 'requestorFirstName', 'requestorImage', //Assembled into requestorProfile
+    'prayerCountRecipient', 'createdDT', 'modifiedDT'
 ];
 
 export interface DATABASE_PRAYER_REQUEST_EXTENDED extends DATABASE_PRAYER_REQUEST {
@@ -241,7 +242,6 @@ export interface DATABASE_PRAYER_REQUEST_EXTENDED extends DATABASE_PRAYER_REQUES
 
     //Joint Table Queries
     prayerCountRecipient?:number;
-    prayerCountTotal?:number;
 }
 
 

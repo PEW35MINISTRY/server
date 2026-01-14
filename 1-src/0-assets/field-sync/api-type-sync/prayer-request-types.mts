@@ -20,7 +20,7 @@ export interface PrayerRequestListItem {
     description:string,
     tagList:PrayerRequestTagEnum[],
     prayerCountRecipient:number,
-    prayerCountTotal:number,
+    prayerCount:number,
     createdDT:string,
     modifiedDT:string
 }
