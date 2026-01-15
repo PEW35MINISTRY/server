@@ -116,12 +116,14 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
     user.circleInviteList = allCircleList.filter(circle => circle.status === CircleStatusEnum.INVITE);
     user.circleAnnouncementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES(user.userID);
 
-    //TEMPORARY for Beta
-    const betaWelcome:CIRCLE_ANNOUNCEMENT = new CIRCLE_ANNOUNCEMENT();
-    betaWelcome.message = "WELCOME TO THE BETA!\nHelp? -> support@encouragingprayer.org";
-    betaWelcome.startDate = new Date();
-    betaWelcome.endDate = new Date(Date.now() + (1000 * 60 * 60 * 24));
-    user.circleAnnouncementList.unshift(betaWelcome);
+    //TEMPORARY Welcome Message
+    if(user.createdDT && (new Date().getTime() < (user.createdDT.getTime() + (1000 * 60 * 60 * 24 * 3)))) {
+        const welcome:CIRCLE_ANNOUNCEMENT = new CIRCLE_ANNOUNCEMENT();
+        welcome.message = 'WELCOME TO EP!\nHelp? -> support@encouragingprayer.org';
+        welcome.startDate = new Date();
+        welcome.endDate = new Date(Date.now() + (1000 * 60 * 60 * 24));
+        user.circleAnnouncementList.unshift(welcome);
+    }
 
     /* Partnerships */
     const allPartnerList:PartnerListItem[] = await DB_SELECT_PARTNER_LIST(user.userID);

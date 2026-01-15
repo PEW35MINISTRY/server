@@ -147,4 +147,4 @@ export const SIGNUP_PROFILE_FIELDS:InputField[] = [
     ...SIGNUP_PROFILE_FIELDS_USER,
 ];
 
-export const PARTNERSHIP_CONTRACT = (userName:string, partnerName:string):string => `I ${userName} promise to pray for ${partnerName} every day, as agreed upon in this contract, while ensuring our conversations remain private. This daily commitment remains in place until our partnership ends. By signing this agreement, I confirm my dedication to our prayer partnership and look forward to the positive impact it will have on both of us.`;
+export const PARTNERSHIP_CONTRACT = (userName:string, partnerName:string):string => `I ${userName} promise to do my best to pray for ${partnerName} every day, as agreed upon in this contract, and to keep our conversations private. This daily commitment remains in place until our partnership ends. By signing this agreement, I confirm my dedication to our prayer partnership and look forward to the positive impact it will have on both of us.`;
