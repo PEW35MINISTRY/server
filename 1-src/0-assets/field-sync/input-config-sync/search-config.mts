@@ -1,4 +1,5 @@
 /***** ONLY DEPENDENCY:./inputField - Define all other types locally *****/
+import { RecipientFormProfileListItem, RecipientFormCircleListItem } from '../api-type-sync/recipient-types.mjs';
 import { CircleListItem, CircleAnnouncementListItem, CircleEventListItem } from '../api-type-sync/circle-types.mjs';
 import { ContentListItem } from '../api-type-sync/content-types.mjs';
 import { PrayerRequestListItem, PrayerRequestCommentListItem } from '../api-type-sync/prayer-request-types.mjs';
@@ -19,19 +20,22 @@ import { RoleEnum, UserSearchRefineEnum } from './profile-field-config.mjs';
 
 export type LabelListItem = string;
 
-export type DisplayItemType = LabelListItem | ProfileListItem | CircleListItem | CircleAnnouncementListItem | CircleEventListItem | PrayerRequestListItem | PrayerRequestCommentListItem | ContentListItem;
+export type DisplayItemType = LabelListItem | ProfileListItem | CircleListItem | CircleAnnouncementListItem | CircleEventListItem | PrayerRequestListItem | PrayerRequestCommentListItem | ContentListItem | RecipientFormProfileListItem | RecipientFormCircleListItem;
 
 /* Used for Mapping UI Components */
 export enum ListItemTypesEnum {
     LABEL = 'LABEL',
     USER = 'USER',
     PARTNER = 'PARTNER',
+    PENDING_PARTNER = 'PENDING_PARTNER',
     CIRCLE = 'CIRCLE',
     CIRCLE_ANNOUNCEMENT = 'CIRCLE_ANNOUNCEMENT',
     CIRCLE_EVENT = 'CIRCLE_EVENT',
     PRAYER_REQUEST = 'PRAYER_REQUEST',
     PRAYER_REQUEST_COMMENT = 'PRAYER_REQUEST_COMMENT',
     CONTENT_ARCHIVE = 'CONTENT_ARCHIVE',
+    PROFILE_CONTACT = 'PROFILE_CONTACT',
+    CIRCLE_CONTACT = 'CIRCLE_CONTACT'
 }
 
 /* SEARCH CONFIGURATION */
@@ -45,6 +49,7 @@ export enum SearchType {
     CONTACT = 'CONTACT',
     CIRCLE = 'CIRCLE',
     CONTENT_ARCHIVE = 'CONTENT_ARCHIVE',
+    PRAYER_REQUEST = 'PRAYER_REQUEST'
   }
   
 
@@ -106,6 +111,9 @@ export enum SearchType {
                                                   getID:(item:ContentListItem) => item.contentID, IDProperty:'contentID', 
                                                   searchRefineList: [...Object.values(ContentSearchRefineEnum)], 
                                                 }),
+    [SearchType.PRAYER_REQUEST]: new SearchTypeInfo<PrayerRequestListItem>({ searchType:SearchType.PRAYER_REQUEST, displayTitle: 'Prayer Request Search', roleList:Object.values(RoleEnum), itemType: ListItemTypesEnum.PRAYER_REQUEST, 
+                                                  getID:(item:PrayerRequestListItem) => item.prayerRequestID, IDProperty: 'prayerRequestID', 
+                                                })
   };
   
 export default SearchDetail;

@@ -94,8 +94,7 @@ export const getDOBMaxDate = (role:RoleEnum = RoleEnum.USER):Date => [RoleEnum.U
 
 export const LOGIN_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, validationRegex: EMAIL_REGEX, validationMessage: 'Incomplete Format' }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Incomplete Format', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_PROD, validationMessage: 'Incomplete Format', environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationMessage: 'Incomplete Format', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT, ENVIRONMENT_TYPE.PRODUCTION] }),
 ];
 
 //Note: extending list forces the order, may need a sortID or duplicating for now
