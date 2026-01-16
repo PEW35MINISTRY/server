@@ -194,6 +194,7 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:num
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
     + 'WHERE prayer_request.requestorID != ? '
     + 'AND ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ) '
+    + 'AND prayer_request.isResolved = FALSE '
     + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]); 
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
@@ -207,6 +208,7 @@ export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, limit
     + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
     + 'WHERE prayer_request_recipient.circleID = ? '
+    + 'AND prayer_request.isResolved = FALSE '
     + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [circleID]); 
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
