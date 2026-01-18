@@ -4,7 +4,7 @@ import { ProfileListItem } from './profile-types.mjs'
 
 
 /***********************************************************************
-*                   PRAYER REQUEST RECIPIENT TYPES                                       *
+*          PRAYER REQUEST RECIPIENT TYPES                              *
 * Sync across all repositories: server, portal, mobile                 *
 ************************************************************************/
 
