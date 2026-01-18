@@ -169,7 +169,13 @@ export const DB_DELETE_CIRCLE = async(circleID:number):Promise<boolean> => { //N
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
-    
+    //Validate Columns prior to Query
+    const columnMap:Map<string, undefined> = new Map<string, undefined>(columnList.map(column => [column, undefined]));
+    if(!validateCircleColumns(columnMap, false, false)) {
+        log.db('Query Rejected: DB_SELECT_CIRCLE_SEARCH; invalid column names', JSON.stringify(Array.from(columnMap.keys())));
+        return [];
+    }
+
     const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
         + 'LEFT JOIN user on user.userID = circle.leaderID '
         + 'WHERE ( '

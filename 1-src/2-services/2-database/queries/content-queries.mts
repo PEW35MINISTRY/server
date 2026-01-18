@@ -119,6 +119,13 @@ export const DB_DELETE_CONTENT = async(contentID:number):Promise<boolean> => { /
  ***************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<ContentListItem[]> => {
+    //Validate Columns prior to Query
+    const columnMap:Map<string, undefined> = new Map<string, undefined>(columnList.map(column => [column, undefined]));
+    if(!validateContentColumns(columnMap, false)) {
+        log.db('Query Rejected: DB_SELECT_CONTENT_SEARCH; invalid column names', JSON.stringify(Array.from(columnMap.keys())));
+        return [];
+    }
+
     const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
     + 'WHERE ( '
         + columnList.map(column => `LOWER(${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')

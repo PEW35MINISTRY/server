@@ -388,6 +388,57 @@ export const DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequestID, 
 }
 
 
+
+
+/**********************************
+ *  PRAYER REQUEST SEARCH 
+ **********************************/
+export const DB_SELECT_PRAYER_REQUEST_SEARCH = async({searchTerm, columnList, recipientID, requestorID, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], recipientID?:number, requestorID?:number, limit?:number}):Promise<PrayerRequestListItem[]> => {
+    //Validate Columns prior to Query
+    const columnMap:Map<string, -1> = new Map<string, -1>(columnList.map(column => [column, -1]));
+    if(!validatePrayerRequestColumns(columnMap, false, false)) {
+        log.db('Query Rejected: DB_SELECT_PRAYER_REQUEST_SEARCH; invalid column names', JSON.stringify(Array.from(columnMap.keys())));
+        return [];
+    }
+
+    //Must search by recipientID or requestorID
+    if(recipientID === undefined && requestorID === undefined) {
+        log.db('Query Rejected: DB_SELECT_PRAYER_REQUEST_SEARCH; missing recipientID and requestorID', JSON.stringify({searchTerm, columnList}));
+        return [];
+    }
+
+    const rows = await execute('SELECT DISTINCT prayer_request.*, '
+        + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
+        + 'FROM prayer_request '
+        + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
+        + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
+        + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = 'MEMBER') `
+        + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
+        + 'WHERE ( '
+        + columnList.map(column =>
+            column === 'tagListStringified'
+            ? `LOWER(prayer_request.tagListStringified) LIKE LOWER(CONCAT('%"', ?, '"%'))`
+            : `LOWER(prayer_request.${column}) LIKE LOWER(CONCAT("%", ?, "%"))`
+        ).join(' OR ')
+        + ' ) '
+        + `${(requestorID !== undefined) ? 'AND ( prayer_request.requestorID = ? ) ' : ''}`
+        + `${(recipientID !== undefined) ? 'AND ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ) ' : ''}`
+        + 'ORDER BY prayer_request.modifiedDT ASC '
+        + `LIMIT ${limit};`,
+    [
+        ...Array(columnList.length).fill(searchTerm),
+        ...(requestorID !== undefined ? [requestorID] : []),
+        ...(recipientID !== undefined ? [recipientID, recipientID, recipientID] : [])
+    ]);
+
+    log.db('DB_SELECT_PRAYER_REQUEST_SEARCH - Results', rows.length, 'columnList', columnList, 'recipientID', recipientID, 'requestorID', requestorID)
+
+
+    return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
+}
+
+
+
 /*************************************
  *  PRAYER REQUEST COMMENT QUERIES
  *************************************/

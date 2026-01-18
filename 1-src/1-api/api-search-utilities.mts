@@ -90,7 +90,7 @@ export const searchList = async(searchType:SearchType, request:JwtSearchRequest)
                 if(searchResultList !== undefined && DEBUG_SEARCH) log.event(`Searching: [Query Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}' | ignoreCache: ${ignoreCache}`, searchResultList.length || 'Zero Matches');
 
                 /* NO RESULT IDENTIFIED */ 
-                else {
+                else if(searchResultList === undefined){
                     searchResultList = [];
                     DEBUG_SEARCH && log.event(`Searching: [Zero Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}' | ignoreCache: ${ignoreCache}`);
                 }

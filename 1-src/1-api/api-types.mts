@@ -16,6 +16,10 @@ import { ContentSearchRefineEnum } from '../0-assets/field-sync/input-config-syn
 import { DB_SELECT_CONTENT, DB_SELECT_CONTENT_SEARCH, DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES } from '../2-services/2-database/queries/content-queries.mjs';
 import { filterContentList } from './11-content/content-utilities.mjs';
 import { filterContactList } from './3-profile/profile-utilities.mjs';
+import { PrayerRequestListItem } from "../0-assets/field-sync/api-type-sync/prayer-request-types.mjs";
+import PRAYER_REQUEST from "../2-services/1-models/prayerRequestModel.mjs";
+import { DB_SELECT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_SEARCH, DB_SELECT_PRAYER_REQUEST_USER_LIST } from "../2-services/2-database/queries/prayer-request-queries.mjs";
+import { PrayerRequestSearchRefineEnum } from "../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs";
 
 
 /************************************
@@ -169,5 +173,23 @@ export const SearchDetailServer:Record<SearchType, SearchTypeInfoServer<any, BAS
                             fetchDefaultList: DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES,
                             executeSearch: (request:JwtSearchRequest, searchTerm:string, columnList:string[]) => DB_SELECT_CONTENT_SEARCH(searchTerm, columnList),
                             filterResultList: filterContentList,
+                        }),
+
+  [SearchType.PRAYER_REQUEST]: new SearchTypeInfoServer<PrayerRequestListItem, PRAYER_REQUEST>({ searchTypeInfo: SearchDetail[SearchType.PRAYER_REQUEST],
+                          refineDatabaseMapping: new Map([[PrayerRequestSearchRefineEnum.TITLE, ['topic']], [PrayerRequestSearchRefineEnum.DESCRIPTION, ['description']], [PrayerRequestSearchRefineEnum.TAG, ['tagListStringified']],
+                                    [PrayerRequestSearchRefineEnum.ALL, ['topic', 'description', 'tagListStringified']]
+                                ]), 
+                            searchByIDMap: new Map([[PrayerRequestSearchRefineEnum.ID, (ID:number) => DB_SELECT_PRAYER_REQUEST(ID).then((model) => [model.toListItem()])]]),
+                            fetchDefaultList: DB_SELECT_PRAYER_REQUEST_USER_LIST,
+                            executeSearch: (request:JwtSearchRequest, searchTerm:string, columnList:string[]) => DB_SELECT_PRAYER_REQUEST_SEARCH({searchTerm, columnList, recipientID:request.jwtUserID}),
+                        }),
+
+    [SearchType.PRAYER_REQUEST_OWNED]: new SearchTypeInfoServer<PrayerRequestListItem, PRAYER_REQUEST>({ searchTypeInfo: SearchDetail[SearchType.PRAYER_REQUEST_OWNED],
+                          refineDatabaseMapping: new Map([[PrayerRequestSearchRefineEnum.TITLE, ['topic']], [PrayerRequestSearchRefineEnum.DESCRIPTION, ['description']], [PrayerRequestSearchRefineEnum.TAG, ['tagListStringified']],
+                                    [PrayerRequestSearchRefineEnum.ALL, ['topic', 'description', 'tagListStringified']]
+                                ]), 
+                            searchByIDMap: new Map([[PrayerRequestSearchRefineEnum.ID, (ID:number) => DB_SELECT_PRAYER_REQUEST(ID).then((model) => [model.toListItem()])]]),
+                            fetchDefaultList: DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST,
+                            executeSearch: (request:JwtSearchRequest, searchTerm:string, columnList:string[]) => DB_SELECT_PRAYER_REQUEST_SEARCH({searchTerm, columnList, requestorID:request.jwtUserID}),
                         }),
 };
