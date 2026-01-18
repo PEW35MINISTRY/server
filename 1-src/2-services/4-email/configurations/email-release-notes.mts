@@ -34,5 +34,5 @@ export const sendSubscribeWelcomeEmail = async(email:string):Promise<boolean> =>
     verticalSpacing: 4,
   });
 
-  return sendTemplateEmail('Welcome to Encouraging Prayer', html, EMAIL_SENDER_ADDRESS.SYSTEM, new Map<number, string>([[-1, email]]))
+  return sendTemplateEmail('Welcome to Encouraging Prayer', html, EMAIL_SENDER_ADDRESS.SUPPORT, new Map<number, string>([[-1, email]]))
 }

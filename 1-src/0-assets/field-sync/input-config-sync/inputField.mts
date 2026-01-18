@@ -169,7 +169,7 @@ export class InputRangeField extends InputField {
  *************/
 
 //Capitalizes Each Word
-export const makeDisplayText = (text:string = ''):string => text
+export const makeDisplayText = (text:string = ''):string => String(text ?? '')
     .replace(/([a-z])([A-Z][a-z])/g, '$1 $2') //camelCase & ALL_CAPS
     .replace(/[_\s]+/g, ' ') //Underscores
     .trim().split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()).join(' ');

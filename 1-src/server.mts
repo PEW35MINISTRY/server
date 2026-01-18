@@ -63,7 +63,7 @@ await checkAWSAuthentication();
 //*** CRON JOBS ***/
 if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)) {
   //Run at 15:00 UTC - 9am CST
-  schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
+  // schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
 
   //Run at 08:00-8:02 UTC - 2AM CST
   schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
