@@ -184,7 +184,7 @@ export const DB_DELETE_ALL_USER_PRAYER_REQUEST = async(userID:number):Promise<bo
  ******************************************/
 
 //List for user including circle members, and leader; of all prayer requests where they are the intended recipient
-export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
+export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOwned:boolean = false, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
     const rows = await execute('SELECT DISTINCT prayer_request.*, '
     + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
     + 'FROM prayer_request '
@@ -192,10 +192,10 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:num
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
     + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = 'MEMBER') `
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
-    + 'WHERE prayer_request.requestorID != ? '
-    + 'AND ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ) '
+    + 'WHERE ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ) '
+    + (includeOwned ? '' : 'AND prayer_request.requestorID != ? ')
     + 'AND prayer_request.isResolved = FALSE '
-    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]); 
+    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, ...(includeOwned ? [] : [userID])]); 
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }

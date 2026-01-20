@@ -28,7 +28,7 @@ import { GET_userContacts } from './1-api/7-chat/chat.mjs';
 import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
 import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
-import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
+import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRecipientList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
@@ -189,13 +189,13 @@ apiServer.get('/api/contacts', GET_userContacts); //Returns id and Name
 
 apiServer.get('/api/search-list/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => GET_SearchList(undefined, request, response, next)); //(Handles authentication)
 
-apiServer.get('/api/prayer-request/user-list', GET_PrayerRequestUserList);
-apiServer.post('/api/prayer-request', POST_prayerRequest);
-
 
 /*****************************************************************************/
 /* Authenticate Recipient to Prayer Request | cache: request.prayerRequestID */
 /*****************************************************************************/
+apiServer.get('/api/prayer-request/user-list', GET_PrayerRequestUserList);
+apiServer.post('/api/prayer-request', POST_prayerRequest);
+
 apiServer.use('/api/prayer-request/:prayer', (request:JwtPrayerRequest, response:Response, next:NextFunction) => authenticatePrayerRequestRecipientMiddleware(request, response, next));
 
 apiServer.get('/api/prayer-request/:prayer', GET_PrayerRequest);
@@ -268,6 +268,7 @@ apiServer.delete('/api/user/:client/contact-list-cache', DELETE_contactCache);
 
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
+apiServer.get('/api/user/:client/prayer-request-recipient-list', GET_PrayerRequestRecipientList);
 
 apiServer.use('/api/user/:client/mock-prayer-request', (request:JwtRequest, response:Response, next:NextFunction) => authenticateDemoUserMiddleware(request, response, next));
 apiServer.get('/api/user/:client/mock-prayer-request', GET_createMockPrayerRequest);

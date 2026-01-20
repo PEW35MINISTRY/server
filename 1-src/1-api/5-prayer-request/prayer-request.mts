@@ -18,28 +18,29 @@ import { PrayerRequestCommentListItem } from '../../0-assets/field-sync/api-type
 /*************************************
  *  List PRAYER REQUEST ROUTES
  *************************************/
-//List of prayer requests for which user is a recipient
+//Combined owned & recipient (partner or circle) shared
 export const GET_PrayerRequestUserList = async (request: JwtRequest, response: Response) => {
-    response.status(200).send(await DB_SELECT_PRAYER_REQUEST_USER_LIST(request.jwtUserID));
-    log.event(`Returning prayer request list for user ${request.jwtUserID}`);
+    response.status(200).send(await DB_SELECT_PRAYER_REQUEST_USER_LIST(request.jwtUserID, true));
 };
 
 export const GET_PrayerRequestCircleList = async (request: JwtCircleRequest, response: Response) => {
     response.status(200).send(await DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST(request.circleID));
-    log.event(`Returning prayer request list for circle ${request.circleID}`);
+};
+
+//List of prayer requests for which user is a recipient
+export const GET_PrayerRequestRecipientList = async (request: JwtRequest, response: Response) => {
+    response.status(200).send(await DB_SELECT_PRAYER_REQUEST_USER_LIST(request.jwtUserID, false));
 };
 
 //List of prayer requests for which the user or client is the requestor
 export const GET_PrayerRequestRequestorList = async(request: JwtClientRequest, response: Response) => {
     const userID = request.clientID || request.jwtUserID; 
     response.status(200).send(await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(userID, false));
-    log.event('Returning active prayer requests for userID:', userID);
 };
 
 export const GET_PrayerRequestRequestorResolvedList = async(request: JwtClientRequest, response: Response) => {
     const userID = request.clientID || request.jwtUserID; 
     response.status(200).send(await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(userID, true));
-    log.event('Returning resolved prayer requests for userID:', userID);
 };
 
 
@@ -53,7 +54,6 @@ export const GET_PrayerRequest = async (request: JwtPrayerRequest, response: Res
 
     if(prayerRequest.isValid) {
         response.status(200).send(prayerRequest.toJSON());
-        log.event('Returning specific Prayer Request:', request.prayerRequestID);
 
     } else 
         next(new Exception(404, `Prayer Request: ${request.prayerRequestID} unavailable from database.`, 'Prayer Request Not Found'));
