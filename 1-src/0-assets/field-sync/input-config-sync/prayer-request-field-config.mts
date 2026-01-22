@@ -21,6 +21,8 @@ export enum PrayerRequestTagEnum {
     GLOBAL = 'GLOBAL'
 }
 
+export const DEFAULT_PRAYER_REQUEST_EXPIRATION_DAYS:number = 14;
+
 export const PrayerRequestDurationsMap = new Map<string, string>([ //Used as InputSelectionField, must be strings
     ['2 Days', '2'],
     ['7 Days', '7'],
@@ -63,7 +65,7 @@ export const PRAYER_REQUEST_FIELDS_ADMIN:InputField[] = [
     new InputSelectionField({title: 'Status', field: 'isResolved', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false'], displayOptionList: ['Inactive', 'Active']}),
     ...EDIT_PRAYER_REQUEST_FIELDS,
     new InputSelectionField({title: 'Remind Me', field: 'isOnGoing', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false'], displayOptionList: ['Yes', 'No']}),
-    new InputField({title: 'Expiration Date', field: 'expirationDate', type: InputType.DATE, value: getDateDaysFuture(7).toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Must be future date.' }),
+    new InputField({title: 'Expiration Date', field: 'expirationDate', type: InputType.DATE, value: getDateDaysFuture(DEFAULT_PRAYER_REQUEST_EXPIRATION_DAYS).toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Must be future date.' }),
     new InputField({title: 'Prayer Count', field: 'prayerCount', type: InputType.READ_ONLY})
 ];
 
