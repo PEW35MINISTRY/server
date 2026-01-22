@@ -1,6 +1,6 @@
 import * as log from '../../10-utilities/logging/log.mjs';
 import { batch, command, execute, validateColumns } from '../database.mjs';
-import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PRAYER_REQUEST, DATABASE_PRAYER_REQUEST_COMMENT, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_EDIT, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
+import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PRAYER_REQUEST, DATABASE_PRAYER_REQUEST_COMMENT, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_EDIT, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
@@ -190,12 +190,12 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOw
     + 'FROM prayer_request '
     + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-    + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = 'MEMBER') `
+    + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = '${DATABASE_CIRCLE_STATUS_ENUM.MEMBER}') `
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
-    + 'WHERE ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ) '
+    + `WHERE ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ${includeOwned ? 'OR prayer_request.requestorID = ? ' : ''} ) `
     + (includeOwned ? '' : 'AND prayer_request.requestorID != ? ')
     + 'AND prayer_request.isResolved = FALSE '
-    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, ...(includeOwned ? [] : [userID])]); 
+    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]); 
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }

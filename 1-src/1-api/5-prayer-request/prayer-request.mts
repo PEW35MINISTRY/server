@@ -1,6 +1,6 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { CREATE_PRAYER_REQUEST_FIELDS, EDIT_PRAYER_REQUEST_FIELDS, PRAYER_REQUEST_COMMENT_FIELDS, PRAYER_REQUEST_FIELDS_ADMIN } from '../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
+import { CREATE_PRAYER_REQUEST_FIELDS, DEFAULT_PRAYER_REQUEST_EXPIRATION_DAYS, EDIT_PRAYER_REQUEST_FIELDS, getDateDaysFuture, PRAYER_REQUEST_COMMENT_FIELDS, PRAYER_REQUEST_FIELDS_ADMIN } from '../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import PRAYER_REQUEST from '../../2-services/1-models/prayerRequestModel.mjs';
 import { PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
@@ -68,6 +68,10 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
         const requestorID:number = ((request.jwtUserRole === RoleEnum.ADMIN) && request.body['requestorID'] !== undefined) ? request.body['requestorID'] : request.jwtUserID;
         newPrayerRequest.requestorID = requestorID;
 
+        //Default Expiration Date if not provided
+        if(!newPrayerRequest.expirationDate || isNaN(new Date(newPrayerRequest.expirationDate)?.getTime()))
+            newPrayerRequest.expirationDate = getDateDaysFuture(DEFAULT_PRAYER_REQUEST_EXPIRATION_DAYS);
+
         if(PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED.every((column) => newPrayerRequest[column] !== undefined) === false) 
             next(new Exception(400, `Create Prayer Request Failed :: Missing Required Fields: ${JSON.stringify(PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
@@ -90,7 +94,6 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
                         sendTemplateNotification(requestorID, newPrayerRequest.addUserRecipientIDList || [], NotificationType.PRAYER_REQUEST_RECIPIENT);
 
                     response.status(201).send(savedPrayerRequest.toJSON());
-                    log.event('Created New Prayer Request:', savedPrayerRequest.prayerRequestID);
                 }
         }
     } else
