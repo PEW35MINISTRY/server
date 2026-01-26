@@ -4,7 +4,7 @@ import { ContentSourceEnum, ContentTypeEnum, GenderSelectionEnum } from '../../0
 import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
-import {  CONTENT_TABLE_COLUMNS, DATABASE_CONTENT } from '../2-database/database-types.mjs';
+import {  CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_EDIT, DATABASE_CONTENT } from '../2-database/database-types.mjs';
 import * as log from '../10-utilities/logging/log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 
@@ -84,7 +84,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
     override get IDProperty():string { return 'contentID'; }
  
     override get DATABASE_COLUMN_LIST():string[] { return CONTENT_TABLE_COLUMNS; }
-    override get DATABASE_COLUMN_EDIT_LIST():string[] { return CONTENT_TABLE_COLUMNS; }
+    override get DATABASE_COLUMN_EDIT_LIST():string[] { return CONTENT_TABLE_COLUMNS_EDIT; }
     override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return CONTENT_ARCHIVE.DATABASE_IDENTIFYING_PROPERTY_LIST; }
     override get PROPERTY_LIST():string[] { return CONTENT_ARCHIVE.PROPERTY_LIST; }
 
@@ -143,7 +143,9 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
         source: this.source,  
         url: this.url, image: this.image,
         title: this.title, description: this.description, 
-        keywordList: this.keywordList, likeCount: this.likeCount});
+        keywordList: this.keywordList, likeCount: this.likeCount,
+        modifiedDT: this.modifiedDT ? this.modifiedDT.toISOString() : new Date().toISOString(),
+    });
 
 
    /*****************************************

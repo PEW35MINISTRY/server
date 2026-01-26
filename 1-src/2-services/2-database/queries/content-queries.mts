@@ -57,19 +57,16 @@ export const DB_SELECT_CONTENT_BY_URL = async(url:string):Promise<CONTENT_ARCHIV
 //Priority sort by recorderID (created) then latest modified
 export const DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES = async(recorderID:number = -1, onlyOwned:boolean = false, limit:number = LIST_LIMIT):Promise<ContentListItem[]> => {
     const rows = onlyOwned ?
-        await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
+        await execute('SELECT content.* ' 
+            + 'FROM content '
             + 'WHERE recorderID = ? '
             + `ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT ${limit};`, [recorderID, recorderID])
     
-        : await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
+        : await execute('SELECT content.* ' 
+            + 'FROM content '
             + `ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT ${limit};`, [recorderID]);
- 
-    return [...rows.map(row => ({contentID: row.contentID || -1, 
-        type: row.type, 
-        source: row.source, 
-        url: row.url || '', image: row.image,
-        title: row.title, description: row.description, likeCount: row.likeCount || 0,
-        keywordList: CONTENT_ARCHIVE.contentArchiveParseKeywordList(row.keywordListStringified)}))];
+
+    return [...rows.map(row => CONTENT_ARCHIVE.constructByDatabase(row as DATABASE_CONTENT).toListItem())];
 }
 
 
@@ -125,19 +122,15 @@ export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:stri
         return [];
     }
 
-    const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
+    const rows = await execute('SELECT content.* ' 
+    + 'FROM content '
     + 'WHERE ( '
         + columnList.map(column => `LOWER(${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')
     + ' ) '
     + `ORDER BY content.likeCount DESC `
     + `LIMIT ${limit};`, [...Array(columnList.length).fill(`${searchTerm}`)]);
  
-    return [...rows.map(row => ({contentID: row.contentID || -1, 
-        type: row.type, 
-        source: row.source, 
-        url: row.url || '', image: row.image || '',
-        title: row.title || '', description: row.description || '', likeCount: row.likeCount || 0,
-        keywordList: CONTENT_ARCHIVE.contentArchiveParseKeywordList(row.keywordListStringified)}))];
+    return [...rows.map(row => CONTENT_ARCHIVE.constructByDatabase(row as DATABASE_CONTENT).toListItem())];
 }
 
 export const DB_UPDATE_INCREMENT_CONTENT_LIKE_COUNT = async(contentID:number):Promise<boolean> => {
@@ -155,16 +148,11 @@ export const DB_SELECT_USER_CONTENT_LIST = async(userID:number, limit:number = L
 
     const preparedSourceFilter:string = MOBILE_CONTENT_SUPPORTED_SOURCES.map(source => `source = ?`).join(' OR ');
 
-    const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' 
+    const rows = await execute('SELECT content.* ' 
     + 'FROM content '
     + `WHERE ( ${preparedSourceFilter} ) `
     + 'ORDER BY RAND() '
     + `LIMIT ${limit};`, [...MOBILE_CONTENT_SUPPORTED_SOURCES]);
  
-    return [...rows.map(row => ({contentID: row.contentID || -1, 
-        type: row.type, 
-        source: row.source,  
-        url: row.url || '', image: row.image,
-        title: row.title, description: row.description, likeCount: row.likeCount || 0,
-        keywordList: CONTENT_ARCHIVE.contentArchiveParseKeywordList(row.keywordListStringified)}))];
+    return [...rows.map(row => CONTENT_ARCHIVE.constructByDatabase(row as DATABASE_CONTENT).toListItem())];
 }

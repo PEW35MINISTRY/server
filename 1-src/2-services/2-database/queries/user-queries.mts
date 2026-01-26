@@ -140,7 +140,7 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
     //Query via Search to use cached list
     // user.contactList = await searchList(SearchType.CONTACT, generateJWTRequest(user.userID, user.getHighestRole()) as JwtSearchRequest) as ProfileListItem[];
     user.contactList = await DB_SELECT_PARTNER_LIST(user.userID, DATABASE_PARTNER_STATUS_ENUM.PARTNER);
-    if(user.isRole(RoleEnum.CIRCLE_LEADER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES(user.userID, true);
+    if(user.isRole(RoleEnum.CIRCLE_MANAGER)) user.profileAccessList = await DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES(user.userID, true);
 
     return user;
 }

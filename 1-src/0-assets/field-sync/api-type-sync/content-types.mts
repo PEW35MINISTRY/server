@@ -22,6 +22,7 @@ export interface ContentListItem {
     description?: string, 
     image?: string,
     likeCount: number,
+    modifiedDT: string,
 }
 
 
@@ -42,7 +43,9 @@ export interface ContentResponseBody {
     maximumAge: number,
     minimumWalkLevel: number,
     maximumWalkLevel: number,
-    notes?: string
+    notes?: string,
+    createdDT: string,
+    modifiedDT: string,
 }
 
 export interface ContentMetaDataRequestBody {
