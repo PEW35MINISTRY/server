@@ -1,3 +1,7 @@
+/***** ONLY DEPENDENCY:./inputField - Define all other types locally *****/
+import { ENVIRONMENT_TYPE } from "../input-config-sync/inputField.mjs";
+import { RoleEnum } from "../input-config-sync/profile-field-config.mjs";
+
 
 /*********************************
 *    ADDITIONAL UTILITY TYPES    *
@@ -54,3 +58,29 @@ export type LogListItem = {
     fileKey?:string; 
     duplicateList?:string[]; 
 };
+
+
+/* ADMIN DASHBOARD STATISTICS */
+export type AdminStatsResponse = {
+  generatedDT:string,
+  environment:ENVIRONMENT_TYPE,
+  databaseUsageMap:Record<string, DatabaseTableUsage>,
+  userStats:DatabaseUserStats,
+}
+
+export interface DatabaseTableUsage {
+    totalRows:number,
+    created24Hours:number,
+    created7Days:number,
+    created30Days:number,
+    modified24Hours:number,
+    modified7Days:number,
+    modified30Days:number,
+}
+
+export interface DatabaseUserStats extends DatabaseTableUsage {
+    emailVerified:number,
+    walkLevelMap:Record<number, number>,
+    roleMap:Record<RoleEnum, number>,
+    unassignedUsers:number,
+}

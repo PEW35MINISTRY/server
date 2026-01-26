@@ -10,23 +10,6 @@ export interface AWSDatabaseSecrets {
     engine: string,
     dbInstanceIdentifier: string
 }
-
-export interface DatabaseTableUsage {
-    totalRows:number,
-    created24Hours:number,
-    created7Days:number,
-    created30Days:number,
-    modified24Hours:number,
-    modified7Days:number,
-    modified30Days:number,
-}
-
-export interface DatabaseUserStats extends DatabaseTableUsage {
-    emailVerified:number,
-    walkLevelMap:Map<number, number>,
-    roleMap:Map<DATABASE_USER_ROLE_ENUM, number>,
-    unassignedUsers:number, //Without user_role, defaults to USER
-}
   
 
 export interface CommandResponseType extends SQL.ResultSetHeader {
