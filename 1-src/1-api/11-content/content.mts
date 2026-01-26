@@ -65,10 +65,13 @@ export const POST_newContentArchive =  async(request: JwtRequest, response: Resp
         newContentArchive.recorderID = recorderID;
 
         if(CONTENT_TABLE_COLUMNS_REQUIRED.every((column) => newContentArchive[column] !== undefined) === false) 
-            next(new Exception(400, `Create Content Archive Failed :: Missing Required Fields: ${JSON.stringify(CONTENT_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
+            return next(new Exception(400, `Create Content Archive Failed :: Missing Required Fields: ${JSON.stringify(CONTENT_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
-        else if(await DB_INSERT_CONTENT(newContentArchive.getDatabaseProperties()) === false) 
-                next(new Exception(500, 'Create Content Archive  Failed :: Failed to save new Content Archive to database.', 'Save Failed'));
+        const insertResponse:{success:boolean, contentID:number} = await DB_INSERT_CONTENT(newContentArchive.getDatabaseProperties());
+        newContentArchive.contentID = insertResponse.contentID;
+
+        if(!insertResponse.success || insertResponse.contentID <= 0)
+            next(new Exception(500, 'Create Content Archive  Failed :: Failed to save new Content Archive to database.', 'Save Failed'));
        
         else if (newContentArchive.image !== undefined && !isURLImageFormatted(newContentArchive.image) && contentCopyImageThumbnail(newContentArchive) === undefined)
             next(new Exception(503, `Create Content Archive Issue :: Model Saved, but thumbnail failed to copy for ContentID:${newContentArchive.contentID} with content URL:${newContentArchive.url} with image URL:${newContentArchive.image}`, 'Thumbnail failed to copy'));
@@ -98,6 +101,7 @@ export const PATCH_contentArchive =  async(request: JwtContentRequest, response:
             next(new Exception(503, `Edit Content Archive Issue :: Model Saved, but thumbnail failed to copy for ContentID:${editContentArchive.contentID} with content URL:${editContentArchive.url} with image URL:${editContentArchive.image}`, 'Thumbnail failed to copy'));
     
         else {
+            editContentArchive.modifiedDT = new Date(); //Local update, database sets modifiedDT
             response.status(202).send(editContentArchive.toJSON());
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied

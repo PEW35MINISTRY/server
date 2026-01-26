@@ -7,7 +7,7 @@ import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circl
 import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { GENERAL_USER_ROLES, PartnerStatusEnum, RoleEnum, UserSearchRefineEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
+import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_EDIT, USER_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import { batch, command, execute, validateColumns } from '../database.mjs';
 import { DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_USER_IDS, DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES, DB_SELECT_USER_CIRCLES } from './circle-queries.mjs';
 import { DB_SELECT_USER_CONTENT_LIST } from './content-queries.mjs';
@@ -32,8 +32,8 @@ import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 */
 
 /* REQUIRED VALIDATION ONLY WHEN COLUMNS ARE INPUTS */
-const validateUserColumns = (inputMap:Map<string, any>, includesRequired:boolean = false):boolean => 
-    validateColumns(inputMap, includesRequired, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED);
+const validateUserColumns = (inputMap:Map<string, any>, forEditing:boolean, includesRequired:boolean):boolean => 
+    validateColumns(inputMap, includesRequired, forEditing ? USER_TABLE_COLUMNS_EDIT : USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_REQUIRED);
 
     
 /*************************
@@ -41,7 +41,7 @@ const validateUserColumns = (inputMap:Map<string, any>, includesRequired:boolean
  *************************/
 export const DB_SELECT_USER = async(filterMap:Map<string, any>, includeUserRole:boolean = true):Promise<USER> => {
     //Validate Columns prior to Query
-    if(filterMap.size === 0 || !validateUserColumns(filterMap)) {
+    if(filterMap.size === 0 || !validateUserColumns(filterMap, false, false)) {
         log.db('Query Rejected: DB_SELECT_USER; invalid column names', JSON.stringify(Array.from(filterMap.keys())));
         return new USER();
     }
@@ -70,7 +70,7 @@ export const DB_SELECT_USER = async(filterMap:Map<string, any>, includeUserRole:
 //FULL USER PROFILE: including roleList, circleList, partnerList
 export const DB_SELECT_USER_PROFILE = async(filterMap:Map<string, any>):Promise<USER> => {
     //Validate Columns prior to Query
-    if(filterMap.size === 0 || !validateUserColumns(filterMap)) {
+    if(filterMap.size === 0 || !validateUserColumns(filterMap, false, false)) {
         log.db('Query Rejected: DB_SELECT_USER_PROFILE; invalid column names', JSON.stringify(Array.from(filterMap.keys())));
         return new USER();
     }
@@ -117,11 +117,13 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
     user.circleAnnouncementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES(user.userID);
 
     //TEMPORARY Welcome Message
+    if(user.createdDT && (new Date().getTime() < (user.createdDT.getTime() + (1000 * 60 * 60 * 24 * 3)))) {
         const welcome:CIRCLE_ANNOUNCEMENT = new CIRCLE_ANNOUNCEMENT();
         welcome.message = 'WELCOME TO EP!\nHelp? -> support@encouragingprayer.org';
         welcome.startDate = new Date();
         welcome.endDate = new Date(Date.now() + (1000 * 60 * 60 * 24));
         user.circleAnnouncementList.unshift(welcome);
+    }
 
     /* Partnerships */
     const allPartnerList:PartnerListItem[] = await DB_SELECT_PARTNER_LIST(user.userID);
@@ -130,9 +132,9 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
     user.partnerPendingPartnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PENDING_CONTRACT_PARTNER));
 
     /* Prayer Requests */
-    user.newPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_USER_LIST(user.userID, 7); //recipient, dashboard preview
-    user.ownedPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID, false); //Not resolved (pending) for which user is the Requestor
-    user.expiringPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST(user.userID); // Owned prayer requests that are long term but past their set expiration date
+    user.newPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_USER_LIST(user.userID, 15); //recipient, dashboard preview
+    user.ownedPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID, false, 15); //Not resolved (pending) for which user is the Requestor
+    user.expiringPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST(user.userID, 5); // Owned prayer requests that are long term but past their set expiration date
     user.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(user.userID, 5);
 
     //Query via Search to use cached list
@@ -145,11 +147,11 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
 
 
 //Insert New Profile
-export const DB_INSERT_USER = async(fieldMap:Map<string, any>):Promise<boolean> => {
+export const DB_INSERT_USER = async(fieldMap:Map<string, any>):Promise<{success:boolean, userID:number}> => {
     //Validate Columns prior to Query
-    if(fieldMap.size === 0 || !validateUserColumns(fieldMap, true)) {
+    if(fieldMap.size === 0 || !validateUserColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_USER; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
-        return false;
+        return {success:false, userID:-1};
     }
 
     const preparedColumns:string = Array.from(fieldMap.keys()).map((key)=> `${key}`).join(', ');
@@ -157,13 +159,13 @@ export const DB_INSERT_USER = async(fieldMap:Map<string, any>):Promise<boolean> 
 
     const response:CommandResponseType = await command(`INSERT INTO user ( ${preparedColumns} ) VALUES ( ${preparedValues} );`, Array.from(fieldMap.values())); 
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return {success:((response !== undefined) && (response.affectedRows === 1)), userID:response?.insertId || -1};
 }
 
 //Update Existing Profile
 export const DB_UPDATE_USER = async(userID:number, fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
-    if(fieldMap.size === 0 || !validateUserColumns(fieldMap)) {
+    if(fieldMap.size === 0 || !validateUserColumns(fieldMap, true, false)) {
         log.db('Query Rejected: DB_UPDATE_USER; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return false;
     }
@@ -187,7 +189,7 @@ export const DB_DELETE_USER = async(userID:number):Promise<boolean> => { //Note:
 //Checks all users in database, regardless of user.modelSourceEnvironment
 export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateAllFields:boolean = true):Promise<boolean|undefined> => { //(ALL columns and values are case insensitive)
     //Validate Columns prior to Query | filter to only test valid columns
-    const columnsLowerCase:string[] = USER_TABLE_COLUMNS.map(c => c.toLowerCase());
+    const columnsLowerCase:string[] = USER_TABLE_COLUMNS_REQUIRED.map(c => c.toLowerCase());
     const validFieldMap:Map<string, any> = new Map();  
     
     const userIDEntry:[string, any]|undefined = Array.from(filterMap.entries()).find(([k,v]) => k.toLowerCase() === 'userid');
@@ -197,7 +199,7 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
     //Map keys to valid case columns and lowercase values
     Array.from(filterMap.entries()).filter(([k,v]) => (k.toLowerCase() !== 'userid')).forEach(([k,v]) => {
         const columnIndex:number = columnsLowerCase.indexOf(k.toLowerCase());
-        if(columnIndex >= 0) validFieldMap.set(USER_TABLE_COLUMNS[columnIndex], v.toLowerCase());
+        if(columnIndex >= 0) validFieldMap.set(USER_TABLE_COLUMNS_REQUIRED[columnIndex], v.toLowerCase());
     });
 
     //Invalid Request
@@ -295,7 +297,12 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
 const INACTIVE_USERS: RoleEnum[] = [RoleEnum.INACTIVE, RoleEnum.REPORTED];
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false, allSourceEnvironments = false, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean, allSourceEnvironments?:boolean, limit?:number}):Promise<ProfileListItem[]> => {
-    
+    //Validate Columns prior to Query
+    if(!validateUserColumns(new Map(columnList.map(column => [column, -1])), false, false)) {
+        log.error('DB_SELECT_USER_SEARCH rejected for invalid columns', columnList);
+        return [];
+    }
+
     const rows = await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
         + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
         + 'WHERE '

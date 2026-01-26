@@ -15,7 +15,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = [ 'recorderID', 'type', 'source', 'url' ]; //exclude: contentID, complex types, and lists
-    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile' ];
+    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile', 'createdDT', 'modifiedDT' ];
 
     contentID: number = -1;
     recorderID: number; //user that recorded
@@ -35,6 +35,10 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
     minimumWalkLevel: number;
     maximumWalkLevel: number; 
     notes?: string;
+
+    //Database - Read Only
+    createdDT:Date;
+    modifiedDT:Date;
 
     //Query separate Tables
     recorderProfile?: ProfileListItem;
@@ -80,6 +84,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
     override get IDProperty():string { return 'contentID'; }
  
     override get DATABASE_COLUMN_LIST():string[] { return CONTENT_TABLE_COLUMNS; }
+    override get DATABASE_COLUMN_EDIT_LIST():string[] { return CONTENT_TABLE_COLUMNS; }
     override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return CONTENT_ARCHIVE.DATABASE_IDENTIFYING_PROPERTY_LIST; }
     override get PROPERTY_LIST():string[] { return CONTENT_ARCHIVE.PROPERTY_LIST; }
 

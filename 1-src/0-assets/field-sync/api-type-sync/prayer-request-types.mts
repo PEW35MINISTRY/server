@@ -14,11 +14,14 @@ import { CircleListItem } from './circle-types.mjs'
 *****************************************************************************************/
 
 export interface PrayerRequestListItem {
-    prayerRequestID: number,
-    requestorProfile: ProfileListItem, 
-    topic: string,
+    prayerRequestID:number,
+    requestorProfile:ProfileListItem, 
+    topic:string,
+    description:string,
+    tagList:PrayerRequestTagEnum[],
     prayerCount: number,
-    tagList?: PrayerRequestTagEnum[], 
+    createdDT:string,
+    modifiedDT:string
 }
 
 export interface PrayerRequestCommentListItem {
@@ -26,7 +29,8 @@ export interface PrayerRequestCommentListItem {
     prayerRequestID: number,
     commenterProfile: ProfileListItem, 
     message: string,
-    likeCount: number
+    likeCount: number,
+    createdDT:string,
 }
 
 export interface PrayerRequestResponseBody {
@@ -37,8 +41,11 @@ export interface PrayerRequestResponseBody {
     prayerCount: number,
     isOnGoing: boolean,
     isResolved: boolean,
-    tagList?: PrayerRequestTagEnum[],
+    tagList: PrayerRequestTagEnum[],
     expirationDate: string,
+    createdDT: string,
+    modifiedDT: string,
+
     commentList?: PrayerRequestCommentListItem[],
     userRecipientList?: ProfileListItem[],
     circleRecipientList?: CircleListItem[],

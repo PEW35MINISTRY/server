@@ -109,7 +109,10 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, length:{min:5, max:15}, validationRegex:PLAIN_TEXT_REGEX}),
 ];
 
-export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
+export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
+    new InputField({title: 'User ID', field: 'userID', type: InputType.READ_ONLY }),
+    new InputField({title: 'Account Created', field: 'createdDT', type: InputType.READ_ONLY }),
+    new InputField({title: 'Last Modified', field: 'modifiedDT', type: InputType.READ_ONLY }),   
     new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.CUSTOM, selectOptionList: Object.values(RoleEnum) }),
     new InputSelectionField({title: 'Source Environment', field: 'modelSourceEnvironment', required: true, type: InputType.SELECT_LIST, selectOptionList: Object.values(ModelSourceEnvironmentEnum), environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT]}),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, unique: true,  validationRegex: EMAIL_REGEX }),

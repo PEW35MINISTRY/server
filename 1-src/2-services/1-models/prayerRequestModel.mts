@@ -5,7 +5,7 @@ import InputField from '../../0-assets/field-sync/input-config-sync/inputField.m
 import { PrayerRequestTagEnum } from '../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
-import { DATABASE_PRAYER_REQUEST, PRAYER_REQUEST_TABLE_COLUMNS } from '../2-database/database-types.mjs';
+import { DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_EDIT } from '../2-database/database-types.mjs';
 import * as log from '../10-utilities/logging/log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 
@@ -15,7 +15,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     //Static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = ['requestorID', 'topic', 'description']; //exclude: prayerRequestID, complex types, and lists
-    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'prayerCount', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
+    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'prayerCount', 'createdDT', 'modifiedDT', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
 
     prayerRequestID: number = -1;
     requestorID: number;
@@ -26,6 +26,10 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     isResolved: boolean;
     tagList: PrayerRequestTagEnum[] = [];
     expirationDate: Date;
+
+    //Database - Read Only
+    createdDT:Date;
+    modifiedDT:Date;
 
     //Query separate Tables
     requestorProfile?: ProfileListItem;
@@ -69,6 +73,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     override get IDProperty():string { return 'prayerRequestID'; }
 
     override get DATABASE_COLUMN_LIST():string[] { return PRAYER_REQUEST_TABLE_COLUMNS; }
+    override get DATABASE_COLUMN_EDIT_LIST():string[] { return PRAYER_REQUEST_TABLE_COLUMNS_EDIT;}
     override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return PRAYER_REQUEST.DATABASE_IDENTIFYING_PROPERTY_LIST; }
     override get PROPERTY_LIST():string[] { return PRAYER_REQUEST.PROPERTY_LIST; }
 
@@ -77,10 +82,21 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     /**********************************
     * ADDITIONAL STATIC CONSTRUCTORS *
     **********************************/
-    static constructByDatabase = (DB:DATABASE_PRAYER_REQUEST):PRAYER_REQUEST => 
-       BASE_MODEL.constructByDatabaseUtility<PRAYER_REQUEST>({DB, newModel: new PRAYER_REQUEST(DB.prayerRequestID || -1), defaultModel: new PRAYER_REQUEST(),
+    static constructByDatabase = (DB:DATABASE_PRAYER_REQUEST_EXTENDED):PRAYER_REQUEST => 
+       BASE_MODEL.constructByDatabaseUtility<PRAYER_REQUEST>({DB, newModel:new PRAYER_REQUEST(DB.prayerRequestID || -1), defaultModel:new PRAYER_REQUEST(), columnList:PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS,
         complexColumnMap: new Map([
-            ['tagListStringified', (DB:DATABASE_PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => {newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(DB.tagListStringified)}],
+            ['tagListStringified', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => {newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(DB.tagListStringified)}],
+            
+            //Joint Tables included in Extended Query
+            ['requestorID', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => {
+                newPrayerRequest.requestorID = DB.requestorID;
+
+                newPrayerRequest.requestorProfile = {
+                    userID: DB.requestorID,
+                    firstName: DB.requestorFirstName ?? '',
+                    displayName: DB.requestorDisplayName ?? '',
+                    image: DB.requestorImage ?? '',
+                }}],
           ])});
 
     //Clone database model values only (not copying references for ListItems)
@@ -88,7 +104,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
        BASE_MODEL.constructByCloneUtility<PRAYER_REQUEST>({currentModel: circle, newModel: new PRAYER_REQUEST(circle.prayerRequestID || -1), defaultModel: new PRAYER_REQUEST(), propertyList: PRAYER_REQUEST.PROPERTY_LIST,
         complexPropertyMap: new Map([
             ['tagList', (currentPrayerRequest:PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => {newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(JSON.stringify(currentPrayerRequest.tagList))}],
-            ['requestorProfile', (currentPrayerRequest:PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => { /* Skipping */ }]
+            ['requestorProfile', (currentPrayerRequest:PRAYER_REQUEST, newPrayerRequest:PRAYER_REQUEST) => { /* Skipping */ }],
           ])});
 
     override constructByClone = <PRAYER_REQUEST,>():PRAYER_REQUEST => PRAYER_REQUEST.constructByClone(this) as PRAYER_REQUEST;
@@ -109,7 +125,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     }
 
     static getUniqueDatabaseProperties = (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST):Map<string, any> =>
-        BASE_MODEL.getUniquePropertiesUtility<PRAYER_REQUEST>({fieldList: PRAYER_REQUEST_TABLE_COLUMNS, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
+        BASE_MODEL.getUniquePropertiesUtility<PRAYER_REQUEST>({fieldList: PRAYER_REQUEST_TABLE_COLUMNS_EDIT, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
             model, baseModel, includeID: false, includeObjects: false, includeNull: true,
             complexFieldMap: new Map([
                 ['tagListStringified', (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST) => { 
@@ -119,5 +135,38 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     override getUniqueDatabaseProperties = (baseModel:PRAYER_REQUEST):Map<string, any> => PRAYER_REQUEST.getUniqueDatabaseProperties(this, baseModel);
 
-    override  toListItem = ():PrayerRequestListItem => ({prayerRequestID: this.prayerRequestID, requestorProfile: this.requestorProfile, topic: this.topic, prayerCount: this.prayerCount, tagList: this.tagList});
+    override toListItem = ():PrayerRequestListItem => ({
+        prayerRequestID: this.prayerRequestID,
+        topic: this.topic,
+        description: this.description,
+        tagList: this.tagList ?? [],
+        
+        createdDT: this.createdDT ? this.createdDT.toISOString() : new Date().toISOString(),
+        modifiedDT: this.modifiedDT ? this.modifiedDT.toISOString() : new Date().toISOString(),
+
+        requestorProfile: this.requestorProfile,
+        prayerCount: this.prayerCount,
+    });
+
+
+    /************
+     * COMMENTS *
+     ************/
+    static constructByDatabaseCommentList = (rows:DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED[]):PrayerRequestCommentListItem[] =>
+        rows.map((row) => ({
+            commentID: row.commentID ?? -1,
+            prayerRequestID: row.prayerRequestID ?? -1,
+            message: row.message ?? '',
+            createdDT: row.createdDT ? row.createdDT?.toISOString() : new Date().toISOString(),
+
+            //Extended: Joint Tables
+            commenterProfile: {
+                userID: row.commenterID,
+                firstName: row.commenterFirstName ?? '',
+                displayName: row.commenterDisplayName ?? '',
+                image: row.commenterImage ?? '',
+            },
+            likeCount: 0,
+            isLikedByRecipient: false,
+    }));
 };
