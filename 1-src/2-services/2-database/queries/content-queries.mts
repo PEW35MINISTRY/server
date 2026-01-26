@@ -3,7 +3,7 @@ import { MOBILE_CONTENT_SUPPORTED_SOURCES } from '../../../0-assets/field-sync/i
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import CONTENT_ARCHIVE from '../../1-models/contentArchiveModel.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
-import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT } from '../database-types.mjs';
+import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_EDIT, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT } from '../database-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
 
 
@@ -21,8 +21,8 @@ import { command, execute, query, validateColumns } from '../database.mjs';
 */
 
 /* REQUIRED VALIDATION ONLY WHEN COLUMNS ARE INPUTS */
-const validateContentColumns = (inputMap:Map<string, any>, includesRequired:boolean = false):boolean => 
-    validateColumns(inputMap, includesRequired, CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_REQUIRED);
+const validateContentColumns = (inputMap:Map<string, any>, forEditing:boolean, includesRequired:boolean):boolean => 
+    validateColumns(inputMap, includesRequired, forEditing ? CONTENT_TABLE_COLUMNS_EDIT : CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_REQUIRED);
 
 /********************
  *  CONTENT QUERIES
@@ -76,11 +76,11 @@ export const DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES = async(recorderID:number =
 /********************
  *  CONTENT QUERIES
  ********************/
-export const DB_INSERT_CONTENT = async(fieldMap:Map<string, any>):Promise<boolean> => {
+export const DB_INSERT_CONTENT = async(fieldMap:Map<string, any>):Promise<{success:boolean, contentID:number}> => {
     //Validate Columns prior to Query
-    if(!validateContentColumns(fieldMap)) {
+    if(!validateContentColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_CONTENT; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
-        return false;
+        return {success:false, contentID:-1};
     }
 
     const preparedColumns:string = Array.from(fieldMap.keys()).map((key, field)=> `${key}`).join(', ');
@@ -88,12 +88,12 @@ export const DB_INSERT_CONTENT = async(fieldMap:Map<string, any>):Promise<boolea
 
     const response:CommandResponseType = await command(`INSERT INTO content ( ${preparedColumns} ) VALUES ( ${preparedValues} );`, Array.from(fieldMap.values())); 
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return {success:((response !== undefined) && (response.affectedRows === 1)), contentID:response?.insertId || -1};
 }
 
 export const DB_UPDATE_CONTENT = async(contentID:number, fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
-    if(!validateContentColumns(fieldMap)) {
+    if(!validateContentColumns(fieldMap, true, false)) {
         log.db('Query Rejected: DB_UPDATE_CONTENT; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return false;
     }
@@ -119,6 +119,12 @@ export const DB_DELETE_CONTENT = async(contentID:number):Promise<boolean> => { /
  ***************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<ContentListItem[]> => {
+    //Validate Columns prior to Query
+    if(!validateContentColumns(new Map(columnList.map(column => [column, -1])), false, false)) {
+        log.error('DB_SELECT_CONTENT_SEARCH rejected for invalid columns', columnList);
+        return [];
+    }
+
     const rows = await execute('SELECT contentID, type, customType, source, customSource, url, image, title, description, likeCount, keywordListStringified ' + 'FROM content '
     + 'WHERE ( '
         + columnList.map(column => `LOWER(${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')

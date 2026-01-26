@@ -75,11 +75,11 @@ export const DB_IS_PRAYER_REQUEST_REQUESTOR = async({prayerRequestID, userID}:{p
     return (rows.length === 1);
 }
 
-export const DB_INSERT_PRAYER_REQUEST = async(fieldMap:Map<string, any>):Promise<boolean> => {
+export const DB_INSERT_PRAYER_REQUEST = async(fieldMap:Map<string, any>):Promise<{success:boolean, prayerRequestID:number}> => {
     //Validate Columns prior to Query
     if(!validatePrayerRequestColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_PRAYER_REQUEST; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
-        return false;
+        return {success:false, prayerRequestID:-1};
     }
 
     const preparedColumns:string = Array.from(fieldMap.keys()).map((key)=> `${key}`).join(', ');
@@ -87,28 +87,9 @@ export const DB_INSERT_PRAYER_REQUEST = async(fieldMap:Map<string, any>):Promise
 
     const response:CommandResponseType = await command(`INSERT INTO prayer_request ( ${preparedColumns} ) VALUES ( ${preparedValues} );`, Array.from(fieldMap.values())); 
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return {success:((response !== undefined) && (response.affectedRows === 1)), prayerRequestID:response?.insertId || -1};
 }
 
-//Dual operation for POST_prayerRequest; b/c can't add recipients without prayerRequestID
-export const DB_INSERT_AND_SELECT_PRAYER_REQUEST = async(fieldMap:Map<string, any>):Promise<PRAYER_REQUEST> => {
-    //First: Insert New prayer_request model
-    if(await DB_INSERT_PRAYER_REQUEST(fieldMap) === false)
-        return new PRAYER_REQUEST(undefined);
-
-    const rows = await execute('SELECT prayer_request.*, ' 
-    + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
-    + 'FROM prayer_request '
-    + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-    +`WHERE prayer_request.requestorID = ? ORDER BY createdDT DESC LIMIT 1;`, [fieldMap.get('requestorID')]); 
-
-    if(rows.length !== 1) {
-        log.db(`DB_INSERT_AND_SELECT_PRAYER_REQUEST : Failed to identify recently created prayer request`, JSON.stringify(fieldMap.entries()), JSON.stringify(rows));
-        return new PRAYER_REQUEST(undefined);
-    }
-
-    return PRAYER_REQUEST.constructByDatabase(rows[0] as DATABASE_PRAYER_REQUEST); 
-}
 
 export const DB_UPDATE_PRAYER_REQUEST = async(prayerRequestID:number, fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
@@ -195,7 +176,9 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOw
     + `WHERE ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ${includeOwned ? 'OR prayer_request.requestorID = ? ' : ''} ) `
     + (includeOwned ? '' : 'AND prayer_request.requestorID != ? ')
     + 'AND prayer_request.isResolved = FALSE '
-    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]); 
+    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]);
+
+    if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_USER_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for user:`, userID);
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
@@ -210,6 +193,8 @@ export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, limit
     + 'WHERE prayer_request_recipient.circleID = ? '
     + 'AND prayer_request.isResolved = FALSE '
     + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [circleID]); 
+
+    if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for circle:`, circleID);
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }

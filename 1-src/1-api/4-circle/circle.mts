@@ -98,7 +98,7 @@ export const POST_newCircle =  async(request: JwtRequest, response: Response, ne
         else if(await DB_IS_USER_ROLE(newCircle.leaderID, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER) === false)
             next(new Exception(401, `Edit Circle Failed :: failed to verify leader status of userID: ${newCircle.leaderID}`, 'Leader status not verified.'));
 
-        else if(await DB_INSERT_CIRCLE(newCircle.getDatabaseProperties()) === false) 
+        else if((await DB_INSERT_CIRCLE(newCircle.getDatabaseProperties())).success === false) 
                 next(new Exception(500, 'Create Circle  Failed :: Failed to save new circle to database.', 'Save Failed'));
 
         else {
@@ -138,6 +138,7 @@ export const PATCH_circle =  async(request: JwtCircleRequest, response: Response
         else {
             editCircle.requestorID = request.jwtUserID;
             editCircle.requestorStatus = CircleStatusEnum.LEADER;
+            editCircle.modifiedDT = new Date(); //Local update, database sets modifiedDT
 
             response.status(202).send(editCircle.toLeaderJSON());
         }
@@ -234,10 +235,13 @@ export const POST_circleAnnouncement =  async(request: CircleAnnouncementCreateR
         newCircleAnnouncement.circleID = request.circleID;
         
         if(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED.every((column) => newCircleAnnouncement[column] !== undefined) === false) 
-            next(new Exception(400, `Create Circle Announcement Failed :: Missing Required Fields: ${JSON.stringify(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
+            return next(new Exception(400, `Create Circle Announcement Failed :: Missing Required Fields: ${JSON.stringify(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
-        else if(await DB_INSERT_CIRCLE_ANNOUNCEMENT(newCircleAnnouncement.getDatabaseProperties()) === false) 
-                next(new Exception(500, 'Create Circle Announcement Failed :: Failed to save new circle announcement.', 'Save Failed'));
+        const insertResponse:{success:boolean, announcementID:number} = await DB_INSERT_CIRCLE_ANNOUNCEMENT(newCircleAnnouncement.getDatabaseProperties());
+        newCircleAnnouncement.announcementID = insertResponse.announcementID;
+        
+        if(!insertResponse.success || insertResponse.announcementID <= 0) 
+            next(new Exception(500, 'Create Circle Announcement Failed :: Failed to save new circle announcement.', 'Save Failed'));
 
         else
             response.status(202).send(newCircleAnnouncement.toJSON());

@@ -147,11 +147,11 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
 
 
 //Insert New Profile
-export const DB_INSERT_USER = async(fieldMap:Map<string, any>):Promise<boolean> => {
+export const DB_INSERT_USER = async(fieldMap:Map<string, any>):Promise<{success:boolean, userID:number}> => {
     //Validate Columns prior to Query
     if(fieldMap.size === 0 || !validateUserColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_USER; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
-        return false;
+        return {success:false, userID:-1};
     }
 
     const preparedColumns:string = Array.from(fieldMap.keys()).map((key)=> `${key}`).join(', ');
@@ -159,7 +159,7 @@ export const DB_INSERT_USER = async(fieldMap:Map<string, any>):Promise<boolean> 
 
     const response:CommandResponseType = await command(`INSERT INTO user ( ${preparedColumns} ) VALUES ( ${preparedValues} );`, Array.from(fieldMap.values())); 
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return {success:((response !== undefined) && (response.affectedRows === 1)), userID:response?.insertId || -1};
 }
 
 //Update Existing Profile
@@ -297,7 +297,12 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
 const INACTIVE_USERS: RoleEnum[] = [RoleEnum.INACTIVE, RoleEnum.REPORTED];
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGeneralUsers = false, searchInactive = false, allSourceEnvironments = false, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], excludeGeneralUsers?:boolean, searchInactive?:boolean, allSourceEnvironments?:boolean, limit?:number}):Promise<ProfileListItem[]> => {
-    
+    //Validate Columns prior to Query
+    if(!validateUserColumns(new Map(columnList.map(column => [column, -1])), false, false)) {
+        log.error('DB_SELECT_USER_SEARCH rejected for invalid columns', columnList);
+        return [];
+    }
+
     const rows = await execute('SELECT user.userID, user.firstName, user.displayName, user.image ' + 'FROM user '
         + 'LEFT JOIN user_role ON user_role.userID = user.userID AND user_role.userRoleID = ( SELECT min( userRoleID ) FROM user_role WHERE user.userID = user_role.userID ) '
         + 'WHERE '

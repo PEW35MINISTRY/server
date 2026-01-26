@@ -4,12 +4,12 @@ import { CREATE_PRAYER_REQUEST_FIELDS, DEFAULT_PRAYER_REQUEST_EXPIRATION_DAYS, E
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import PRAYER_REQUEST from '../../2-services/1-models/prayerRequestModel.mjs';
 import { PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
-import { DB_DELETE_PRAYER_REQUEST, DB_DELETE_PRAYER_REQUEST_COMMENT, DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH, DB_INSERT_AND_SELECT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST_COMMENT, DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH, DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST, DB_SELECT_PRAYER_REQUEST_COMMENT, DB_SELECT_PRAYER_REQUEST_DETAIL, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST, DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST, DB_UPDATE_INCREMENT_PRAYER_COUNT, DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT, DB_UPDATE_PRAYER_REQUEST, DB_UPDATE_RESOLVE_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
+import { DB_DELETE_PRAYER_REQUEST, DB_DELETE_PRAYER_REQUEST_COMMENT, DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH, DB_INSERT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST_COMMENT, DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH, DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST, DB_SELECT_PRAYER_REQUEST_COMMENT, DB_SELECT_PRAYER_REQUEST_DETAIL, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST, DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST, DB_UPDATE_INCREMENT_PRAYER_COUNT, DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT, DB_UPDATE_PRAYER_REQUEST, DB_UPDATE_RESOLVE_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtPrayerRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception } from '../api-types.mjs';
 import { PrayerRequestCommentRequest, PrayerRequestPatchRequest, PrayerRequestPostRequest } from './prayer-request-types.mjs';
-import { DB_SELECT_CIRCLE_SEARCH, DB_SELECT_CIRCLE_USER_IDS } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { DB_SELECT_CIRCLE_USER_IDS } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { sendTemplateNotification, sendNotificationCircle} from '../8-notification/notification-utilities.mjs';
 import { CircleNotificationType, NotificationType } from '../8-notification/notification-types.mjs';
 import { PrayerRequestCommentListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
@@ -76,12 +76,13 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
             next(new Exception(400, `Create Prayer Request Failed :: Missing Required Fields: ${JSON.stringify(PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
         else { 
-                const savedPrayerRequest:PRAYER_REQUEST = await DB_INSERT_AND_SELECT_PRAYER_REQUEST(newPrayerRequest.getDatabaseProperties());
+                const insertResponse:{success:boolean, prayerRequestID:number} = await DB_INSERT_PRAYER_REQUEST(newPrayerRequest.getDatabaseProperties());
+                newPrayerRequest.prayerRequestID = insertResponse.prayerRequestID;
 
-                if(!savedPrayerRequest.isValid) 
+                if(!insertResponse.success || insertResponse.prayerRequestID <= 0) 
                     next(new Exception(500, 'Create Prayer Request Failed :: Failed to save new prayer request to database.', 'Save Failed'));
                 
-                else if(await DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH({prayerRequestID: savedPrayerRequest.prayerRequestID, userRecipientIDList: newPrayerRequest.addUserRecipientIDList || [], circleRecipientIDList: newPrayerRequest.addCircleRecipientIDList || []}) === false)
+                else if(await DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH({prayerRequestID: newPrayerRequest.prayerRequestID, userRecipientIDList: newPrayerRequest.addUserRecipientIDList || [], circleRecipientIDList: newPrayerRequest.addCircleRecipientIDList || []}) === false)
                     next(new Exception(500, 'Create Prayer Request Failed :: Failed to save batch recipient list.', 'Send Failed'));
                 
                 else {
@@ -93,7 +94,7 @@ export const POST_prayerRequest = async (request: PrayerRequestPostRequest, resp
                     if(newPrayerRequest.addUserRecipientIDList !== undefined && newPrayerRequest.addUserRecipientIDList.length > 0)
                         sendTemplateNotification(requestorID, newPrayerRequest.addUserRecipientIDList || [], NotificationType.PRAYER_REQUEST_RECIPIENT);
 
-                    response.status(201).send(savedPrayerRequest.toJSON());
+                    response.status(201).send((await DB_SELECT_PRAYER_REQUEST_DETAIL(newPrayerRequest.prayerRequestID, true)).toJSON());
                 }
         }
     } else
@@ -132,9 +133,7 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
                 next(new Exception(500, 'Edit Prayer Request Failed :: Failed to insert batch add recipients.', 'Add Recipients Failed'));
 
             else {
-                editPrayerRequest.userRecipientList = await DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST(request.prayerRequestID);
-                editPrayerRequest.circleRecipientList = await DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST(request.prayerRequestID);
-                editPrayerRequest.commentList = currentPrayerRequest.commentList;
+                const savedPrayerRequest:PRAYER_REQUEST = await DB_SELECT_PRAYER_REQUEST_DETAIL(request.prayerRequestID, true);
 
                 // send notifications asynchronously
                 for (const circleID of (editPrayerRequest.addCircleRecipientIDList || [])) {
@@ -144,8 +143,7 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
                 if(editPrayerRequest.addUserRecipientIDList !== undefined && editPrayerRequest.addUserRecipientIDList.length > 0)
                     sendTemplateNotification(editPrayerRequest.requestorID, editPrayerRequest.addUserRecipientIDList, NotificationType.PRAYER_REQUEST_RECIPIENT, currentPrayerRequest.requestorProfile.displayName);
 
-                response.status(202).send(editPrayerRequest.toJSON());
-                log.event('Edit Prayer Request successfully saved:', editPrayerRequest.prayerRequestID);
+                response.status(202).send(savedPrayerRequest.toJSON());
             }
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
@@ -156,12 +154,11 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
 
 export const POST_prayerRequestIncrementPrayerCount = async (request: JwtPrayerRequest, response: Response, next: NextFunction) => {
     
-    if(await DB_UPDATE_INCREMENT_PRAYER_COUNT(request.prayerRequestID) === false)
+    if(await DB_UPDATE_INCREMENT_PRAYER_COUNT(request.prayerRequestID, request.jwtUserID) === false)
         next(new Exception(500, `Failed to Incremented Prayer Count for prayer request ${request.prayerRequestID}`, 'Failed to Save'));
 
     else {
         response.status(200).send(`Prayer Count Incremented for prayer request ${request.prayerRequestID}`);
-        log.event(`Incremented prayer count for prayer request ${request.prayerRequestID}`);
     }
 };
 
@@ -225,12 +222,24 @@ export const POST_prayerRequestCommentIncrementLikeCount = async (request: JwtPr
     if(request.params.comment === undefined || isNaN(parseInt(request.params.comment))) 
         next(new Exception(400, `Failed to parse commentID :: missing comment-id parameter :: ${request.params.comment}`, 'Missing Prayer Request'));
 
-    else if(await DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT(parseInt(request.params.comment)) === false)
+    else if(await DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT(parseInt(request.params.comment), request.jwtUserID) === false)
         next(new Exception(500, `Failed to Incremented Like Count for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`, 'Failed to Save'));
 
     else {
         response.status(200).send(`Like Count Incremented for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`);
-        log.event(`Incremented like count for comment ${request.params.comment} of prayer request ${request.prayerRequestID}`);
+    }
+};
+
+export const POST_prayerRequestCommentUnlike = async (request:JwtPrayerRequest, response:Response, next:NextFunction) => {
+    
+    if(request.params.comment === undefined || isNaN(parseInt(request.params.comment))) 
+        next(new Exception(400, `Failed to parse commentID :: missing comment-id parameter :: ${request.params.comment}`, 'Missing Prayer Request'));
+
+    else if(await DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT(parseInt(request.params.comment), request.jwtUserID) === false)
+        next(new Exception(500, `Failed to unlike Count for prayer request ${request.prayerRequestID} in comment ${request.params.comment}`, 'Failed to Save'));
+
+    else {
+        response.status(200).send(`Unliked prayer request ${request.prayerRequestID} in comment ${request.params.comment}`);
     }
 };
 

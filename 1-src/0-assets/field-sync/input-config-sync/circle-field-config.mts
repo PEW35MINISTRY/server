@@ -63,7 +63,7 @@ export const CIRCLE_FIELDS_ADMIN:InputField[] = [
 ];
 
 export const CIRCLE_ANNOUNCEMENT_FIELDS:InputField[] = [
-    new InputField({title: 'Announcement', field: 'message',  required: true, type: InputType.TEXT, length:{min: 1, max: 100} }),
+    new InputField({title: 'Announcement', field: 'message',  required: true, type: InputType.PARAGRAPH, length:{min: 1, max: 100} }),
     new InputField({title: 'Display Date', field: 'startDate', type: InputType.DATE, value: getDateDaysFuture(0).toISOString(), required: true, validationRegex: DATE_REGEX }),
     new InputField({title: 'Expiration Date', field: 'endDate', type: InputType.DATE, value: getDateDaysFuture(14).toISOString(), required: true, validationRegex: DATE_REGEX }),
 ];

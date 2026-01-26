@@ -96,7 +96,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             next(new Exception(401, `Signup Failed :: failed to verify token for user roles: ${JSON.stringify(newProfile.userRoleList)}for new user ${newProfile.email}.`, 'Ineligible Account Type'));
 
         //Create 'user' database entry
-        else if(await DB_INSERT_USER(newProfile.getDatabaseProperties()) === false) 
+        else if((await DB_INSERT_USER(newProfile.getDatabaseProperties())).success === false) 
                 next(new Exception(500, `Signup Failed :: Failed to save new user account.`, 'Signup Save Failed'));
 
         //New Account Success -> Auto Login Response
@@ -159,7 +159,8 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
             const insertRoleList:DATABASE_USER_ROLE_ENUM[] = editProfile.userRoleList?.filter((role) => ((role !== RoleEnum.USER || saveUserRole) && !currentRoleList.includes(role))).map((role) => DATABASE_USER_ROLE_ENUM[role]);
             if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({userID:editProfile.userID, userRoleList: insertRoleList}))
                 log.error(`Edit Profile Failed :: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${editProfile.userID}`);
-
+            
+            editProfile.modifiedDT = new Date(); //Local update, database sets modifiedDT
             response.status(202).send(editProfile.toJSON());
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied

@@ -126,11 +126,11 @@ export const DB_SELECT_CIRCLE_IDS = async(fieldMap:Map<string, any>):Promise<num
     return [...rows.reverse().map(row => row.circleID)];
 }
 
-export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<boolean> => {
+export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<{success:boolean, circleID:number}> => {
     //Validate Columns prior to Query
     if(!validateCircleColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_CIRCLE; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
-        return false;
+        return {success:false, circleID:-1};
     }
 
     const preparedColumns:string = Array.from(fieldMap.keys()).map((key, field)=> `${key}`).join(', ');
@@ -138,7 +138,7 @@ export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<boolean
 
     const response:CommandResponseType = await command(`INSERT INTO circle ( ${preparedColumns} ) VALUES ( ${preparedValues} );`, Array.from(fieldMap.values())); 
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return {success:((response !== undefined) && (response.affectedRows === 1)), circleID:response?.insertId || -1};
 }
 
 export const DB_UPDATE_CIRCLE = async(circleID:number, fieldMap:Map<string, any>):Promise<boolean> => {
@@ -169,7 +169,12 @@ export const DB_DELETE_CIRCLE = async(circleID:number):Promise<boolean> => { //N
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
-    
+    //Validate Columns prior to Query
+    if(!validateCircleColumns(new Map(columnList.map(column => [column, -1])), false, false)) {
+        log.error('DB_SELECT_CIRCLE_SEARCH rejected for invalid columns', columnList);
+        return [];
+    }
+
     const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
         + 'LEFT JOIN user on user.userID = circle.leaderID '
         + 'WHERE ( '
@@ -275,19 +280,21 @@ export const DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES = async(userID:number):Pr
     return [...rows.map(row => (CIRCLE_ANNOUNCEMENT.constructByDatabase(row as DATABASE_CIRCLE_ANNOUNCEMENT)))];
 }
 
-export const DB_INSERT_CIRCLE_ANNOUNCEMENT = async(fieldMap:Map<string, any>):Promise<boolean> => {
+export const DB_INSERT_CIRCLE_ANNOUNCEMENT = async(fieldMap:Map<string, any>):Promise<{success:boolean, announcementID:number}> => {
     //Validate Columns prior to Query
     if(!validateCircleAnnouncementColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_CIRCLE_ANNOUNCEMENT; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
-        return false;
+        return {success:false, announcementID:-1};
     }
 
     const preparedColumns:string = Array.from(fieldMap.keys()).map((key, field)=> `${key}`).join(', ');
     const preparedValues:string = Array.from(fieldMap.keys()).map((key, field)=> `?`).join(', ');
 
     const response:CommandResponseType = await command(`INSERT INTO circle_announcement ( ${preparedColumns} ) VALUES ( ${preparedValues} );`, Array.from(fieldMap.values())); 
+
+    log.db('ID Generated', response?.insertId, JSON.stringify(response));
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return {success:((response !== undefined) && (response.affectedRows === 1)), announcementID:response?.insertId || -1};
 }
 
 export const DB_DELETE_CIRCLE_ANNOUNCEMENT = async({announcementID, circleID}:{announcementID?:number, circleID:number}):Promise<boolean> => {

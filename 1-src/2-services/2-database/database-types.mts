@@ -176,7 +176,6 @@ export const CIRCLE_TABLE_COLUMNS_EDIT:string[] = [ ...CIRCLE_TABLE_COLUMNS_REQU
 
 export const CIRCLE_TABLE_COLUMNS:string[] = [ ...CIRCLE_TABLE_COLUMNS_EDIT,
     'circleID', 'createdDT', 'modifiedDT'
-
 ];
 
 export type DATABASE_CIRCLE = {  //Optional Fields for PATCH/UPDATE
@@ -225,11 +224,11 @@ export type DATABASE_CIRCLE_ANNOUNCEMENT = {
 export const PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED:string[] = [ 'requestorID', 'topic', 'description', 'expirationDate' ];
 
 export const PRAYER_REQUEST_TABLE_COLUMNS_EDIT:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED,
-    'prayerRequestID', 'isOnGoing', 'isResolved', 'tagListStringified'
+    'prayerCount', 'isOnGoing', 'isResolved', 'tagListStringified'
 ];
 
 export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_EDIT,
-    'prayerCount', 'createdDT', 'modifiedDT'
+    'prayerRequestID', 'createdDT', 'modifiedDT'
 ];
 
 export interface DATABASE_PRAYER_REQUEST {
@@ -298,8 +297,12 @@ export interface DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED extends DATABASE_PRAYE
 *********************************************************************/
 export const CONTENT_TABLE_COLUMNS_REQUIRED:string[] = [ 'recorderID', 'type', 'source', 'url' ];
 
-export const CONTENT_TABLE_COLUMNS:string[] = [ ...CONTENT_TABLE_COLUMNS_REQUIRED,
-    'contentID', 'customType', 'customSource', 'keywordListStringified', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes'
+export const CONTENT_TABLE_COLUMNS_EDIT:string[] = [ ...CONTENT_TABLE_COLUMNS_REQUIRED,
+    'likeCount', 'customType', 'customSource', 'keywordListStringified', 'title', 'description', 'image', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes'
+];
+
+export const CONTENT_TABLE_COLUMNS:string[] = [ ...CONTENT_TABLE_COLUMNS_EDIT,
+    'contentID', 'createdDT', 'modifiedDT'   //Read only
 ];
 
 export enum DATABASE_GENDER_SELECTION_ENUM {
