@@ -5,7 +5,7 @@ import { Exception } from '../api-types.mjs';
 import { filterLogEntries, readLogFile, resetLogFile, streamLocalLogFile, writeLogFile } from '../../2-services/10-utilities/logging/log-local-utilities.mjs';
 import LOG_ENTRY from '../../2-services/10-utilities/logging/logEntryModel.mjs';
 import { deleteS3Log, deleteS3LogsByDay, fetchS3LogEntry, fetchS3LogsByDateRange, streamS3LogsAsFile, uploadS3LogEntry } from '../../2-services/10-utilities/logging/log-s3-utilities.mjs';
-import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/env-utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { athenaSearchS3Logs } from '../../2-services/10-utilities/logging/log-s3-athena-search.mjs';
 import { updateAthenaPartitions } from '../../2-services/10-utilities/athena.mjs';

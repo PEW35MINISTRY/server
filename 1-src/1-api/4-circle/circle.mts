@@ -1,5 +1,5 @@
 import { NextFunction, Response } from 'express';
-import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/env-utilities.mjs';
 import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { CIRCLE_ANNOUNCEMENT_FIELDS, CIRCLE_FIELDS, CIRCLE_FIELDS_ADMIN, CircleStatusEnum } from '../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import InputField, { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';

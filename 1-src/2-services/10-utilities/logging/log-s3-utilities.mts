@@ -3,7 +3,7 @@ import { Readable } from 'stream';
 import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, ListObjectsV2CommandOutput, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import LOG_ENTRY from './logEntryModel.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
-import { getEnvironment } from '../utilities.mjs';
+import { getEnvironment } from '../env-utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { writeLogFile } from './log-local-utilities.mjs';
 import { Exception } from '../../../1-api/api-types.mjs';

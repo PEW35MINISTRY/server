@@ -8,7 +8,7 @@ import { htmlHeader, htmlTitle, htmlText, htmlSection, htmlAccessCode, htmlActio
 import { renderDatabaseTableUsage, htmlUserStats, htmlUserRoleDistribution, htmlUserWalkLevelDistribution, renderLogList } from './components/email-template-renders.mjs';
 import { formatDate, getEmailSignature } from './email-utilities.mjs';
 import { DB_SELECT_USER, DB_SELECT_USER_BATCH_EMAIL_MAP } from '../2-database/queries/user-queries.mjs';
-import { getEnvironment } from '../10-utilities/utilities.mjs';
+import { getEnvironment } from '../10-utilities/env-utilities.mjs';
 import { DATABASE_TABLE } from '../2-database/database-types.mjs';
 import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';

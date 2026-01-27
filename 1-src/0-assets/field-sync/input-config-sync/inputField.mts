@@ -15,6 +15,7 @@ export enum ENVIRONMENT_TYPE {
 }
 
 export const SUPPORTED_IMAGE_EXTENSION_LIST = ['png', 'jpg', 'jpeg'];  //Sync with AWS settings
+export const SENSITIVE_KEYWORDS = ['jwt', 'token', 'auth', 'password', 'pin', 'key', 'secret', 'verification', 'email', 'phone'];
 
 export enum DeviceOSEnum {
     IOS = 'IOS',
