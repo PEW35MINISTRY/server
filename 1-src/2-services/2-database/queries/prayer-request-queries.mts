@@ -130,6 +130,18 @@ export const DB_UPDATE_INCREMENT_PRAYER_COUNT = async(prayerRequestID:number, us
     return !!userResponse && (userResponse.affectedRows === 1 || userResponse.affectedRows === 2);
 }
 
+export const DB_SELECT_USER_LIKED_PRAYER_REQUEST_LIST = async (prayerRequestID:number):Promise<ProfileListItem[]> => {
+    const rows = await execute(
+        'SELECT user.userID, user.firstName, user.displayName, user.image '
+        + 'FROM prayer_request_user_like '
+        + 'LEFT JOIN user ON user.userID = prayer_request_user_like.userID '
+        + 'WHERE prayer_request_user_like.prayerRequestID = ? '
+        + 'ORDER BY prayer_request_user_like.prayerCount DESC;',
+        [prayerRequestID]);
+
+    return rows.map(row => ({ userID: row.userID, firstName: row.firstName, displayName: row.displayName, image: row.image }));
+}
+
 export const DB_UPDATE_RESOLVE_PRAYER_REQUEST = async(prayerRequestID:number):Promise<boolean> => {
 
     const response:CommandResponseType = await command(`UPDATE prayer_request SET isResolved = true WHERE prayerRequestID = ?;`, [prayerRequestID]); 
@@ -184,19 +196,36 @@ export const DB_DELETE_ALL_USER_PRAYER_REQUEST = async(userID:number):Promise<bo
 
 //List for user including circle members, and leader; of all prayer requests where they are the intended recipient
 export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOwned:boolean = false, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
-    const rows = await execute('SELECT DISTINCT prayer_request.*, '
-    + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
-    + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
-    + 'FROM prayer_request '
-    + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
-    + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
-    + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-    + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = '${DATABASE_CIRCLE_STATUS_ENUM.MEMBER}') `
-    + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
-    + `WHERE ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ${includeOwned ? 'OR prayer_request.requestorID = ? ' : ''} ) `
-    + (includeOwned ? '' : 'AND prayer_request.requestorID != ? ')
-    + 'AND prayer_request.isResolved = FALSE '
-    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID, userID]);
+    const rows = await execute('SELECT prayer_request.*, '
+        + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCount, '
+        + 'COALESCE(prayer_request_user_like.prayerCount, 0) AS prayerCountRecipient, '
+        + 'user.firstName AS requestorFirstName, user.displayName AS requestorDisplayName, user.image AS requestorImage '
+        + 'FROM prayer_request '
+        + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID '
+        + 'LEFT JOIN prayer_request_user_like ON prayer_request_user_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_user_like.userID = ? '
+        + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
+        + 'WHERE prayer_request.isResolved = FALSE ' //Active Requests Only
+        + (includeOwned ? '' : 'AND prayer_request.requestorID != ? ')
+        + 'AND ( '
+            //Owned by User
+            + (includeOwned ? 'prayer_request.requestorID = ? OR ' : '')
+            //User Direct Recipient
+            + 'EXISTS ( '
+                + 'SELECT 1 FROM prayer_request_recipient '
+                + 'WHERE prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
+                + 'AND prayer_request_recipient.userID = ? '
+            + ') '
+            //Circle Member Recipient
+            + 'OR EXISTS ( '
+                + 'SELECT 1 FROM prayer_request_recipient '
+                + 'INNER JOIN circle_user '
+                + 'ON circle_user.circleID = prayer_request_recipient.circleID '
+                + `AND circle_user.status = '${DATABASE_CIRCLE_STATUS_ENUM.MEMBER}' `
+                + 'WHERE prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
+                + 'AND circle_user.userID = ? '
+            + ') '
+        + ') '
+        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]);
 
     if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_USER_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for user:`, userID);
  
@@ -205,16 +234,23 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOw
 
 //List for circle of all prayer requests where they are the intended recipient
 export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, recipientID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
-    const rows = await execute('SELECT DISTINCT prayer_request.*, '
-    + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
-    + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
-    + 'FROM prayer_request '
-    + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
-    + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
-    + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-    + 'WHERE prayer_request_recipient.circleID = ? '
-    + 'AND prayer_request.isResolved = FALSE '
-    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [recipientID, circleID]); 
+    const rows = await execute('SELECT prayer_request.*, '
+        + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCount, '
+        + 'COALESCE(prayer_request_user_like.prayerCount, 0) AS prayerCountRecipient, '
+        + 'user.firstName AS requestorFirstName, user.displayName AS requestorDisplayName, user.image AS requestorImage '
+        + 'FROM prayer_request_recipient '
+        + 'INNER JOIN prayer_request '
+        +     'ON prayer_request.prayerRequestID = prayer_request_recipient.prayerRequestID '
+        + 'LEFT JOIN prayer_request_like '
+        +     'ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID '
+        + 'LEFT JOIN prayer_request_user_like '
+        +     'ON prayer_request_user_like.prayerRequestID = prayer_request.prayerRequestID '
+        +     'AND prayer_request_user_like.userID = ? '
+        + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
+        + 'WHERE prayer_request_recipient.circleID = ? '
+        +     'AND prayer_request.isResolved = FALSE '
+        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`,
+        [recipientID, circleID]);
 
     if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for circle:`, circleID);
  
@@ -223,39 +259,39 @@ export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, recip
 
 //List of all prayer request created by user | optional filters: isResolved
 export const DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST = async(userID:number, isResolved?:boolean, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
-    const rows = (isResolved !== undefined)
-        ? await execute('SELECT prayer_request.*, '
-            + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
-            + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
-            + 'FROM prayer_request '
-            + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
-            + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-            + 'WHERE requestorID = ? AND isResolved = ? '
-            + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, isResolved])
-        
-        : await execute('SELECT prayer_request.*, '
-            + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
-            + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
-            + 'FROM prayer_request '
-            + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
-            + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-            + 'WHERE requestorID = ? '
-            + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID]); 
+    const rows = await execute('SELECT prayer_request.*, '
+        + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCount, '
+        + 'COALESCE(prayer_request_user_like.prayerCount, 0) AS prayerCountRecipient, '
+        + 'user.firstName AS requestorFirstName, user.displayName AS requestorDisplayName, user.image AS requestorImage '
+        + 'FROM prayer_request '
+        + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID '
+        + 'LEFT JOIN prayer_request_user_like '
+        +     'ON prayer_request_user_like.prayerRequestID = prayer_request.prayerRequestID '
+        +     'AND prayer_request_user_like.userID = ? '
+        + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
+        + 'WHERE prayer_request.requestorID = ? '
+        + ((isResolved !== undefined) ? 'AND prayer_request.isResolved = ? ' : '')
+        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, 
+    [userID, userID, ...((isResolved !== undefined) ? [isResolved] : [])]); 
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
 
 export const DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST = async(userID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
     const rows = await execute('SELECT prayer_request.*, '
-        + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
-        + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
+        + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCount, '
+        + 'COALESCE(prayer_request_user_like.prayerCount, 0) AS prayerCountRecipient, '
+        + 'user.firstName AS requestorFirstName, user.displayName AS requestorDisplayName, user.image AS requestorImage '
         + 'FROM prayer_request '
-        + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
-        + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-        + 'WHERE requestorID = ? '
-        + 'AND isOnGoing = 1 '
-        + 'AND isResolved = 0 '
-        + 'AND expirationDate < CURRENT_DATE() '
+        + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID '
+        + 'LEFT JOIN prayer_request_user_like '
+        +     'ON prayer_request_user_like.prayerRequestID = prayer_request.prayerRequestID '
+        +     'AND prayer_request_user_like.userID = ? '
+        + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
+        + 'WHERE prayer_request.requestorID = ? '
+        +     'AND prayer_request.isOnGoing = 1 '
+        +     'AND prayer_request.isResolved = 0 '
+        +     'AND prayer_request.expirationDate < CURRENT_DATE() '
         + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID]);
 
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
