@@ -46,10 +46,11 @@ export const DB_SELECT_PRAYER_REQUEST = async(prayerRequestID:number):Promise<PR
 //Includes: prayer_request, requestorProfile, commentList, userRecipientList, circleRecipientList
 export const DB_SELECT_PRAYER_REQUEST_DETAIL = async(prayerRequestID:number, recipientID:number, includeRecipientList:boolean = false):Promise<PRAYER_REQUEST> => {
     const rows = await execute('SELECT prayer_request.*, '
-    + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
+    + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCount, '
     + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
     + 'FROM prayer_request '
-    + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
+    + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID '
+    + 'LEFT JOIN prayer_request_user_like ON prayer_request_user_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_user_like.userID = ? '
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
     + 'WHERE prayer_request.prayerRequestID = ?;', [recipientID, prayerRequestID]); 
 
@@ -58,9 +59,10 @@ export const DB_SELECT_PRAYER_REQUEST_DETAIL = async(prayerRequestID:number, rec
         return new PRAYER_REQUEST(undefined);
     }
     
-    const prayerRequest = PRAYER_REQUEST.constructByDatabase(rows[0] as DATABASE_PRAYER_REQUEST); 
+    const prayerRequest = PRAYER_REQUEST.constructByDatabase(rows[0] as DATABASE_PRAYER_REQUEST_EXTENDED); 
     prayerRequest.requestorProfile = {userID: rows[0].requestorID, firstName: rows[0].requestorFirstName, displayName: rows[0].requestorDisplayName, image: rows[0].requestorImage};
     prayerRequest.commentList = await DB_SELECT_PRAYER_REQUEST_COMMENT_LIST(prayerRequestID, recipientID);
+    prayerRequest.userLikedList = await DB_SELECT_USER_LIKED_PRAYER_REQUEST_LIST(prayerRequestID);
 
     if(includeRecipientList) {
         prayerRequest.userRecipientList = await DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST(prayerRequestID);
@@ -110,17 +112,17 @@ export const DB_UPDATE_PRAYER_REQUEST = async(prayerRequestID:number, fieldMap:M
 export const DB_UPDATE_INCREMENT_PRAYER_COUNT = async(prayerRequestID:number, userID:number):Promise<boolean> => {
 
     const totalResponse:CommandResponseType = await command(
-        'UPDATE prayer_request '
-        + 'SET prayer_request.prayerCount = prayer_request.prayerCount + 1 '
-        + 'WHERE prayer_request.prayerRequestID = ?;',
+        'INSERT INTO prayer_request_like (prayerRequestID, prayerCount) '
+        + 'VALUES (?, 1) '
+        + 'ON DUPLICATE KEY UPDATE prayerCount = prayerCount + 1;',
         [prayerRequestID]);
 
-    if(!totalResponse || totalResponse.affectedRows !== 1)
+    if(!totalResponse || (totalResponse.affectedRows !== 1 && totalResponse.affectedRows !== 2))
         return false;
 
     //Track multiple prayerCount per user
     const userResponse:CommandResponseType = await command(
-        'INSERT INTO prayer_request_like (prayerRequestID, userID, prayerCount) '
+        'INSERT INTO prayer_request_user_like (prayerRequestID, userID, prayerCount) '
         + 'VALUES (?, ?, 1) '
         + 'ON DUPLICATE KEY UPDATE prayerCount = prayerCount + 1;',
         [prayerRequestID, userID]);

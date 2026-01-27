@@ -35,6 +35,7 @@ export enum DATABASE_TABLE {
 
     PRAYER_REQUEST = 'prayer_request',
     PRAYER_REQUEST_COMMENT = 'prayer_request_comment',
+    PRAYER_REQUEST_LIKE = 'prayer_request_like',
 
     CONTENT = 'content',
 
@@ -57,6 +58,7 @@ export const TABLES_SUPPORTING_DT: Map<DATABASE_TABLE, Array<'createdDT' | 'modi
 
     [DATABASE_TABLE.PRAYER_REQUEST, ['createdDT', 'modifiedDT']],
     [DATABASE_TABLE.PRAYER_REQUEST_COMMENT, ['createdDT']],
+    [DATABASE_TABLE.PRAYER_REQUEST_LIKE, ['modifiedDT']],
 
     [DATABASE_TABLE.CONTENT, ['createdDT', 'modifiedDT']],
 
@@ -207,7 +209,7 @@ export type DATABASE_CIRCLE_ANNOUNCEMENT = {
 export const PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED:string[] = [ 'requestorID', 'topic', 'description', 'expirationDate' ];
 
 export const PRAYER_REQUEST_TABLE_COLUMNS_EDIT:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED,
-    'prayerCount', 'isOnGoing', 'isResolved', 'tagListStringified'
+    'isOnGoing', 'isResolved', 'tagListStringified'
 ];
 
 export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_EDIT,
@@ -223,7 +225,6 @@ export interface DATABASE_PRAYER_REQUEST {
     isResolved: boolean,
     tagListStringified?: string,
     expirationDate: Date,
-    prayerCount: number,
     createdDT: Date,
     modifiedDT: Date
 };
@@ -232,17 +233,18 @@ export interface DATABASE_PRAYER_REQUEST {
 //prayer_request joint table parsed in PRAYER_REQUEST.constructByDatabase
 export const PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS,
     //Expects ('requestorDisplayName', 'requestorFirstName', 'requestorImage'), //Assembled into requestorProfile
-    'prayerCountRecipient', 'createdDT', 'modifiedDT'
+    'prayerCount', 'prayerCountRecipient',
 ];
 
 export interface DATABASE_PRAYER_REQUEST_EXTENDED extends DATABASE_PRAYER_REQUEST {
     //requestorProfile:ProfileListItem
-    requestorFirstName?:string;
-    requestorDisplayName?:string;
-    requestorImage?:string;
+    requestorFirstName?:string,
+    requestorDisplayName?:string,
+    requestorImage?:string,
 
     //Joint Table Queries
-    prayerCountRecipient?:number;
+    prayerCount: number,
+    prayerCountRecipient?:number,
 }
 
 

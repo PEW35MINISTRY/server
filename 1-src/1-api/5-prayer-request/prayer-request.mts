@@ -28,8 +28,9 @@ export const GET_PrayerRequestCircleList = async (request: JwtCircleRequest, res
 };
 
 //List of prayer requests for which user is a recipient
-export const GET_PrayerRequestRecipientList = async (request: JwtRequest, response: Response) => {
-    response.status(200).send(await DB_SELECT_PRAYER_REQUEST_USER_LIST(request.jwtUserID, false));
+export const GET_PrayerRequestRecipientList = async (request: JwtClientRequest, response: Response) => {
+    const userID = request.clientID || request.jwtUserID; 
+    response.status(200).send(await DB_SELECT_PRAYER_REQUEST_USER_LIST(userID, false));
 };
 
 //List of prayer requests for which the user or client is the requestor

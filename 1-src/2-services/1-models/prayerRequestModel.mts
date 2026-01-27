@@ -5,7 +5,7 @@ import InputField from '../../0-assets/field-sync/input-config-sync/inputField.m
 import { PrayerRequestTagEnum } from '../../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
-import { DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_EDIT } from '../2-database/database-types.mjs';
+import { DATABASE_PRAYER_REQUEST, DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_EDIT } from '../2-database/database-types.mjs';
 import * as log from '../10-utilities/logging/log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 
@@ -15,7 +15,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     //Static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = ['requestorID', 'topic', 'description']; //exclude: prayerRequestID, complex types, and lists
-    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'prayerCount', 'prayerCountRecipient', 'createdDT', 'modifiedDT', 'requestorProfile', 'commentList', 'userRecipientList', 'circleRecipientList' ];
+    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'createdDT', 'modifiedDT', 'prayerCount', 'prayerCountRecipient', 'requestorProfile', 'commentList', 'userLikedList', 'userRecipientList', 'circleRecipientList' ];
 
     prayerRequestID: number = -1;
     requestorID: number;
@@ -25,18 +25,19 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     isResolved: boolean;
     tagList: PrayerRequestTagEnum[] = [];
     expirationDate: Date;
-    prayerCount:number = 0;
 
     //Database - Read Only
     createdDT:Date;
     modifiedDT:Date;
 
     //Query separate Tables
+    prayerCount:number = 0;
     prayerCountRecipient: number = 0;
     requestorProfile?: ProfileListItem;
     userRecipientList: ProfileListItem[] = [];
     circleRecipientList: CircleListItem[] = [];
     commentList: PrayerRequestCommentListItem[] = [];
+    userLikedList: ProfileListItem[] = [];
 
     //Temporary for JSON Patch Request
     addUserRecipientIDList: number[];
@@ -83,12 +84,13 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     /**********************************
     * ADDITIONAL STATIC CONSTRUCTORS *
     **********************************/
-    static constructByDatabase = (DB:DATABASE_PRAYER_REQUEST_EXTENDED):PRAYER_REQUEST => 
+    static constructByDatabase = (DB:DATABASE_PRAYER_REQUEST|DATABASE_PRAYER_REQUEST_EXTENDED):PRAYER_REQUEST => 
        BASE_MODEL.constructByDatabaseUtility<PRAYER_REQUEST>({DB, newModel:new PRAYER_REQUEST(DB.prayerRequestID || -1), defaultModel:new PRAYER_REQUEST(), columnList:PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS,
         complexColumnMap: new Map([
             ['tagListStringified', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => {newPrayerRequest.tagList = PRAYER_REQUEST.prayerRequestParseTags(DB.tagListStringified)}],
             
             //Joint Tables included in Extended Query
+            ['prayerCount', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => (newPrayerRequest.prayerCount = DB.prayerCount ?? 0)],
             ['prayerCountRecipient', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => (newPrayerRequest.prayerCountRecipient = DB.prayerCountRecipient ?? 0)],
             ['requestorID', (DB:DATABASE_PRAYER_REQUEST_EXTENDED, newPrayerRequest:PRAYER_REQUEST) => {
                 newPrayerRequest.requestorID = DB.requestorID;

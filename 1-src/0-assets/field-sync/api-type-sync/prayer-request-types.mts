@@ -49,6 +49,7 @@ export interface PrayerRequestResponseBody {
     modifiedDT: string,
 
     commentList?: PrayerRequestCommentListItem[],
+    userLikedList?: ProfileListItem[],
     userRecipientList?: ProfileListItem[],
     circleRecipientList?: CircleListItem[],
 }
