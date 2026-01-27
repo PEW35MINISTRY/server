@@ -44,12 +44,14 @@ export const DB_SELECT_PRAYER_REQUEST = async(prayerRequestID:number):Promise<PR
 }
 
 //Includes: prayer_request, requestorProfile, commentList, userRecipientList, circleRecipientList
-export const DB_SELECT_PRAYER_REQUEST_DETAIL = async(prayerRequestID:number, includeRecipientList:boolean = false):Promise<PRAYER_REQUEST> => {
+export const DB_SELECT_PRAYER_REQUEST_DETAIL = async(prayerRequestID:number, recipientID:number, includeRecipientList:boolean = false):Promise<PRAYER_REQUEST> => {
     const rows = await execute('SELECT prayer_request.*, '
+    + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
     + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
     + 'FROM prayer_request '
+    + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-    + 'WHERE prayer_request.prayerRequestID = ?;', [prayerRequestID]); 
+    + 'WHERE prayer_request.prayerRequestID = ?;', [recipientID, prayerRequestID]); 
 
     if(rows.length !== 1) {
         log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} PRAYER REQUESTS  IDENTIFIED BY ID`, prayerRequestID, JSON.stringify(rows));
@@ -58,7 +60,7 @@ export const DB_SELECT_PRAYER_REQUEST_DETAIL = async(prayerRequestID:number, inc
     
     const prayerRequest = PRAYER_REQUEST.constructByDatabase(rows[0] as DATABASE_PRAYER_REQUEST); 
     prayerRequest.requestorProfile = {userID: rows[0].requestorID, firstName: rows[0].requestorFirstName, displayName: rows[0].requestorDisplayName, image: rows[0].requestorImage};
-    prayerRequest.commentList = await DB_SELECT_PRAYER_REQUEST_COMMENT_LIST(prayerRequestID);
+    prayerRequest.commentList = await DB_SELECT_PRAYER_REQUEST_COMMENT_LIST(prayerRequestID, recipientID);
 
     if(includeRecipientList) {
         prayerRequest.userRecipientList = await DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST(prayerRequestID);
@@ -90,27 +92,6 @@ export const DB_INSERT_PRAYER_REQUEST = async(fieldMap:Map<string, any>):Promise
     return {success:((response !== undefined) && (response.affectedRows === 1)), prayerRequestID:response?.insertId || -1};
 }
 
-//Dual operation for POST_prayerRequest; b/c can't add recipients without prayerRequestID
-export const DB_INSERT_AND_SELECT_PRAYER_REQUEST = async(fieldMap:Map<string, any>):Promise<PRAYER_REQUEST> => {
-    //First: Insert New prayer_request model
-    if((await DB_INSERT_PRAYER_REQUEST(fieldMap)).success === false)
-        return new PRAYER_REQUEST(undefined);
-
-    const rows = await execute('SELECT prayer_request.*, ' 
-    + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
-    + 'FROM prayer_request '
-    + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-    +`WHERE prayer_request.requestorID = ? ORDER BY createdDT DESC LIMIT 1;`, [fieldMap.get('requestorID')]); 
-
-    if(rows.length !== 1) {
-        log.db(`DB_INSERT_AND_SELECT_PRAYER_REQUEST : Failed to identify recently created prayer request`, JSON.stringify(fieldMap.entries()), JSON.stringify(rows));
-        return new PRAYER_REQUEST(undefined);
-    }
-
-    const prayerRequest = PRAYER_REQUEST.constructByDatabase(rows[0] as DATABASE_PRAYER_REQUEST); 
-    prayerRequest.requestorProfile = {userID: rows[0].requestorID, firstName: rows[0].requestorFirstName, displayName: rows[0].requestorDisplayName, image: rows[0].requestorImage};
-    return prayerRequest; 
-}
 
 export const DB_UPDATE_PRAYER_REQUEST = async(prayerRequestID:number, fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
@@ -126,11 +107,25 @@ export const DB_UPDATE_PRAYER_REQUEST = async(prayerRequestID:number, fieldMap:M
     return ((response !== undefined) && (response.affectedRows === 1));
 }
 
-export const DB_UPDATE_INCREMENT_PRAYER_COUNT = async(prayerRequestID:number):Promise<boolean> => {
+export const DB_UPDATE_INCREMENT_PRAYER_COUNT = async(prayerRequestID:number, userID:number):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`UPDATE prayer_request SET prayerCount = (prayerCount + 1) WHERE prayerRequestID = ?;`, [prayerRequestID]); 
+    const totalResponse:CommandResponseType = await command(
+        'UPDATE prayer_request '
+        + 'SET prayer_request.prayerCount = prayer_request.prayerCount + 1 '
+        + 'WHERE prayer_request.prayerRequestID = ?;',
+        [prayerRequestID]);
 
-    return ((response !== undefined) && (response.affectedRows === 1));
+    if(!totalResponse || totalResponse.affectedRows !== 1)
+        return false;
+
+    //Track multiple prayerCount per user
+    const userResponse:CommandResponseType = await command(
+        'INSERT INTO prayer_request_like (prayerRequestID, userID, prayerCount) '
+        + 'VALUES (?, ?, 1) '
+        + 'ON DUPLICATE KEY UPDATE prayerCount = prayerCount + 1;',
+        [prayerRequestID, userID]);
+
+    return !!userResponse && (userResponse.affectedRows === 1 || userResponse.affectedRows === 2);
 }
 
 export const DB_UPDATE_RESOLVE_PRAYER_REQUEST = async(prayerRequestID:number):Promise<boolean> => {
@@ -186,32 +181,38 @@ export const DB_DELETE_ALL_USER_PRAYER_REQUEST = async(userID:number):Promise<bo
  ******************************************/
 
 //List for user including circle members, and leader; of all prayer requests where they are the intended recipient
-export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
-    const rows = await execute('SELECT DISTINCT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
+export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOwned:boolean = false, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
+    const rows = await execute('SELECT DISTINCT prayer_request.*, '
+    + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
     + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
     + 'FROM prayer_request '
     + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
+    + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
-    + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = 'MEMBER') `
+    + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = '${DATABASE_CIRCLE_STATUS_ENUM.MEMBER}') `
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
-    + 'WHERE prayer_request.requestorID != ? '
-    + 'AND ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ) '
-    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]); 
- 
+    + `WHERE ( prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? ${includeOwned ? 'OR prayer_request.requestorID = ? ' : ''} ) `
+    + (includeOwned ? '' : 'AND prayer_request.requestorID != ? ')
+    + 'AND prayer_request.isResolved = FALSE '
+    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID, userID]);
+
     if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_USER_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for user:`, userID);
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
 
 //List for circle of all prayer requests where they are the intended recipient
-export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
-    const rows = await execute('SELECT DISTINCT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
+export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, recipientID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
+    const rows = await execute('SELECT DISTINCT prayer_request.*, '
+    + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
     + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
     + 'FROM prayer_request '
     + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
+    + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
     + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
     + 'WHERE prayer_request_recipient.circleID = ? '
-    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [circleID]); 
+    + 'AND prayer_request.isResolved = FALSE '
+    + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [recipientID, circleID]); 
 
     if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for circle:`, circleID);
  
@@ -221,33 +222,39 @@ export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, limit
 //List of all prayer request created by user | optional filters: isResolved
 export const DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST = async(userID:number, isResolved?:boolean, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
     const rows = (isResolved !== undefined)
-        ? await execute('SELECT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
+        ? await execute('SELECT prayer_request.*, '
+            + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
             + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
             + 'FROM prayer_request '
+            + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
             + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
             + 'WHERE requestorID = ? AND isResolved = ? '
-            + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, isResolved])
+            + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, isResolved])
         
-        : await execute('SELECT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
+        : await execute('SELECT prayer_request.*, '
+            + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
             + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
             + 'FROM prayer_request '
+            + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
             + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
             + 'WHERE requestorID = ? '
-            + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID]); 
+            + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID]); 
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
 
 export const DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST = async(userID:number, limit:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {
-    const rows = await execute('SELECT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
+    const rows = await execute('SELECT prayer_request.*, '
+        + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCountRecipient, '
         + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
         + 'FROM prayer_request '
+        + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_like.userID = ? '
         + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
         + 'WHERE requestorID = ? '
         + 'AND isOnGoing = 1 '
         + 'AND isResolved = 0 '
         + 'AND expirationDate < CURRENT_DATE() '
-        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID]);
+        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID]);
 
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
@@ -395,31 +402,43 @@ export const DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequestID, 
 /*************************************
  *  PRAYER REQUEST COMMENT QUERIES
  *************************************/
-export const DB_SELECT_PRAYER_REQUEST_COMMENT_LIST = async(prayerRequestID:number):Promise<PrayerRequestCommentListItem[]> => {
+export const DB_SELECT_PRAYER_REQUEST_COMMENT_LIST = async(prayerRequestID:number, recipientID:number):Promise<PrayerRequestCommentListItem[]> => {
     const rows = await execute('SELECT prayer_request_comment.*, '
-    + 'user.firstName as commenterFirstName, user.displayName as commenterDisplayName, user.image as commenterImage '
-    + 'FROM prayer_request_comment '
-    + 'LEFT JOIN user ON user.userID = prayer_request_comment.commenterID '
-    + 'WHERE prayerRequestID = ? '
-    + 'ORDER BY createdDT DESC;', [prayerRequestID]); 
+        + 'user.firstName as commenterFirstName, user.displayName as commenterDisplayName, user.image as commenterImage, '
+        + 'EXISTS ( '
+            + '  SELECT 1 '
+            + '  FROM prayer_request_comment_like '
+            + '  WHERE prayer_request_comment_like.commentID = prayer_request_comment.commentID '
+            + '  AND prayer_request_comment_like.userID = ? '
+            + ') AS isLikedByRecipient '
+        + 'FROM prayer_request_comment '
+        + 'LEFT JOIN user ON user.userID = prayer_request_comment.commenterID '
+        + 'WHERE prayerRequestID = ? '
+        + 'ORDER BY createdDT DESC;', [recipientID, prayerRequestID]); 
  
     return PRAYER_REQUEST.constructByDatabaseCommentList(rows as DATABASE_PRAYER_REQUEST_COMMENT[]);
 }
 
-//Used to identify commentID
-export const DB_SELECT_PRAYER_REQUEST_COMMENT = async({prayerRequestID, commenterID, message}:{prayerRequestID:number, commenterID:number, message:string}):Promise<PrayerRequestCommentListItem|undefined> => {
+
+export const DB_SELECT_PRAYER_REQUEST_COMMENT = async(commentID:number, recipientID:number):Promise<PrayerRequestCommentListItem|undefined> => {
     const rows = await execute('SELECT prayer_request_comment.*, '
-    + 'user.firstName as commenterFirstName, user.displayName as commenterDisplayName, user.image as commenterImage '
-    + 'FROM prayer_request_comment '
-    + 'LEFT JOIN user ON user.userID = prayer_request_comment.commenterID '
-    + 'WHERE prayerRequestID = ? AND prayer_request_comment.commenterID = ? AND prayer_request_comment.message = ?;',
-      [prayerRequestID, commenterID, message]); 
+        + 'user.firstName as commenterFirstName, user.displayName as commenterDisplayName, user.image as commenterImage, '
+        + 'EXISTS ( '
+            + '  SELECT 1 '
+            + '  FROM prayer_request_comment_like '
+            + '  WHERE prayer_request_comment_like.commentID = prayer_request_comment.commentID '
+            + '  AND prayer_request_comment_like.userID = ? '
+            + ') AS isLikedByRecipient '
+        + 'FROM prayer_request_comment '
+        + 'LEFT JOIN user ON user.userID = prayer_request_comment.commenterID '
+        + 'WHERE commentID = ?;',
+    [recipientID, commentID]); 
 
     if(rows.length === 1) 
        return PRAYER_REQUEST.constructByDatabaseCommentList(rows as DATABASE_PRAYER_REQUEST_COMMENT[])[0];
 
     else {
-        log.warn(`DB_SELECT_PRAYER_REQUEST_COMMENT ${rows.length ? 'MULTIPLE' : 'NONE'} COMMENTS IDENTIFIED`, prayerRequestID, commenterID, message, JSON.stringify(rows));
+        log.warn(`DB_SELECT_PRAYER_REQUEST_COMMENT ${rows.length ? 'MULTIPLE' : 'NONE'} COMMENTS IDENTIFIED`, commentID, JSON.stringify(rows));
         return undefined;
     }
 }
@@ -430,12 +449,38 @@ export const DB_INSERT_PRAYER_REQUEST_COMMENT = async({prayerRequestID, commente
     return {success:((response !== undefined) && (response.affectedRows === 1)), commentID:response?.insertId || -1};
 }
 
-export const DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT = async(commentID:number, increment:number = 1):Promise<boolean> => {
+export const DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT = async(commentID:number, userID:number):Promise<boolean> => {
 
-    const response:CommandResponseType = await command(`UPDATE prayer_request_comment SET likeCount = (likeCount + ?) WHERE commentID = ?;`, [increment, commentID]); 
+    const totalResponse:CommandResponseType = await command(
+        'UPDATE prayer_request_comment '
+        + 'SET prayer_request_comment.likeCount = prayer_request_comment.likeCount + 1 '
+        + 'WHERE prayer_request_comment.commentID = ?;',
+        [commentID]);
 
-    return ((response !== undefined) && (response.affectedRows === 1));
+    if(!totalResponse || totalResponse.affectedRows !== 1)
+        return false;
+
+    const userResponse:CommandResponseType = await command(
+        'INSERT INTO prayer_request_comment_like (commentID, userID) '
+        + 'VALUES (?, ?) '
+        + 'ON DUPLICATE KEY UPDATE userID = userID;',
+        [commentID, userID]);
+
+    return !!userResponse && (userResponse.affectedRows === 1);
 }
+
+//Unlike a comment; currently not decrementing prayer_request_comment.likeCount for efficiency
+export const DB_DELETE_PRAYER_REQUEST_COMMENT_LIKE = async(commentID:number, userID:number):Promise<boolean> => {
+
+  const response: CommandResponseType = await command(
+        'DELETE FROM prayer_request_comment_like '
+        + 'WHERE prayer_request_comment_like.commentID = ? '
+        + 'AND prayer_request_comment_like.userID = ?;',
+        [commentID, userID]);
+
+  return (response !== undefined) && (response.affectedRows === 1);
+};
+
 
 //Delete comment individually or all connections by prayerRequestID
 export const DB_DELETE_PRAYER_REQUEST_COMMENT = async({commentID, prayerRequestID}:{commentID?:number, prayerRequestID:number}):Promise<boolean> => {
@@ -452,7 +497,7 @@ export const DB_DELETE_PRAYER_REQUEST_COMMENT = async({commentID, prayerRequestI
  * MOCK USER UTILITY QUERIES *
  *****************************/
 export const DB_SELECT_PRAYER_REQUEST_LIST_BY_USER_SOURCE_ENVIRONMENT = async(sourceEnvironment:DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM = getModelSourceEnvironment(), limit:number = LIST_LIMIT, maxUserShares:number = LIST_LIMIT, maxCircleShares:number = LIST_LIMIT):Promise<PrayerRequestListItem[]> => {   
-    const rows = await execute('SELECT prayer_request.prayerRequestID, topic, prayerCount, tagListStringified, requestorID, '
+    const rows = await execute('SELECT prayer_request.*, '
         + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage, '
         + 'COUNT(DISTINCT prayer_request_recipient.userID) AS userCount, '
         + 'COUNT(DISTINCT prayer_request_recipient.circleID) AS circleCount '

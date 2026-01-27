@@ -232,7 +232,7 @@ export interface DATABASE_PRAYER_REQUEST {
 //prayer_request joint table parsed in PRAYER_REQUEST.constructByDatabase
 export const PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS,
     //Expects ('requestorDisplayName', 'requestorFirstName', 'requestorImage'), //Assembled into requestorProfile
-    'createdDT', 'modifiedDT'
+    'prayerCountRecipient', 'createdDT', 'modifiedDT'
 ];
 
 export interface DATABASE_PRAYER_REQUEST_EXTENDED extends DATABASE_PRAYER_REQUEST {
@@ -240,6 +240,9 @@ export interface DATABASE_PRAYER_REQUEST_EXTENDED extends DATABASE_PRAYER_REQUES
     requestorFirstName?:string;
     requestorDisplayName?:string;
     requestorImage?:string;
+
+    //Joint Table Queries
+    prayerCountRecipient?:number;
 }
 
 
@@ -265,6 +268,10 @@ export interface DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED extends DATABASE_PRAYE
     commenterFirstName?:string;
     commenterDisplayName?:string;
     commenterImage?:string;
+
+    //Joint Table Queries
+    likeCount?:number;
+    isLikedByRecipient?:boolean;
 }
 
 

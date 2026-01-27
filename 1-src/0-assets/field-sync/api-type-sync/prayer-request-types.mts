@@ -19,7 +19,8 @@ export interface PrayerRequestListItem {
     topic:string,
     description:string,
     tagList:PrayerRequestTagEnum[],
-    prayerCount: number,
+    prayerCountRecipient:number,
+    prayerCount:number,
     createdDT:string,
     modifiedDT:string
 }
@@ -30,6 +31,7 @@ export interface PrayerRequestCommentListItem {
     commenterProfile: ProfileListItem, 
     message: string,
     likeCount: number,
+    isLikedByRecipient: boolean,
     createdDT:string,
 }
 

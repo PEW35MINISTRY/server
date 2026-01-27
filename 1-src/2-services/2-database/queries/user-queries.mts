@@ -132,7 +132,7 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
     user.partnerPendingPartnerList = allPartnerList.filter(partner => (partner.status === PartnerStatusEnum.PENDING_CONTRACT_PARTNER));
 
     /* Prayer Requests */
-    user.newPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_USER_LIST(user.userID, 15); //recipient, dashboard preview
+    user.newPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_USER_LIST(user.userID, false, 15); //recipient, dashboard preview
     user.ownedPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST(user.userID, false, 15); //Not resolved (pending) for which user is the Requestor
     user.expiringPrayerRequestList = await DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST(user.userID, 5); // Owned prayer requests that are long term but past their set expiration date
     user.recommendedContentList = await DB_SELECT_USER_CONTENT_LIST(user.userID, 5);
