@@ -52,6 +52,9 @@ export const CIRCLE_FIELDS:InputField[] = [
 ];
 
 export const CIRCLE_FIELDS_ADMIN:InputField[] = [
+    new InputField({title: 'Circle ID', field: 'circleID', type: InputType.READ_ONLY }),
+    new InputField({title: 'Circle Created', field: 'createdDT', type: InputType.READ_ONLY }),
+    new InputField({title: 'Last Modified', field: 'modifiedDT', type: InputType.READ_ONLY }), 
     new InputField({title: 'Leader ID', field: 'leaderID', type: InputType.NUMBER,  required: true }),
     new InputSelectionField({title: 'Active Account', field: 'isActive', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     ...CIRCLE_FIELDS,
@@ -60,7 +63,7 @@ export const CIRCLE_FIELDS_ADMIN:InputField[] = [
 ];
 
 export const CIRCLE_ANNOUNCEMENT_FIELDS:InputField[] = [
-    new InputField({title: 'Announcement', field: 'message',  required: true, type: InputType.TEXT, length:{min: 1, max: 100} }),
+    new InputField({title: 'Announcement', field: 'message',  required: true, type: InputType.PARAGRAPH, length:{min: 1, max: 100} }),
     new InputField({title: 'Display Date', field: 'startDate', type: InputType.DATE, value: getDateDaysFuture(0).toISOString(), required: true, validationRegex: DATE_REGEX }),
     new InputField({title: 'Expiration Date', field: 'endDate', type: InputType.DATE, value: getDateDaysFuture(14).toISOString(), required: true, validationRegex: DATE_REGEX }),
 ];

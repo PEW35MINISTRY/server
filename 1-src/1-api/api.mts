@@ -10,6 +10,9 @@ import PRAYER_REQUEST from '../2-services/1-models/prayerRequestModel.mjs';
 import { getEnvironment } from '../2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { answerAndNotifyPrayerRequests } from '../3-lambda/prayer-request/prayer-request-expired-script.mjs';
+import { AdminStatsResponse } from '../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { DB_CALCULATE_TABLE_USAGE, DB_CALCULATE_USER_TABLE_STATS } from '../2-services/2-database/queries/queries.mjs';
+import { DATABASE_TABLE } from '../2-services/2-database/database-types.mjs';
 
 const router:Router = express.Router();
 
@@ -22,6 +25,20 @@ router.get('/', (request: Request, response: Response) => {
 
 export default router;
 
+
+/*******************
+ * ADMIN UTILITIES *
+ *******************/
+export const GET_AdminStatistics = async(request:JwtAdminRequest, response:Response, next:NextFunction) =>
+    response.status(200).json({
+        generatedDT: new Date().toISOString(),
+        environment: getEnvironment(),
+
+        databaseUsageMap: Object.fromEntries(await Promise.all(
+                Object.values(DATABASE_TABLE).map(async (table) => [table, await DB_CALCULATE_TABLE_USAGE(table)]))),
+
+        userStats: await DB_CALCULATE_USER_TABLE_STATS(),
+    } satisfies AdminStatsResponse);
 
 
 /******************

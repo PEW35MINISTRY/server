@@ -21,7 +21,7 @@ import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 import { EmailReportRequest } from './1-api/9-email/email-types.mjs';
 
 //Import Routes
-import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser, POST_PrayerRequestExpiredScript } from './1-api/api.mjs';
+import apiRoutes, {GET_AdminStatistics, GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser, POST_PrayerRequestExpiredScript } from './1-api/api.mjs';
 import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogPartitionBucket, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateCircleManagerMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware, authenticateLeaderMiddleware, authenticateDemoUserMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
@@ -389,6 +389,7 @@ apiServer.get('/api/admin/mock-user', GET_createMockUser); //Optional query: pop
 apiServer.use(express.text());
 apiServer.delete('/api/admin/flush-search-cache/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => DELETE_flushSearchCacheAdmin(undefined, request, response, next)); //(Handles authentication)
 
+apiServer.get('/api/admin/statistics', GET_AdminStatistics);
 apiServer.get('/api/admin/log', GET_LogEntryByS3Key);
 apiServer.delete('/api/admin/log', DELETE_LogEntryByS3Key);
 apiServer.delete('/api/admin/log/day', DELETE_LogEntryS3ByDay);
