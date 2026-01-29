@@ -35,7 +35,7 @@ export const GET_AdminStatistics = async(request:JwtAdminRequest, response:Respo
         environment: getEnvironment(),
 
         databaseUsageMap: Object.fromEntries(await Promise.all(
-                Object.values(DATABASE_TABLE).map(async (table) => [table, await DB_CALCULATE_TABLE_USAGE(table)]))),
+                Object.entries(DATABASE_TABLE).map(async ([name, table]) => [name, await DB_CALCULATE_TABLE_USAGE(table)]))),
 
         userStats: await DB_CALCULATE_USER_TABLE_STATS(),
     } satisfies AdminStatsResponse);
