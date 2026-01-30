@@ -47,6 +47,7 @@ export const DB_SELECT_PRAYER_REQUEST = async(prayerRequestID:number):Promise<PR
 export const DB_SELECT_PRAYER_REQUEST_DETAIL = async(prayerRequestID:number, recipientID:number, includeRecipientList:boolean = false):Promise<PRAYER_REQUEST> => {
     const rows = await execute('SELECT prayer_request.*, '
     + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCount, '
+    + 'COALESCE(prayer_request_user_like.prayerCount, 0) AS prayerCountRecipient, '
     + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
     + 'FROM prayer_request '
     + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID '
