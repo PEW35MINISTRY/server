@@ -26,18 +26,9 @@ export interface ContentListItem {
 }
 
 
-export interface ContentResponseBody {
-    contentID: number,
+export interface ContentResponseBody extends ContentListItem{
     recorderID: number,
     recorderProfile: ProfileListItem, 
-    type: ContentTypeEnum,
-    source: ContentSourceEnum,
-    url: string,
-    keywordList: string,
-    title?: string,
-    description?: string,
-    image?: string,
-    likeCount: number,
     gender: GenderSelectionEnum,
     minimumAge: number,
     maximumAge: number,
@@ -45,7 +36,6 @@ export interface ContentResponseBody {
     maximumWalkLevel: number,
     notes?: string,
     createdDT: string,
-    modifiedDT: string,
 }
 
 export interface ContentMetaDataRequestBody {

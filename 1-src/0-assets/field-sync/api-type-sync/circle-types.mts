@@ -15,6 +15,7 @@ import { ProfileListItem } from './profile-types.mjs'
 export interface CircleListItem {
     circleID: number,
     name: string,
+    description: string,
     image?: string,
     status?: CircleStatusEnum
 }
@@ -43,23 +44,21 @@ export interface CircleEventListItem {
     image?: string
 }
 
-export interface CircleResponse {
-    circleID: number, 
+export interface CircleResponse extends CircleListItem {
     leaderID: number,
     leaderProfile: ProfileListItem, 
-    name: string,
-    description: string, 
     postalCode: string,
     isActive: boolean,
+    createdDT: string,
+    modifiedDT: string,
+
+    requestorID: number,
+    requestorStatus: CircleStatusEnum
+
     memberList?: ProfileListItem[],
     eventList?: CircleEventListItem[],
     announcementList?: CircleAnnouncementListItem[],
     prayerRequestList?: PrayerRequestListItem[],
-    requestorID: number,
-    requestorStatus: CircleStatusEnum
-    image?: string,
-    createdDT: string,
-    modifiedDT: string,
 };
 
 export interface CircleLeaderResponse extends CircleResponse  {

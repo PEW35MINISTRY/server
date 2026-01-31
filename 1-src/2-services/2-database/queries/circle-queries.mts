@@ -91,7 +91,7 @@ export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(leaderID:number, circleName
 //Used as default circle Search; TODO replace with location based eventually
 export const DB_SELECT_LATEST_CIRCLES = async(limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
 
-    const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
+    const rows = await execute('SELECT circle.circleID, circle.name, circle.description, circle.image ' + 'FROM circle '
         + 'LEFT JOIN user on user.userID = circle.leaderID '
         + 'WHERE ( '
             + '        user.modelSourceEnvironment = ? '
@@ -108,7 +108,7 @@ export const DB_SELECT_LATEST_CIRCLES = async(limit:number = LIST_LIMIT):Promise
 
         [getModelSourceEnvironment(), getModelSourceEnvironment(), getModelSourceEnvironment(), getModelSourceEnvironment()]);
  
-    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', description:row.description || '', image: row.image || ''}))];
 }
 
 export const DB_SELECT_CIRCLE_IDS = async(fieldMap:Map<string, any>):Promise<number[]> => {
@@ -175,7 +175,7 @@ export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:strin
         return [];
     }
 
-    const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
+    const rows = await execute('SELECT circle.circleID, circle.name, circle.description, circle.image ' + 'FROM circle '
         + 'LEFT JOIN user on user.userID = circle.leaderID '
         + 'WHERE ( '
         + `        user.modelSourceEnvironment = '${getModelSourceEnvironment()}' `
@@ -195,7 +195,7 @@ export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:strin
         + `LIMIT ${limit};`,    
     [...Array(columnList.length).fill(`${searchTerm}`)]);
  
-    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', description:row.description || '', image: row.image || ''}))];
 }
 
 export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<CircleListItem[]|undefined> => {
@@ -336,7 +336,7 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
 
     //Leader included in MEMBER search
     : (status === DATABASE_CIRCLE_STATUS_ENUM.MEMBER) ?
-    await execute('SELECT DISTINCT circle.circleID, circle.leaderID, circle.name, circle.image, ( SELECT circle_user.status WHERE circle_user.userID = ? ) as status ' 
+    await execute('SELECT DISTINCT circle.circleID, circle.leaderID, circle.name, circle.description, circle.image, ( SELECT circle_user.status WHERE circle_user.userID = ? ) as status ' 
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
         + 'WHERE ( circle_user.userID = ? AND circle_user.status = ? ) '
@@ -351,7 +351,7 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
         + 'GROUP BY circle.circleID '
         + 'ORDER BY circle_user.modifiedDT DESC;', [userID, status]);
  
-    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || '', status: (row.leaderID === userID) ? CircleStatusEnum.LEADER : (row.status === undefined) ? undefined : CircleStatusEnum[row.status]}))];
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', description:row.description || '', image: row.image || '', status: (row.leaderID === userID) ? CircleStatusEnum.LEADER : (row.status === undefined) ? undefined : CircleStatusEnum[row.status]}))];
 }
 
 //Select list of leader IDs where 'user' is a member of their circle | (Circle manager has access to 'user' profile)
@@ -549,5 +549,5 @@ export const DB_SELECT_CIRCLE_LIST_BY_USER_SOURCE_ENVIRONMENT = async(sourceEnvi
         + `LIMIT ${limit};`,
     [sourceEnvironment, maxMembers, maxSharedPrayerRequest]); 
 
-    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', description:row.description || '', image: row.image || ''}))];
 }

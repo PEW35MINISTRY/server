@@ -226,7 +226,7 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOw
                 + 'AND circle_user.userID = ? '
             + ') '
         + ') '
-        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]);
+        + `ORDER BY prayer_request.modifiedDT DESC LIMIT ${limit};`, [userID, userID, userID, userID]);
 
     if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_USER_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for user:`, userID);
  
@@ -250,7 +250,7 @@ export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, recip
         + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
         + 'WHERE prayer_request_recipient.circleID = ? '
         +     'AND prayer_request.isResolved = FALSE '
-        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`,
+        + `ORDER BY prayer_request.modifiedDT DESC LIMIT ${limit};`,
         [recipientID, circleID]);
 
     if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for circle:`, circleID);
@@ -272,7 +272,7 @@ export const DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST = async(userID:number, isRe
         + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
         + 'WHERE prayer_request.requestorID = ? '
         + ((isResolved !== undefined) ? 'AND prayer_request.isResolved = ? ' : '')
-        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, 
+        + `ORDER BY prayer_request.modifiedDT DESC LIMIT ${limit};`, 
     [userID, userID, ...((isResolved !== undefined) ? [isResolved] : [])]); 
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
@@ -312,12 +312,12 @@ export const DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST = async(prayerRequestI
 }
 
 export const DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST = async(prayerRequestID:number):Promise<CircleListItem[]> => {
-    const rows = await execute('SELECT circle.circleID, circle.name, circle.image '
+    const rows = await execute('SELECT circle.circleID, circle.name, circle.description, circle.image '
     + 'FROM prayer_request_recipient '
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID  '
     + 'WHERE prayerRequestID = ? AND userID IS NULL;', [prayerRequestID]); 
  
-    return [...rows.map(row => ({circleID: row.circleID, name: row.name, image: row.image}))];
+    return [...rows.map(row => ({circleID: row.circleID, name: row.name, description:row.description, image: row.image}))];
 }
 
 export const DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED = async (isOngoing:number, limit:number, cursorIndex:number):Promise<ExpiredPrayerRequest[]> => {
