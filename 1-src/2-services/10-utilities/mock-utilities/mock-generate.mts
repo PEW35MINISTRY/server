@@ -124,7 +124,7 @@ export const createMockPrayerRequest = async(userID:number):Promise<PRAYER_REQUE
         }
     }
     /* Comment Likes */
-    request.commentList = await DB_SELECT_PRAYER_REQUEST_COMMENT_LIST(request.prayerRequestID);
+    request.commentList = await DB_SELECT_PRAYER_REQUEST_COMMENT_LIST(request.prayerRequestID, userID);
     for(const comment of request.commentList) {
         comment.likeCount = randomRange(150);
         await DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT(comment.commentID, comment.likeCount);

@@ -19,7 +19,8 @@ export interface PrayerRequestListItem {
     topic:string,
     description:string,
     tagList:PrayerRequestTagEnum[],
-    prayerCount: number,
+    prayerCountRecipient:number,
+    prayerCount:number,
     createdDT:string,
     modifiedDT:string
 }
@@ -30,6 +31,7 @@ export interface PrayerRequestCommentListItem {
     commenterProfile: ProfileListItem, 
     message: string,
     likeCount: number,
+    isLikedByRecipient: boolean,
     createdDT:string,
 }
 
@@ -38,7 +40,6 @@ export interface PrayerRequestResponseBody {
     requestorID: number,
     topic: string,
     description: string,
-    prayerCount: number,
     isOnGoing: boolean,
     isResolved: boolean,
     tagList: PrayerRequestTagEnum[],
@@ -46,7 +47,11 @@ export interface PrayerRequestResponseBody {
     createdDT: string,
     modifiedDT: string,
 
+    prayerCount: number,
+    prayerCountRecipient: number,
+
     commentList?: PrayerRequestCommentListItem[],
+    userLikedList?: ProfileListItem[],
     userRecipientList?: ProfileListItem[],
     circleRecipientList?: CircleListItem[],
 }
@@ -55,7 +60,6 @@ export interface PrayerRequestPostRequestBody {
     requestorID?: number, 
     topic: string,
     description: string,
-    prayerCount?: number,
     isOnGoing?: boolean,
     tagList?: string[],
     expirationDate: string,
