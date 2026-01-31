@@ -11,6 +11,14 @@ import InputField, { DATE_REGEX, InputSelectionField, InputType } from './inputF
 *****************************************/
 //Note: enums must have matching values to cast (string as Enum) or define (Enum[string]) equally
 
+export enum PrayerRequestSearchRefineEnum {
+    ALL = 'ALL',
+    ID = 'ID',
+    TITLE = 'TITLE',
+    DESCRIPTION = 'DESCRIPTION',
+    TAG = 'TAG'
+}
+
 //List doesn't sync with database; stored as list of strings stringified as `tagListStringified`
 export enum PrayerRequestTagEnum { 
     SELF = 'SELF',
