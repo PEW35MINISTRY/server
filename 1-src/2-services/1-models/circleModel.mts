@@ -99,7 +99,7 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
 
     toLeaderJSON = ():CircleLeaderResponse => Object.fromEntries(this.getValidProperties(CIRCLE.LEADER_PROPERTY_LIST)) as CircleLeaderResponse;
 
-    override toListItem = ():CircleListItem => ({circleID: this.circleID, name: this.name, image: this.image});
+    override toListItem = ():CircleListItem => ({circleID: this.circleID, name: this.name, description: this.description, image: this.image});
 
 
    /****************************************

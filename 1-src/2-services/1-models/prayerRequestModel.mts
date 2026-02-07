@@ -149,6 +149,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
         createdDT: this.createdDT ? this.createdDT.toISOString() : new Date().toISOString(),
         modifiedDT: this.modifiedDT ? this.modifiedDT.toISOString() : new Date().toISOString(),
 
+        requestorID: this.requestorID,
         requestorProfile: this.requestorProfile,
         prayerCountRecipient: this.prayerCountRecipient,
         prayerCount: this.prayerCount,

@@ -226,7 +226,7 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOw
                 + 'AND circle_user.userID = ? '
             + ') '
         + ') '
-        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, [userID, userID, userID, userID]);
+        + `ORDER BY prayer_request.modifiedDT DESC LIMIT ${limit};`, [userID, userID, userID, userID]);
 
     if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_USER_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for user:`, userID);
  
@@ -250,7 +250,7 @@ export const DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST = async(circleID:number, recip
         + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
         + 'WHERE prayer_request_recipient.circleID = ? '
         +     'AND prayer_request.isResolved = FALSE '
-        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`,
+        + `ORDER BY prayer_request.modifiedDT DESC LIMIT ${limit};`,
         [recipientID, circleID]);
 
     if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST: Reached limit of ${LIST_LIMIT} returned prayer requests for circle:`, circleID);
@@ -272,7 +272,7 @@ export const DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST = async(userID:number, isRe
         + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
         + 'WHERE prayer_request.requestorID = ? '
         + ((isResolved !== undefined) ? 'AND prayer_request.isResolved = ? ' : '')
-        + `ORDER BY prayer_request.modifiedDT ASC LIMIT ${limit};`, 
+        + `ORDER BY prayer_request.modifiedDT DESC LIMIT ${limit};`, 
     [userID, userID, ...((isResolved !== undefined) ? [isResolved] : [])]); 
  
     return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
@@ -312,12 +312,12 @@ export const DB_SELECT_USER_RECIPIENT_PRAYER_REQUEST_LIST = async(prayerRequestI
 }
 
 export const DB_SELECT_CIRCLE_RECIPIENT_PRAYER_REQUEST_LIST = async(prayerRequestID:number):Promise<CircleListItem[]> => {
-    const rows = await execute('SELECT circle.circleID, circle.name, circle.image '
+    const rows = await execute('SELECT circle.circleID, circle.name, circle.description, circle.image '
     + 'FROM prayer_request_recipient '
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID  '
     + 'WHERE prayerRequestID = ? AND userID IS NULL;', [prayerRequestID]); 
  
-    return [...rows.map(row => ({circleID: row.circleID, name: row.name, image: row.image}))];
+    return [...rows.map(row => ({circleID: row.circleID, name: row.name, description:row.description, image: row.image}))];
 }
 
 export const DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED = async (isOngoing:number, limit:number, cursorIndex:number):Promise<ExpiredPrayerRequest[]> => {
@@ -435,6 +435,62 @@ export const DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequestID, 
                                                     [prayerRequestID, ...userRecipientIDList, ...circleRecipientIDList]);
 
     return ((response !== undefined) && (response.affectedRows > 0));
+}
+
+
+/**********************************
+ *  PRAYER REQUEST SEARCH 
+ **********************************/
+export const DB_SELECT_PRAYER_REQUEST_SEARCH = async({searchTerm, columnList, recipientID, requestorID, limit = LIST_LIMIT}:{searchTerm:string, columnList:string[], recipientID?:number, requestorID?:number, limit?:number}):Promise<PrayerRequestListItem[]> => {
+    //Validate Columns prior to Query
+    const columnMap:Map<string, -1> = new Map<string, -1>(columnList.map(column => [column, -1]));
+    if(!validatePrayerRequestColumns(columnMap, false, false)) {
+        log.db('Query Rejected: DB_SELECT_PRAYER_REQUEST_SEARCH; invalid column names', JSON.stringify(Array.from(columnMap.keys())));
+        return [];
+    }
+
+    //Must search by recipientID or requestorID
+    if(recipientID === undefined && requestorID === undefined) {
+        log.db('Query Rejected: DB_SELECT_PRAYER_REQUEST_SEARCH; missing recipientID and requestorID', JSON.stringify({searchTerm, columnList}));
+        return [];
+    }
+
+    const likeRecipientID = recipientID ?? requestorID;  //Used for prayerCount stats
+
+    const rows = await execute('SELECT DISTINCT prayer_request.*, '
+        + 'COALESCE(prayer_request_like.prayerCount, 0) AS prayerCount, '
+        + 'COALESCE(prayer_request_user_like.prayerCount, 0) AS prayerCountRecipient, '
+        + 'user.firstName as requestorFirstName, user.displayName as requestorDisplayName, user.image as requestorImage '
+        + 'FROM prayer_request '
+        + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
+        + 'LEFT JOIN prayer_request_like ON prayer_request_like.prayerRequestID = prayer_request.prayerRequestID '
+        + 'LEFT JOIN prayer_request_user_like '
+        +     'ON prayer_request_user_like.prayerRequestID = prayer_request.prayerRequestID '
+        +     'AND prayer_request_user_like.userID = ? '
+        + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
+        + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = 'MEMBER') `
+        + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
+        + 'WHERE ( '
+        + columnList.map(column =>
+            column === 'tagListStringified'
+            ? `LOWER(prayer_request.tagListStringified) LIKE LOWER(CONCAT('%"', ?, '"%'))`
+            : `LOWER(prayer_request.${column}) LIKE LOWER(CONCAT("%", ?, "%"))`
+        ).join(' OR ')
+        + ' ) '
+        + `${(requestorID !== undefined) ? 'AND ( prayer_request.requestorID = ? ) ' : ''}`
+        + `${(recipientID !== undefined) ? 'AND ( prayer_request_recipient.userID = ? OR circle_user.userID = ? ) ' : ''}`
+        + 'ORDER BY prayer_request.modifiedDT ASC '
+        + `LIMIT ${limit};`,
+    [
+        likeRecipientID,
+        ...Array(columnList.length).fill(searchTerm),
+        ...(requestorID !== undefined ? [requestorID] : []),
+        ...(recipientID !== undefined ? [recipientID, recipientID] : [])
+    ]);
+
+    if(rows.length === LIST_LIMIT) log.warn(`DB_SELECT_PRAYER_REQUEST_SEARCH: Reached limit of ${LIST_LIMIT} returned prayer requests for recipientID:`, recipientID, ` and requestorID:`, requestorID);
+
+    return [...rows.map(row => PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem())];
 }
 
 

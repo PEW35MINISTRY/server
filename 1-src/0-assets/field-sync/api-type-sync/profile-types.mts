@@ -60,12 +60,9 @@ export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
     'newPrayerRequestList', 'ownedPrayerRequestList', 'expiringPrayerRequestList', 'recommendedContentList', 'contactList', 'profileAccessList'
 ];
 
-export interface ProfileResponse {
-    userID: number, 
+export interface ProfileResponse extends ProfileListItem {
     modelSourceEnvironment: ModelSourceEnvironmentEnum,
     userRole: RoleEnum,
-    displayName: string,
-    firstName: string,    
     lastName: string, 
     email:string,
     gender: GenderEnum,
@@ -75,7 +72,6 @@ export interface ProfileResponse {
     maxPartners: number,
     walkLevel: number,
     notes?: string,
-    image?: string,
     createdDT: string,
     modifiedDT: string,
 

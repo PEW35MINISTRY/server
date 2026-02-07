@@ -15,6 +15,7 @@ import { CircleListItem } from './circle-types.mjs'
 
 export interface PrayerRequestListItem {
     prayerRequestID:number,
+    requestorID: number,
     requestorProfile:ProfileListItem, 
     topic:string,
     description:string,
@@ -35,20 +36,10 @@ export interface PrayerRequestCommentListItem {
     createdDT:string,
 }
 
-export interface PrayerRequestResponseBody {
-    prayerRequestID: number,
-    requestorID: number,
-    topic: string,
-    description: string,
+export interface PrayerRequestResponseBody extends PrayerRequestListItem{
     isOnGoing: boolean,
     isResolved: boolean,
-    tagList: PrayerRequestTagEnum[],
     expirationDate: string,
-    createdDT: string,
-    modifiedDT: string,
-
-    prayerCount: number,
-    prayerCountRecipient: number,
 
     commentList?: PrayerRequestCommentListItem[],
     userLikedList?: ProfileListItem[],
