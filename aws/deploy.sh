@@ -119,7 +119,7 @@ Portal()
     echo "[5/6] PORTAL | Building Portal Production Code"
     npm run build
 
-    cp ./build/ ../server/portal/
+    cp -r ./build/ ../server/portal/
 
     echo "[6/6] PORTAL | Portal Build Complete"
 }
@@ -150,7 +150,7 @@ Website()
     echo "[5/6] WEBSITE | Building Website Production Code"
     npm run build
 
-    cp ./build/ ../server/website/
+    cp -r ./build/ ../server/website/
 
     echo "[6/6] WEBSITE | Website Build Complete"
 }

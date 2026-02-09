@@ -5,7 +5,7 @@ import USER from '../../1-models/userModel.mjs';
 import { NewPartnerListItem, PartnerCountListItem, PartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
 import { PartnerStatusEnum, RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { camelCase, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { camelCase, getEnv, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 
 
@@ -207,13 +207,13 @@ export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, stat
  * (Requires USER role) *
  ***************************/
 export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Promise<NewPartnerListItem[]> => {
-    const matchGender:boolean = (process.env.PARTNER_GENDER_MATCH !== undefined) ? (process.env.PARTNER_GENDER_MATCH === 'true') : true;
-    const ageYearRange:number = (process.env.PARTNER_AGE_RANGE !== undefined) ? parseInt(process.env.PARTNER_AGE_RANGE) : 2;
-    const walkLevelRange:number = (process.env.PARTNER_WALK_RANGE !== undefined) ? parseInt(process.env.PARTNER_WALK_RANGE) : 2;
+    const matchGender:boolean = getEnv('PARTNER_GENDER_MATCH', 'boolean', true);
+    const ageYearRange:number = getEnv('PARTNER_AGE_RANGE', 'number', 2);
+    const walkLevelRange:number = getEnv('PARTNER_WALK_RANGE', 'number', 2);
 
     /* Validations */
-    if (isNaN(ageYearRange) || isNaN(walkLevelRange) || process.env.PARTNER_GENDER_MATCH === undefined) {
-        log.error('Partner Search: Invalid environment variables', process.env.PARTNER_GENDER_MATCH, process.env.PARTNER_AGE_RANGE, process.env.PARTNER_WALK_RANGE);
+    if (matchGender === undefined || isNaN(ageYearRange) || isNaN(walkLevelRange)) {
+        log.error('Partner Search: Invalid environment variables', matchGender, ageYearRange, walkLevelRange);
         return [];
     } else if (user.userID <= 0 || !user.dateOfBirth || !user.gender || user.walkLevel === undefined) {
         log.error('Partner Search: Invalid USER', user.userID, user.dateOfBirth, user.gender, user.walkLevel, user.toString());

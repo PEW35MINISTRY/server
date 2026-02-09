@@ -9,7 +9,8 @@ import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } f
 import { DB_SELECT_USER_CONTENT_LIST } from '../../2-services/2-database/queries/content-queries.mjs';
 import { hash, verify } from 'argon2';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import { getEnvBase, getEnvironment } from '../../2-services/10-utilities/env-utilities.mjs';
+import { getEnv } from '../../2-services/10-utilities/utilities.mjs';
 
 
 /********************
@@ -34,7 +35,7 @@ export const InitializeJWTSecretKey = async ():Promise<string> => {
     if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION) {
         APP_SECRET_KEY = await getJWTSecretValue();
     }
-    else APP_SECRET_KEY = process.env.SECRET_KEY;
+    else APP_SECRET_KEY = getEnvBase(console.error, 'SECRET_KEY', 'string', 'DEFAULT_SECRET_KEY');
     return APP_SECRET_KEY;
 }
 
@@ -113,23 +114,16 @@ const verifyNewAccountToken = async(userRole:RoleEnum = RoleEnum.USER, token:str
 
     switch(userRole as RoleEnum) {
         case RoleEnum.USER:
+        case RoleEnum.TEST_USER:
+        case RoleEnum.DEMO_USER:
             return true;
 
+        //Individual Codes:
+        //TODO Query Special Database
+
         //Universal Token Codes
-        case RoleEnum.ADMIN:
-            return token === process.env.TOKEN_ADMIN;
-        case RoleEnum.DEVELOPER:
-            return token === process.env.TOKEN_DEVELOPER;
-        case RoleEnum.CONTENT_APPROVER:
-            return token === process.env.TOKEN_CONTENT_APPROVER;
-        case RoleEnum.CIRCLE_LEADER:
-            return token === process.env.TOKEN_CIRCLE_LEADER;
-
-    //Individual Codes:
-    //TODO Query Special Database
-
         default:
-            return false;
+            return token === getEnv(`TOKEN_${userRole}`, 'string', undefined);
     }
 }
 
