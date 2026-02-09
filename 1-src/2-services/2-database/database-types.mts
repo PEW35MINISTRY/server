@@ -10,23 +10,6 @@ export interface AWSDatabaseSecrets {
     engine: string,
     dbInstanceIdentifier: string
 }
-
-export interface DatabaseTableUsage {
-    totalRows:number,
-    created24Hours:number,
-    created7Days:number,
-    created30Days:number,
-    modified24Hours:number,
-    modified7Days:number,
-    modified30Days:number,
-}
-
-export interface DatabaseUserStats extends DatabaseTableUsage {
-    emailVerified:number,
-    walkLevelMap:Map<number, number>,
-    roleMap:Map<DATABASE_USER_ROLE_ENUM, number>,
-    unassignedUsers:number, //Without user_role, defaults to USER
-}
   
 
 export interface CommandResponseType extends SQL.ResultSetHeader {
@@ -52,6 +35,7 @@ export enum DATABASE_TABLE {
 
     PRAYER_REQUEST = 'prayer_request',
     PRAYER_REQUEST_COMMENT = 'prayer_request_comment',
+    PRAYER_REQUEST_LIKE = 'prayer_request_like',
 
     CONTENT = 'content',
 
@@ -74,6 +58,7 @@ export const TABLES_SUPPORTING_DT: Map<DATABASE_TABLE, Array<'createdDT' | 'modi
 
     [DATABASE_TABLE.PRAYER_REQUEST, ['createdDT', 'modifiedDT']],
     [DATABASE_TABLE.PRAYER_REQUEST_COMMENT, ['createdDT']],
+    [DATABASE_TABLE.PRAYER_REQUEST_LIKE, ['modifiedDT']],
 
     [DATABASE_TABLE.CONTENT, ['createdDT', 'modifiedDT']],
 
@@ -91,8 +76,12 @@ export const TABLES_SUPPORTING_DT: Map<DATABASE_TABLE, Array<'createdDT' | 'modi
 ********************************************************************/
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
-export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
-    'userID', 'modelSourceEnvironment', 'firstName', 'lastName', 'isEmailVerified', 'postalCode', 'dateOfBirth', 'gender', 'walkLevel', 'maxPartners', 'image', 'notes',
+export const USER_TABLE_COLUMNS_EDIT:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
+    'modelSourceEnvironment', 'firstName', 'lastName', 'isEmailVerified', 'postalCode', 'dateOfBirth', 'gender', 'walkLevel', 'maxPartners', 'image', 'notes'
+];
+
+export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_EDIT,
+    'userID', 'createdDT', 'modifiedDT'
 ];
 
 export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
@@ -167,8 +156,12 @@ export enum DATABASE_PARTNER_STATUS_ENUM {
 ********************************************************************/
 export const CIRCLE_TABLE_COLUMNS_REQUIRED:string[] = [ 'leaderID', 'name' ];
 
-export const CIRCLE_TABLE_COLUMNS:string[] = [ ...CIRCLE_TABLE_COLUMNS_REQUIRED,
-    'circleID', 'description', 'postalCode', 'isActive', 'inviteToken', 'image', 'notes'
+export const CIRCLE_TABLE_COLUMNS_EDIT:string[] = [ ...CIRCLE_TABLE_COLUMNS_REQUIRED,
+    'isActive', 'inviteToken', 'description', 'postalCode', 'image', 'notes'
+];
+
+export const CIRCLE_TABLE_COLUMNS:string[] = [ ...CIRCLE_TABLE_COLUMNS_EDIT,
+    'circleID', 'createdDT', 'modifiedDT'
 ];
 
 export type DATABASE_CIRCLE = {  //Optional Fields for PATCH/UPDATE
@@ -194,8 +187,12 @@ export enum DATABASE_CIRCLE_STATUS_ENUM {
 *********************************************************************/
 export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED:string[] = [ 'circleID', 'message', 'endDate' ];
 
+export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT:string[] = [ ...CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED,
+    'startDate'
+];
+
 export const CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS:string[] = [ ...CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED,
-    'announcementID', 'startDate'
+    'announcementID', 'createdDT'
 ];
 
 export type DATABASE_CIRCLE_ANNOUNCEMENT = {
@@ -212,21 +209,73 @@ export type DATABASE_CIRCLE_ANNOUNCEMENT = {
 *********************************************************************/
 export const PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED:string[] = [ 'requestorID', 'topic', 'description', 'expirationDate' ];
 
-export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED,
-    'prayerRequestID', 'prayerCount', 'isOnGoing', 'isResolved', 'tagListStringified'
+export const PRAYER_REQUEST_TABLE_COLUMNS_EDIT:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED,
+    'isOnGoing', 'isResolved', 'tagListStringified'
 ];
 
-export type DATABASE_PRAYER_REQUEST = {
+export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_EDIT,
+    'prayerRequestID', 'createdDT', 'modifiedDT'
+];
+
+export interface DATABASE_PRAYER_REQUEST {
     prayerRequestID: number, 
     requestorID: number, 
     topic: string,
     description: string,
-    prayerCount: number,
     isOnGoing: boolean,
     isResolved: boolean,
-    tagListStringified: string,
-    expirationDate: Date
+    tagListStringified?: string,
+    expirationDate: Date,
+    createdDT: Date,
+    modifiedDT: Date
 };
+
+
+//prayer_request joint table parsed in PRAYER_REQUEST.constructByDatabase
+export const PRAYER_REQUEST_EXTENDED_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS,
+    //Expects ('requestorDisplayName', 'requestorFirstName', 'requestorImage'), //Assembled into requestorProfile
+    'prayerCount', 'prayerCountRecipient',
+];
+
+export interface DATABASE_PRAYER_REQUEST_EXTENDED extends DATABASE_PRAYER_REQUEST {
+    //requestorProfile:ProfileListItem
+    requestorFirstName?:string,
+    requestorDisplayName?:string,
+    requestorImage?:string,
+
+    //Joint Table Queries
+    prayerCount: number,
+    prayerCountRecipient?:number,
+}
+
+
+/******************************************************************** 
+*      Database `prayer_request_comment` 
+*********************************************************************/
+export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS_REQUIRED = [ 'prayerRequestID', 'commenterID', 'message' ];
+
+export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS = [ ...PRAYER_REQUEST_COMMENT_TABLE_COLUMNS_REQUIRED,
+    'commentID', 'likeCount', 'createdDT'   //Read only
+];
+
+export interface DATABASE_PRAYER_REQUEST_COMMENT {
+  commentID: number;
+  prayerRequestID: number;
+  commenterID: number;
+  message: string;
+  createdDT: Date;
+}
+
+export interface DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED extends DATABASE_PRAYER_REQUEST_COMMENT {
+    //commenterProfile:ProfileListItem
+    commenterFirstName?:string;
+    commenterDisplayName?:string;
+    commenterImage?:string;
+
+    //Joint Table Queries
+    likeCount?:number;
+    isLikedByRecipient?:boolean;
+}
 
 
 /******************************************************************** 
@@ -234,8 +283,12 @@ export type DATABASE_PRAYER_REQUEST = {
 *********************************************************************/
 export const CONTENT_TABLE_COLUMNS_REQUIRED:string[] = [ 'recorderID', 'type', 'source', 'url' ];
 
-export const CONTENT_TABLE_COLUMNS:string[] = [ ...CONTENT_TABLE_COLUMNS_REQUIRED,
-    'contentID', 'customType', 'customSource', 'keywordListStringified', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes'
+export const CONTENT_TABLE_COLUMNS_EDIT:string[] = [ ...CONTENT_TABLE_COLUMNS_REQUIRED,
+    'likeCount', 'customType', 'customSource', 'keywordListStringified', 'title', 'description', 'image', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes'
+];
+
+export const CONTENT_TABLE_COLUMNS:string[] = [ ...CONTENT_TABLE_COLUMNS_EDIT,
+    'contentID', 'createdDT', 'modifiedDT'   //Read only
 ];
 
 export enum DATABASE_GENDER_SELECTION_ENUM {
@@ -261,7 +314,9 @@ export type DATABASE_CONTENT = {
     maximumAge: number, 
     minimumWalkLevel: number, 
     maximumWalkLevel: number, 
-    notes?: string
+    notes?: string,
+    createdDT: Date,
+    modifiedDT: Date
 };
 
 

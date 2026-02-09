@@ -94,8 +94,7 @@ export const getDOBMaxDate = (role:RoleEnum = RoleEnum.USER):Date => [RoleEnum.U
 
 export const LOGIN_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, validationRegex: EMAIL_REGEX, validationMessage: 'Incomplete Format' }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Incomplete Format', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
-    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_PROD, validationMessage: 'Incomplete Format', environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
+    new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationMessage: 'Incomplete Format', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT, ENVIRONMENT_TYPE.PRODUCTION] }),
 ];
 
 export const PASSWORD_RESET_PROFILE_FIELDS:InputField[] = [
@@ -119,7 +118,10 @@ export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'Postal Code', field: 'postalCode', type: InputType.TEXT, required: true, length:{min:5, max:15}, validationRegex:PLAIN_TEXT_REGEX}),
 ];
 
-export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [    
+export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
+    new InputField({title: 'User ID', field: 'userID', type: InputType.READ_ONLY }),
+    new InputField({title: 'Account Created', field: 'createdDT', type: InputType.READ_ONLY }),
+    new InputField({title: 'Last Modified', field: 'modifiedDT', type: InputType.READ_ONLY }),   
     new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.CUSTOM, selectOptionList: Object.values(RoleEnum) }),
     new InputSelectionField({title: 'Source Environment', field: 'modelSourceEnvironment', required: true, type: InputType.SELECT_LIST, selectOptionList: Object.values(ModelSourceEnvironmentEnum), environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT]}),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, unique: true,  validationRegex: EMAIL_REGEX }),
@@ -134,7 +136,6 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
 ];
 
 export const SIGNUP_PROFILE_FIELDS_USER:InputField[] = [
-    new InputField({title: 'Beta Token', field: 'betaToken', type: InputType.TEXT, required: true, length:{min:1, max:15}, validationRegex: new RegExp(/PAT/, 'i') }),
     new InputField({title: 'First Name', field: 'firstName', type: InputType.TEXT, required: true, length:{min:1, max:30} }),
     new InputField({title: 'Last Name', field: 'lastName', type: InputType.TEXT, required: true, length:{min:1, max:30} }),
     new InputField({title: 'Public Name', field: 'displayName', type: InputType.TEXT, required: true, unique: true, length:{min:5, max:15}, validationRegex: PLAIN_TEXT_REGEX }),
@@ -154,4 +155,4 @@ export const SIGNUP_PROFILE_FIELDS:InputField[] = [
     ...SIGNUP_PROFILE_FIELDS_USER,
 ];
 
-export const PARTNERSHIP_CONTRACT = (userName:string, partnerName:string):string => `I ${userName} promise to pray for ${partnerName} every day, as agreed upon in this contract, while ensuring our conversations remain private. This daily commitment remains in place until our partnership ends. By signing this agreement, I confirm my dedication to our prayer partnership and look forward to the positive impact it will have on both of us.`;
+export const PARTNERSHIP_CONTRACT = (userName:string, partnerName:string):string => `I ${userName} promise to do my best to pray for ${partnerName} every day, as agreed upon in this contract, and to keep our conversations private. This daily commitment remains in place until our partnership ends. By signing this agreement, I confirm my dedication to our prayer partnership and look forward to the positive impact it will have on both of us.`;

@@ -1,7 +1,9 @@
-import { CommandResponseType, DATABASE_TABLE, DATABASE_USER_ROLE_ENUM, DatabaseTableUsage, DatabaseUserStats, TABLES_SUPPORTING_DT } from '../database-types.mjs';
+import { CommandResponseType, DATABASE_TABLE, DATABASE_USER_ROLE_ENUM, TABLES_SUPPORTING_DT } from '../database-types.mjs';
+import { DatabaseTableUsage, DatabaseUserStats } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
 import { WebsiteSubscription } from '../../../1-api/2-auth/auth-types.mjs';
+import { RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
 
 
@@ -82,14 +84,14 @@ export const DB_CALCULATE_USER_TABLE_STATS = async():Promise<DatabaseUserStats> 
         modified7Days: row?.modified7Days ?? 0,
         modified30Days: row?.modified30Days ?? 0,
         emailVerified: row?.emailVerified ?? 0,
-        walkLevelMap: new Map(
+        walkLevelMap: Object.fromEntries(
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => [
                 level, row ? (row[`walkLevel_${level}`] ?? 0) : 0
             ])
         ),
-        roleMap: new Map(Object.values(DATABASE_USER_ROLE_ENUM).map(role => [
+        roleMap: Object.fromEntries(Object.values(RoleEnum).map(role => [
             role, row ? (row[role] ?? 0) : 0
-        ])),
+        ])) as Record<RoleEnum, number>,
         unassignedUsers: row?.NO_ROLE ?? 0,
     };
 };

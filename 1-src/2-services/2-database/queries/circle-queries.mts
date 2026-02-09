@@ -1,6 +1,6 @@
 import * as log from '../../10-utilities/logging/log.mjs';
 import { command, execute, validateColumns } from '../database.mjs';
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_EDIT, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
@@ -25,11 +25,11 @@ import { GENERAL_USER_ROLES } from '../../../0-assets/field-sync/input-config-sy
 */
 
 /* REQUIRED VALIDATION ONLY WHEN COLUMNS ARE INPUTS */
-const validateCircleColumns = (inputMap:Map<string, any>, includesRequired:boolean = false):boolean => 
-    validateColumns(inputMap, includesRequired, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED);
+const validateCircleColumns = (inputMap:Map<string, any>, forEditing:boolean, includesRequired:boolean = false):boolean =>
+    validateColumns(inputMap, includesRequired, forEditing ? CIRCLE_TABLE_COLUMNS_EDIT : CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_REQUIRED);
 
-const validateCircleAnnouncementColumns = (inputMap:Map<string, any>):boolean => 
-    validateColumns(inputMap, true, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED);
+const validateCircleAnnouncementColumns = (inputMap:Map<string, any>, forEditing:boolean, includesRequired:boolean):boolean =>
+    validateColumns(inputMap, includesRequired, forEditing ? CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT : CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED);
 
 
 /********************
@@ -91,7 +91,7 @@ export const DB_SELECT_CIRCLE_DETAIL_BY_NAME = async(leaderID:number, circleName
 //Used as default circle Search; TODO replace with location based eventually
 export const DB_SELECT_LATEST_CIRCLES = async(limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
 
-    const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
+    const rows = await execute('SELECT circle.circleID, circle.name, circle.description, circle.image ' + 'FROM circle '
         + 'LEFT JOIN user on user.userID = circle.leaderID '
         + 'WHERE ( '
             + '        user.modelSourceEnvironment = ? '
@@ -108,12 +108,12 @@ export const DB_SELECT_LATEST_CIRCLES = async(limit:number = LIST_LIMIT):Promise
 
         [getModelSourceEnvironment(), getModelSourceEnvironment(), getModelSourceEnvironment(), getModelSourceEnvironment()]);
  
-    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', description:row.description || '', image: row.image || ''}))];
 }
 
 export const DB_SELECT_CIRCLE_IDS = async(fieldMap:Map<string, any>):Promise<number[]> => {
     //Validate Columns prior to Query
-    if(!validateCircleColumns(fieldMap)) {
+    if(!validateCircleColumns(fieldMap, false, false)) {
         log.db('Query Rejected: DB_SELECT_CIRCLE_IDS; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return [];
     }
@@ -126,11 +126,11 @@ export const DB_SELECT_CIRCLE_IDS = async(fieldMap:Map<string, any>):Promise<num
     return [...rows.reverse().map(row => row.circleID)];
 }
 
-export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<boolean> => {
+export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<{success:boolean, circleID:number}> => {
     //Validate Columns prior to Query
-    if(!validateCircleColumns(fieldMap)) {
+    if(!validateCircleColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_CIRCLE; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
-        return false;
+        return {success:false, circleID:-1};
     }
 
     const preparedColumns:string = Array.from(fieldMap.keys()).map((key, field)=> `${key}`).join(', ');
@@ -138,12 +138,12 @@ export const DB_INSERT_CIRCLE = async(fieldMap:Map<string, any>):Promise<boolean
 
     const response:CommandResponseType = await command(`INSERT INTO circle ( ${preparedColumns} ) VALUES ( ${preparedValues} );`, Array.from(fieldMap.values())); 
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return {success:((response !== undefined) && (response.affectedRows === 1)), circleID:response?.insertId || -1};
 }
 
 export const DB_UPDATE_CIRCLE = async(circleID:number, fieldMap:Map<string, any>):Promise<boolean> => {
     //Validate Columns prior to Query
-    if(!validateCircleColumns(fieldMap)) {
+    if(!validateCircleColumns(fieldMap, true, false)) {
         log.db('Query Rejected: DB_UPDATE_CIRCLE; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
         return false;
     }
@@ -169,8 +169,13 @@ export const DB_DELETE_CIRCLE = async(circleID:number):Promise<boolean> => { //N
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
-    
-    const rows = await execute('SELECT circle.circleID, circle.name, circle.image ' + 'FROM circle '
+    //Validate Columns prior to Query
+    if(!validateCircleColumns(new Map(columnList.map(column => [column, -1])), false, false)) {
+        log.error('DB_SELECT_CIRCLE_SEARCH rejected for invalid columns', columnList);
+        return [];
+    }
+
+    const rows = await execute('SELECT circle.circleID, circle.name, circle.description, circle.image ' + 'FROM circle '
         + 'LEFT JOIN user on user.userID = circle.leaderID '
         + 'WHERE ( '
         + `        user.modelSourceEnvironment = '${getModelSourceEnvironment()}' `
@@ -190,7 +195,7 @@ export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:strin
         + `LIMIT ${limit};`,    
     [...Array(columnList.length).fill(`${searchTerm}`)]);
  
-    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', description:row.description || '', image: row.image || ''}))];
 }
 
 export const DB_SELECT_CIRCLE_SEARCH_CACHE = async(searchTerm:string, searchRefine:CircleSearchRefineEnum):Promise<CircleListItem[]|undefined> => {
@@ -275,19 +280,21 @@ export const DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES = async(userID:number):Pr
     return [...rows.map(row => (CIRCLE_ANNOUNCEMENT.constructByDatabase(row as DATABASE_CIRCLE_ANNOUNCEMENT)))];
 }
 
-export const DB_INSERT_CIRCLE_ANNOUNCEMENT = async(fieldMap:Map<string, any>):Promise<boolean> => {
+export const DB_INSERT_CIRCLE_ANNOUNCEMENT = async(fieldMap:Map<string, any>):Promise<{success:boolean, announcementID:number}> => {
     //Validate Columns prior to Query
-    if(!validateCircleAnnouncementColumns(fieldMap)) {
+    if(!validateCircleAnnouncementColumns(fieldMap, true, true)) {
         log.db('Query Rejected: DB_INSERT_CIRCLE_ANNOUNCEMENT; invalid column names', JSON.stringify(Array.from(fieldMap.keys())));
-        return false;
+        return {success:false, announcementID:-1};
     }
 
     const preparedColumns:string = Array.from(fieldMap.keys()).map((key, field)=> `${key}`).join(', ');
     const preparedValues:string = Array.from(fieldMap.keys()).map((key, field)=> `?`).join(', ');
 
     const response:CommandResponseType = await command(`INSERT INTO circle_announcement ( ${preparedColumns} ) VALUES ( ${preparedValues} );`, Array.from(fieldMap.values())); 
+
+    log.db('ID Generated', response?.insertId, JSON.stringify(response));
     
-    return ((response !== undefined) && (response.affectedRows === 1));
+    return {success:((response !== undefined) && (response.affectedRows === 1)), announcementID:response?.insertId || -1};
 }
 
 export const DB_DELETE_CIRCLE_ANNOUNCEMENT = async({announcementID, circleID}:{announcementID?:number, circleID:number}):Promise<boolean> => {
@@ -329,7 +336,7 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
 
     //Leader included in MEMBER search
     : (status === DATABASE_CIRCLE_STATUS_ENUM.MEMBER) ?
-    await execute('SELECT DISTINCT circle.circleID, circle.leaderID, circle.name, circle.image, ( SELECT circle_user.status WHERE circle_user.userID = ? ) as status ' 
+    await execute('SELECT DISTINCT circle.circleID, circle.leaderID, circle.name, circle.description, circle.image, ( SELECT circle_user.status WHERE circle_user.userID = ? ) as status ' 
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
         + 'WHERE ( circle_user.userID = ? AND circle_user.status = ? ) '
@@ -344,7 +351,7 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
         + 'GROUP BY circle.circleID '
         + 'ORDER BY circle_user.modifiedDT DESC;', [userID, status]);
  
-    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || '', status: (row.leaderID === userID) ? CircleStatusEnum.LEADER : (row.status === undefined) ? undefined : CircleStatusEnum[row.status]}))];
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', description:row.description || '', image: row.image || '', status: (row.leaderID === userID) ? CircleStatusEnum.LEADER : (row.status === undefined) ? undefined : CircleStatusEnum[row.status]}))];
 }
 
 //Select list of leader IDs where 'user' is a member of their circle | (Circle manager has access to 'user' profile)
@@ -542,5 +549,5 @@ export const DB_SELECT_CIRCLE_LIST_BY_USER_SOURCE_ENVIRONMENT = async(sourceEnvi
         + `LIMIT ${limit};`,
     [sourceEnvironment, maxMembers, maxSharedPrayerRequest]); 
 
-    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', image: row.image || ''}))];
+    return [...rows.map(row => ({circleID: row.circleID || -1, name: row.name || '', description:row.description || '', image: row.image || ''}))];
 }

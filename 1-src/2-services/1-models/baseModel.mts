@@ -28,9 +28,10 @@ export default abstract class BASE_MODEL<Model, ListItem, JsonResponse> {
     set ID(id:number) { this[this.IDProperty] = id; }
 
     /* Must Override Property Lists */        
-    abstract get DATABASE_COLUMN_LIST():string[];
-    abstract get DATABASE_IDENTIFYING_PROPERTY_LIST():string[];
-    abstract get PROPERTY_LIST():string[];
+    abstract get DATABASE_COLUMN_LIST():string[];                 //Read DB Columns
+    abstract get DATABASE_COLUMN_EDIT_LIST():string[];            //Editable DB Columns
+    abstract get DATABASE_IDENTIFYING_PROPERTY_LIST():string[];   //Unique DB Columns that are searchable
+    abstract get PROPERTY_LIST():string[];                        //All Model Properties (May write to model from JSON, if also in input config)
 
     /* Optional: Override Ordering for dependent properties | Includes all: model, json, and database properties */
     #priorityInputList:string[] = [];
@@ -56,10 +57,10 @@ export default abstract class BASE_MODEL<Model, ListItem, JsonResponse> {
       BASE_MODEL.getUniquePropertiesUtility<BASE_MODEL<Model, ListItem, JsonResponse>>({fieldList: properties, getModelProperty: (property) => property,
           model: this, baseModel: undefined, includeID: includeUserID, includeObjects: true, includeNull: false, complexFieldMap: new Map()});
   
-    getDatabaseProperties = ():Map<string, any> => this.getValidProperties(this.DATABASE_COLUMN_LIST, false);
+    getDatabaseProperties = ():Map<string, any> => this.getValidProperties(this.DATABASE_COLUMN_EDIT_LIST, false);
 
     static getUniqueDatabasePropertiesDefault = <M extends BASE_MODEL<any, any, any>>(model:M, baseModel:M):Map<string, any> =>
-      BASE_MODEL.getUniquePropertiesUtility<M>({fieldList: model.DATABASE_COLUMN_LIST, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
+      BASE_MODEL.getUniquePropertiesUtility<M>({fieldList: model.DATABASE_COLUMN_EDIT_LIST, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
           model, baseModel, includeID: false, includeObjects: false, includeNull: true});
 
     getUniqueDatabaseProperties = (baseModel:this):Map<string, any> => (this.constructor as typeof BASE_MODEL).getUniqueDatabasePropertiesDefault(this, baseModel);

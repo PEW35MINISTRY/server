@@ -7,6 +7,7 @@ import { JwtClientRequest, JwtRequest, LoginRequest, PasswordResetConfirmRequest
 import { getJWTLogin, getEmailLogin, assembleLoginResponse, LoginMethod, generateToken, generatePasswordHash } from './auth-utilities.mjs';
 import { DB_INSERT_EMAIL_SUBSCRIPTION } from '../../2-services/2-database/queries/queries.mjs';
 import { DB_SELECT_USER, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
+import { sendSubscribeWelcomeEmail } from '../../2-services/4-email/configurations/email-release-notes.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { sendEmailAction } from '../../2-services/4-email/email.mjs';
 import { DB_CONSUME_TOKEN, DB_DELETE_TOKEN, DB_INSERT_TOKEN, DB_SELECT_TOKEN, DB_SELECT_TOKEN_USER_ALL } from '../../2-services/2-database/queries/user-security-queries.mjs';
@@ -100,8 +101,10 @@ export const POST_emailSubscribe = async(request:SubscribePost, response:Respons
     else if(await DB_INSERT_EMAIL_SUBSCRIPTION(request.body.email, request.body.role.toUpperCase(), request.body.note) === false)
         next(new Exception(500, `Failed to save email subscription: ${JSON.stringify(request.body)}`, 'Save Failed'));
 
-    else
+    else {
+        sendSubscribeWelcomeEmail(request.body.email);
         response.status(202).send(`Subscription Saved`);
+    }
 };
 
 

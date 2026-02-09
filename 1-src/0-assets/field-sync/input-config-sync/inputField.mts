@@ -22,6 +22,7 @@ export enum DeviceOSEnum {
 }
 
 export enum InputType {
+    READ_ONLY = 'READ_ONLY',              //Display as a string
     CUSTOM = 'CUSTOM',
     TEXT = 'TEXT',
     NUMBER = 'NUMBER',
@@ -96,6 +97,7 @@ export default class InputField {
 
         /* Validations */
         if(this.length && (typeof this.length.min !== 'number' || typeof this.length.max !== 'number' || this.length.min > this.length.max)) throw new Error(`InputSelectionField - ${this.field} - Invalid length: ${JSON.stringify(this.length)}`);
+        if(this.type === InputType.READ_ONLY && (this.required || this.unique || this.length !== undefined || validationRegex !== undefined || validationMessage !== undefined || this.customField !== undefined)) throw new Error(`InputSelectionField - ${this.field} - READ_ONLY fields cannot be required, unique, or define length/validation/customField`);
     };
 
     setValue(value: string): void {this.value = value; }
@@ -169,7 +171,7 @@ export class InputRangeField extends InputField {
  *************/
 
 //Capitalizes Each Word
-export const makeDisplayText = (text:string = ''):string => text
+export const makeDisplayText = (text:string = ''):string => String(text ?? '')
     .replace(/([a-z])([A-Z][a-z])/g, '$1 $2') //camelCase & ALL_CAPS
     .replace(/[_\s]+/g, ' ') //Underscores
     .trim().split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()).join(' ');

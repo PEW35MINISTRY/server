@@ -16,7 +16,7 @@ import { generatePasswordHash } from '../../../1-api/2-auth/auth-utilities.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-database/database-types.mjs';
 import { DB_INSERT_CIRCLE, DB_INSERT_CIRCLE_ANNOUNCEMENT, DB_INSERT_CIRCLE_USER_STATUS,  DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_CIRCLE_DETAIL_BY_NAME, DB_SELECT_CIRCLE_LIST_BY_USER_SOURCE_ENVIRONMENT } from '../../2-database/queries/circle-queries.mjs';
 import { DB_ASSIGN_PARTNER_STATUS, DB_SELECT_AVAILABLE_PARTNER_LIST, getPartnerID, getUserID } from '../../2-database/queries/partner-queries.mjs';
-import { DB_INSERT_AND_SELECT_PRAYER_REQUEST, DB_INSERT_CIRCLE_RECIPIENT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST_COMMENT, DB_INSERT_USER_RECIPIENT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_COMMENT_LIST, DB_SELECT_PRAYER_REQUEST_LIST_BY_USER_SOURCE_ENVIRONMENT, DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT } from '../../2-database/queries/prayer-request-queries.mjs';
+import { DB_INSERT_CIRCLE_RECIPIENT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST, DB_INSERT_PRAYER_REQUEST_COMMENT, DB_INSERT_USER_RECIPIENT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_COMMENT_LIST, DB_SELECT_PRAYER_REQUEST_LIST_BY_USER_SOURCE_ENVIRONMENT, DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT } from '../../2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_CONTACT_CACHE_BATCH, DB_DELETE_CONTACT_CACHE_BY_CIRCLE_BATCH, DB_INSERT_USER, DB_POPULATE_USER_PROFILE, DB_SELECT_USER, DB_SELECT_USER_LIST_BY_SOURCE_ENVIRONMENT, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-database/queries/user-queries.mjs';
 import { DB_INSERT_USER_ROLE } from '../../2-database/queries/user-security-queries.mjs';
 
@@ -66,8 +66,9 @@ export const createMockUser = async(populateRelations = true):Promise<USER> => {
     }
 
     /* Save Mock User | userID assigned by Database */
-    if(await DB_INSERT_USER(user.getDatabaseProperties())) {
-        user = await DB_SELECT_USER(new Map([['email', user.email], ['passwordHash', user.passwordHash]]));
+    const saveResponse:{success:boolean, userID:number} = await DB_INSERT_USER(user.getDatabaseProperties());
+    if(saveResponse.success && saveResponse.userID > 0) {
+        user.userID = saveResponse.userID;
         await DB_INSERT_USER_ROLE({userID: user.userID, email: user.email, userRoleList: [DATABASE_USER_ROLE_ENUM.DEMO_USER]});
         log.event(`Mock Profile: ${user.userID} | '${user.displayName}' created.`);
 
@@ -101,9 +102,10 @@ export const createMockPrayerRequest = async(userID:number):Promise<PRAYER_REQUE
     request.isValid = true;
 
     /* Save to get prayerRequestID */
-    request = await DB_INSERT_AND_SELECT_PRAYER_REQUEST(request.getDatabaseProperties());
+    const savedResponse:{success:boolean, prayerRequestID:number} = await DB_INSERT_PRAYER_REQUEST(request.getDatabaseProperties());
+    request.prayerRequestID = savedResponse.prayerRequestID;
 
-    if(!request.isValid || request.prayerRequestID <= 0) {
+    if(!savedResponse.success || request.prayerRequestID <= 0) {
         log.warn('Error Saving Mock Prayer Request', request.toString());
         return new PRAYER_REQUEST();
     }
@@ -123,7 +125,7 @@ export const createMockPrayerRequest = async(userID:number):Promise<PRAYER_REQUE
         }
     }
     /* Comment Likes */
-    request.commentList = await DB_SELECT_PRAYER_REQUEST_COMMENT_LIST(request.prayerRequestID);
+    request.commentList = await DB_SELECT_PRAYER_REQUEST_COMMENT_LIST(request.prayerRequestID, userID);
     for(const comment of request.commentList) {
         comment.likeCount = randomRange(150);
         await DB_UPDATE_INCREMENT_PRAYER_REQUEST_COMMENT_LIKE_COUNT(comment.commentID, comment.likeCount);
