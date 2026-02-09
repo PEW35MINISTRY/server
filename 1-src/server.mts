@@ -25,7 +25,7 @@ import apiRoutes, {GET_AdminStatistics, GET_createMockCircle, GET_createMockPray
 import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogPartitionBucket, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateCircleManagerMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware, authenticateLeaderMiddleware, authenticateDemoUserMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
-import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin, GET_userActiveTokensAdmin, GET_reportUserToken } from './1-api/2-auth/auth.mjs';
+import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin, POST_resetPasswordConfirm, POST_resetPasswordInitialize, GET_userActiveTokensAdmin, GET_reportUserToken } from './1-api/2-auth/auth.mjs';
 import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRecipientList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestCommentUnlike, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
@@ -104,13 +104,13 @@ apiServer.use(['/', '/website'], express.static(path.join(process.env.SERVER_PAT
 apiServer.get('/website/*', (request:Request, response:Response) => response.status(301).redirect('/website'));
 apiServer.get('/website', (request:Request, response:Response) => response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html')));
 
-apiServer.use(['/portal', '/login', '/signup'], express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
+apiServer.use(['/portal', '/login', '/signup', '/password-forgot', '/password-reset'], express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
 
 apiServer.get('/portal', (request:Request, response:Response) => {
   response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
-apiServer.get(['/portal', '/portal/*', '/login', '/signup'], (request:Request, response:Response) => {
+apiServer.get(['/portal', '/portal/*', '/login', '/signup', '/password-forgot', '/password-reset'], (request:Request, response:Response) => {
   response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
@@ -175,6 +175,8 @@ apiServer.get('/*', (request:JwtRequest, response:Response, next:NextFunction) =
 
 /* Public Email Actions */
 apiServer.get('/api/report-token', GET_reportUserToken); //Unrequested tokens, callback in email
+apiServer.post('/api/password-forgot', POST_resetPasswordInitialize);
+apiServer.post('/api/password-reset', POST_resetPasswordConfirm);
 
 
 /************************************************************/

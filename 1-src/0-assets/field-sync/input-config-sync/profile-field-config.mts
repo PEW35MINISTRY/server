@@ -97,6 +97,15 @@ export const LOGIN_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'Password', field: 'password', type: InputType.PASSWORD, required: true, validationMessage: 'Incomplete Format', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT, ENVIRONMENT_TYPE.PRODUCTION] }),
 ];
 
+export const PASSWORD_RESET_PROFILE_FIELDS:InputField[] = [
+    new InputField({title: 'Token', field: 'token', type: InputType.TOKEN, required: true, length:{min:6, max:6} }),
+    new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, validationRegex: EMAIL_REGEX, validationMessage: 'Incomplete Format' }),
+    new InputField({title: 'New Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: PASSWORD_VALIDATION_MESSAGE_DEV, environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
+    new InputField({title: 'New Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_PROD, validationMessage: PASSWORD_VALIDATION_MESSAGE_PROD, environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
+    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
+    new InputField({title: 'Verify Password', field: 'passwordVerify', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_PROD, validationMessage: 'Must match password field.', environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
+];
+
 //Note: extending list forces the order, may need a sortID or duplicating for now
 export const EDIT_PROFILE_FIELDS:InputField[] = [
     new InputField({title: 'First Name', field: 'firstName', type: InputType.TEXT, required: true, length:{min:1, max:30}, validationRegex:PLAIN_TEXT_REGEX }),
@@ -116,6 +125,7 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
     new InputSelectionField({title: 'Account Type', field: 'userRoleTokenList', type: InputType.CUSTOM, selectOptionList: Object.values(RoleEnum) }),
     new InputSelectionField({title: 'Source Environment', field: 'modelSourceEnvironment', required: true, type: InputType.SELECT_LIST, selectOptionList: Object.values(ModelSourceEnvironmentEnum), environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT]}),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, unique: true,  validationRegex: EMAIL_REGEX }),
+    new InputSelectionField({title: 'Email Verified', field: 'isEmailVerified', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
     ...EDIT_PROFILE_FIELDS,
     new InputSelectionField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),
     new InputField({title: 'Date of Birth', field: 'dateOfBirth', type: InputType.DATE, required: true, value: getDOBMaxDate(RoleEnum.USER).toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Must be age 13 or older.'  }),
