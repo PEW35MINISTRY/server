@@ -19,7 +19,6 @@ import { InputRangeField } from '../../0-assets/field-sync/input-config-sync/inp
 import { searchList } from '../api-search-utilities.mjs';
 import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
-import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
 
 
 
@@ -114,8 +113,6 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             if(loginDetails) {
                 newProfile.userID = loginDetails.userID;
                 newProfile.isValid = true;
-
-                await sendUserEmailVerification(newProfile.userID, newProfile.email, newProfile.firstName);
 
                 if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
 

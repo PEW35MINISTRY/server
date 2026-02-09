@@ -343,7 +343,6 @@ export type DATABASE_NOTIFICATION_DEVICE = {
 export const TOKEN_TABLE_COLUMNS_REQUIRED:string[] = [ 'userID', 'type', 'token', 'expirationDT' ];
 
 export enum DATABASE_TOKEN_TYPE_ENUM {
-    EMAIL_VERIFY = 'EMAIL_VERIFY',
     PASSWORD_RESET = 'PASSWORD_RESET',
 }
 

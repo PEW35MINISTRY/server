@@ -25,7 +25,7 @@ import apiRoutes, {GET_AdminStatistics, GET_createMockCircle, GET_createMockPray
 import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogPartitionBucket, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateCircleManagerMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware, authenticateLeaderMiddleware, authenticateDemoUserMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
-import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin, POST_resetPasswordConfirm, POST_resetPasswordInitialize, GET_userActiveTokensAdmin, POST_emailVerifyResend, GET_reportUserToken, GET_emailVerifyConfirm } from './1-api/2-auth/auth.mjs';
+import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin, POST_resetPasswordConfirm, POST_resetPasswordInitialize, GET_userActiveTokensAdmin, GET_reportUserToken } from './1-api/2-auth/auth.mjs';
 import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
 import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRecipientList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestCommentUnlike, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
@@ -44,7 +44,6 @@ import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-
 import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_FLUSH_USER_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/user-queries.mjs';
 import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/circle-queries.mjs';
 import { DB_FLUSH_EXPIRED_TOKENS } from './2-services/2-database/queries/user-security-queries.mjs';
-import { sendEmailVerificationReminderBatch } from './2-services/4-email/configurations/email-verification.mjs';
 
 
 /********************
@@ -66,8 +65,6 @@ await checkAWSAuthentication();
 if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)) {
   //Run at 15:00 UTC - 9am CST
   // schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
-  //Run at 01:00 UTC - Sundays 7pm CST
-  schedule("1 1 * * 1", async () => sendEmailVerificationReminderBatch());
 
   //Run at 08:00-8:02 UTC - 2AM CST
   schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
@@ -178,7 +175,6 @@ apiServer.get('/*', (request:JwtRequest, response:Response, next:NextFunction) =
 
 /* Public Email Actions */
 apiServer.get('/api/report-token', GET_reportUserToken); //Unrequested tokens, callback in email
-apiServer.get('/api/email-verify-confirm', GET_emailVerifyConfirm);
 apiServer.post('/api/password-forgot', POST_resetPasswordInitialize);
 apiServer.post('/api/password-reset', POST_resetPasswordConfirm);
 
@@ -416,7 +412,6 @@ apiServer.post('/api/admin/log/:type/report', (request:LogEntryNewRequest, respo
 
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.get('/api/admin/client/:client/token-list', GET_userActiveTokensAdmin);
-apiServer.post('/api/admin/client/:client/token-list', POST_emailVerifyResend);
 apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdmin);
 
 apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDetailAdmin);
