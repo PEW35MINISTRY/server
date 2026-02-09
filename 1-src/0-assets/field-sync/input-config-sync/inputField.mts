@@ -28,6 +28,7 @@ export enum InputType {
     NUMBER = 'NUMBER',
     EMAIL = 'EMAIL',
     PASSWORD = 'PASSWORD',
+    TOKEN = 'TOKEN',
     DATE = 'DATE',
     SELECT_LIST = 'SELECT_LIST',
     MULTI_SELECTION_LIST = 'MULTI_SELECTION_LIST',

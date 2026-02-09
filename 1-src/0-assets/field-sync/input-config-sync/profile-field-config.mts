@@ -98,7 +98,7 @@ export const LOGIN_PROFILE_FIELDS:InputField[] = [
 ];
 
 export const PASSWORD_RESET_PROFILE_FIELDS:InputField[] = [
-    new InputField({title: 'Token', field: 'token', type: InputType.TEXT, required: true, length:{min:4, max:50} }),
+    new InputField({title: 'Token', field: 'token', type: InputType.TOKEN, required: true, length:{min:6, max:6} }),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, validationRegex: EMAIL_REGEX, validationMessage: 'Incomplete Format' }),
     new InputField({title: 'New Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_DEV, validationMessage: PASSWORD_VALIDATION_MESSAGE_DEV, environmentList:[ENVIRONMENT_TYPE.LOCAL, ENVIRONMENT_TYPE.DEVELOPMENT] }),
     new InputField({title: 'New Password', field: 'password', type: InputType.PASSWORD, required: true, validationRegex: PASSWORD_REGEX_PROD, validationMessage: PASSWORD_VALIDATION_MESSAGE_PROD, environmentList:[ENVIRONMENT_TYPE.PRODUCTION] }),
