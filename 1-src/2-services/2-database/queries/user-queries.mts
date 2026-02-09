@@ -15,11 +15,12 @@ import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
+import { DB_SELECT_USER_ROLES } from './user-security-queries.mjs';
 
 
 /**************************************************************************
 /*       DEFINING AND HANDLING ALL QUERIES HERE 
-/* TABLES: user, user_role, user_role_defined, partner, user_search_cache
+/* TABLES: user, user_search_cache
 ***************************************************************************/
 
 /* Prevent SQL Injection Protocol:
@@ -96,8 +97,31 @@ export const DB_SELECT_USER_BATCH_EMAIL_MAP = async(userIDList:number[]):Promise
     }
 
     const placeholders = userIDList.map(() => '?').join(',');
-    const rows = await execute(`SELECT userID, email FROM user WHERE userID IN (${placeholders})`, userIDList);
+    const rows = await execute('SELECT userID, email FROM user '
+        + 'WHERE isEmailVerified = true '
+        + `AND userID IN (${placeholders});`,
+        userIDList);
     return rows.reduce((map, row) => map.set(row.userID ?? -1, row.email ?? ''), new Map<number, string>());
+}
+
+//Assembles recipientMap for sending reminder email to unverified email addresses
+export const DB_SELECT_UNVERIFIED_EMAIL_MAP = async(minAccountAgeDays:number = 3, maxAccountAgeDays = 30):Promise<Map<number, {firstName:string, email:string}>> => {
+    const rows = await execute('SELECT userID, firstName, email FROM user '
+        + 'WHERE isEmailVerified = false '
+        + 'AND createdDT <= (UTC_TIMESTAMP() - INTERVAL ? DAY) '
+        + 'AND createdDT >= (UTC_TIMESTAMP() - INTERVAL ? DAY);',
+        [minAccountAgeDays, maxAccountAgeDays]);
+
+    return rows.reduce((map, row) => map.set(row.userID, {firstName:row.firstName, email:row.email}), new Map<number, {firstName:string, email:string}>());
+}
+
+export const DB_IS_USER_EMAIL_VERIFIED = async(userID:number):Promise<boolean> => {
+    const rows = await execute('SELECT 1 ' + 'FROM user '
+        + 'WHERE user.userID = ? '
+            + 'AND isEmailVerified = 1 '
+            + 'AND emailVerifiedDT IS NOT NULL;', [userID]);
+
+    return ((rows !== undefined) && (rows.length > 0));
 }
 
 
@@ -219,75 +243,6 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
         log.warn(`Multiple Accounts Detected with matching fields`, JSON.stringify(validFieldMap));
 
     return (result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 0);
-}
-
-/**********************
- *  USER ROLE QUERIES
- **********************/
-export const DB_IS_USER_ROLE = async(userID:number, userRole:DATABASE_USER_ROLE_ENUM, useDefaultUser:boolean = false):Promise<boolean> => {   
-    const rows = await execute('SELECT * ' + 'FROM user '
-    + 'LEFT JOIN user_role ON user_role.userID = user.userID '
-    + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
-    + 'WHERE user.userID = ? '
-    + `AND (user_role_defined.userRole = ? OR (user_role.userRoleID IS NULL AND ? = TRUE AND ? = 'USER'));`, 
-        [userID, userRole, useDefaultUser, userRole]); 
-
-    return (rows.length === 1);
-}
-
-export const DB_IS_ANY_USER_ROLE = async(userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[], useDefaultUser:boolean = true):Promise<boolean> => {   
-
-    if(userRoleList === undefined || userRoleList.length === 0) return false;
-
-    const preparedColumns:string = '( ' + userRoleList.map((key)=> `user_role_defined.userRole = ?`).join(' OR ') + ' )';
-
-    const rows = await execute('SELECT * ' + 'FROM user '
-    + 'LEFT JOIN user_role ON user_role.userID = user.userID '
-    + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
-    + 'WHERE user.userID = ? '
-    + `AND (${preparedColumns} OR (user_role.userRoleID IS NULL AND ? = TRUE));`,
-        [userID, ...userRoleList, useDefaultUser]); 
-
-    return (rows.length >= 1);
-}
-
-export const DB_SELECT_USER_ROLES = async(userID:number, defaultUserRole:boolean = true):Promise<RoleEnum[]> => {
-    const rows = await execute('SELECT user_role_defined.userRole ' 
-        + 'FROM user_role, user_role_defined '
-        + 'WHERE user_role.userRoleID = user_role_defined.userRoleID '
-        + 'AND user_role.userID = ?;', [userID]);
-
-    //Parse user roles; only pass on server supported roles
-    const validRoles = [];
-    rows.forEach((row) => {
-        if(Object.values(RoleEnum).includes(row.userRole)) validRoles.push(RoleEnum[row.userRole]);
-        else log.db('Invalid Role, Not in Server Types', userID, row, JSON.stringify(Object.values(RoleEnum)));        
-    });
-    return ((validRoles.length === 0) && defaultUserRole) ? [RoleEnum.USER] : validRoles;
-}
-
-export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:number, email?:string, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {
-    const response:CommandResponseType = await command('INSERT INTO user_role ( userID, userRoleID ) VALUES '
-    + userRoleList.map(() => `( ${(userID === undefined) ? '(SELECT user.userID FROM user WHERE user.email = ? )' : '?'} , `
-    + '(SELECT user_role_defined.userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))').join(', ')
-    + ' ON DUPLICATE KEY UPDATE userRoleID = VALUES(userRoleID);',
-    userRoleList.flatMap((role) => [userID || email, role]));
-
-    return ((response !== undefined) && (response.affectedRows > 0));
-}
-
-export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {    
-    log.db(`DELETE USER ROLE attempted: userID:${userID}, userRoleList:${userRoleList}`);
-
-    const response:CommandResponseType = (userRoleList === undefined) ? //Delete All Roles
-    await command('DELETE FROM user_role WHERE user_role.userID = ? ;', [userID])
-
-    : await command('DELETE FROM user_role '
-        + 'WHERE user_role.userID = ? AND ( '
-        +  userRoleList.map(() => `( user_role.userRoleID IN (SELECT userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))`).join(' OR ')
-        + ' );', [userID, ...userRoleList]);
-
-    return (response !== undefined);  //Success on non-error
 }
 
 
