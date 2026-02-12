@@ -33,9 +33,27 @@ import validateInput from '../../0-assets/field-sync/input-config-sync/inputVali
     else
         response.status(303).redirect(`${process.env.ENVIRONMENT_BASE_URL}/confirmation`); //Always success
 
+    
+    /* Sanitize additionalQueryArguments for Logging purposes*/
+    const logDetails:Record<string,string> = {};
+    for(const key of Object.keys(additionalQueryArguments).slice(0, 3)) { //max 3
+        let value:string = additionalQueryArguments[key];
+        if(value == null || (typeof value !== 'string' && typeof value !== 'number'))
+            continue;
+        
+        if(!new RegExp(/[^A-Za-z]{4,}/).test(key))
+            continue;
+
+        const cleanValue = String(value).replace(new RegExp(/[^A-Za-z0-9\-_.@]/g), '').slice(0, 200); //max 200 length cleaned
+        if(cleanValue.length > 0)
+            logDetails[key] = cleanValue;
+    }
+
+    
+    /* Delete & Log */
     const entry:DATABASE_TOKEN | undefined = await DB_SELECT_TOKEN(token);
     if(entry !== undefined) {
-        log.warn('SECURITY EVENT: User reported unrequested token; token deleted - POST_reportUserToken', entry.userID, entry.type, `createdDT=${entry.createdDT}`, `expirationDT=${entry.expirationDT ?? 'NULL'}`, additionalQueryArguments);
+        log.warn('SECURITY EVENT: User reported unrequested token; token deleted - POST_reportUserToken', entry.userID, entry.type, `createdDT=${entry.createdDT}`, `expirationDT=${entry.expirationDT ?? 'NULL'}`, logDetails);
         await DB_DELETE_TOKEN(request.query.token);
     }
 }
