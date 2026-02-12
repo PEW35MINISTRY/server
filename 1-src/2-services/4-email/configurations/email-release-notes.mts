@@ -29,6 +29,9 @@ export const sendSubscribeWelcomeEmail = async(email:string):Promise<boolean> =>
 
       htmlActionButton([{label: 'Create Account', link:`${process.env.ENVIRONMENT_BASE_URL}/signup`, style: 'PRIMARY'}]),
 
+      htmlActionButton([{label: 'Android', link:`${process.env.ANDROID_DOWNLOAD_LINK}`, style: 'OUTLINE'},
+                        {label: 'IOS', link:`${process.env.IOS_DOWNLOAD_LINK}`, style: 'OUTLINE'}], 'Download the App:'),
+
       htmlFooter(),
     ],
     verticalSpacing: 4,
