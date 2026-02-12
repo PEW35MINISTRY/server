@@ -41,7 +41,7 @@ import validateInput from '../../0-assets/field-sync/input-config-sync/inputVali
         if(value == null || (typeof value !== 'string' && typeof value !== 'number'))
             continue;
         
-        if(!new RegExp(/[^A-Za-z]{4,}/).test(key))
+        if(!new RegExp(/^[A-Za-z0-9\-_.@]{4,20}$/).test(key))
             continue;
 
         const cleanValue = String(value).replace(new RegExp(/[^A-Za-z0-9\-_.@]/g), '').slice(0, 200); //max 200 length cleaned
