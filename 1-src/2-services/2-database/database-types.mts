@@ -334,3 +334,21 @@ export type DATABASE_NOTIFICATION_DEVICE = {
     deviceName:string,
     endpointARN?:string,
 }
+
+
+/******************************************************* 
+*      Database `token` Table Created: 12/21/2025      *
+********************************************************/
+export const TOKEN_TABLE_COLUMNS_REQUIRED:string[] = [ 'userID', 'type', 'token', 'expirationDT' ];
+
+export enum DATABASE_TOKEN_TYPE_ENUM {
+    PASSWORD_RESET = 'PASSWORD_RESET',
+}
+
+export type DATABASE_TOKEN = {
+    userID:number,
+    type:DATABASE_TOKEN_TYPE_ENUM,
+    token:string,
+    expirationDT?:Date|null, //null implies indefinite
+    createdDT?:Date, //Assign in database
+}

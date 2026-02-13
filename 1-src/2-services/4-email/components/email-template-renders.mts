@@ -1,9 +1,9 @@
-import { LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
+import { DatabaseUserStats, LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
 import { makeDisplayText } from "../../../0-assets/field-sync/input-config-sync/inputField.mjs";
 import { RoleEnum } from "../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs";
 import { fetchS3LogsByDateRange } from "../../10-utilities/logging/log-s3-utilities.mjs";
 import LOG_ENTRY from "../../10-utilities/logging/logEntryModel.mjs";
-import { DATABASE_TABLE, DATABASE_USER_ROLE_ENUM } from "../../2-database/database-types.mjs";
+import { DATABASE_TABLE } from "../../2-database/database-types.mjs";
 import { DB_CALCULATE_TABLE_USAGE, DB_CALCULATE_USER_TABLE_STATS } from "../../2-database/queries/queries.mjs";
 import { EMAIL_FONT_FAMILY, EMAIL_FONT_SIZE, EMAIL_COLOR } from "../email-types.mjs";
 import { htmlTitle } from "./email-template-components.mjs";
@@ -45,7 +45,7 @@ export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:
       
 
 export const htmlUserStats = async():Promise<string> => {
-    const stats = await DB_CALCULATE_USER_TABLE_STATS();
+    const stats:DatabaseUserStats = await DB_CALCULATE_USER_TABLE_STATS();
 
     return htmlSummaryPairList('User Statistics', new Map<string, string | number>([
         ['Total Users', stats.totalRows],

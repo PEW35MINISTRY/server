@@ -84,3 +84,32 @@ export const stringifyErrorMessage = (message:any):string => {
     return '[UNSERIALIZABLE]';
   }
 }
+
+
+
+const SAFE_KEY_REGEX:RegExp = new RegExp(/^[A-Za-z0-9]{4,20}$/);        //Alphanumeric keys, 4-20 characters (anything else skipped)
+const SAFE_VALUE_REGEX:RegExp = new RegExp(/[^A-Za-z0-9\-_.@]/, 'g');   //Alphanumeric, dash, underscore, period, @ symbol allowed; (anything else filtered)
+
+export const sanitizeKeyValuePairs = (pairs:Record<string, string|number>, { keyRegexValidation = SAFE_KEY_REGEX, valueFilterRegex = SAFE_VALUE_REGEX, maxItems = Number.POSITIVE_INFINITY, maxLength = Number.POSITIVE_INFINITY }
+                                                                         : { keyRegexValidation?:RegExp; valueFilterRegex?:RegExp; maxItems?:number; maxLength?:number } = {}): Record<string,string> => {
+    const result: Record<string, string> = {};
+    for(const key of Object.keys(pairs).slice(0, maxItems)) {
+
+        if(typeof key !== 'string' || !keyRegexValidation.test(key))
+            continue;
+
+        let value = pairs[key];
+        if(Array.isArray(value))
+            value = value[0];
+
+        if(value == null || (typeof value !== 'string' && typeof value !== 'number'))
+            continue;
+
+        const cleanValue = String(value).replace(valueFilterRegex, '').slice(0, maxLength);
+
+        if(cleanValue.length > 0)
+            result[key] = cleanValue;
+    }
+
+    return result;
+}

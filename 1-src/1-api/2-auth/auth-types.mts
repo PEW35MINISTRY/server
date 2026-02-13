@@ -3,8 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 import { IncomingHttpHeaders } from 'http';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { JwtPayload } from 'jsonwebtoken';
-import { ProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { JwtResponseBody, LoginRequestBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
+import { LoginRequestBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 
 
 /****************************************************************************************
@@ -23,6 +22,35 @@ export type WebsiteSubscription = {
 export interface SubscribePost extends Request {
     body: WebsiteSubscription
 }
+
+export interface TokenReportRequest extends Request {
+    query: {
+        token:string
+    }
+}
+
+export interface EmailTokenInitializeRequest extends JwtClientRequest {
+    body: {
+        email:string
+    }
+}
+
+export interface EmailVerifyConfirmRequest extends Request {
+    query: {
+        email:string,
+        token:string,
+    }
+}
+
+export interface PasswordResetConfirmRequest extends Request {
+    body: {
+        email:string,
+        token:string,
+        password:string,
+        passwordVerify:string        
+    }
+}
+
 
 export interface JwtData extends JwtPayload {
     jwtUserID: number;
