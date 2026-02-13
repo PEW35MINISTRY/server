@@ -10,6 +10,11 @@ import { DB_SELECT_USER, DB_UPDATE_USER } from '../../2-services/2-database/quer
 import { sendSubscribeWelcomeEmail } from '../../2-services/4-email/configurations/email-release-notes.mjs';
 import { DB_CONSUME_TOKEN, DB_DELETE_TOKEN, DB_INSERT_TOKEN, DB_SELECT_TOKEN, DB_SELECT_TOKEN_USER_ALL } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import { DATABASE_TOKEN, DATABASE_TOKEN_TYPE_ENUM } from '../../2-services/2-database/database-types.mjs';
+import { InputValidationResult } from '../../0-assets/field-sync/input-config-sync/inputValidation.mjs';
+import { getEnvironment, sanitizeKeyValuePairs } from '../../2-services/10-utilities/utilities.mjs';
+import InputField from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import validateInput from '../../0-assets/field-sync/input-config-sync/inputValidation.mjs';
+
 
 
 /********************
@@ -25,28 +30,12 @@ import { DATABASE_TOKEN, DATABASE_TOKEN_TYPE_ENUM } from '../../2-services/2-dat
         return next(new Exception(400, `Invalid token request.`, 'Invalid Request'));
     else
         response.status(303).redirect(`${process.env.ENVIRONMENT_BASE_URL}/confirmation`); //Always success
-
-    
-    /* Sanitize additionalQueryArguments for Logging purposes*/
-    const logDetails:Record<string,string> = {};
-    for(const key of Object.keys(additionalQueryArguments).slice(0, 3)) { //max 3
-        let value:string = additionalQueryArguments[key];
-        if(value == null || (typeof value !== 'string' && typeof value !== 'number'))
-            continue;
-        
-        if(!new RegExp(/^[A-Za-z0-9\-_.@]{4,20}$/).test(key))
-            continue;
-
-        const cleanValue = String(value).replace(new RegExp(/[^A-Za-z0-9\-_.@]/g), '').slice(0, 200); //max 200 length cleaned
-        if(cleanValue.length > 0)
-            logDetails[key] = cleanValue;
-    }
-
     
     /* Delete & Log */
     const entry:DATABASE_TOKEN | undefined = await DB_SELECT_TOKEN(token);
     if(entry !== undefined) {
-        log.warn('SECURITY EVENT: User reported unrequested token; token deleted - POST_reportUserToken', entry.userID, entry.type, `createdDT=${entry.createdDT}`, `expirationDT=${entry.expirationDT ?? 'NULL'}`, logDetails);
+        const cleanDetails:Record<string, string> = sanitizeKeyValuePairs(additionalQueryArguments, { maxItems: 3, maxLength: 200 });
+        log.warn('SECURITY EVENT: User reported unrequested token; token deleted - POST_reportUserToken', entry.userID, entry.type, `createdDT=${entry.createdDT}`, `expirationDT=${entry.expirationDT ?? 'NULL'}`, cleanDetails);
         await DB_DELETE_TOKEN(request.query.token);
     }
 }
