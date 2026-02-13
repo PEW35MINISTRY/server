@@ -287,11 +287,11 @@ export const authenticateContentApproverMiddleware = async(request: JwtRequest, 
 /* Authenticate current ADMIN role (JWT could be stale) */
 export const authenticateAdminMiddleware = async(request: JwtRequest, response: Response, next: NextFunction):Promise<void> => {
 
-    if(request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN)) {
+    if(request.jwtUserRole !== RoleEnum.ADMIN || !(await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN)))
+        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.jwtUserID} is not an ADMIN.`, 'Admin Required'));
+    
+    else {
         log.auth(`AUTHENTICATED :: ADMIN :: status verified: User: ${request.jwtUserID} is an ADMIN`);
         next();
-
-    } else {
-        next(new Exception(401, `FAILED AUTHENTICATED :: ADMIN :: User: ${request.jwtUserID} is not an ADMIN.`, 'Admin Required'));
     }
 }

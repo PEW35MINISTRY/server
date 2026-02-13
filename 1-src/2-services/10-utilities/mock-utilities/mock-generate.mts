@@ -202,10 +202,10 @@ export const createMockCircle = async(leaderID:number, leaderRoleVerified:boolea
 *******************************************/
 export const populateDemoRelations = async(user:USER):Promise<USER> => {
     if(user.userID <= 0 || !user.isValid) {
-        log.warn('Error populating profile relations with invalid USER', user.userID, user.toString());
+        log.warn('Error populating profile relations with invalid DEMO_USER', user.userID, user.toString());
         return user;
-    } else if(!user.isRole(RoleEnum.USER)) {
-        log.warn('Rejected populating profile relations without USER Role', user.userID, JSON.stringify(user.userRoleList), user.toString());
+    } else if(!user.isRole(RoleEnum.DEMO_USER)) {
+        log.warn('Rejected populating profile relations without DEMO_USER Role', user.userID, JSON.stringify(user.userRoleList), user.toString());
     }
 
     const modifiedUserIDList:number[] = [user.userID];

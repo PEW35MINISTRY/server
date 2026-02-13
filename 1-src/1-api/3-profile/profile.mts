@@ -3,13 +3,13 @@ import URL, { URLSearchParams } from 'url';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
+import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_TOKEN_TYPE_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_CONTACT_CACHE, DB_DELETE_USER, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
-import { DB_INSERT_USER_ROLE, DB_SELECT_USER_ROLES, DB_DELETE_USER_ROLE } from '../../2-services/2-database/queries/user-security-queries.mjs';
-import { JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
-import { getEmailLogin, isMaxRoleGreaterThan, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
+import { DB_INSERT_USER_ROLE, DB_SELECT_USER_ROLES, DB_DELETE_USER_ROLE, DB_CONSUME_TOKEN } from '../../2-services/2-database/queries/user-security-queries.mjs';
+import { EmailVerifyConfirmRequest, JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
+import { assembleLoginResponse, getEmailLogin, isMaxRoleGreaterThan, LoginMethod, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, generateJWTRequest, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
 import { clearImage, clearImageByID, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ProfileEditRequest, ProfileEditWalkLevelRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
@@ -19,6 +19,8 @@ import { InputRangeField } from '../../0-assets/field-sync/input-config-sync/inp
 import { searchList } from '../api-search-utilities.mjs';
 import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
+import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
+import { SignupProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 
 
 
@@ -86,7 +88,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
  /* Unauthenticated Route */
  export const POST_signup =  async(request: ProfileSignupRequest, response: Response, next: NextFunction) => {
     
-    const newProfile:USER|Exception = await USER.constructByJson({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
+    let newProfile:USER|Exception = await USER.constructByJson({jsonObj:request.body, fieldList: SIGNUP_PROFILE_FIELDS});
 
     if(!(newProfile instanceof Exception)) {
         if(USER_TABLE_COLUMNS_REQUIRED.every((column) => newProfile[column] !== undefined) === false) 
@@ -108,29 +110,70 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
             if(insertRoleList.length > 0 && !(await DB_INSERT_USER_ROLE({email:newProfile.email, userRoleList: insertRoleList})))
                 log.error(`SIGNUP: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${newProfile.email}`);
 
-            const loginDetails:LoginResponseBody|Exception = await getEmailLogin(newProfile.email, request.body['password'], false);
+            //Query for userID
+            newProfile = await DB_SELECT_USER(new Map([['email', newProfile.email]]), true);
 
-            if(loginDetails) {
-                newProfile.userID = loginDetails.userID;
-                newProfile.isValid = true;
-
-                if(insertRoleList.length > 1) loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
-
-                //Optional Demo User Populate
-                if(request.query.populate === 'true' && newProfile.isRole(RoleEnum.USER)) {
-                    loginDetails.userProfile = (await populateDemoRelations(newProfile)).toJSON();
-                }
-
-                response.status(201).send(loginDetails);
-                await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();
-                
-                log.event('Successfully Signed up New User', newProfile.userID, newProfile.displayName, JSON.stringify(newProfile.userRoleList), (request.query.populate === 'true') ? 'Populated Demo Profile' : '');
-            } else
+            if(!newProfile.isValid)
                 next(new Exception(404, `Signup Failed: Account successfully created; but failed to auto login new user.`, 'Please Login'));
+
+            else {
+                //Optional Demo User Populate
+                if(request.query.populate === 'true' && insertRoleList.includes(DATABASE_USER_ROLE_ENUM.DEMO_USER))
+                    newProfile = await populateDemoRelations(newProfile);
+
+                if(!insertRoleList.includes(DATABASE_USER_ROLE_ENUM.DEMO_USER))
+                    sendUserEmailVerification(newProfile.userID, newProfile.email, newProfile.firstName);
+                
+                return response.status(201).send({ 
+                    userID:newProfile.userID, 
+                    userRole:newProfile.getHighestRole(), 
+                    email:newProfile.email 
+                } satisfies SignupProfileResponse);
+            }
         }
+
     } else
-        next(newProfile);
-};
+        next(newProfile); //Exception creating profile
+}
+
+
+/* SIGNUP LOGIN & Email Token Verification */
+export const POST_emailVerifyAndLogin = async(request:EmailVerifyConfirmRequest, response:Response, next:NextFunction) => {
+    const email:string = request.body.email;
+    const token:string = request.body.token;
+
+    if((email === undefined) || (String(email).length === 0) || (email === 'undefined'))
+        return next(new Exception(400, `POST_emailVerifyAndLogin - Invalid email verification request body: missing email`, 'Invalid Request'));
+
+    else if((token === undefined) || (String(token).length === 0) || (token === 'undefined'))
+        return next(new Exception(400, `POST_emailVerifyAndLogin - Invalid email verification request body: missing token`, 'Invalid Request'));
+
+    const userProfile:USER = await DB_SELECT_USER(new Map([['email', email]]), false);
+    if(userProfile.isValid == false)
+        return next(new Exception(401, `POST_emailVerifyAndLogin - Email verification failed – user not found`, 'Verification Failed'));
+
+    else if(await DB_CONSUME_TOKEN({ userID:userProfile.userID, type:DATABASE_TOKEN_TYPE_ENUM.EMAIL_VERIFY, token:token }) == false)
+        return next(new Exception(401, `POST_emailVerifyAndLogin - Email verification failed – token invalid or expired`, 'Verification Failed'));
+
+    else if(await DB_UPDATE_USER(userProfile.userID, new Map([['isEmailVerified', true]])) == false)
+        return next(new Exception(500, `POST_emailVerifyAndLogin - Email verification failed – DB failed to update isEmailVerified status`, 'Server Error'));
+    
+    else {
+        userProfile.isEmailVerified = true;
+        const loginDetails:LoginResponseBody|Exception = await assembleLoginResponse(LoginMethod.TOKEN, userProfile, false);
+        if(loginDetails instanceof Exception)
+            return next(loginDetails);
+
+        else {
+            loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
+            response.status(201).send(loginDetails);
+
+            await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();              
+            log.event('Successfully Signed up New User', loginDetails.userProfile.userID, loginDetails.userProfile.displayName, JSON.stringify(loginDetails.userProfile.userRoleList));
+        }
+    }
+}
+
 
 /* Update Profiles */
 //NOTE: request.userID is editor and request.clientID is profile editing
