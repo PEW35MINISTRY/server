@@ -143,10 +143,10 @@ export const POST_emailVerifyAndLogin = async(request:EmailVerifyConfirmRequest,
     const token:string = request.body.token;
 
     if((email === undefined) || (String(email).length === 0) || (email === 'undefined'))
-        return next(new Exception(400, `POST_emailVerifyAndLogin - Invalid email verification request body: missing email`, 'Invalid Request'));
+        return next(new Exception(400, `POST_emailVerifyAndLogin - Invalid email verification request body: missing email`, 'Invalid Email'));
 
     else if((token === undefined) || (String(token).length === 0) || (token === 'undefined'))
-        return next(new Exception(400, `POST_emailVerifyAndLogin - Invalid email verification request body: missing token`, 'Invalid Request'));
+        return next(new Exception(400, `POST_emailVerifyAndLogin - Invalid email verification request body: missing token`, 'Invalid Token'));
 
     const userProfile:USER = await DB_SELECT_USER(new Map([['email', email]]), false);
     if(userProfile.isValid == false)
