@@ -57,7 +57,7 @@ export const DB_CALCULATE_USER_TABLE_STATS = async():Promise<DatabaseUserStats> 
         + 'SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 7 DAY THEN 1 ELSE 0 END) AS modified7Days, '
         + 'SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS modified30Days, '
         
-        + 'SUM(emailVerified = 1) AS emailVerified, '
+        + 'SUM(isEmailVerified = 1) AS emailVerified, '
         + [1,2,3,4,5,6,7,8,9,10].map((level) => `SUM(walkLevel = ${level}) AS 'walkLevel_${level}'`).join(', \n') 
         + ', '
 

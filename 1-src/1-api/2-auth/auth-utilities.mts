@@ -11,6 +11,8 @@ import { DB_SELECT_USER_CONTENT_LIST } from '../../2-services/2-database/queries
 import { hash, verify } from 'argon2';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import { Exception } from '../api-types.mjs';
+import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
 
 
 /********************
@@ -147,27 +149,37 @@ export enum LoginMethod {
     FACEBOOK = 'FACEBOOK'
 }
 
-export const getJWTLogin = async(userID:number, detailed = true):Promise<LoginResponseBody|undefined> => {
+export const getJWTLogin = async(userID:number, detailed = true):Promise<LoginResponseBody|Exception> => {
     const userProfile:USER = await DB_SELECT_USER(new Map([['userID', userID]]));
     return await assembleLoginResponse(LoginMethod.JWT, userProfile, detailed);
 }
 
-export const getEmailLogin = async(email:string = '', password: string = '', detailed = true):Promise<LoginResponseBody|undefined> => {
+export const getEmailLogin = async(email:string = '', password: string = '', detailed = true):Promise<LoginResponseBody|Exception> => {
     const userProfile:USER = await DB_SELECT_USER(new Map([['email', email]]));
 
     // Verify user credentials
     if(!userProfile.isValid || userProfile.userID <= 0 
         || password === undefined || password.length === 0 
         || !(await verifyPassword(userProfile.passwordHash, password)))
-            return undefined;
+            return new Exception(404, 'Login Failed: Credentials do not match our records.', 'Invalid Credentials');
+
+    else if(!userProfile.isEmailVerified 
+        && (userProfile.isRole(RoleEnum.ADMIN)
+            || ((getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)
+            && isMaxRoleGreaterThan({testUserRole: RoleEnum.DEMO_USER, currentMaxUserRole: userProfile.getHighestRole()})))) { //Skip Demo-User Only Profiles
+
+        await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
+        return new Exception(403, 'Email address is not verified.', 'Please Verify Email');
+    }
 
     return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
 }
 
-export const assembleLoginResponse = async(loginMethod:LoginMethod, userProfile:USER, detailed = true):Promise<LoginResponseBody|undefined> => {
+
+export const assembleLoginResponse = async(loginMethod:LoginMethod, userProfile:USER, detailed = true):Promise<LoginResponseBody|Exception> => {
     // Verify user credentials
-    if(!userProfile.isValid || userProfile.userID <= 0)
-        return undefined;
+    if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && (!userProfile.isValid || userProfile.userID <= 0 || !userProfile.isEmailVerified))
+        return new Exception(500, 'Login proceeded with invalid credentials -> investigate', 'Invalid Credentials');
     
     if(detailed) 
         await DB_POPULATE_USER_PROFILE(userProfile);

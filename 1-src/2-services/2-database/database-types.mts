@@ -77,7 +77,7 @@ export const TABLES_SUPPORTING_DT: Map<DATABASE_TABLE, Array<'createdDT' | 'modi
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
 export const USER_TABLE_COLUMNS_EDIT:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
-    'modelSourceEnvironment', 'firstName', 'lastName', 'postalCode', 'dateOfBirth', 'gender', 'emailVerified', 'walkLevel', 'image', 'notes', 'maxPartners'
+    'modelSourceEnvironment', 'firstName', 'lastName', 'isEmailVerified', 'postalCode', 'dateOfBirth', 'gender', 'walkLevel', 'maxPartners', 'image', 'notes'
 ];
 
 export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_EDIT,
@@ -91,15 +91,16 @@ export type DATABASE_USER = { //Optional Fields for PATCH/UPDATE
     lastName?: string,
     displayName?: string,  //Unique
     email?: string,        //Unique
+    isEmailVerified?: boolean,
+    emailVerifiedDT?: Date|null,
     passwordHash?: string,
     postalCode?: string, 
     dateOfBirth?: Date, 
     gender?: DATABASE_GENDER_ENUM,
-    emailVerified?: boolean,
     walkLevel?: number,
+    maxPartners: number,
     image?: string,
     notes?: string,
-    maxPartners: number,
     userRole?: DATABASE_USER_ROLE_ENUM, //Top role from table user_role_defined
 };
 
@@ -342,6 +343,7 @@ export type DATABASE_NOTIFICATION_DEVICE = {
 export const TOKEN_TABLE_COLUMNS_REQUIRED:string[] = [ 'userID', 'type', 'token', 'expirationDT' ];
 
 export enum DATABASE_TOKEN_TYPE_ENUM {
+    EMAIL_VERIFY = 'EMAIL_VERIFY',
     PASSWORD_RESET = 'PASSWORD_RESET',
 }
 

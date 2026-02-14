@@ -99,6 +99,7 @@ export default class InputField {
         /* Validations */
         if(this.length && (typeof this.length.min !== 'number' || typeof this.length.max !== 'number' || this.length.min > this.length.max)) throw new Error(`InputSelectionField - ${this.field} - Invalid length: ${JSON.stringify(this.length)}`);
         if(this.type === InputType.READ_ONLY && (this.required || this.unique || this.length !== undefined || validationRegex !== undefined || validationMessage !== undefined || this.customField !== undefined)) throw new Error(`InputSelectionField - ${this.field} - READ_ONLY fields cannot be required, unique, or define length/validation/customField`);
+        if(this.type === InputType.TOKEN && (!this.length || this.length.min !== this.length.max)) throw new Error(`InputField - ${this.field} - TOKEN fields must define fixed length where length.min === length.max: ${JSON.stringify(this.length)}`);
     };
 
     setValue(value: string): void {this.value = value; }
