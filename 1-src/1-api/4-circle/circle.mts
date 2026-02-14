@@ -9,7 +9,8 @@ import CIRCLE from '../../2-services/1-models/circleModel.mjs';
 import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS_REQUIRED, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE, DB_DELETE_CIRCLE_ANNOUNCEMENT, DB_DELETE_CIRCLE_USER_STATUS, DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_INSERT_CIRCLE, DB_INSERT_CIRCLE_ANNOUNCEMENT, DB_INSERT_CIRCLE_USER_STATUS, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_CIRCLE_DETAIL, DB_SELECT_CIRCLE_DETAIL_BY_NAME, DB_SELECT_CIRCLE_USER_LIST, DB_SELECT_USER_CIRCLES, DB_UPDATE_CIRCLE, DB_UPDATE_CIRCLE_USER_STATUS } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_RECIPIENT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import { DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_DELETE_CONTACT_CACHE_CIRCLE_MEMBERS } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { JwtCircleRequest, JwtRequest } from '../2-auth/auth-types.mjs';
 import { Exception, ImageTypeEnum } from '../api-types.mjs';
@@ -50,7 +51,7 @@ export const GET_circle =  async(request: JwtCircleRequest, response: Response, 
     //Additional MEMBER Detail Queries
     } else if([CircleStatusEnum.MEMBER, CircleStatusEnum.LEADER].includes(circle.requestorStatus) || (request.jwtUserRole === RoleEnum.ADMIN)) { 
         circle.announcementList = await DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT(request.circleID);
-        circle.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST( circle.circleID);
+        circle.prayerRequestList = await DB_SELECT_PRAYER_REQUEST_CIRCLE_LIST(circle.circleID, request.jwtUserID);
     }
         
     if(circle.requestorStatus === CircleStatusEnum.MEMBER && (request.jwtUserRole !== RoleEnum.ADMIN)) {
@@ -98,7 +99,7 @@ export const POST_newCircle =  async(request: JwtRequest, response: Response, ne
         else if(await DB_IS_USER_ROLE(newCircle.leaderID, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER) === false)
             next(new Exception(401, `Edit Circle Failed :: failed to verify leader status of userID: ${newCircle.leaderID}`, 'Leader status not verified.'));
 
-        else if(await DB_INSERT_CIRCLE(newCircle.getDatabaseProperties()) === false) 
+        else if((await DB_INSERT_CIRCLE(newCircle.getDatabaseProperties())).success === false) 
                 next(new Exception(500, 'Create Circle  Failed :: Failed to save new circle to database.', 'Save Failed'));
 
         else {
@@ -138,6 +139,7 @@ export const PATCH_circle =  async(request: JwtCircleRequest, response: Response
         else {
             editCircle.requestorID = request.jwtUserID;
             editCircle.requestorStatus = CircleStatusEnum.LEADER;
+            editCircle.modifiedDT = new Date(); //Local update, database sets modifiedDT
 
             response.status(202).send(editCircle.toLeaderJSON());
         }
@@ -234,10 +236,13 @@ export const POST_circleAnnouncement =  async(request: CircleAnnouncementCreateR
         newCircleAnnouncement.circleID = request.circleID;
         
         if(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED.every((column) => newCircleAnnouncement[column] !== undefined) === false) 
-            next(new Exception(400, `Create Circle Announcement Failed :: Missing Required Fields: ${JSON.stringify(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
+            return next(new Exception(400, `Create Circle Announcement Failed :: Missing Required Fields: ${JSON.stringify(CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED)}.`, 'Missing Details'));
 
-        else if(await DB_INSERT_CIRCLE_ANNOUNCEMENT(newCircleAnnouncement.getDatabaseProperties()) === false) 
-                next(new Exception(500, 'Create Circle Announcement Failed :: Failed to save new circle announcement.', 'Save Failed'));
+        const insertResponse:{success:boolean, announcementID:number} = await DB_INSERT_CIRCLE_ANNOUNCEMENT(newCircleAnnouncement.getDatabaseProperties());
+        newCircleAnnouncement.announcementID = insertResponse.announcementID;
+        
+        if(!insertResponse.success || insertResponse.announcementID <= 0) 
+            next(new Exception(500, 'Create Circle Announcement Failed :: Failed to save new circle announcement.', 'Save Failed'));
 
         else
             response.status(202).send(newCircleAnnouncement.toJSON());

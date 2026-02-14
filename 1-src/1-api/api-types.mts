@@ -8,7 +8,7 @@ import BASE_MODEL from '../2-services/1-models/baseModel.mjs';
 import CIRCLE from '../2-services/1-models/circleModel.mjs';
 import CONTENT_ARCHIVE from '../2-services/1-models/contentArchiveModel.mjs';
 import USER from '../2-services/1-models/userModel.mjs';
-import { DB_SELECT_USER, DB_SELECT_CONTACT_LIST, DB_SELECT_USER_SEARCH_CACHE, DB_SELECT_USER_SEARCH, DB_INSERT_USER_SEARCH_CACHE, DB_IS_ANY_USER_ROLE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_SELECT_CONTACT_CACHE, DB_INSERT_CONTACT_CACHE, DB_FLUSH_CONTACT_CACHE_ADMIN } from '../2-services/2-database/queries/user-queries.mjs';
+import { DB_SELECT_USER, DB_SELECT_CONTACT_LIST, DB_SELECT_USER_SEARCH_CACHE, DB_SELECT_USER_SEARCH, DB_INSERT_USER_SEARCH_CACHE, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_SELECT_CONTACT_CACHE, DB_INSERT_CONTACT_CACHE, DB_FLUSH_CONTACT_CACHE_ADMIN } from '../2-services/2-database/queries/user-queries.mjs';
 import { CircleSearchRefineEnum } from '../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { filterListByCircleStatus } from './4-circle/circle-utilities.mjs';
 import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_INSERT_CIRCLE_SEARCH_CACHE, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_SEARCH, DB_SELECT_CIRCLE_SEARCH_CACHE, DB_SELECT_LATEST_CIRCLES, DB_SELECT_USER_CIRCLES } from '../2-services/2-database/queries/circle-queries.mjs';
@@ -16,6 +16,10 @@ import { ContentSearchRefineEnum } from '../0-assets/field-sync/input-config-syn
 import { DB_SELECT_CONTENT, DB_SELECT_CONTENT_SEARCH, DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES } from '../2-services/2-database/queries/content-queries.mjs';
 import { filterContentList } from './11-content/content-utilities.mjs';
 import { filterContactList } from './3-profile/profile-utilities.mjs';
+import { PrayerRequestListItem } from "../0-assets/field-sync/api-type-sync/prayer-request-types.mjs";
+import PRAYER_REQUEST from "../2-services/1-models/prayerRequestModel.mjs";
+import { DB_SELECT_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_SEARCH, DB_SELECT_PRAYER_REQUEST_USER_LIST } from "../2-services/2-database/queries/prayer-request-queries.mjs";
+import { PrayerRequestSearchRefineEnum } from "../0-assets/field-sync/input-config-sync/prayer-request-field-config.mjs";
 
 
 /************************************
@@ -169,5 +173,23 @@ export const SearchDetailServer:Record<SearchType, SearchTypeInfoServer<any, BAS
                             fetchDefaultList: DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES,
                             executeSearch: (request:JwtSearchRequest, searchTerm:string, columnList:string[]) => DB_SELECT_CONTENT_SEARCH(searchTerm, columnList),
                             filterResultList: filterContentList,
+                        }),
+
+  [SearchType.PRAYER_REQUEST]: new SearchTypeInfoServer<PrayerRequestListItem, PRAYER_REQUEST>({ searchTypeInfo: SearchDetail[SearchType.PRAYER_REQUEST],
+                          refineDatabaseMapping: new Map([[PrayerRequestSearchRefineEnum.TITLE, ['topic']], [PrayerRequestSearchRefineEnum.DESCRIPTION, ['description']], [PrayerRequestSearchRefineEnum.TAG, ['tagListStringified']],
+                                    [PrayerRequestSearchRefineEnum.ALL, ['topic', 'description', 'tagListStringified']]
+                                ]), 
+                            searchByIDMap: new Map([[PrayerRequestSearchRefineEnum.ID, (ID:number) => DB_SELECT_PRAYER_REQUEST(ID).then((model) => [model.toListItem()])]]),
+                            fetchDefaultList: DB_SELECT_PRAYER_REQUEST_USER_LIST,
+                            executeSearch: (request:JwtSearchRequest, searchTerm:string, columnList:string[]) => DB_SELECT_PRAYER_REQUEST_SEARCH({searchTerm, columnList, recipientID:request.jwtUserID}),
+                        }),
+
+    [SearchType.PRAYER_REQUEST_OWNED]: new SearchTypeInfoServer<PrayerRequestListItem, PRAYER_REQUEST>({ searchTypeInfo: SearchDetail[SearchType.PRAYER_REQUEST_OWNED],
+                          refineDatabaseMapping: new Map([[PrayerRequestSearchRefineEnum.TITLE, ['topic']], [PrayerRequestSearchRefineEnum.DESCRIPTION, ['description']], [PrayerRequestSearchRefineEnum.TAG, ['tagListStringified']],
+                                    [PrayerRequestSearchRefineEnum.ALL, ['topic', 'description', 'tagListStringified']]
+                                ]), 
+                            searchByIDMap: new Map([[PrayerRequestSearchRefineEnum.ID, (ID:number) => DB_SELECT_PRAYER_REQUEST(ID).then((model) => [model.toListItem()])]]),
+                            fetchDefaultList: DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST,
+                            executeSearch: (request:JwtSearchRequest, searchTerm:string, columnList:string[]) => DB_SELECT_PRAYER_REQUEST_SEARCH({searchTerm, columnList, requestorID:request.jwtUserID}),
                         }),
 };

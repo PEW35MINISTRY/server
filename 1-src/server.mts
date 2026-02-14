@@ -21,14 +21,14 @@ import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
 import { EmailReportRequest } from './1-api/9-email/email-types.mjs';
 
 //Import Routes
-import apiRoutes, { GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser, POST_PrayerRequestExpiredScript } from './1-api/api.mjs';
+import apiRoutes, {GET_AdminStatistics, GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser, POST_PrayerRequestExpiredScript } from './1-api/api.mjs';
 import { DELETE_LogEntryByS3Key, DELETE_LogEntryS3ByDay, GET_LogDefaultList, GET_LogDownloadFile, GET_LogEntryByS3Key, GET_LogSearchList, POST_LogEmailReport, POST_LogEntry, POST_LogPartitionBucket, POST_LogResetFile } from './1-api/1-utility/log.mjs';
 import { authenticatePartnerMiddleware, authenticateCircleMembershipMiddleware, authenticateClientAccessMiddleware, authenticateCircleLeaderMiddleware, authenticateAdminMiddleware, jwtAuthenticationMiddleware, authenticateCircleManagerMiddleware, authenticatePrayerRequestRecipientMiddleware, authenticatePrayerRequestRequestorMiddleware, extractCircleMiddleware, extractClientMiddleware, authenticateContentApproverMiddleware, extractContentMiddleware, extractPartnerMiddleware, authenticatePendingPartnerMiddleware, authenticateLeaderMiddleware, authenticateDemoUserMiddleware } from './1-api/2-auth/authorization.mjs';
 import { GET_userContacts } from './1-api/7-chat/chat.mjs';
-import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin } from './1-api/2-auth/auth.mjs';
-import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList } from './1-api/3-profile/profile.mjs';
+import { POST_JWTLogin, POST_login, POST_logout, POST_emailSubscribe, POST_resetPasswordAdmin, POST_resetPasswordConfirm, POST_resetPasswordInitialize, GET_userActiveTokensAdmin, POST_emailVerifyResend, GET_reportUserToken, GET_emailVerifyConfirm } from './1-api/2-auth/auth.mjs';
+import { GET_partnerProfile, GET_profileAccessUserList, GET_publicProfile, GET_userProfile, PATCH_userProfile, GET_AvailableAccount, DELETE_userProfile, POST_profileImage, DELETE_profileImage, GET_profileImage, DELETE_flushClientSearchCache, POST_signup, PATCH_profileWalkLevel, GET_contactList, DELETE_contactCache, POST_refreshContactList, POST_emailVerifyAndLogin } from './1-api/3-profile/profile.mjs';
 import { GET_circle, POST_newCircle, DELETE_circle, DELETE_circleLeaderMember, DELETE_circleMember, PATCH_circle, POST_circleLeaderAccept, POST_circleMemberAccept, POST_circleMemberJoinAdmin, POST_circleMemberRequest, POST_circleLeaderMemberInvite, DELETE_circleAnnouncement, POST_circleAnnouncement, POST_circleImage, DELETE_circleImage, GET_circleImage, DELETE_flushCircleSearchCache } from './1-api/4-circle/circle.mjs';
-import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
+import { DELETE_prayerRequest, DELETE_prayerRequestComment, GET_PrayerRequest, GET_PrayerRequestCircleList, GET_PrayerRequestRecipientList, GET_PrayerRequestRequestorList, GET_PrayerRequestRequestorResolvedList, GET_PrayerRequestUserList, PATCH_prayerRequest, POST_prayerRequest, POST_prayerRequestComment, POST_prayerRequestCommentIncrementLikeCount, POST_prayerRequestCommentUnlike, POST_prayerRequestIncrementPrayerCount, POST_prayerRequestResolved } from './1-api/5-prayer-request/prayer-request.mjs';
 import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveImage, GET_ContentRequest, GET_UserContentList, PATCH_contentArchive, POST_contentArchiveImage, POST_contentIncrementLikeCount, POST_fetchContentArchiveMetaData, POST_newContentArchive } from './1-api/11-content/content.mjs';
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
@@ -43,6 +43,8 @@ import CHAT from './2-services/3-chat/chat.mjs';
 import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-request-expired-script.mjs';
 import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_FLUSH_USER_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/user-queries.mjs';
 import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/circle-queries.mjs';
+import { DB_FLUSH_EXPIRED_TOKENS } from './2-services/2-database/queries/user-security-queries.mjs';
+import { sendEmailVerificationReminderBatch } from './2-services/4-email/configurations/email-verification.mjs';
 
 
 /********************
@@ -63,12 +65,15 @@ await checkAWSAuthentication();
 //*** CRON JOBS ***/
 if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)) {
   //Run at 15:00 UTC - 9am CST
-  schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
+  // schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
+  //Run at 01:00 UTC - Sundays 7pm CST
+  schedule("1 1 * * 1", async () => sendEmailVerificationReminderBatch());
 
   //Run at 08:00-8:02 UTC - 2AM CST
   schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
   schedule("1 8 * * *", async () => DB_FLUSH_CONTACT_CACHE_ADMIN());
   schedule("2 8 * * *", async () => DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN());
+  schedule("3 8 * * *", async () => DB_FLUSH_EXPIRED_TOKENS());
 }
 
 
@@ -102,13 +107,13 @@ apiServer.use(['/', '/website'], express.static(path.join(process.env.SERVER_PAT
 apiServer.get('/website/*', (request:Request, response:Response) => response.status(301).redirect('/website'));
 apiServer.get('/website', (request:Request, response:Response) => response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'website', 'index.html')));
 
-apiServer.use(['/portal', '/login', '/signup'], express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
+apiServer.use(['/portal', '/login', '/signup', '/password-forgot', '/password-reset'], express.static(path.join(process.env.SERVER_PATH || __dirname, 'portal')));
 
 apiServer.get('/portal', (request:Request, response:Response) => {
   response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
-apiServer.get(['/portal', '/portal/*', '/login', '/signup'], (request:Request, response:Response) => {
+apiServer.get(['/portal', '/portal/*', '/login', '/signup', '/password-forgot', '/password-reset'], (request:Request, response:Response) => {
   response.status(200).sendFile(path.join(process.env.SERVER_PATH || __dirname, 'portal', 'index.html'));
 });
 
@@ -171,6 +176,13 @@ apiServer.get('/*', (request:JwtRequest, response:Response, next:NextFunction) =
 });
 
 
+/* Public Email Actions */
+apiServer.get('/api/report-token', GET_reportUserToken); //Unrequested tokens, callback in email
+apiServer.get('/api/email-verify', GET_emailVerifyConfirm);
+apiServer.post('/api/email-verify', POST_emailVerifyAndLogin);
+apiServer.post('/api/password-forgot', POST_resetPasswordInitialize);
+apiServer.post('/api/password-reset', POST_resetPasswordConfirm);
+
 
 /************************************************************/
 /*            Authenticate JWT Validity                     */
@@ -189,18 +201,19 @@ apiServer.get('/api/contacts', GET_userContacts); //Returns id and Name
 
 apiServer.get('/api/search-list/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => GET_SearchList(undefined, request, response, next)); //(Handles authentication)
 
-apiServer.get('/api/prayer-request/user-list', GET_PrayerRequestUserList);
-apiServer.post('/api/prayer-request', POST_prayerRequest);
-
 
 /*****************************************************************************/
 /* Authenticate Recipient to Prayer Request | cache: request.prayerRequestID */
 /*****************************************************************************/
+apiServer.get('/api/prayer-request/user-list', GET_PrayerRequestUserList);
+apiServer.post('/api/prayer-request', POST_prayerRequest);
+
 apiServer.use('/api/prayer-request/:prayer', (request:JwtPrayerRequest, response:Response, next:NextFunction) => authenticatePrayerRequestRecipientMiddleware(request, response, next));
 
 apiServer.get('/api/prayer-request/:prayer', GET_PrayerRequest);
 apiServer.post('/api/prayer-request/:prayer/like', POST_prayerRequestIncrementPrayerCount);
 apiServer.post('/api/prayer-request/:prayer/comment/:comment/like', POST_prayerRequestCommentIncrementLikeCount);
+apiServer.post('/api/prayer-request/:prayer/comment/:comment/unlike', POST_prayerRequestCommentUnlike);
 apiServer.post('/api/prayer-request/:prayer/comment', POST_prayerRequestComment);
 apiServer.delete('/api/prayer-request/:prayer/comment/:comment', DELETE_prayerRequestComment);
 
@@ -268,6 +281,7 @@ apiServer.delete('/api/user/:client/contact-list-cache', DELETE_contactCache);
 
 apiServer.get('/api/user/:client/prayer-request-list', GET_PrayerRequestRequestorList);
 apiServer.get('/api/user/:client/prayer-request-resolved-list', GET_PrayerRequestRequestorResolvedList);
+apiServer.get('/api/user/:client/prayer-request-recipient-list', GET_PrayerRequestRecipientList);
 
 apiServer.use('/api/user/:client/mock-prayer-request', (request:JwtRequest, response:Response, next:NextFunction) => authenticateDemoUserMiddleware(request, response, next));
 apiServer.get('/api/user/:client/mock-prayer-request', GET_createMockPrayerRequest);
@@ -389,6 +403,7 @@ apiServer.get('/api/admin/mock-user', GET_createMockUser); //Optional query: pop
 apiServer.use(express.text());
 apiServer.delete('/api/admin/flush-search-cache/:type', (request:JwtSearchRequest, response:Response, next:NextFunction) => DELETE_flushSearchCacheAdmin(undefined, request, response, next)); //(Handles authentication)
 
+apiServer.get('/api/admin/statistics', GET_AdminStatistics);
 apiServer.get('/api/admin/log', GET_LogEntryByS3Key);
 apiServer.delete('/api/admin/log', DELETE_LogEntryByS3Key);
 apiServer.delete('/api/admin/log/day', DELETE_LogEntryS3ByDay);
@@ -401,7 +416,10 @@ apiServer.get('/api/admin/log/:type/download', (request:LogEntryNewRequest, resp
 apiServer.post('/api/admin/log/:type/report', (request:LogEntryNewRequest, response:Response, next:NextFunction) => POST_LogEmailReport(undefined, request, response, next));
 
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
+apiServer.get('/api/admin/client/:client/token-list', GET_userActiveTokensAdmin);
 apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdmin);
+
+apiServer.post('/api/admin/client/:client/send/email-verify', POST_emailVerifyResend);
 
 apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDetailAdmin);
 apiServer.patch('/api/admin/notification/device/:device', PATCH_notificationDeviceAdmin);

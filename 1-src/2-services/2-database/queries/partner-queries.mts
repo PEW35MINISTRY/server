@@ -5,8 +5,9 @@ import USER from '../../1-models/userModel.mjs';
 import { NewPartnerListItem, PartnerCountListItem, PartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
 import { PartnerStatusEnum, RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { camelCase, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { camelCase, getEnvironment, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
+import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 
 
 /**********************************************
@@ -244,8 +245,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
         + ') AS partnerCounts ON user.userID = partnerCounts.userID '
         + 'WHERE user.userID != ? '
 
-            //TEMPORARY: To enable Partner search until Email Service is implemented [#72]
-            //+ 'AND user.emailVerified = true '
+            + (getEnvironment() == ENVIRONMENT_TYPE.PRODUCTION) ? 'AND user.isEmailVerified = 1 ' : ''
             
             + `AND (( user.modelSourceEnvironment = ? ) `
                 + 'OR ( '

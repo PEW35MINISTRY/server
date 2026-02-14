@@ -6,7 +6,7 @@ import { RoleEnum } from '../0-assets/field-sync/input-config-sync/profile-field
 import BASE_MODEL from '../2-services/1-models/baseModel.mjs';
 import { DATABASE_USER_ROLE_ENUM } from '../2-services/2-database/database-types.mjs';
 import { SearchType, DisplayItemType, SEARCH_MIN_CHARS } from '../0-assets/field-sync/input-config-sync/search-config.mjs';
-import { DB_IS_ANY_USER_ROLE } from '../2-services/2-database/queries/user-queries.mjs';
+import { DB_IS_ANY_USER_ROLE } from '../2-services/2-database/queries/user-security-queries.mjs';
 
 
 /*********************************
@@ -90,7 +90,7 @@ export const searchList = async(searchType:SearchType, request:JwtSearchRequest)
                 if(searchResultList !== undefined && DEBUG_SEARCH) log.event(`Searching: [Query Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}' | ignoreCache: ${ignoreCache}`, searchResultList.length || 'Zero Matches');
 
                 /* NO RESULT IDENTIFIED */ 
-                else {
+                else if(searchResultList === undefined){
                     searchResultList = [];
                     DEBUG_SEARCH && log.event(`Searching: [Zero Result] ${searchDetail.displayTitle} for '${searchTerm}' via '${searchRefine}' | ignoreCache: ${ignoreCache}`);
                 }
