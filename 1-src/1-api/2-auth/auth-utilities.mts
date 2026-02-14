@@ -165,8 +165,8 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
 
     else if(!userProfile.isEmailVerified 
         && (userProfile.isRole(RoleEnum.ADMIN)
-            || (isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: userProfile.getHighestRole()}) && (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION))
-            || !userProfile.isRole(RoleEnum.DEMO_USER))) { //Skip Demo Profiles, except for high access roles
+            || ((getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)
+            && isMaxRoleGreaterThan({testUserRole: RoleEnum.DEMO_USER, currentMaxUserRole: userProfile.getHighestRole()})))) { //Skip Demo-User Only Profiles
 
         await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
         return new Exception(403, 'Email address is not verified.', 'Please Verify Email');
@@ -175,9 +175,10 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
     return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
 }
 
+
 export const assembleLoginResponse = async(loginMethod:LoginMethod, userProfile:USER, detailed = true):Promise<LoginResponseBody|Exception> => {
     // Verify user credentials
-    if(!userProfile.isValid || userProfile.userID <= 0 || !userProfile.isEmailVerified)
+    if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && (!userProfile.isValid || userProfile.userID <= 0 || !userProfile.isEmailVerified))
         return new Exception(500, 'Login proceeded with invalid credentials -> investigate', 'Invalid Credentials');
     
     if(detailed) 

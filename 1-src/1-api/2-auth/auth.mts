@@ -191,7 +191,11 @@ export const POST_resetPasswordConfirm = async(request:PasswordResetConfirmReque
  Authenticated Routes
  *********************/
  export const POST_JWTLogin = async (request: JwtRequest, response: Response, next: NextFunction) => {
-    response.status(202).send(await getJWTLogin(request.jwtUserID, true));
+    const loginDetails:LoginResponseBody|Exception = await getJWTLogin(request.jwtUserID, true);
+    if(loginDetails instanceof Exception)
+        return next(loginDetails);
+    else 
+        return response.status(202).send(loginDetails);
 };
 
 

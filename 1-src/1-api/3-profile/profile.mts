@@ -15,12 +15,13 @@ import { clearImage, clearImageByID, uploadImage } from '../../2-services/10-uti
 import { ProfileEditRequest, ProfileEditWalkLevelRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { DB_DELETE_PARTNERSHIP } from '../../2-services/2-database/queries/partner-queries.mjs';
-import { InputRangeField } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { ENVIRONMENT_TYPE, InputRangeField } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { searchList } from '../api-search-utilities.mjs';
 import { SearchType } from '../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilities/mock-generate.mjs';
 import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
 import { SignupProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
 
 
 
@@ -121,7 +122,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
                 if(request.query.populate === 'true' && insertRoleList.includes(DATABASE_USER_ROLE_ENUM.DEMO_USER))
                     newProfile = await populateDemoRelations(newProfile);
 
-                if(!insertRoleList.includes(DATABASE_USER_ROLE_ENUM.DEMO_USER))
+                if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && !insertRoleList.includes(DATABASE_USER_ROLE_ENUM.DEMO_USER))  
                     sendUserEmailVerification(newProfile.userID, newProfile.email, newProfile.firstName);
                 
                 return response.status(201).send({ 
@@ -145,32 +146,37 @@ export const POST_emailVerifyAndLogin = async(request:EmailVerifyConfirmRequest,
     if((email === undefined) || (String(email).length === 0) || (email === 'undefined'))
         return next(new Exception(400, `POST_emailVerifyAndLogin - Invalid email verification request body: missing email`, 'Invalid Email'));
 
-    else if((token === undefined) || (String(token).length === 0) || (token === 'undefined'))
+    else if(((token === undefined) || (String(token).length === 0) || (token === 'undefined')) && getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)
         return next(new Exception(400, `POST_emailVerifyAndLogin - Invalid email verification request body: missing token`, 'Invalid Token'));
 
     const userProfile:USER = await DB_SELECT_USER(new Map([['email', email]]), false);
     if(userProfile.isValid == false)
-        return next(new Exception(401, `POST_emailVerifyAndLogin - Email verification failed – user not found`, 'Verification Failed'));
+        return next(new Exception(401, `POST_emailVerifyAndLogin - Email verification failed – user not found`, 'Invalid User'));
 
-    else if(await DB_CONSUME_TOKEN({ userID:userProfile.userID, type:DATABASE_TOKEN_TYPE_ENUM.EMAIL_VERIFY, token:token }) == false)
-        return next(new Exception(401, `POST_emailVerifyAndLogin - Email verification failed – token invalid or expired`, 'Verification Failed'));
+    else if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION 
+            || userProfile.isRole(RoleEnum.ADMIN)
+            || (!(userProfile.createdDT instanceof Date) || isNaN(userProfile.createdDT.getTime()) || userProfile.createdDT.getTime() + (5 * 60 * 1000) < Date.now())) { //Non-Production allowed within 5min
 
-    else if(await DB_UPDATE_USER(userProfile.userID, new Map([['isEmailVerified', true]])) == false)
-        return next(new Exception(500, `POST_emailVerifyAndLogin - Email verification failed – DB failed to update isEmailVerified status`, 'Server Error'));
+        if(await DB_CONSUME_TOKEN({ userID:userProfile.userID, type:DATABASE_TOKEN_TYPE_ENUM.EMAIL_VERIFY, token:token }) == false)
+            return next(new Exception(401, `POST_emailVerifyAndLogin - Email verification failed – token invalid or expired`, 'Verification Failed'));
+
+        else if(await DB_UPDATE_USER(userProfile.userID, new Map([['isEmailVerified', true]])) == false)
+            return next(new Exception(500, `POST_emailVerifyAndLogin - Email verification failed – DB failed to update isEmailVerified status`, 'Server Error'));
+
+            userProfile.isEmailVerified = true;
+    }
     
+    //Successful Verification -> Auto Login
+    const loginDetails:LoginResponseBody|Exception = await assembleLoginResponse(LoginMethod.TOKEN, userProfile, false);
+    if(loginDetails instanceof Exception)
+        return next(loginDetails);
+
     else {
-        userProfile.isEmailVerified = true;
-        const loginDetails:LoginResponseBody|Exception = await assembleLoginResponse(LoginMethod.TOKEN, userProfile, false);
-        if(loginDetails instanceof Exception)
-            return next(loginDetails);
+        loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
+        response.status(201).send(loginDetails);
 
-        else {
-            loginDetails.userProfile.userRoleList = await DB_SELECT_USER_ROLES(loginDetails.userID);
-            response.status(201).send(loginDetails);
-
-            await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();              
-            log.event('Successfully Signed up New User', loginDetails.userProfile.userID, loginDetails.userProfile.displayName, JSON.stringify(loginDetails.userProfile.userRoleList));
-        }
+        await DB_FLUSH_USER_SEARCH_CACHE_ADMIN();              
+        log.event('Successfully Signed up New User', loginDetails.userProfile.userID, loginDetails.userProfile.displayName, JSON.stringify(loginDetails.userProfile.userRoleList));
     }
 }
 
