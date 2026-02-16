@@ -37,7 +37,7 @@ export const warn = async(...messages:any[]):Promise<boolean> => {
 }
 
 export const db = async(...messages:any[]):Promise<boolean> => {
-    const entry:LOG_ENTRY = new LOG_ENTRY(LogType.DB, messages);
+    const entry:LOG_ENTRY = new LOG_ENTRY(LogType.DB, messages, getStackTrace());
 
     return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
         && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));

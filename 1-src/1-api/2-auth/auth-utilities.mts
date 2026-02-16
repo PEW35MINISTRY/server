@@ -179,7 +179,7 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
 export const assembleLoginResponse = async(loginMethod:LoginMethod, userProfile:USER, detailed = true):Promise<LoginResponseBody|Exception> => {
     // Verify user credentials
     if(getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION && (!userProfile.isValid || userProfile.userID <= 0 || !userProfile.isEmailVerified))
-        return new Exception(500, 'Login proceeded with invalid credentials -> investigate', 'Invalid Credentials');
+        return new Exception(500, `${loginMethod} Login proceeded with invalid credentials -> investigate: [userID=${userProfile.userID}, isValid=${userProfile.isValid}, isEmailVerified=${userProfile.isEmailVerified}]`, 'Invalid Credentials');
     
     if(detailed) 
         await DB_POPULATE_USER_PROFILE(userProfile);
