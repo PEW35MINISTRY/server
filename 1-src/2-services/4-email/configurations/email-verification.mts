@@ -41,11 +41,11 @@ export const sendUserEmailVerification  = async(userID:number, email:string, fir
     const token:string = generateToken(); //Simple enter during sign-up flow
 
     if(await DB_INSERT_TOKEN({userID, token, type:DATABASE_TOKEN_TYPE_ENUM.EMAIL_VERIFY, expirationDT: new Date(Date.now() + ((Number(process.env.EMAIL_VERIFY_TOKEN_MS) || (36 * 60 * 60 * 1000))))}) == false) { //36 hours
-            log.error('sendEmailVerification CANCELED - failed to insert token', userID);
+            log.error('sendEmailVerification CANCELED - failed to insert token for userID:', userID);
             return false;
 
     } else if(await sendVerifyEmail({userID, email, token, firstName}) == false) {
-                log.error('sendEmailVerification CANCELED - failed to send email, deleting token', userID);
+                log.error('sendEmailVerification CANCELED - failed to send email, deleting token for userID:', userID);
                 await DB_DELETE_TOKEN(token);
                 return false;
             }

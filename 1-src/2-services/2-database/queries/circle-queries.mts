@@ -1,6 +1,6 @@
 import * as log from '../../10-utilities/logging/log.mjs';
 import { command, execute, validateColumns } from '../database.mjs';
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_EDIT, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM } from '../database-types.mjs';
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_EDIT, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
@@ -169,8 +169,13 @@ export const DB_DELETE_CIRCLE = async(circleID:number):Promise<boolean> => { //N
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
-    //Validate Columns prior to Query
-    if(!validateCircleColumns(new Map(columnList.map(column => [column, -1])), false, false)) {
+    const overlap = columnList.filter(c => CIRCLE_TABLE_COLUMNS.includes(c) && USER_TABLE_COLUMNS.includes(c));
+    if(overlap.length) log.warn('DB_SELECT_CIRCLE_SEARCH column overlap between circle/user tables', overlap);
+
+
+
+    //Validate Columns prior to Query | (Searches both circle and user table columns)
+    if(!validateColumns(new Map(columnList.map(column => [column, -1])), false, [...new Set([...CIRCLE_TABLE_COLUMNS, ...USER_TABLE_COLUMNS])], [])) {
         log.error('DB_SELECT_CIRCLE_SEARCH rejected for invalid columns', columnList);
         return [];
     }

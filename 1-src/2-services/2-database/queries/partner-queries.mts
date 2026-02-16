@@ -245,7 +245,7 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
         + ') AS partnerCounts ON user.userID = partnerCounts.userID '
         + 'WHERE user.userID != ? '
 
-            + (getEnvironment() == ENVIRONMENT_TYPE.PRODUCTION) ? 'AND user.isEmailVerified = 1 ' : ''
+            + ((getEnvironment() == ENVIRONMENT_TYPE.PRODUCTION) ? 'AND user.isEmailVerified = 1 ' : '')
             
             + `AND (( user.modelSourceEnvironment = ? ) `
                 + 'OR ( '

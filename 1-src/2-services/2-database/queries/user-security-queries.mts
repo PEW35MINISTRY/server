@@ -76,7 +76,7 @@ export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:
 }
 
 export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {    
-    log.db(`DELETE USER ROLE attempted: userID:${userID}, userRoleList:${userRoleList}`);
+    log.event(`DELETE USER ROLE attempted: userID:${userID}, userRoleList:${userRoleList}`);
 
     const response:CommandResponseType = (userRoleList === undefined) ? //Delete All Roles
     await command('DELETE FROM user_role WHERE user_role.userID = ? ;', [userID])

@@ -48,7 +48,7 @@ export const GET_publicProfile =  async (request: JwtClientRequest, response: Re
     if(profile.isValid) {
         profile.circleList = await DB_SELECT_USER_CIRCLES(profile.userID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER);   
         response.status(200).send(profile.toPublicJSON())   
-        log.event('Returning public profile for userID: ', request.clientID);
+
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
         next(new Exception(404, `GET_publicProfile - user  ${request.clientID} failed to parse from database and is invalid.`, 'Profile Not Found')); 
 };
@@ -70,7 +70,7 @@ export const GET_userProfile = async (request: JwtClientRequest, response: Respo
 
     if(profile.isValid) {
         response.status(200).send(profile.toJSON())   
-        log.event('Returning profile for userID: ', request.clientID);
+
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
         next(new Exception(404, `GET_userProfile - user  ${request.clientID} failed to parse from database and is invalid.`, 'Profile Not Found')); 
 };
@@ -80,7 +80,7 @@ export const GET_partnerProfile = async (request: JwtClientRequest, response: Re
 
     if(profile.isValid) {
         response.status(200).send(profile.toNewPartnerListItem())   
-        log.event('Returning partner profile for userID: ', request.clientID);
+
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
         next(new Exception(500, `GET_partnerProfile - user  ${request.clientID} failed to parse from database and is invalid.`, 'Invalid Partner')); 
 };
