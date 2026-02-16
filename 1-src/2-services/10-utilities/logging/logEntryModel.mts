@@ -2,7 +2,7 @@ import * as log from './log.mjs';
 import { LogListItem, LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { getEnvironment, stringifyErrorMessage } from '../utilities.mjs';
-import { LOG_SIMILAR_TIME_RANGE, LOG_SOURCE } from './log-types.mjs';
+import { LOG_SIMILAR_TIME_RANGE, LOG_SOURCE, PRINT_LOGS_TO_CONSOLE } from './log-types.mjs';
 import { AthenaFieldSchema } from '../athena.mjs';
 
 
@@ -28,7 +28,7 @@ export default class LOG_ENTRY {
 
         this.stackTrace = stackTrace.filter(s => ((typeof s === 'string') && (s.length > 0)));
 
-        if((this.source === LOG_SOURCE.NEW) && (getEnvironment() === ENVIRONMENT_TYPE.LOCAL)) this.print();
+        if((this.source === LOG_SOURCE.NEW) && PRINT_LOGS_TO_CONSOLE) this.print();
     }
 
 

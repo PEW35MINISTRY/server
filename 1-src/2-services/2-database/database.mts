@@ -113,9 +113,10 @@ export const query = async(query:string):Promise<SQL.RowDataPacket[]> =>
 /***************************************
  *  EXECUTE: PREPARED SELECT STATEMENT
  ***************************************/
+const SELECT_STATEMENT:RegExp = new RegExp('^\\s*SELECT\\b');
 export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPacket[]> => {
-    if(!query.startsWith('SELECT'))
-        log.warn('DB - execute, this query may be better suited as a DB.command() ', query);
+    if(!SELECT_STATEMENT.test(query))
+        log.warn('DB - execute, this query may be better suited as a DB.command() ', query, log.getStackTrace());
 
     //validate fields supplied
     if((query.split('?').length - 1) !== fields.length) {
@@ -149,7 +150,7 @@ export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPack
  ***************************************************/
 export const command = async(query:string, fields:any[]):Promise<CommandResponseType|undefined> => {
     if(query.trim().toUpperCase().startsWith('SELECT'))
-        log.warn('DB - command(), this query may be better suited as DB.execute()', query);
+        log.warn('DB - command(), this query may be better suited as DB.execute()', query, log.getStackTrace());
 
     //validate fields supplied
     if((query.split('?').length - 1) !== fields.length) {
