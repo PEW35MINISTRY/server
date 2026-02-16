@@ -481,6 +481,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
         action: action,
         jwtUserID: (request as JwtRequest).jwtUserID ?? -1,
         jwtUserRole: (request as JwtRequest)?.jwtUserRole ?? 'UNKNOWN',
+        timestamp: new Date().toISOString(),
         type: request.method,
         url: request.originalUrl,
         params: JSON.stringify(request.params),
