@@ -2,12 +2,12 @@ import { NextFunction, Response } from 'express';
 import { Readable } from 'stream';
 import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, ListObjectsV2CommandOutput, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import LOG_ENTRY from './logEntryModel.mjs';
-import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { LogDailyTrend, LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { writeLogFile } from './log-local-utilities.mjs';
 import { Exception } from '../../../1-api/api-types.mjs';
-import { LOG_SEARCH_DEFAULT_MAX_ENTRIES, LOG_SEARCH_DEFAULT_TIMESPAN, MAX_PARALLEL_CONNECTIONS } from './log-types.mjs';
+import { LOG_BURST_EVENT_THRESHOLD, LOG_SEARCH_DEFAULT_MAX_ENTRIES, LOG_SEARCH_DEFAULT_TIMESPAN, MAX_PARALLEL_CONNECTIONS } from './log-types.mjs';
 /* DO NOT IMPORT [ log from '/10-utilities/logging/log.mjs' ] to AVOID INFINITE LOOP */
 
 
@@ -21,6 +21,33 @@ const saveLogLocally = async(type:LogType, ...messages:string[]):Promise<boolean
         new LOG_ENTRY(type, ['AWS S3 LOG UTILITY ERROR', ...messages]),
         false //Don't evaluateLogSize
     );
+
+    
+//Calculate Daily Trends for Log Type (Days split by America/Chicago Midnight)
+export const calculateLogDailyTrends = async(type:LogType, pastDays:number = 7, logList?:LOG_ENTRY[]):Promise<LogDailyTrend[]> => {
+    const now:Date = new Date();
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone:'America/Chicago', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(now);
+    const chicagoMidnightUTC:number = Date.UTC( Number(parts.find(p => p.type === 'year')?.value ?? 0), Number(parts.find(p => p.type === 'month')?.value ?? 1) - 1, Number(parts.find(p => p.type === 'day')?.value ?? 1) );
+
+    const dailyTrendBuckets:LogDailyTrend[] = Array.from({ length:pastDays + 1 }, (_, i):LogDailyTrend => ({ startTimestamp:chicagoMidnightUTC - (i * (24 * 60 * 60 * 1000)), total:0, unique:0, burstEvents:0 }));
+
+    //Populate buckets by S3 log entries from now back through current Chicago day plus prior whole days
+    const entries:LOG_ENTRY[] = logList ?? await fetchS3LogsByDateRange(type, chicagoMidnightUTC - (pastDays * 24 * 60 * 60 * 1000), now.getTime());
+    
+    entries.forEach((entry:LOG_ENTRY) => {
+        const dayIndex:number = Math.floor((chicagoMidnightUTC - entry.getTimestamp()) / (24 * 60 * 60 * 1000));
+
+        if(dayIndex >= 0 && dayIndex <= pastDays) {
+            dailyTrendBuckets[dayIndex].unique += 1;
+            dailyTrendBuckets[dayIndex].total += (entry.duplicateList.length + 1);
+
+            if((entry.duplicateList.length + 1) >= LOG_BURST_EVENT_THRESHOLD)
+                dailyTrendBuckets[dayIndex].burstEvents += 1;
+        }
+    });
+
+    return dailyTrendBuckets;
+}
 
 
 /*************************

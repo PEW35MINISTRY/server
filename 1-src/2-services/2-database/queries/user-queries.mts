@@ -15,7 +15,7 @@ import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
-import { DB_SELECT_USER_ROLES } from './user-security-queries.mjs';
+import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST, DB_SELECT_USER_ROLES } from './user-security-queries.mjs';
 
 
 /**************************************************************************
@@ -132,6 +132,7 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
 
     /* Role List */
     user.userRoleList = await DB_SELECT_USER_ROLES(user.userID);
+    user.emailSubscriptionList = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST(user.userID);
 
     /* Circle Memberships */
     const allCircleList:CircleListItem[] = await DB_SELECT_USER_CIRCLES(user.userID);  //Includes all statuses

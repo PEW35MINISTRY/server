@@ -4,6 +4,7 @@ import { IncomingHttpHeaders } from 'http';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { JwtPayload } from 'jsonwebtoken';
 import { LoginRequestBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
+import { EmailSubscription } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 
 
 /****************************************************************************************
@@ -107,6 +108,10 @@ export interface JwtClientPartnerRequest extends JwtClientRequest {
         status?: string
     },
     partnerID:number,
+};
+
+export interface JwtClientEmailSubscriptionRequest extends JwtClientRequest {
+    body: EmailSubscription[]
 };
 
 export interface JwtCircleRequest extends JwtRequest {

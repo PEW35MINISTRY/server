@@ -72,4 +72,8 @@ export type EmailAttachment = {
     mimeType:string,
 }
 
-
+export type EmailReportContent = {
+    subject:string,
+    body:string,
+    isHTML:boolean
+}

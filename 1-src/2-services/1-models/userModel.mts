@@ -14,6 +14,7 @@ import { camelCase, getModelSourceEnvironment } from '../10-utilities/utilities.
 import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
 import { generatePasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
+import { EmailSubscription } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 
 
 
@@ -52,6 +53,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   userRoleList: RoleEnum[] = [RoleEnum.USER];
   get userRole():RoleEnum { return this.getHighestRole(); }
 
+  emailSubscriptionList:EmailSubscription[] = [];
   circleList: CircleListItem[] = [];                 //Includes: MEMBER|LEADER
   circleInviteList: CircleListItem[] = [];
   circleRequestList: CircleListItem[] = [];

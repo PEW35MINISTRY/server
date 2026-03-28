@@ -135,18 +135,19 @@ export default class LOG_ENTRY {
     
 
     /* TEXT */
-    createDuplicateSummary = (entry:LOG_ENTRY, maxCharacters:number = 200):string => {
-        //Identify First Unique Message
-        const uniqueMessages = entry.messages.filter(m => !this.messages.includes(m));
-        const summaryMessage = uniqueMessages.length > 0 ? uniqueMessages[0] 
-                                : entry.messages[0] || 'Unknown Error';
-    
-        const prefix:string = formatLogTime(entry.date) + ' :: ';
-        return prefix + `${summaryMessage.slice(0, (maxCharacters - prefix.length))}`;
-    }
-
     addDuplicate = (entry:LOG_ENTRY) => this.duplicateList.push(this.createDuplicateSummary(entry));
 
+    createDuplicateSummary = (entry:LOG_ENTRY):string => {
+        //Identify First Unique Message
+        const uniqueMessages:string[] = entry.messages.filter(m => !this.messages.includes(m));
+        return LOG_ENTRY.summarize(entry, (uniqueMessages.length > 0) ? [uniqueMessages[0]] : entry.messages);
+    }
+
+    static summarize = (entry:LOG_ENTRY, messages?:string[], maxCharacters:number = 200):string => {
+        const prefix:string = formatLogTime(entry.date) + ' :: ';
+        const summaryMessage:string = (messages ?? entry.messages)[0] || 'Unknown Error';
+        return prefix + `${summaryMessage.slice(0, (maxCharacters - prefix.length))}`;
+    }
 
     toString = ():string => {
         const messageSection:string = (this.messages.length > 0) ? this.messages.join('\n') : '(no message)';
@@ -244,6 +245,21 @@ export default class LOG_ENTRY {
         }
     }
 
+    //Return preserves the capture group order for each regex match
+    getRegexMatches = (regex:RegExp):string[][] => {
+        const matches:string[][] = [];
+
+        this.messages.forEach(message => {
+            const flags:string = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
+            const pattern:RegExp = new RegExp(regex.source, flags);
+
+            for(const match of message.matchAll(pattern))
+                matches.push(match.slice(1));
+        });
+
+        return matches;
+    }
+
 
     /* Internal Log Utilities */
     getTimestamp = ():number => this.date.getTime();
@@ -251,6 +267,20 @@ export default class LOG_ENTRY {
     getDailyTimestamp = ():number => this.date.getTime() % 86400000;
 
     getMinuteTimestamp = ():number => this.date.getTime() % 3600000;
+    
+
+    //Matches userID identifiers: "user: #", "userID:#", "userID, #", "User = #"
+    getImpactedUserIDs = ():number[] => {
+        const userIDs:Set<number> = new Set();
+        const userIDRegex = /\buser(?:id)?\s*[:=,]?\s*(\d+)\b/gi;
+
+        this.messages.forEach(msg => {
+            for(const match of msg.matchAll(userIDRegex))
+                userIDs.add(Number(match[1]));
+        });
+
+        return Array.from(userIDs);
+    }
 
     /* EQUALS COMPARISON */
     equals = (entry:LOG_ENTRY):boolean =>

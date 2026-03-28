@@ -10,9 +10,11 @@ import PRAYER_REQUEST from '../2-services/1-models/prayerRequestModel.mjs';
 import { getEnvironment } from '../2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { answerAndNotifyPrayerRequests } from '../3-lambda/prayer-request/prayer-request-expired-script.mjs';
-import { AdminStatsResponse } from '../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { AdminStatsResponse, LogDailyTrend, LogType } from '../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { DB_CALCULATE_TABLE_USAGE, DB_CALCULATE_USER_TABLE_STATS } from '../2-services/2-database/queries/queries.mjs';
 import { DATABASE_TABLE } from '../2-services/2-database/database-types.mjs';
+import { calculateLogDailyTrends } from '../2-services/10-utilities/logging/log-s3-utilities.mjs';
+
 
 const router:Router = express.Router();
 
@@ -36,6 +38,9 @@ export const GET_AdminStatistics = async(request:JwtAdminRequest, response:Respo
 
         databaseUsageMap: Object.fromEntries(await Promise.all(
                 Object.entries(DATABASE_TABLE).map(async ([name, table]) => [name, await DB_CALCULATE_TABLE_USAGE(table)]))),
+
+        logDailyTrendMap: Object.fromEntries(await Promise.all(
+            Object.values(LogType).map(async(type):Promise<[LogType, LogDailyTrend[]]> => [ type, await calculateLogDailyTrends(type) ]))) as Record<LogType, LogDailyTrend[]>,
 
         userStats: await DB_CALCULATE_USER_TABLE_STATS(),
     } satisfies AdminStatsResponse);

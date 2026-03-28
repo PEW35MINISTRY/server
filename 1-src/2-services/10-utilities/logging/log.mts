@@ -1,7 +1,8 @@
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { sendEmailLogAlert } from '../../4-email/email.mjs';
 import { writeLogFile } from './log-local-utilities.mjs';
 import { uploadS3LogEntry } from './log-s3-utilities.mjs';
-import { SAVE_AUTH_LOGS, SAVE_EVENT_LOGS, SAVE_LOGS_LOCALLY, UPLOAD_LOGS_S3 } from './log-types.mjs';
+import { SAVE_AUTH_LOGS, SAVE_EVENT_LOGS, SAVE_LOGS_LOCALLY, SEND_LOG_EMAILS, UPLOAD_LOGS_S3 } from './log-types.mjs';
 import LOG_ENTRY from './logEntryModel.mjs';
 
 /* EXPORT LOG BY TYPE */
@@ -9,8 +10,8 @@ export const alert = async(...messages:any[]):Promise<boolean> => {
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.ERROR, ['ALERT', ...messages], getStackTrace());
 
     return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
-        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
-        // && (!SEND_LOG_EMAILS || await sendLogAlertEmail(entry));
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry))
+        && (!SEND_LOG_EMAILS || await sendEmailLogAlert(entry));
 }
 
 export const all = async (...messages:any[]):Promise<boolean> => {
@@ -71,6 +72,13 @@ export const event = async(...messages:any[]):Promise<boolean> => {
         return true;
 
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.EVENT, messages);
+
+    return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
+}
+
+export const email = async(...messages:any[]):Promise<boolean> => {
+    const entry:LOG_ENTRY = new LOG_ENTRY(LogType.EMAIL, messages);
 
     return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
         && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));

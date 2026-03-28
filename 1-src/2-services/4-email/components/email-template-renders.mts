@@ -1,7 +1,7 @@
-import { DatabaseUserStats, LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
+import { DatabaseUserStats, LogDailyTrend, LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
 import { makeDisplayText } from "../../../0-assets/field-sync/input-config-sync/inputField.mjs";
 import { RoleEnum } from "../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs";
-import { fetchS3LogsByDateRange } from "../../10-utilities/logging/log-s3-utilities.mjs";
+import { calculateLogDailyTrends, fetchS3LogsByDateRange } from "../../10-utilities/logging/log-s3-utilities.mjs";
 import LOG_ENTRY from "../../10-utilities/logging/logEntryModel.mjs";
 import { DATABASE_TABLE } from "../../2-database/database-types.mjs";
 import { DB_CALCULATE_TABLE_USAGE, DB_CALCULATE_USER_TABLE_STATS } from "../../2-database/queries/queries.mjs";
@@ -41,6 +41,20 @@ export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:
         : renderLabeledRowTable(title, ['Table', 'Total', '24H', '24H(m)', 'W', 'W(m)', 'M', 'M(m)'], 
                             rowList, ['* New Growth: These are new row entries in the last 24 hours, week, and month.',
                                       '* Continual Usage: (m) notation is the percentage of existing rows modified']);
+}
+
+
+export const renderLogTrendTable = async(typeList:LogType[], html:boolean = true,):Promise<string> => {
+    const nowTimestamp:number = Date.now();
+    const columnLabelList:string[] = ['Type', ...Array.from({ length:7 }, (_, i) =>
+        new Date(nowTimestamp - ((6 - i) * 24 * 60 * 60 * 1000)).toLocaleDateString('en-US', { weekday:'short', timeZone:'America/Chicago' }).slice(0, 1)
+    )];
+
+    const rowList:(string|number)[][] = await Promise.all(typeList.map(async(type:LogType):Promise<(string|number)[]> =>
+        ([makeDisplayText(type), ...(await calculateLogDailyTrends(type, 7)).slice(1, 8).reverse().map(trend => trend.total)]) //Likely goes out in morning, so don't include current day
+    ));
+
+    return html ? htmlSummaryTable('Log Trends', columnLabelList, rowList) : renderLabeledRowTable('Log Trends', columnLabelList, rowList);
 }
       
 
@@ -87,17 +101,20 @@ export const htmlUserRoleDistribution = async():Promise<string> => {
 };
 
 
-export const renderLogList = async (type:LogType, maxEntries:number, html:boolean = true):Promise<string> => {
+export const renderLogList = async(type:LogType, { maxEntries = 50, pastDays = 1, html = true }:{ maxEntries?:number, pastDays?:number, html?:boolean } = {}):Promise<string> => {
     const timestamp:number = new Date().getTime();
-    const logList:LOG_ENTRY[] = await fetchS3LogsByDateRange(type, (timestamp - (24 * 60 * 60 * 1000)), timestamp); 
+    const logList:LOG_ENTRY[] = await fetchS3LogsByDateRange(type, (timestamp - (pastDays * 24 * 60 * 60 * 1000)), timestamp); 
 
-    const count:number = logList.length > 0 ? logList.reduce((sum, entry) => sum + (entry.duplicateList.length + 1), 0) : 0;
-    const hoursAgo: number = logList.length > 0 ? (timestamp - logList[logList.length - 1].date.getTime()) / (1000 * 60 * 60) : 24;
+    if(logList.length === 0)
+        return '';
+
+    const count:number = logList.reduce((sum, entry) => sum + (entry.duplicateList.length + 1), 0);
+    const hoursAgo:number = (timestamp - logList[logList.length - 1].date.getTime()) / (1000 * 60 * 60);
 
     return html
         ? `<div style="width:100%; text-align:left;">
                ${htmlTitle(`${makeDisplayText(type)} Log Latest:`)}
-               <span style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.GRAY_DARK}; font-weight:normal;">[${count} in last ${Math.ceil(hoursAgo)}H]</span>
+               <span style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.GRAY_DARK}; font-weight:normal;">[${count} in last ${Math.ceil(hoursAgo)}H of ${pastDays} days]</span>
                ${logList.slice(0, maxEntries).map(entry => `
                    <div style="margin-top:6px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_DARK}; line-height:${EMAIL_FONT_SIZE.DETAIL};">
                        ${entry.toString()}
@@ -106,7 +123,7 @@ export const renderLogList = async (type:LogType, maxEntries:number, html:boolea
                ).join('\n')}
             </div>`
 
-        :   '='.repeat(5) + ` ${makeDisplayText(type)} Log Latest: [${count} in last ${Math.ceil(hoursAgo)}H] ` + '='.repeat(5) + '\n\n'
+        :   '='.repeat(5) + ` ${makeDisplayText(type)} Log Latest: [${count} in last ${Math.ceil(hoursAgo)}H of ${pastDays} days] ` + '='.repeat(5) + '\n\n'
             + logList.slice(0, maxEntries).map(entry =>
                 `${entry.toString()}${entry.fileKey ? `\nLink: ${entry.fileKey}` : ''}`
             ).join('\n\n');

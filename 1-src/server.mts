@@ -33,7 +33,7 @@ import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveIm
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
 import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceDetailAdmin, GET_notificationDeviceList, PATCH_notificationDeviceAdmin, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser } from './1-api/8-notification/notification.mjs';
-import { GET_EmailReport, POST_EmailReport } from './1-api/9-email/email.mjs';
+import { GET_EmailReportDownloadFile, GET_EmailSubscriptionUnsubscribe, POST_EmailReportAdmin, POST_EmailSubscriptionBroadcastAdmin } from './1-api/9-email/email.mjs';
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
@@ -182,6 +182,7 @@ apiServer.get('/api/email-verify', GET_emailVerifyConfirm);
 apiServer.post('/api/email-verify', POST_emailVerifyAndLogin);
 apiServer.post('/api/password-forgot', POST_resetPasswordInitialize);
 apiServer.post('/api/password-reset', POST_resetPasswordConfirm);
+apiServer.get('/api/report-unsubscribe/client/:clientID/subscription/:subscription', GET_EmailSubscriptionUnsubscribe)
 
 
 /************************************************************/
@@ -424,10 +425,11 @@ apiServer.post('/api/admin/client/:client/send/email-verify', POST_emailVerifyRe
 apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDetailAdmin);
 apiServer.patch('/api/admin/notification/device/:device', PATCH_notificationDeviceAdmin);
 
-apiServer.get('/api/admin/email/report/:type', GET_EmailReport);
-apiServer.post('/api/admin/email/report/:type', POST_EmailReport);
+apiServer.get('/api/admin/email/report/:type', GET_EmailReportDownloadFile);
+apiServer.post('/api/admin/email/report/:type', POST_EmailReportAdmin);
+apiServer.post('/api/admin/email/report/:type/broadcast', POST_EmailSubscriptionBroadcastAdmin);
 apiServer.use('/api/admin/email/report/:type/client/:client', (request:EmailReportRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
-apiServer.post('/api/admin/email/report/:type/client/:client', POST_EmailReport);
+apiServer.post('/api/admin/email/report/:type/client/:client', POST_EmailReportAdmin);
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));

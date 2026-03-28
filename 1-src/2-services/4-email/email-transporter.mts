@@ -63,9 +63,12 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
         });
 
         const result = await client.send(command);
-        return (result.$metadata.httpStatusCode === 200);
+        const succeeded:boolean = (result.$metadata.httpStatusCode === 200);
+        log.email(succeeded ? 'Successfully sent HTML email' : 'Failed to send HTML email', subject, 'to recipients: ', JSON.stringify(recipientMap));
+        return succeeded;
     } catch (error) {
-        log.error('Failed to send HTML email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap));
+        log.error('Failed to send HTML email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap)); 
+        log.email('Error Failed to send HTML email', subject, 'to recipients: ', JSON.stringify(recipientMap), 'with error: ', error);
         return false;
     }
 }
@@ -111,9 +114,13 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:Em
         });
 
         const result = await client.send(command);
-        return (result.$metadata.httpStatusCode === 200);
+        const succeeded:boolean = (result.$metadata.httpStatusCode === 200);
+        log.email(succeeded ? 'Successfully sent TEXT email' : 'Failed to send TEXT email', subject, 'to recipients: ', JSON.stringify(recipientMap));
+        return succeeded;
     } catch (error) {
-        log.error('Failed to send TEXT email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap), 'with text body: ', text); return false;
+        log.error('Failed to send TEXT email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap), 'with text body: ', text); 
+        log.email('Error Failed to send TEXT email', subject, 'to recipients: ', JSON.stringify(recipientMap), 'with error: ', error);
+        return false;
     }
 };
 
@@ -195,9 +202,12 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
         });
 
         const result = await client.send(command);
-        return (result.$metadata.httpStatusCode === 200);
+        const succeeded:boolean = (result.$metadata.httpStatusCode === 200);
+        log.email(succeeded ? 'Successfully sent LOG ATTACHMENT email' : 'Failed to send LOG ATTACHMENT email', subject, 'to recipients: ', JSON.stringify(recipientMap));
+        return succeeded;
     } catch (error) {
-        log.error('Failed to send LOG attachment email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap));
+        log.error('Failed to send LOG ATTACHMENT email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap), 'with text body: ', text); 
+        log.email('Error Failed to send LOG ATTACHMENT email', subject, 'to recipients: ', JSON.stringify(recipientMap), 'with error: ', error);
         return false;
     }
 }

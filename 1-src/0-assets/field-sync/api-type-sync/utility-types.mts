@@ -30,9 +30,12 @@ export interface ServerDebugErrorResponse extends ServerErrorResponse {
 
 
 /* EMAIL TYPES & HANDLING */
-export enum EmailReport {
-    USER = 'USER',
-    LOG = 'LOG'
+export enum EmailSubscription {
+    USER_WEEKLY = 'USER_WEEKLY',
+
+    SYSTEM_IMMEDIATE = 'SYSTEM_IMMEDIATE',
+    SYSTEM_DAILY = 'SYSTEM_DAILY',
+    SYSTEM_WEEKLY = 'SYSTEM_WEEKLY',
 }
 
 
@@ -48,6 +51,7 @@ export enum LogType {
     WARN = 'WARN', 
     DB = 'DB', 
     AUTH = 'AUTH', 
+    EMAIL = 'EMAIL',
     EVENT = 'EVENT',
 }
 
@@ -68,6 +72,7 @@ export type AdminStatsResponse = {
   generatedDT:string,
   environment:ENVIRONMENT_TYPE,
   databaseUsageMap:Record<string, DatabaseTableUsage>,
+  logDailyTrendMap:Record<LogType, LogDailyTrend[]>,
   userStats:DatabaseUserStats,
 }
 
@@ -87,3 +92,10 @@ export interface DatabaseUserStats extends DatabaseTableUsage {
     roleMap:Record<RoleEnum, number>,
     unassignedUsers:number,
 }
+
+export type LogDailyTrend = {
+    startTimestamp:number,
+    total:number,
+    unique:number,
+    burstEvents:number
+};
