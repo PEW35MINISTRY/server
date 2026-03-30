@@ -98,4 +98,4 @@ export type LogDailyTrend = {
     total:number,
     unique:number,
     burstEvents:number
-};
+}

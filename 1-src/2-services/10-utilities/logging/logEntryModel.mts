@@ -269,19 +269,6 @@ export default class LOG_ENTRY {
     getMinuteTimestamp = ():number => this.date.getTime() % 3600000;
     
 
-    //Matches userID identifiers: "user: #", "userID:#", "userID, #", "User = #"
-    getImpactedUserIDs = ():number[] => {
-        const userIDs:Set<number> = new Set();
-        const userIDRegex = /\buser(?:id)?\s*[:=,]?\s*(\d+)\b/gi;
-
-        this.messages.forEach(msg => {
-            for(const match of msg.matchAll(userIDRegex))
-                userIDs.add(Number(match[1]));
-        });
-
-        return Array.from(userIDs);
-    }
-
     /* EQUALS COMPARISON */
     equals = (entry:LOG_ENTRY):boolean =>
         this.type === entry.type

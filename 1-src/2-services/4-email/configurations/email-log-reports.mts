@@ -9,6 +9,7 @@ import { DB_CALCULATE_TABLE_USAGE } from '../../2-database/queries/queries.mjs';
 import { htmlText, htmlVerticalSpace, htmlActionButton, htmlSection, htmlDetailList } from '../components/email-template-components.mjs';
 import { renderLogList, renderDatabaseTableUsage, renderLogTrendTable } from '../components/email-template-renders.mjs';
 import { EmailReportContent } from '../email-types.mjs';
+import { formatDate } from '../email-utilities.mjs';
 
 
 
@@ -163,7 +164,7 @@ export const assembleWeeklySystemReport = async():Promise<EmailReportContent> =>
 
     return {subject: `EP Server Status System Report - ${makeDisplayText(getEnvironment())}`, isHTML:false,
         body: `SERVER STATUS SYSTEM REPORT\n`
-            + `Date: ${new Date().toISOString()}\n`
+            + `Information Generated (CST): ${formatDate(new Date(), true)}\n`
             + `Environment: ${getEnvironment()}`
             + '\n\n'
             + `Weekly Summary\n`
@@ -197,6 +198,7 @@ export const assembleWeeklySystemReport = async():Promise<EmailReportContent> =>
 
 
 /* Local Utilities */
+//Attempts to identify userID mention in logs <userID, occurrences>
 const getLogImpactedUsers = (logList:LOG_ENTRY[]):Map<number, number> => {
     //Matches userID identifiers: 'user: #', 'userID:#', 'userID, #', 'User = #'
     const userIDRegex:RegExp = new RegExp(/\buser(?:id)?\s*[:=,]?\s*(\d+)\b/, 'gi');

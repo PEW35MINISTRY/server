@@ -1,8 +1,8 @@
 import fs, { promises as fsPromises } from 'fs';
 import { NextFunction, Response } from 'express';
 import readline from 'readline';
-import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE, SAVE_LOGS_LOCALLY, LOG_SEARCH_DEFAULT_MAX_ENTRIES, LOG_BURST_EVENT_THRESHOLD } from './log-types.mjs';
-import { LogDailyTrend, LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE, SAVE_LOGS_LOCALLY, LOG_SEARCH_DEFAULT_MAX_ENTRIES } from './log-types.mjs';
+import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import LOG_ENTRY, { logDateRegex } from './logEntryModel.mjs';
 import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';

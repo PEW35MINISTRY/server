@@ -25,7 +25,8 @@ export const renderEmailProfile = async(userID:number, includeUserID?:boolean, d
 
 /* PROFILE */
 export const htmlProfileBlock = (profile:ProfileListItem, includeUserID:boolean = false, details:[string, string][] = []):string =>
-`<table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%;" class="full_width" align="left" role="presentation">        <tr>
+    `<table border="0" cellspacing="0" cellpadding="0" class="full_width" align="left" role="presentation">
+        <tr>
             <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
                 <img src="${profile.image || DEFAULT_PROFILE_URL}" width="${EMAIL_PROFILE_IMAGE_SIZE}" height="${EMAIL_PROFILE_IMAGE_SIZE}" style="vertical-align:middle; border-radius:50%; margin-right:${EMAIL_PROFILE_IMAGE_SIZE / 2}px;" alt="Profile"/>
                 ${includeUserID ? 

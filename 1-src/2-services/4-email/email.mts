@@ -17,7 +17,7 @@ import { DB_SELECT_EMAIL_SUBSCRIPTION_RECENT } from '../2-database/queries/queri
 import { NewPartnerListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST } from '../2-database/queries/partner-queries.mjs';
 import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP } from '../2-database/queries/user-security-queries.mjs';
-import { assembleDailyLogReport, assembleLogAlertReport, assembleWeeklySystemReport } from './configurations/email-log-reports.mjs';
+import { assembleDailyLogReport as assembleDailyLogReportText, assembleLogAlertReport, assembleWeeklySystemReport as assembleWeeklySystemReportText } from './configurations/email-log-reports.mjs';
 
 
 
@@ -84,16 +84,13 @@ export const getEmailReportContent = async(subscription:EmailSubscription):Promi
     const subject:string = `EP ${makeDisplayText(subscription)} Report`;
     switch(subscription){
         case EmailSubscription.SYSTEM_DAILY:
-            return await assembleDailyLogReport(LogType.ERROR);
+            return await assembleDailyLogReportText(LogType.ERROR);
 
         case EmailSubscription.SYSTEM_WEEKLY:
-            return await assembleWeeklySystemReport();
+            return await assembleWeeklySystemReportText();
 
         case EmailSubscription.USER_WEEKLY:
             return await assembleUserReportHTML();
-
-        case EmailSubscription.USER_REPORTED:
-            return { subject, body:await assembleReportedUserReportHTML(), isHTML:true };
 
         default:
             log.error(`getEmailReportContent :: Email Report of unsupported subscription type requested: ${subscription}`);
@@ -103,7 +100,7 @@ export const getEmailReportContent = async(subscription:EmailSubscription):Promi
 
 
 export const sendEmailReport = async(subscription:EmailSubscription, emailRecipientMap?:Map<number, string>, sendIndividually:boolean = false):Promise<boolean> => {
-    const recipientMap:Map<number, string> = emailRecipientMap ?? await getEmailReportRecipientMap(subscription);
+    const recipientMap:Map<number, string> = emailRecipientMap ?? await await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(subscription);
     if(recipientMap.size === 0)
         return false;
 
@@ -216,8 +213,3 @@ const assembleUserReportHTML = async():Promise<EmailReportContent> => {
             verticalSpacing: 5
         })};
 }
-
-function getEmailReportRecipientMap(subscription: EmailSubscription): Map<number, string> | PromiseLike<Map<number, string>> {
-    throw new Error('Function not implemented.');
-}
-
