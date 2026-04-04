@@ -4,7 +4,6 @@ const __dirname = path.resolve();
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { getEnvironment } from '../utilities.mjs';
-import { EmailAttachment } from '../../4-email/email-types.mjs';
 
 
 export enum LOG_SOURCE {
@@ -57,6 +56,7 @@ const LOG_WARN_FILE:PathLike = path.join(LOG_DIRECTORY, process.env.LOG_WARN_FIL
 const LOG_EVENT_FILE:PathLike = path.join(LOG_DIRECTORY, process.env.LOG_EVENT_FILE || 'log-event.txt');
 const LOG_AUTH_FILE:PathLike = path.join(LOG_DIRECTORY, process.env.LOG_AUTH_FILE || 'log-auth.txt');
 const LOG_DB_FILE:PathLike = path.join(LOG_DIRECTORY, process.env.LOG_DB_FILE || 'log-db.txt');
+const LOG_EMAIL_FILE:PathLike = path.join(LOG_DIRECTORY, process.env.LOG_EMAIL_FILE || 'log-email.txt');
 
 export const getLogFilePath = (type:LogType):PathLike => {
     switch (type) {
@@ -64,6 +64,7 @@ export const getLogFilePath = (type:LogType):PathLike => {
         case LogType.EVENT:return LOG_EVENT_FILE;
         case LogType.AUTH:return LOG_AUTH_FILE;
         case LogType.DB:return LOG_DB_FILE;
+        case LogType.EMAIL:return LOG_EMAIL_FILE;
         default:return LOG_ERROR_FILE;
     }
 }

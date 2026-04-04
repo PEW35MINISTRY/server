@@ -8,6 +8,7 @@ import { PartnerStatusEnum, RoleEnum } from '../../../0-assets/field-sync/input-
 import { camelCase, getEnvironment, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { DatabasePartnershipStats } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 
 
 /**********************************************
@@ -207,10 +208,11 @@ export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, stat
  *  NEW PARTNER SEARCH     *
  * (Requires USER role) *
  ***************************/
+const matchGender:boolean = (process.env.PARTNER_GENDER_MATCH !== undefined) ? (process.env.PARTNER_GENDER_MATCH === 'true') : true;
+const ageYearRange:number = (process.env.PARTNER_AGE_RANGE !== undefined) ? parseInt(process.env.PARTNER_AGE_RANGE) : 2;
+const walkLevelRange:number = (process.env.PARTNER_WALK_RANGE !== undefined) ? parseInt(process.env.PARTNER_WALK_RANGE) : 2;
+
 export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Promise<NewPartnerListItem[]> => {
-    const matchGender:boolean = (process.env.PARTNER_GENDER_MATCH !== undefined) ? (process.env.PARTNER_GENDER_MATCH === 'true') : true;
-    const ageYearRange:number = (process.env.PARTNER_AGE_RANGE !== undefined) ? parseInt(process.env.PARTNER_AGE_RANGE) : 2;
-    const walkLevelRange:number = (process.env.PARTNER_WALK_RANGE !== undefined) ? parseInt(process.env.PARTNER_WALK_RANGE) : 2;
 
     /* Validations */
     if (isNaN(ageYearRange) || isNaN(walkLevelRange) || process.env.PARTNER_GENDER_MATCH === undefined) {
@@ -351,3 +353,193 @@ export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = 
     return rows.map(row => ({...USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem(),
                                 partnerCountMap: Object.values(PartnerStatusEnum).map(status => [status, parseInt(row[status] || '0')])}));
 }
+
+
+/*******************************************
+ * PARTNERSHIP REPORT & STATISTICS QUERIES *
+ *******************************************/
+export const DB_CALCULATE_PARTNERSHIP_STATS = async(modelSourceEnvironment:DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM = getModelSourceEnvironment()):Promise<DatabasePartnershipStats> => {
+    const [row] = await query(
+        //Filter users to modelSourceEnvironment
+        'WITH '
+        + 'source_user AS ( '
+            + 'SELECT '
+                + 'user.userID, '
+                + 'user.maxPartners, '
+                + 'user.createdDT AS userCreatedDT, '
+                + 'user.modifiedDT AS userModifiedDT '
+            + 'FROM user '
+            + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}' `
+        + '), '
+
+        //Filter ENDED or FAILED Partner relationships
+        + 'source_partner AS ( '
+            + 'SELECT '
+                + 'partner.userID, '
+                + 'partner.partnerID, '
+                + 'partner.status, '
+                + 'partner.userContractDT, '
+                + 'partner.partnerContractDT, '
+                + 'partner.createdDT AS partnerCreatedDT, '
+                + 'partner.modifiedDT AS partnerModifiedDT '
+            + 'FROM partner '
+            + 'JOIN source_user AS source_user_left ON partner.userID = source_user_left.userID '
+            + 'JOIN source_user AS source_user_right ON partner.partnerID = source_user_right.userID '
+            + `WHERE partner.status NOT IN ('${DATABASE_PARTNER_STATUS_ENUM.ENDED}', '${DATABASE_PARTNER_STATUS_ENUM.FAILED}') `
+        + '), '
+
+        //Split partnerships into per user (partnerID becomes userID)
+        + 'partner_member AS ( '
+            + 'SELECT '
+                + 'source_user.userID, '
+                + 'source_user.maxPartners, '
+                + 'source_user.userCreatedDT, '
+                + 'source_user.userModifiedDT, '
+                + 'source_partner.status, '
+                + 'source_partner.userContractDT AS contractDT, '
+                + 'source_partner.partnerCreatedDT, '
+                + 'source_partner.partnerModifiedDT '
+            + 'FROM source_partner '
+            + 'JOIN source_user ON source_partner.userID = source_user.userID '
+
+            + 'UNION ALL '
+
+            + 'SELECT '
+                + 'source_user.userID, '
+                + 'source_user.maxPartners, '
+                + 'source_user.userCreatedDT, '
+                + 'source_user.userModifiedDT, '
+                + 'CASE '
+                    + `WHEN source_partner.status = '${DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER}' THEN '${DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER}' `
+                    + `WHEN source_partner.status = '${DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER}' THEN '${DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER}' `
+                    + 'ELSE source_partner.status '
+                + 'END AS status, '
+                + 'source_partner.partnerContractDT AS contractDT, '
+                + 'source_partner.partnerCreatedDT, '
+                + 'source_partner.partnerModifiedDT '
+            + 'FROM source_partner '
+            + 'JOIN source_user ON source_partner.partnerID = source_user.userID '
+        + '), '
+
+        // Aggregate subtotals per user
+        + 'user_partnership_subtotal AS ( '
+            + 'SELECT '
+                + 'partner_member.userID, '
+                + `COUNT(CASE WHEN partner_member.status = '${DATABASE_PARTNER_STATUS_ENUM.PARTNER}' THEN 1 END) AS partnerships, `
+                + 'COUNT(*) AS assignedPartnerships '
+            + 'FROM partner_member '
+            + 'WHERE partner_member.maxPartners > 0 '
+            + 'GROUP BY partner_member.userID '
+        + ') '
+
+        /* FINAL SELECT & RETURN QUERY */
+        + 'SELECT '
+
+            + 'COUNT(*) AS totalUsers, '
+
+            + '( '
+                + 'SELECT COUNT(DISTINCT partner_member.userID) '
+                + 'FROM partner_member '
+                + `WHERE partner_member.status = '${DATABASE_PARTNER_STATUS_ENUM.PARTNER}' `
+            + ') AS usersInPartnerships, '
+
+            // Users with partner capacity but no assignments
+            + 'COUNT(CASE WHEN source_user.maxPartners > 0 AND COALESCE(user_partnership_subtotal.assignedPartnerships, 0) = 0 THEN 1 END) AS unassignedPartners, '
+
+            // Total active partnerships.
+            + '( '
+                + 'SELECT COUNT(*) '
+                + 'FROM source_partner '
+                + `WHERE source_partner.status = '${DATABASE_PARTNER_STATUS_ENUM.PARTNER}' `
+            + ') AS partnerships, '
+
+            // Total pending partnerships.
+            + '( '
+                + 'SELECT COUNT(*) '
+                + 'FROM source_partner '
+                + `WHERE source_partner.status IN ('${DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH}', '${DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER}', '${DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER}') `
+            + ') AS pendingPartnerships, '
+
+            // Users with at least one remaining open partner slot.
+            + 'COUNT(CASE WHEN source_user.maxPartners > 0 AND COALESCE(user_partnership_subtotal.assignedPartnerships, 0) < source_user.maxPartners THEN 1 END) AS availablePartners, '
+
+            // Total remaining partner capacity slots
+            + 'SUM(CASE WHEN source_user.maxPartners > 0 THEN GREATEST(source_user.maxPartners - COALESCE(user_partnership_subtotal.assignedPartnerships, 0), 0) ELSE 0 END) AS availablePartnerCapacity, '
+
+            // Total filled partner slots
+            + 'SUM(CASE WHEN source_user.maxPartners > 0 THEN LEAST(COALESCE(user_partnership_subtotal.assignedPartnerships, 0), source_user.maxPartners) ELSE 0 END) AS filledPartnerCapacity, '
+
+            // Average wait time for new unassigned users created within the last 30 days.
+            + 'COALESCE(ROUND(AVG( '
+                + 'CASE '
+                    + 'WHEN source_user.maxPartners > 0 '
+                    + 'AND COALESCE(user_partnership_subtotal.assignedPartnerships, 0) = 0 '
+                    + 'AND TIMESTAMPDIFF(HOUR, source_user.userCreatedDT, NOW()) <= 24 * 30 '
+                    + 'THEN TIMESTAMPDIFF(HOUR, source_user.userCreatedDT, NOW()) '
+                + 'END '
+            + '), 1), 0) AS newUserAverageWaitTimeHours, '
+
+            // Unassigned users waiting more than 24 hours and up to 7 days.
+            + 'COUNT(CASE '
+                + 'WHEN source_user.maxPartners > 0 '
+                + 'AND COALESCE(user_partnership_subtotal.assignedPartnerships, 0) = 0 '
+                + 'AND TIMESTAMPDIFF(HOUR, source_user.userCreatedDT, NOW()) > 24 '
+                + 'AND TIMESTAMPDIFF(HOUR, source_user.userCreatedDT, NOW()) <= 24 * 7 '
+                + 'THEN 1 '
+            + 'END) AS wait24Hours, '
+
+            // Unassigned users waiting more than 7 days and up to 30 days.
+            + 'COUNT(CASE '
+                + 'WHEN source_user.maxPartners > 0 '
+                + 'AND COALESCE(user_partnership_subtotal.assignedPartnerships, 0) = 0 '
+                + 'AND TIMESTAMPDIFF(HOUR, source_user.userCreatedDT, NOW()) > 24 * 7 '
+                + 'AND TIMESTAMPDIFF(HOUR, source_user.userCreatedDT, NOW()) <= 24 * 30 '
+                + 'THEN 1 '
+            + 'END) AS wait7Days, '
+
+            // Fully accepted partnerships in the last 7 days.
+            + '( '
+                + 'SELECT COUNT(*) '
+                + 'FROM source_partner '
+                + 'WHERE source_partner.userContractDT IS NOT NULL '
+                + 'AND source_partner.partnerContractDT IS NOT NULL '
+                + 'AND source_partner.partnerModifiedDT >= NOW() - INTERVAL 7 DAY '
+            + ') AS acceptedLastWeek, '
+
+            // Fully accepted partnerships in the last 30 days.
+            + '( '
+                + 'SELECT COUNT(*) '
+                + 'FROM source_partner '
+                + 'WHERE source_partner.userContractDT IS NOT NULL '
+                + 'AND source_partner.partnerContractDT IS NOT NULL '
+                + 'AND source_partner.partnerModifiedDT >= NOW() - INTERVAL 30 DAY '
+            + ') AS acceptedLastMonth '
+
+        + 'FROM source_user '
+        + 'LEFT JOIN user_partnership_subtotal ON source_user.userID = user_partnership_subtotal.userID;'
+    );
+
+    return {
+        matchGender: matchGender,            //Matching Criteria
+        ageYearRange: ageYearRange,
+        walkLevelRange: walkLevelRange,
+
+        totalUsers: row?.totalUsers ?? 0,
+        usersInPartnerships: row?.usersInPartnerships ?? 0,
+        unassignedPartners: row?.unassignedPartners ?? 0,
+
+        partnerships: row?.partnerships ?? 0,
+        pendingPartnerships: row?.pendingPartnerships ?? 0,
+        availablePartners: row?.availablePartners ?? 0,
+
+        availablePartnerCapacity: row?.availablePartnerCapacity ?? 0,
+        filledPartnerCapacity: row?.filledPartnerCapacity ?? 0,
+
+        newUserAverageWaitTimeHours: Number(row?.newUserAverageWaitTimeHours ?? 0),
+        wait24Hours: row?.wait24Hours ?? 0,
+        wait7Days: row?.wait7Days ?? 0,
+        acceptedLastWeek: row?.acceptedLastWeek ?? 0,
+        acceptedLastMonth: row?.acceptedLastMonth ?? 0,
+    } satisfies DatabasePartnershipStats;
+}
+

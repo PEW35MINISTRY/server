@@ -1,9 +1,10 @@
-import { CommandResponseType, DATABASE_TABLE, DATABASE_USER_ROLE_ENUM, TABLES_SUPPORTING_DT } from '../database-types.mjs';
+import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_TABLE, DATABASE_USER_ROLE_ENUM, TABLES_SUPPORTING_DT } from '../database-types.mjs';
 import { DatabaseTableUsage, DatabaseUserStats } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
 import { WebsiteSubscription } from '../../../1-api/2-auth/auth-types.mjs';
 import { RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 
 
 
@@ -47,7 +48,7 @@ export const DB_CALCULATE_TABLE_USAGE = async(tableName:DATABASE_TABLE):Promise<
     };
 }
 
-export const DB_CALCULATE_USER_TABLE_STATS = async():Promise<DatabaseUserStats> => {
+export const DB_CALCULATE_USER_TABLE_STATS = async(modelSourceEnvironment:DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM = getModelSourceEnvironment()):Promise<DatabaseUserStats> => {
     const [row] = await query('SELECT '
         + 'COUNT(*) AS totalRows, '
         + 'SUM(CASE WHEN createdDT >= NOW() - INTERVAL 1 DAY THEN 1 ELSE 0 END) AS created24Hours, '
@@ -73,7 +74,8 @@ export const DB_CALCULATE_USER_TABLE_STATS = async():Promise<DatabaseUserStats> 
                 LEFT JOIN user_role ON user.userID = user_role.userID 
                 WHERE user_role.userID IS NULL) AS NO_ROLE `
 
-        + `FROM user;`); 
+        + 'FROM user '
+        + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}';`);
     
     return {
         totalRows: row?.totalRows ?? 0,

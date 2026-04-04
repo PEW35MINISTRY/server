@@ -1,5 +1,5 @@
 import { CircleAnnouncementListItem, CircleListItem } from "../../../0-assets/field-sync/api-type-sync/circle-types.mjs";
-import { PartnerListItem, ProfileListItem } from "../../../0-assets/field-sync/api-type-sync/profile-types.mjs";
+import { NewPartnerListItem, PartnerListItem, ProfileListItem } from "../../../0-assets/field-sync/api-type-sync/profile-types.mjs";
 import { makeDisplayText } from "../../../0-assets/field-sync/input-config-sync/inputField.mjs";
 import CIRCLE_ANNOUNCEMENT from "../../1-models/circleAnnouncementModel.mjs";
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_PARTNER_STATUS_ENUM } from "../../2-database/database-types.mjs";
@@ -95,6 +95,34 @@ export const htmlPartnershipBlock = (partnershipList:{profile:PartnerListItem, p
             </td>
         </tr>
     </table>`;
+
+
+//Lists matching criteria for unassigned users
+export const htmlNewPartnerProfileTable = (userList:NewPartnerListItem[], includeUserID:boolean = false, details:[string,string][] = []):string => {
+
+    return `<table border="0" cellspacing="0" cellpadding="0" class="full_width" align="left" role="presentation">
+        <tr>
+            <td align="left" valign="top" style="width:260px; padding-bottom:10px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.RED}; font-weight:bold;">User</td>
+            <td align="left" valign="top" style="padding-bottom:10px; padding-left:12px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.RED}; font-weight:bold;">G</td>
+            <td align="left" valign="top" style="padding-bottom:10px; padding-left:12px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.RED}; font-weight:bold;">DOB</td>
+            <td align="left" valign="top" style="padding-bottom:10px; padding-left:12px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.RED}; font-weight:bold;">Walk</td>
+            <td align="left" valign="top" style="padding-bottom:10px; padding-left:12px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.RED}; font-weight:bold;">Postal</td>
+        </tr>
+        ${userList.map(user =>
+            `<tr>
+                <td align="left" valign="middle" style="width:260px; padding:10px 0; font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)}; border-top:1px solid ${EMAIL_COLOR.GRAY_LIGHT}; white-space:nowrap;">
+                    <img src="${user.image || DEFAULT_PROFILE_URL}" width="${EMAIL_PROFILE_IMAGE_SIZE}" height="${EMAIL_PROFILE_IMAGE_SIZE}" style="vertical-align:middle; border-radius:50%; margin-right:${EMAIL_PROFILE_IMAGE_SIZE / 2}px;" alt="Profile"/>
+                    ${includeUserID ? `<b>${user.firstName}</b> <span style="font-style:italic; color:${EMAIL_COLOR.BLACK};">(${user.displayName})</span><span style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; font-weight:normal;"> | #${user.userID}</span>` : `<b>${user.displayName}</b>`}
+                </td>
+                <td align="left" valign="middle" style="padding:10px 0 10px 12px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.PRIMARY}; border-top:1px solid ${EMAIL_COLOR.GRAY_LIGHT}; white-space:nowrap;">${user.maxPartners}</td>
+                <td align="left" valign="middle" style="padding:10px 0 10px 12px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.PRIMARY}; border-top:1px solid ${EMAIL_COLOR.GRAY_LIGHT}; white-space:nowrap;">${String(user.gender).toUpperCase().startsWith('M') ? 'M' : String(user.gender).toUpperCase().startsWith('F') ? 'F' : '-'}</td>
+                <td align="left" valign="middle" style="padding:10px 0 10px 12px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.PRIMARY}; border-top:1px solid ${EMAIL_COLOR.GRAY_LIGHT}; white-space:nowrap;">${formatDate(user.dateOfBirth)}</td>
+                <td align="left" valign="middle" style="padding:10px 0 10px 12px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.PRIMARY}; border-top:1px solid ${EMAIL_COLOR.GRAY_LIGHT}; white-space:nowrap;">${user.walkLevel}</td>
+                <td align="left" valign="middle" style="padding:10px 0 10px 12px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.PRIMARY}; border-top:1px solid ${EMAIL_COLOR.GRAY_LIGHT}; white-space:nowrap;">${user.postalCode}</td>
+            </tr>` ).join('')}
+            ${htmlDetailTableRows(details, 4)}
+    </table>`;
+};
     
 
 /* CIRCLE */

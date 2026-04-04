@@ -139,7 +139,7 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
                     } else return true;
                 }).map(([userID, email]) => email);
 
-        if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(EMAIL_SENDER_ADDRESS.SYSTEM)) {
+        if((recipientAddresses.length === 0)) {
             log.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
             return false;
         }

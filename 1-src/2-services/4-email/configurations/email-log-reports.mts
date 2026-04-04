@@ -1,4 +1,4 @@
-import { EmailSubscription, LogType, LogDailyTrend, DatabaseTableUsage } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { LogType, LogDailyTrend, DatabaseTableUsage } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { fetchS3LogsByDateRange, calculateLogDailyTrends } from '../../10-utilities/logging/log-s3-utilities.mjs';
 import { LOG_BURST_EVENT_THRESHOLD } from '../../10-utilities/logging/log-types.mjs';
@@ -80,7 +80,7 @@ export const assembleDailyLogReport = async(type:LogType = LogType.ERROR):Promis
     if(logList.length === 0) return {subject: '', body: '', isHTML:false};
 
     //Matches URL pattern: 'action: GET -> route'
-    const routeActionRegex:RegExp = new RegExp(/^action:\s*(.+\s*->\s*.+)$/, 'i');
+    const routeActionRegex:RegExp = new RegExp(/^action:\s*(.+\s*->\s*.+)$/, 'ig');
     const normalizeRouteIDRegex:RegExp = new RegExp(/\d+/, 'g');
     const affectedRouteMap:Map<string, number> = new Map();
 
@@ -149,9 +149,11 @@ export const assembleWeeklySystemReport = async():Promise<EmailReportContent> =>
     const warnDailyTrends:LogDailyTrend[] = await calculateLogDailyTrends(LogType.WARN, 17);
     const userStats:DatabaseTableUsage = await DB_CALCULATE_TABLE_USAGE(DATABASE_TABLE.USER);
 
+    const FAIL_REGEX:RegExp = new RegExp(/(fail|err|exception|denied|invalid|rejected|incorrect|unavailable|warn)/, 'i');
+
     const emailLogs:LOG_ENTRY[] = await fetchS3LogsByDateRange(LogType.EMAIL, Date.now() - (7 * 24 * 60 * 60 * 1000), Date.now(), 1000, false);
-    const emailFailCount:number = emailLogs.reduce((sum:number, log:LOG_ENTRY) => sum + (log.messages[0]?.includes('FAIL') ? 1 : 0), 0);
-    const emailSuccessRate:number = emailLogs.length > 0 ? Math.round(((emailLogs.length - emailFailCount) / emailLogs.length) * 100) : 0;
+    const emailFailCount:number = emailLogs.reduce((sum:number, log:LOG_ENTRY) => sum + (log.messages.some(message => FAIL_REGEX.test(message)) ? 1 : 0), 0);
+    const emailSuccessRate:number = (emailLogs.length > 0) ? Math.round(((emailLogs.length - emailFailCount) / emailLogs.length) * 100) : 0;
 
     const currentWeekErrorTotal:number = errorDailyTrends.slice(0, 7).reduce((sum:number, trend:LogDailyTrend) => sum + trend.total, 0);
     const previousWeekErrorTotal:number = errorDailyTrends.slice(7, 14).reduce((sum:number, trend:LogDailyTrend) => sum + trend.total, 0);

@@ -2,7 +2,7 @@ import * as log from '../10-utilities/logging/log.mjs';
 import LOG_ENTRY from '../10-utilities/logging/logEntryModel.mjs';
 import { EMAIL_COLOR, EMAIL_SENDER_ADDRESS, EmailReportContent, EmailSenderAddress  } from './email-types.mjs';
 import { sendLogTextEmail, sendTemplateEmail, sendTextEmail } from './email-transporter.mjs';
-import { htmlPartnershipBlock, htmlProfileBlock } from './components/email-template-items.mjs';
+import { htmlNewPartnerProfileTable, htmlPartnershipBlock, htmlProfileBlock } from './components/email-template-items.mjs';
 import { applyTemplate, EMAIL_REPLACEMENT, EMAIL_TEMPLATE_TYPE } from './email-template-manager.mjs';
 import { htmlHeader, htmlTitle, htmlText, htmlSection, htmlAccessCode, htmlActionButton, htmlFooter, htmlVerticalSpace, htmlDetailList } from './components/email-template-components.mjs';
 import { renderDatabaseTableUsage, htmlUserStats, htmlUserRoleDistribution, htmlUserWalkLevelDistribution, renderLogList, renderLogTrendTable } from './components/email-template-renders.mjs';
@@ -11,11 +11,11 @@ import { DB_SELECT_USER, DB_SELECT_USER_BATCH_EMAIL_MAP } from '../2-database/qu
 import { getEnvironment } from '../10-utilities/utilities.mjs';
 import { DATABASE_TABLE } from '../2-database/database-types.mjs';
 import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { EmailSubscription, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { DatabasePartnershipStats, EmailSubscription, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { WebsiteSubscription } from '../../1-api/2-auth/auth-types.mjs';
 import { DB_SELECT_EMAIL_SUBSCRIPTION_RECENT } from '../2-database/queries/queries.mjs';
 import { NewPartnerListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST } from '../2-database/queries/partner-queries.mjs';
+import { DB_CALCULATE_PARTNERSHIP_STATS, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST } from '../2-database/queries/partner-queries.mjs';
 import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP } from '../2-database/queries/user-security-queries.mjs';
 import { assembleDailyLogReport as assembleDailyLogReportText, assembleLogAlertReport, assembleWeeklySystemReport as assembleWeeklySystemReportText } from './configurations/email-log-reports.mjs';
 
@@ -92,6 +92,9 @@ export const getEmailReportContent = async(subscription:EmailSubscription):Promi
         case EmailSubscription.USER_WEEKLY:
             return await assembleUserReportHTML();
 
+        case EmailSubscription.PARTNER_MONTHLY:
+            return await assemblePartnerReportHTML();
+
         default:
             log.error(`getEmailReportContent :: Email Report of unsupported subscription type requested: ${subscription}`);
             return { subject, body:'', isHTML: false };
@@ -166,8 +169,9 @@ export const sendEmailLogAlert = async(entry:LOG_ENTRY):Promise<boolean> => {
 
 const assembleUserReportHTML = async():Promise<EmailReportContent> => {
     const subscriptionList:WebsiteSubscription[] = await DB_SELECT_EMAIL_SUBSCRIPTION_RECENT(90);
-    const unassignedProfileList:NewPartnerListItem[] = await DB_SELECT_UNASSIGNED_PARTNER_USER_LIST(200);
-    const pendingPartnershipList:[NewPartnerListItem, NewPartnerListItem][] = await DB_SELECT_PENDING_PARTNER_PAIR_LIST(200);
+    const partnershipStats:DatabasePartnershipStats = await DB_CALCULATE_PARTNERSHIP_STATS();
+
+    const formatPercent = (value:number, total:number):string => `${Math.round(total > 0 ? (value / total) * 100 : 0)}%`;
 
     return {subject: 'EP User Status Report', isHTML:true,
         body: await applyTemplate({type: EMAIL_TEMPLATE_TYPE.TABLE_ROWS,
@@ -186,14 +190,15 @@ const assembleUserReportHTML = async():Promise<EmailReportContent> => {
 
                 htmlSection('Partnerships', 'left', EMAIL_COLOR.ACCENT),
                 await renderDatabaseTableUsage([DATABASE_TABLE.PARTNER], true),
+                htmlDetailList([
+                    ['Users in Partnerships:', `${formatPercent(partnershipStats.usersInPartnerships, partnershipStats.totalUsers)} (${partnershipStats.usersInPartnerships})`],
+                    ['Unmatched Users:', `${formatPercent(partnershipStats.unassignedPartners, partnershipStats.totalUsers)} (${partnershipStats.unassignedPartners})`],
+                    ['Pending Partnerships:', `${formatPercent(partnershipStats.pendingPartnerships, partnershipStats.partnerships + partnershipStats.pendingPartnerships)} (${partnershipStats.pendingPartnerships})`],
+                    ['Partnerships Accepted last week:', `${partnershipStats.acceptedLastWeek}`],
+                    ['Average Time Waiting to be Matched:', `${Number(partnershipStats.newUserAverageWaitTimeHours).toFixed(1)} Hours`],
+                ]),
 
-                htmlTitle('Unassigned Users:'),
-                ...unassignedProfileList.slice(0, 10).map(profile => htmlProfileBlock(profile, true)),
-                htmlDetailList([['Total Unassigned Users:', `${unassignedProfileList.length}`]]),
-
-                htmlPartnershipBlock(pendingPartnershipList.slice(0, 10).map(partnerPair => ({ profile: partnerPair[0], partner: partnerPair[1] })), 'Pending Partnerships:', true, [['Total Pending Partnerships:', `${pendingPartnershipList.length}`]]),
-
-                htmlActionButton([{label:'Partnership Management', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/partnership/pending`, style:'PRIMARY'}]),
+                htmlActionButton([{label:'Portal Management', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/dashboard`, style:'PRIMARY'}]),
 
                 ...(subscriptionList.length ? [
                     htmlSection('Website Subscriptions:', 'left', EMAIL_COLOR.ACCENT),
@@ -213,3 +218,73 @@ const assembleUserReportHTML = async():Promise<EmailReportContent> => {
             verticalSpacing: 5
         })};
 }
+
+
+export const assemblePartnerReportHTML = async():Promise<EmailReportContent> => {
+    const unassignedProfileList:NewPartnerListItem[] = await DB_SELECT_UNASSIGNED_PARTNER_USER_LIST(30);
+    const pendingPartnershipList:[NewPartnerListItem, NewPartnerListItem][] = await DB_SELECT_PENDING_PARTNER_PAIR_LIST(15);
+
+    const partnershipStats:DatabasePartnershipStats = await DB_CALCULATE_PARTNERSHIP_STATS();
+
+    const formatPercent = (value:number, total:number):string => `${Math.round(total > 0 ? (value / total) * 100 : 0)}%`;
+
+    return {
+        subject: 'EP Partnership Status Report',
+        isHTML: true,
+        body: await applyTemplate({
+            type: EMAIL_TEMPLATE_TYPE.TABLE_ROWS,
+            replacementMap: new Map([
+                [EMAIL_REPLACEMENT.EMAIL_SUBJECT, 'EP Partnership Status Report'],
+            ]),
+            bodyList: [
+                htmlHeader(),
+                htmlSection('Partnership Status Report', 'left', EMAIL_COLOR.ACCENT),
+                htmlVerticalSpace(30),
+
+                htmlTitle('Summary'),
+                htmlDetailList([
+                    ['Total Active Partnerships:', `${partnershipStats.partnerships}`],
+                    ['Users in Partnerships:', `${formatPercent(partnershipStats.usersInPartnerships, partnershipStats.totalUsers)} (${partnershipStats.usersInPartnerships})`],
+                    ['Pending Partnerships:', `${formatPercent(partnershipStats.pendingPartnerships, partnershipStats.partnerships + partnershipStats.pendingPartnerships)} (${partnershipStats.pendingPartnerships})`],
+                    ['Partnerships Accepted last week:', `${partnershipStats.acceptedLastWeek}`],
+                    ['Partnerships Accepted last month:', `${partnershipStats.acceptedLastMonth}`],
+                ]),
+
+                htmlDetailList([
+                    ['Unmatched Users:', `${formatPercent(partnershipStats.unassignedPartners, partnershipStats.totalUsers)} (${partnershipStats.unassignedPartners})`],
+                    ['New User Average Time Waiting to be Matched:', `${Number(partnershipStats.newUserAverageWaitTimeHours).toFixed(1)} Hours`],
+                    ['Waited More than 24 Hours:', `${partnershipStats.wait24Hours}`],
+                    ['Waited More than 7 Days:', `${partnershipStats.wait7Days}`],
+                ]),
+
+                htmlTitle('Matching Criteria'),
+                htmlDetailList([
+                    ['Gender Match Required:', partnershipStats.matchGender ? 'Yes' : 'No'],
+                    ['Allowed Age Range:', `±${partnershipStats.ageYearRange} years`],
+                    ['Allowed Walk Level Range:', `±${partnershipStats.walkLevelRange}`],
+                ]),
+
+                htmlTitle('Partnership Activity'),
+                await renderDatabaseTableUsage([DATABASE_TABLE.PARTNER], true),
+
+                htmlSection('Unmatched Users'),
+                htmlNewPartnerProfileTable(unassignedProfileList, true),
+
+                htmlSection('Pending Partnerships'),
+                htmlPartnershipBlock(
+                    pendingPartnershipList.map((partnerPair) => ({ profile: partnerPair[0], partner: partnerPair[1] })), undefined, true ),
+
+                htmlActionButton([{label:'Partnership Management', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/partnership/pending`, style:'PRIMARY'}]),
+
+                htmlDetailList([
+                    ['Information Generated (CST):', formatDate(new Date(), true)],
+                    ['Environment:', makeDisplayText(getEnvironment())],
+                ], 'Environment Details:'),
+
+                htmlFooter(),
+            ],
+            verticalSpacing: 5,
+        }),
+    };
+}
+

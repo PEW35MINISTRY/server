@@ -14,6 +14,7 @@ import { AdminStatsResponse, LogDailyTrend, LogType } from '../0-assets/field-sy
 import { DB_CALCULATE_TABLE_USAGE, DB_CALCULATE_USER_TABLE_STATS } from '../2-services/2-database/queries/queries.mjs';
 import { DATABASE_TABLE } from '../2-services/2-database/database-types.mjs';
 import { calculateLogDailyTrends } from '../2-services/10-utilities/logging/log-s3-utilities.mjs';
+import { DB_CALCULATE_PARTNERSHIP_STATS } from '../2-services/2-database/queries/partner-queries.mjs';
 
 
 const router:Router = express.Router();
@@ -43,6 +44,8 @@ export const GET_AdminStatistics = async(request:JwtAdminRequest, response:Respo
             Object.values(LogType).map(async(type):Promise<[LogType, LogDailyTrend[]]> => [ type, await calculateLogDailyTrends(type) ]))) as Record<LogType, LogDailyTrend[]>,
 
         userStats: await DB_CALCULATE_USER_TABLE_STATS(),
+
+        partnershipStats: await DB_CALCULATE_PARTNERSHIP_STATS(),
     } satisfies AdminStatsResponse);
 
 
