@@ -6,7 +6,8 @@ import { PartnerStatusEnum, RoleEnum } from '../../0-assets/field-sync/input-con
 import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP,  DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PARTNERSHIP, DB_SELECT_PENDING_PARTNER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { DB_DELETE_CONTACT_CACHE, DB_DELETE_CONTACT_CACHE_BATCH, DB_IS_USER_ROLE, DB_SELECT_USER, DB_SELECT_USER_ROLES } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_DELETE_CONTACT_CACHE, DB_DELETE_CONTACT_CACHE_BATCH, DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_SELECT_USER_ROLES } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import { PartnerListItem, ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { sendTemplateNotification, sendNotificationPairedMessage } from '../8-notification/notification-utilities.mjs';
 import { NotificationType } from '../8-notification/notification-types.mjs';

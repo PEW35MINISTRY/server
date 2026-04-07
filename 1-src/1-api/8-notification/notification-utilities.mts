@@ -47,12 +47,14 @@ const publishNotifications = async(endpointARNs:string[], message:string):Promis
 const publishNotificationPairedMessages = async(endPointMessageMap: Map<string, string>):Promise<boolean> => {
     const publishPromises = Array.from(endPointMessageMap.entries()).map(async ([endpoint, message]:[string, string]) => {
         try {
-            await snsClient.send(new PublishCommand({
-                TargetArn: endpoint,
-                Message: message,
-                MessageAttributes: SNS_APNS_HEADERS,
-                MessageStructure: 'json'
-            }));
+            if(getEnvironment() !== ENVIRONMENT_TYPE.LOCAL || process.env.SEND_NOTIFICATIONS === 'true') {
+                await snsClient.send(new PublishCommand({
+                    TargetArn: endpoint,
+                    Message: message,
+                    MessageAttributes: SNS_APNS_HEADERS,
+                    MessageStructure: 'json'
+                }));
+            }
             return true;
 
         } catch (error) {

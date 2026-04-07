@@ -3,7 +3,7 @@ import InputField, { InputType } from '../../0-assets/field-sync/input-config-sy
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
 import { CircleAnnouncementCreateRequest } from '../../1-api/4-circle/circle-types.mjs';
 import { Exception } from '../../1-api/api-types.mjs';
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, DATABASE_CIRCLE_ANNOUNCEMENT } from '../2-database/database-types.mjs';
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT, DATABASE_CIRCLE_ANNOUNCEMENT } from '../2-database/database-types.mjs';
 import BASE_MODEL from './baseModel.mjs';
 
 
@@ -12,13 +12,17 @@ export default class CIRCLE_ANNOUNCEMENT extends BASE_MODEL<CIRCLE_ANNOUNCEMENT,
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = ['circleID', 'message']; //exclude: announcementID, complex types, and lists
-    static PROPERTY_LIST = [ 'announcementID', 'circleID', 'message', 'startDate', 'endDate'];
+    static PROPERTY_LIST = [ 'announcementID', 'circleID', 'message', 'startDate', 'endDate', 'createdDT'];
 
     announcementID: number = -1;
     circleID: number = -1;
     message: string;
     startDate: Date;
     endDate: Date;
+
+    //Database - Read Only
+    createdDT:Date;
+    modifiedDT:Date;
 
     //Used as error case or blank
     constructor(id:number = -1) {
@@ -43,6 +47,7 @@ export default class CIRCLE_ANNOUNCEMENT extends BASE_MODEL<CIRCLE_ANNOUNCEMENT,
     override get IDProperty():string { return 'announcementID'; }
 
     override get DATABASE_COLUMN_LIST():string[] { return CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS; }
+    override get DATABASE_COLUMN_EDIT_LIST():string[] { return CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT; }
     override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return CIRCLE_ANNOUNCEMENT.DATABASE_IDENTIFYING_PROPERTY_LIST; }
     override get PROPERTY_LIST():string[] { return CIRCLE_ANNOUNCEMENT.PROPERTY_LIST; }
 

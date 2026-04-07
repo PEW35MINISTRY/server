@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Not Found</title>
+    <title>Confirmation</title>
 
     <link
         href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,400&display=swap" rel="stylesheet">
@@ -38,16 +38,11 @@
     </header>
 
     <main id="content" class="center">
-        <img src="{{ASSET_URL}}/images/404-empty-tomb.png" alt="404 - Empty Tomb" />
-        <h2>The tomb is empty and so is this page.</h2>
+        <img style="max-width:40vw" src="{{ASSET_URL}}/images/check.svg" alt="Confirmation" />
+        <h1>Action Confirmed</h1>
         <div>
-            <a  href="/" class="action-button">
-                <button >Return to Website</button>
-            </a>
-        </div>
-        <div>
-            <a href="/login" >
-                <button class="alternative-action-button">Portal Login</button>
+            <a href="/portal/dashboard" class="action-button">
+                <button class="primary-button-blue">Return to Portal</button>
             </a>
         </div>
     </main>

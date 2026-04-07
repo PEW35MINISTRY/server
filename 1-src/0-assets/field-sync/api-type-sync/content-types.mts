@@ -22,27 +22,20 @@ export interface ContentListItem {
     description?: string, 
     image?: string,
     likeCount: number,
+    modifiedDT: string,
 }
 
 
-export interface ContentResponseBody {
-    contentID: number,
+export interface ContentResponseBody extends ContentListItem{
     recorderID: number,
     recorderProfile: ProfileListItem, 
-    type: ContentTypeEnum,
-    source: ContentSourceEnum,
-    url: string,
-    keywordList: string,
-    title?: string,
-    description?: string,
-    image?: string,
-    likeCount: number,
     gender: GenderSelectionEnum,
     minimumAge: number,
     maximumAge: number,
     minimumWalkLevel: number,
     maximumWalkLevel: number,
-    notes?: string
+    notes?: string,
+    createdDT: string,
 }
 
 export interface ContentMetaDataRequestBody {

@@ -138,3 +138,83 @@ export const stringifyErrorMessage = (message:any):string => {
     return '[UNSERIALIZABLE]';
   }
 }
+
+
+
+const SAFE_KEY_REGEX:RegExp = new RegExp(/^[A-Za-z0-9]{4,20}$/);        //Alphanumeric keys, 4-20 characters (anything else skipped)
+const SAFE_VALUE_REGEX:RegExp = new RegExp(/[^A-Za-z0-9\-_.@]/, 'g');   //Alphanumeric, dash, underscore, period, @ symbol allowed; (anything else filtered)
+
+export const sanitizeKeyValuePairs = (pairs:Record<string, string|number>, { keyRegexValidation = SAFE_KEY_REGEX, valueFilterRegex = SAFE_VALUE_REGEX, maxItems = Number.POSITIVE_INFINITY, maxLength = Number.POSITIVE_INFINITY }
+                                                                         : { keyRegexValidation?:RegExp; valueFilterRegex?:RegExp; maxItems?:number; maxLength?:number } = {}): Record<string,string> => {
+    const result: Record<string, string> = {};
+    for(const key of Object.keys(pairs).slice(0, maxItems)) {
+
+        if(typeof key !== 'string' || !keyRegexValidation.test(key))
+            continue;
+
+        let value = pairs[key];
+        if(Array.isArray(value))
+            value = value[0];
+
+        if(value == null || (typeof value !== 'string' && typeof value !== 'number'))
+            continue;
+
+        const cleanValue = String(value).replace(valueFilterRegex, '').slice(0, maxLength);
+
+        if(cleanValue.length > 0)
+            result[key] = cleanValue;
+    }
+
+    return result;
+}
+
+
+//Converts any object into array of strings; optional field sanitization
+export const toStringArray = (initialObject:any, sanitizePropertyKeywords:string[] = [], maxFieldLength:number = 100):string[] => {
+    const result:string[] = [];
+
+    const calculateRecursiveProperty = (obj:any, fieldPath='') => {
+        if(obj === null) {
+            result.push(`${fieldPath}: null`);
+            return;
+
+        } else if(obj === undefined) {
+            result.push(`${fieldPath}: ${obj}`);
+            return;
+
+        //Truncate long fields
+        } else if(typeof obj !== 'object') {
+            result.push(`${fieldPath}: ${String(obj).length > maxFieldLength ? String(obj).slice(0, maxFieldLength)+'...' : String(obj)}`);
+            return;
+
+        //Iterate arrays, adds current fieldPath as a prefix
+        } else if(Array.isArray(obj)) {
+            for(const [idx,item] of obj.entries()) calculateRecursiveProperty(item, `${fieldPath}[${idx}]`);
+            return;
+        }
+
+        /* Redacting & Filtering */
+        const objects:[string, any][] = [];
+        for(const [field, value] of Object.entries(obj)) {
+            const fullPath = fieldPath ? `${fieldPath}.${field}` : field;
+            //Redact fields that include substring from sanitizeFields case-insensitive
+            if(sanitizePropertyKeywords.some(field => fullPath.toLowerCase().includes(field.toLowerCase()))) {
+                result.push(`${fullPath}: [REDACTED]`);
+            //Objects are sorted to the end for readability
+            } else if(value !== null && typeof value === 'object') {
+                objects.push([field,value]);
+            } else {
+                result.push(`${fullPath}: ${String(value).length > maxFieldLength ? String(value).slice(0,maxFieldLength)+'...' : String(value)}`);
+            }
+        }
+
+        //Recursively format objects
+        for(const [k,v] of objects) {
+            const fullPath = fieldPath ? `${fieldPath}.${k}` : k;
+            calculateRecursiveProperty(v, fullPath);
+        }
+    };
+
+    calculateRecursiveProperty(initialObject);
+    return result;
+};

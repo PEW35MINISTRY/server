@@ -5,7 +5,7 @@ import InputField, { InputSelectionField, InputType } from '../../0-assets/field
 import { GenderEnum, ModelSourceEnvironmentEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import BiDirectionalMap from '../../0-assets/modules/BiDirectionalMap.mjs';
 import { ProfileEditRequest } from '../../1-api/3-profile/profile-types.mjs';
-import { DATABASE_USER, USER_TABLE_COLUMNS } from '../2-database/database-types.mjs';
+import { DATABASE_USER, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_EDIT } from '../2-database/database-types.mjs';
 import * as log from '../10-utilities/logging/log.mjs';
 import BASE_MODEL from './baseModel.mjs';
 import { JwtClientRequest } from '../../1-api/2-auth/auth-types.mjs';
@@ -33,15 +33,20 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   lastName?: string;
   displayName?: string;  //Unique
   email?: string;        //Unique
+  isEmailVerified?: boolean;
+  emailVerifiedDT?:string; //set in database
   passwordHash?: string;
   postalCode?: string;
   dateOfBirth?: Date;
   gender?: GenderEnum;
-  emailVerified?: boolean;
   walkLevel?: number;
   maxPartners: number;
   image?: string;
   notes?: string;
+
+    //Database - Read Only
+    createdDT:Date;
+    modifiedDT:Date;
 
   //Query separate Tables
   userRoleList: RoleEnum[] = [RoleEnum.USER];
@@ -95,6 +100,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   override get IDProperty():string { return 'userID'; }
 
   override get DATABASE_COLUMN_LIST():string[] { return USER_TABLE_COLUMNS; }
+  override get DATABASE_COLUMN_EDIT_LIST():string[] { return USER_TABLE_COLUMNS_EDIT;}
   override get DATABASE_IDENTIFYING_PROPERTY_LIST():string[] { return USER.DATABASE_IDENTIFYING_PROPERTY_LIST; }
   override get PROPERTY_LIST():string[] { return USER.PROPERTY_LIST; }
 
@@ -158,7 +164,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   }
 
   static getUniqueDatabaseProperties = (model:USER, baseModel:USER):Map<string, any> =>
-    BASE_MODEL.getUniquePropertiesUtility<USER>({fieldList: USER_TABLE_COLUMNS, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
+    BASE_MODEL.getUniquePropertiesUtility<USER>({fieldList: USER_TABLE_COLUMNS_EDIT, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
       model, baseModel, includeID: false, includeObjects: false, includeNull: true,
       complexFieldMap: new Map([
         ['passwordHash', (model:USER, baseModel:USER) => { return (model.passwordHash !== baseModel.passwordHash) ? model.passwordHash : undefined; }],

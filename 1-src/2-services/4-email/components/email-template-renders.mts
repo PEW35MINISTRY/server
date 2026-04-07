@@ -1,8 +1,9 @@
-import { LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
+import { DatabaseUserStats, LogType } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
 import { makeDisplayText } from "../../../0-assets/field-sync/input-config-sync/inputField.mjs";
+import { RoleEnum } from "../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs";
 import { fetchS3LogsByDateRange } from "../../10-utilities/logging/log-s3-utilities.mjs";
 import LOG_ENTRY from "../../10-utilities/logging/logEntryModel.mjs";
-import { DATABASE_TABLE, DATABASE_USER_ROLE_ENUM } from "../../2-database/database-types.mjs";
+import { DATABASE_TABLE } from "../../2-database/database-types.mjs";
 import { DB_CALCULATE_TABLE_USAGE, DB_CALCULATE_USER_TABLE_STATS } from "../../2-database/queries/queries.mjs";
 import { EMAIL_FONT_FAMILY, EMAIL_FONT_SIZE, EMAIL_COLOR } from "../email-types.mjs";
 import { htmlTitle } from "./email-template-components.mjs";
@@ -44,20 +45,20 @@ export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:
       
 
 export const htmlUserStats = async():Promise<string> => {
-    const stats = await DB_CALCULATE_USER_TABLE_STATS();
+    const stats:DatabaseUserStats = await DB_CALCULATE_USER_TABLE_STATS();
 
     return htmlSummaryPairList('User Statistics', new Map<string, string | number>([
         ['Total Users', stats.totalRows],
         ['Active', stats.emailVerified],
         ['Active as %', (stats.totalRows > 0) ? ((stats.emailVerified / stats.totalRows) * 100).toFixed(2) + '%' : '0%'],
-        ['Users', stats.roleMap.get(DATABASE_USER_ROLE_ENUM.USER)],
+        ['Users', stats.roleMap[RoleEnum.USER]],
         ['Users (Unassigned)', stats.unassignedUsers],
-        ['Demo Users', stats.roleMap.get(DATABASE_USER_ROLE_ENUM.DEMO_USER)],
-        ['Test Users', stats.roleMap.get(DATABASE_USER_ROLE_ENUM.TEST_USER)],
-        ['Circle Leaders', stats.roleMap.get(DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER)],
-        ['Circle Managers', stats.roleMap.get(DATABASE_USER_ROLE_ENUM.CIRCLE_MANAGER)],
-        ['Inactive', stats.roleMap.get(DATABASE_USER_ROLE_ENUM.INACTIVE)],
-        ['*Reported*', stats.roleMap.get(DATABASE_USER_ROLE_ENUM.REPORTED)],
+        ['Demo Users', stats.roleMap[RoleEnum.DEMO_USER]],
+        ['Test Users', stats.roleMap[RoleEnum.TEST_USER]],
+        ['Circle Leaders', stats.roleMap[RoleEnum.CIRCLE_LEADER]],
+        ['Circle Managers', stats.roleMap[RoleEnum.CIRCLE_MANAGER]],
+        ['Inactive', stats.roleMap[RoleEnum.INACTIVE]],
+        ['*Reported*', stats.roleMap[RoleEnum.REPORTED]],
     ]));
 }
 
@@ -66,7 +67,7 @@ export const htmlUserWalkLevelDistribution = async():Promise<string> => {
     const stats = await DB_CALCULATE_USER_TABLE_STATS();
 
     const valueMap = new Map<string, string|number>();
-    stats.walkLevelMap.forEach((count, level) => {
+    Object.entries(stats.walkLevelMap).forEach(([level, count]) => {
         valueMap.set(`Walk Level ${level}`, count);
     });
 
@@ -78,7 +79,7 @@ export const htmlUserRoleDistribution = async():Promise<string> => {
     const stats = await DB_CALCULATE_USER_TABLE_STATS();
 
     const valueMap = new Map<string, string|number>();
-    stats.roleMap.forEach((count, role) => {
+    Object.entries(stats.roleMap).forEach(([role, count]) =>{
         valueMap.set(role.toString(), count); // Convert enum value to string label
     });
 

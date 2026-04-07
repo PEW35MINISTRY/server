@@ -104,7 +104,10 @@ sourceField.selectOptionList.forEach((source:string, index:number) => {
         sourceField.displayOptionList[index] = `${makeDisplayText(source)} (mobile)`;
 });
 
-export const EDIT_CONTENT_FIELDS_ADMIN:InputField[] = [    
+export const EDIT_CONTENT_FIELDS_ADMIN:InputField[] = [   
+    new InputField({title: 'Content ID', field: 'contentID', type: InputType.READ_ONLY }),
+    new InputField({title: 'Created', field: 'createdDT', type: InputType.READ_ONLY }),
+    new InputField({title: 'Last Modified', field: 'modifiedDT', type: InputType.READ_ONLY }),  
     ...EDIT_CONTENT_FIELDS,
     new InputField({title: 'Recorder ID', field: 'recorderID', type: InputType.NUMBER }),
     new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min: 0, max: 3000} }),

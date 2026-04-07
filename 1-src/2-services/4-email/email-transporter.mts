@@ -37,6 +37,11 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
             return false;
         }
 
+        if(process.env.SEND_EMAILS !== 'true') {
+            console.log('Email Sending Disabled - ', subject, ' to: ', ...recipientMap.entries());
+            return true;
+        }
+
         const command = new SendEmailCommand({
             Source: senderAddress,
             Destination: {
@@ -82,6 +87,11 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:Em
         if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(senderAddress)) {
             log.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
             return false;
+        }
+
+        if(process.env.SEND_EMAILS !== 'true') {
+            console.log('Email Sending Disabled - ', subject, ' to: ', ...recipientMap.entries());
+            return true;
         }
 
         const command = new SendEmailCommand({
@@ -170,6 +180,11 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
             attachmentParts,
             `--${boundary}--`
         ].join('\r\n');
+
+        if(process.env.SEND_EMAILS !== 'true' && process.env.SEND_LOG_EMAILS !== 'true') {
+            console.log('Email Log Sending Disabled - ', subject, ' to: ', ...recipientMap.entries());
+            return true;
+        }
 
         const command = new SendRawEmailCommand({
             RawMessage: {

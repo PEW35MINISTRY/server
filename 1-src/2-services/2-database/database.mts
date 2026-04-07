@@ -110,7 +110,11 @@ export const query = async(query:string):Promise<SQL.RowDataPacket[]> =>
 /***************************************
  *  EXECUTE: PREPARED SELECT STATEMENT
  ***************************************/
+const SELECT_STATEMENT:RegExp = new RegExp('^\\s*SELECT\\b');
 export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPacket[]> => {
+    if(!SELECT_STATEMENT.test(query))
+        log.warn('DB - execute, this query may be better suited as a DB.command() ', query, log.getStackTrace());
+
     //validate fields supplied
     if((query.split('?').length - 1) !== fields.length) {
         log.error('DB execute Rejected for incorrect number of fields provided: ', query, (query.split('?').length - 1), fields.length, JSON.stringify(fields));
@@ -142,6 +146,9 @@ export const execute = async(query:string, fields:any[]):Promise<SQL.RowDataPack
  *  COMMAND: PREPARED DATABASE OPERATION STATEMENT
  ***************************************************/
 export const command = async(query:string, fields:any[]):Promise<CommandResponseType|undefined> => {
+    if(query.trim().toUpperCase().startsWith('SELECT'))
+        log.warn('DB - command(), this query may be better suited as DB.execute()', query, log.getStackTrace());
+
     //validate fields supplied
     if((query.split('?').length - 1) !== fields.length) {
         log.error('DB command Rejected for incorrect number of fields provided: ', query, (query.split('?').length - 1), fields.length, JSON.stringify(fields));
@@ -250,15 +257,18 @@ const preSanitizeInput = (valueList:any[]):any[] =>
  ********************************************************************/
 const BOOLEAN_REGEX = new RegExp(/^is[A-Z]/); //database column prefix with 'is'
 
-const postParseResultRows = (rows:RowDataPacket[]):RowDataPacket[] =>
-    rows.map((row: RowDataPacket) => {
-        Object.entries(row).map(([column, value]) => {
+const postParseResultRows = (rows:RowDataPacket[]):RowDataPacket[] => {
+    if(!Array.isArray(rows)) return rows;
 
-            /*Convert MYSQL tinyint(1) to JavaScript boolean */
-            if ((value !== null) && BOOLEAN_REGEX.test(column) && (value >= 0) && (value <= 1)) {
-                row[column] = (value === 1) ? true : false;
-            }
+    return rows.map((row: RowDataPacket) => {
+            Object.entries(row).map(([column, value]) => {
+
+                /*Convert MYSQL tinyint(1) to JavaScript boolean */
+                if((value !== null) && BOOLEAN_REGEX.test(column) && (value >= 0) && (value <= 1)) {
+                    row[column] = (value === 1) ? true : false;
+                }
+            });
+            return row;
         });
-        return row;
-    });
+}
     
