@@ -16,7 +16,8 @@ import '../env.mjs'; //Import first from a separate file, so environment variabl
 
 import { readFile, writeFile, mkdir, readdir, stat } from 'fs/promises';
 import path from 'path';
-import { getEnvExists, getEnvBase, getEnvironment } from '../2-services/10-utilities/env-utilities.mjs';
+import { getEnvExists, getEnvBase } from '../2-services/10-utilities/env-utilities.mjs';
+import { getEnvironment } from '../2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
 
 //Assets must be hosted in AWS CDN for non-local environments

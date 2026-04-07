@@ -12,7 +12,7 @@ import cors from 'cors';
 import { schedule } from 'node-cron';
 
 //Import Types
-import { checkAWSAuthentication, getEnv, toStringArray } from './2-services/10-utilities/utilities.mjs';
+import { checkAWSAuthentication, getEnvironment, toStringArray } from './2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST, SENSITIVE_KEYWORDS } from './0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
@@ -37,7 +37,6 @@ import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notif
 import { GET_EmailReport, POST_EmailReport } from './1-api/9-email/email.mjs';
 
 //Import Services
-import { getEnvironment, isEnvironment } from './2-services/10-utilities/env-utilities.mjs';
 import * as log from './2-services/10-utilities/logging/log.mjs';
 import { initializeDatabase } from './2-services/2-database/database.mjs';
 import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
@@ -53,19 +52,19 @@ import { sendEmailVerificationReminderBatch } from './2-services/4-email/configu
     EXPRESS SEVER
  *********************/
 export const SERVER_START_TIMESTAMP:Date = new Date();
-const SERVER_PORT:number = getEnv<number>('SERVER_PORT', 'number', 5000);
+const SERVER_PORT = process.env.SERVER_PORT || 5000;
 const publicServer: Application = express();
 const apiServer: Application = express();
 
 /************************
 * SERVER INITIALIZATION *
 *************************/
-const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End ${getEnvironment()} Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
+const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
 await initializeDatabase(); 
 await checkAWSAuthentication();
 
 //*** CRON JOBS ***/
-if(getEnv('ENABLE_CRON', 'boolean', false) && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION)) {
+if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)) {
   //Run at 15:00 UTC - 9am CST
   // schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
   //Run at 01:00 UTC - Sundays 7pm CST
@@ -157,7 +156,7 @@ apiServer.get('/version', (request: Request, response: Response, next:NextFuncti
 * Unmatched routes return 404 (not-found.html)                            *
 ***************************************************************************/
 //Production uses AWS CDN
-if(isEnvironment(ENVIRONMENT_TYPE.LOCAL)) {
+if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) {
   apiServer.use('/assets', express.static(path.join(__dirname, '1-src', '0-assets', 'public')));
 }
 
@@ -305,7 +304,7 @@ apiServer.get('/api/user/:client/content-list', GET_UserContentList);
 apiServer.use('/api/user/:client/content/:content', (request:JwtContentRequest, response:Response, next:NextFunction) => extractContentMiddleware(request, response, next));
 apiServer.post('/api/user/:client/content/:content/like', POST_contentIncrementLikeCount);
 
-apiServer.use(bodyParser.raw({type: ['image/png', 'image/jpg', 'image/jpeg'], limit: getEnv('IMAGE_UPLOAD_SIZE', 'string', '5mb')}));
+apiServer.use(bodyParser.raw({type: ['image/png', 'image/jpg', 'image/jpeg'], limit: process.env.IMAGE_UPLOAD_SIZE || '5mb'}));
 apiServer.post('/api/user/:client/image/:file', POST_profileImage);
 
 
@@ -349,7 +348,7 @@ apiServer.post('/api/leader/circle/:circle/client/:client/invite', POST_circleLe
 apiServer.post('/api/leader/circle/:circle/client/:client/accept', POST_circleLeaderAccept); //Existing Circle Membership Request must exist (Leader Accepts)
 apiServer.delete('/api/leader/circle/:circle/client/:client/leave', DELETE_circleLeaderMember);
 
-apiServer.use(bodyParser.raw({type: SUPPORTED_IMAGE_EXTENSION_LIST.map(ext => `image/${ext}`), limit: getEnv('IMAGE_UPLOAD_SIZE', 'string', '5mb')}));
+apiServer.use(bodyParser.raw({type: SUPPORTED_IMAGE_EXTENSION_LIST.map(ext => `image/${ext}`), limit: process.env.IMAGE_UPLOAD_SIZE || '5mb'}));
 apiServer.post('/api/leader/circle/:circle/image/:file', POST_circleImage);
 
 
@@ -388,7 +387,7 @@ apiServer.delete('/api/content-archive/:content', DELETE_contentArchive);
 apiServer.get('/api/content-archive/:content/image', GET_contentArchiveImage);
 apiServer.delete('/api/content-archive/:content/image', DELETE_contentArchiveImage);
 
-apiServer.use(bodyParser.raw({type: SUPPORTED_IMAGE_EXTENSION_LIST.map(ext => `image/${ext}`), limit: getEnv('IMAGE_UPLOAD_SIZE', 'string', '5mb')}));
+apiServer.use(bodyParser.raw({type: SUPPORTED_IMAGE_EXTENSION_LIST.map(ext => `image/${ext}`), limit: process.env.IMAGE_UPLOAD_SIZE || '5mb'}));
 apiServer.post('/api/content-archive/:content/image/:file', POST_contentArchiveImage);
 
 
@@ -469,7 +468,7 @@ apiServer.use((error: Exception, request: Request, response:Response, next: Next
     const notification = error.notification || ((status == 400) ? 'Missing details'
                             : (status == 401) ? 'Sorry not permitted'
                             : (status == 404) ? 'Not found'
-                            : (status == 413) ? `File larger than ${getEnv('IMAGE_UPLOAD_SIZE')}`
+                            : (status == 413) ? `File larger than ${process.env.IMAGE_UPLOAD_SIZE}`
                             : 'Unknown error has occurred');
 
     const errorResponse:ServerErrorResponse = {

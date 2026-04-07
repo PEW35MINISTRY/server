@@ -208,13 +208,13 @@ export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, stat
  * (Requires USER role) *
  ***************************/
 export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Promise<NewPartnerListItem[]> => {
-    const matchGender:boolean = getEnv('PARTNER_GENDER_MATCH', 'boolean', true);
-    const ageYearRange:number = getEnv('PARTNER_AGE_RANGE', 'number', 2);
-    const walkLevelRange:number = getEnv('PARTNER_WALK_RANGE', 'number', 2);
+    const matchGender:boolean = (process.env.PARTNER_GENDER_MATCH !== undefined) ? (process.env.PARTNER_GENDER_MATCH === 'true') : true;
+    const ageYearRange:number = (process.env.PARTNER_AGE_RANGE !== undefined) ? parseInt(process.env.PARTNER_AGE_RANGE) : 2;
+    const walkLevelRange:number = (process.env.PARTNER_WALK_RANGE !== undefined) ? parseInt(process.env.PARTNER_WALK_RANGE) : 2;
 
     /* Validations */
-    if (matchGender === undefined || isNaN(ageYearRange) || isNaN(walkLevelRange)) {
-        log.error('Partner Search: Invalid environment variables', matchGender, ageYearRange, walkLevelRange);
+    if (isNaN(ageYearRange) || isNaN(walkLevelRange) || process.env.PARTNER_GENDER_MATCH === undefined) {
+        log.error('Partner Search: Invalid environment variables', process.env.PARTNER_GENDER_MATCH, process.env.PARTNER_AGE_RANGE, process.env.PARTNER_WALK_RANGE);
         return [];
     } else if (user.userID <= 0 || !user.dateOfBirth || !user.gender || user.walkLevel === undefined) {
         log.error('Partner Search: Invalid USER', user.userID, user.dateOfBirth, user.gender, user.walkLevel, user.toString());

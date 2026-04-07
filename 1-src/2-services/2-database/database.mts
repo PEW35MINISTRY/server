@@ -3,9 +3,8 @@ import * as log from '../10-utilities/logging/log.mjs';
 import { CommandResponseType, AWSDatabaseSecrets } from './database-types.mjs';
 import { SecretsManagerClient, GetSecretValueCommand, GetSecretValueResponse } from '@aws-sdk/client-secrets-manager';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { getEnv, getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
+import { getEnvironment, getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
 import dotenv from 'dotenv';
-import { getEnvironment } from '../10-utilities/env-utilities.mjs';
 dotenv.config(); 
 
 
@@ -28,6 +27,8 @@ const GetRDSSecretCredentials = async():Promise<AWSDatabaseSecrets> => {
 }
 
 export const initializeDatabase = async():Promise<SQL.Pool> => {
+    console.log(`Initializing Database in ${getEnvironment()} Environment...`);
+
     if(DATABASE) {
         log.warn('DATABASE | initializeDatabase - Terminating existing instance.');
         await DATABASE.end();
@@ -36,18 +37,18 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
 
     /* Database Configurations */
     let DB_CONFIGURATIONS: PoolOptions = {
-        host: getEnv('DATABASE_END_POINT'),
-        database: getEnv('DATABASE_NAME'),
-        user: getEnv('DATABASE_USER'),
-        password: getEnv('DATABASE_PASSWORD'),
+        host: process.env.DATABASE_END_POINT,
+        database: process.env.DATABASE_NAME,
+        user: process.env.DATABASE_USER,
+        password: process.env.DATABASE_PASSWORD,
     
-        port: getEnv('DATABASE_PORT', 'number', 3306),
-        connectTimeout: getEnv('DATABASE_CONNECTION_TIMEOUT_MS', 'number', 30000),
+        port: parseInt(process.env.DATABASE_PORT || '3306'),
+        connectTimeout: parseInt(process.env.DATABASE_CONNECTION_TIMEOUT_MS || '30000'),
         waitForConnections: true,
-        connectionLimit: getEnv('DATABASE_CONNECTION_MAX', 'number', 10),
-        maxIdle: getEnv('DATABASE_CONNECTION_MIN', 'number', 5),
-        idleTimeout: getEnv('DATABASE_IDLE_TIME_MS', 'number', 60000),
-        timezone: 'local',
+        connectionLimit: parseInt(process.env.DATABASE_CONNECTION_MAX || '10'),
+        maxIdle: parseInt(process.env.DATABASE_CONNECTION_MIN || '5'),
+        idleTimeout: parseInt(process.env.DATABASE_IDLE_TIME_MS || '60000'),
+        timezone: 'Z',
     };
     
     /* Production Environment overwrites with AWS Secrets Manager */
@@ -65,9 +66,9 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
 
     /* Test & Log Connection Success */
     try {
-        const [rows] = await DATABASE.query('SELECT COUNT(*) AS count FROM `user` WHERE modelSourceEnvironment = ?;', [getModelSourceEnvironment()]);
+        const [rows] = await DATABASE.query('SELECT COUNT(*) AS count FROM `user`');
         if(rows[0] !== undefined && parseInt(rows[0]['count']) > 0) 
-            console.info(`Database connected with ${getModelSourceEnvironment()} users: ${rows[0]['count']}`);
+            console.info(`DATABASE CONNECTED with ${rows[0]['count']} Identified Users`);
         else 
             throw `Connected, but Query Failed: ${JSON.stringify(rows)}`;
 
@@ -77,6 +78,8 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
         throw error;
     }
 
+    if(getEnvironment() !== ENVIRONMENT_TYPE.LOCAL)
+        log.warn(`Database initialized in ${getEnvironment()} Environment with Default Model Source Environment as ${getModelSourceEnvironment()}.`);
     return DATABASE;
 }
 
