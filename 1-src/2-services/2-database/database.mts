@@ -3,9 +3,8 @@ import * as log from '../10-utilities/logging/log.mjs';
 import { CommandResponseType, AWSDatabaseSecrets } from './database-types.mjs';
 import { SecretsManagerClient, GetSecretValueCommand, GetSecretValueResponse } from '@aws-sdk/client-secrets-manager';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { getEnvironment, getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
-import dotenv from 'dotenv';
-dotenv.config(); 
+import { getEnvironment } from '../10-utilities/env-utilities.mjs';
+import { getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
 
 
 /*********************************************

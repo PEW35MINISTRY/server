@@ -12,7 +12,8 @@ import cors from 'cors';
 import { schedule } from 'node-cron';
 
 //Import Types
-import { checkAWSAuthentication, getEnvironment, toStringArray } from './2-services/10-utilities/utilities.mjs';
+import { getEnvironment } from './2-services/10-utilities/env-utilities.mjs';
+import { checkAWSAuthentication, toStringArray } from './2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST, SENSITIVE_KEYWORDS } from './0-assets/field-sync/input-config-sync/inputField.mjs';
 import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
