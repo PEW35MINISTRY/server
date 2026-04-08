@@ -3,6 +3,7 @@ import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
 import { getEnvBase, getEnvEnumBase } from './env-utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-types.mjs';
+import * as log from './logging/log.mjs';
 
 
 
