@@ -211,7 +211,7 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
         let lastRestart:Date = existsSync(SERVER_START_TIMESTAMP_PATH) ? new Date(readFileSync(SERVER_START_TIMESTAMP_PATH, 'utf8').trim()) : SERVER_START_TIMESTAMP;
         if(isNaN(lastRestart.getTime())) lastRestart = SERVER_START_TIMESTAMP;
         const lastRestartDurationMS:number = SERVER_START_TIMESTAMP.getTime() - lastRestart.getTime();
-        const lastRestartCheck:boolean = (isNaN(lastRestart.getTime()) || (lastRestartDurationMS / (1000 * 60)) < 5.0);
+        const lastRestartCheck:boolean = ((lastRestartDurationMS / (1000 * 60)) > 5.0);
 
         const packageJsonPath:string = path.join(process.cwd(), 'package.json');
         const packageJson:{version:string} = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
@@ -239,7 +239,7 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                 + `-------------------------------\n`
                 + `${overallCheck ? '✅' : '⚠️'} Overall Check: ${overallCheck ? 'OK' : 'WARNING'}\n`
                 + `${environmentCheck ? '✅' : '⚠️'} Environment Check: ${environmentCheck ? 'OK' : 'WARNING'}\n`
-                + `${modelSourceCheck ? '✅' : '⚠️'} Environment Check: ${environmentCheck ? 'OK' : 'WARNING'}\n`
+                + `${modelSourceCheck ? '✅' : '⚠️'} Model Source Environment Check: ${modelSourceCheck ? 'OK' : 'WARNING'}\n`
                 + `${branchCheck ? '✅' : '⚠️'} Branch Check: ${branchCheck ? 'OK' : 'WARNING'}\n`
                 + `${lastRestartCheck ? '✅' : '⚠️'} Last Restart Check: ${lastRestartCheck ? 'OK' : 'WARNING'}\n`
                 + `${(ec2Check === undefined) ? '➖' : ec2Check ? '✅' : '⚠️'} EC2 Check: ${(ec2Check === undefined) ? 'OK-Local' : ec2Check ? 'OK' : 'WARNING'}\n`
@@ -255,7 +255,7 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                 + `ASSET_URL: ${process.env.ASSET_URL ?? ''}\n\n`
 
                 //Expected Enabled
-                + `${process.env.ENABLE_CRON === 'true' ? '✅' : '⚠️'} SEND_EMAILS: ${process.env.ENABLE_CRON ?? ''}\n`
+                + `${process.env.ENABLE_CRON === 'true' ? '✅' : '⚠️'} ENABLE_CRON: ${process.env.ENABLE_CRON ?? ''}\n`
                 + `${process.env.SEND_EMAILS === 'true' ? '✅' : '⚠️'} SEND_EMAILS: ${process.env.SEND_EMAILS ?? ''}\n`
                 + `${process.env.SAVE_LOGS_LOCALLY === 'true' ? '✅' : '⚠️'} SAVE_LOGS_LOCALLY: ${process.env.SAVE_LOGS_LOCALLY ?? ''}\n`
                 + `${process.env.UPLOAD_LOGS_S3 === 'true' ? '✅' : '⚠️'} UPLOAD_LOGS_S3: ${process.env.UPLOAD_LOGS_S3 ?? ''}\n`
@@ -277,13 +277,6 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                 + `\nLast Restart Timestamp: ${lastRestart.toISOString()}\n`
                 + `Last Runtime Duration: ${formatDuration(lastRestart, SERVER_START_TIMESTAMP)}\n`
 
-                + '\nPM2 Manager\n'
-                + '-----------\n'
-                + `PM2 App Name: ${process.env.name ?? '-'}\n`
-                + `PM2 ID: ${process.env.pm_id ?? '-'}\n`
-                + `PM2 Instance: ${process.env.NODE_APP_INSTANCE ?? '-'}\n`
-                + `Process ID: ${process.pid}\n`
-
                 + '\nAWS\n'
                 + '---\n'
                 + `${awsAuthenticated ? '✅' : '⚠️'} Authentication: ${awsAuthenticated ? 'YES' : 'NO'}\n`
@@ -295,7 +288,7 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                         + `Availability Zone: ${awsMetadata.availabilityZone}\n`
                         + `Private IP: ${awsMetadata.privateIP}\n`
                         + `Public IP: ${awsMetadata.publicIP}\n`
-                        + `Public Hostname: ${awsMetadata.publicHostname}\n`                       
+                        + `Public Hostname: https://${awsMetadata.publicHostname}\n`                       
                     : '')
                 + `\n\n== Login to Portal ==\n${process.env.ENVIRONMENT_BASE_URL}/portal/dashboard\n`
         };
