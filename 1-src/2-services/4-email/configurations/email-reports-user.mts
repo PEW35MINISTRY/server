@@ -1,19 +1,18 @@
-import { NewPartnerListItem } from "../../../0-assets/field-sync/api-type-sync/profile-types.mjs";
-import { DatabasePartnershipStats } from "../../../0-assets/field-sync/api-type-sync/utility-types.mjs";
-import { makeDisplayText } from "../../../0-assets/field-sync/input-config-sync/inputField.mjs";
-import { WebsiteSubscription } from "../../../1-api/2-auth/auth-types.mjs";
-import { getEnvironment } from "../../10-utilities/env-utilities.mjs";
-import { getModelSourceEnvironment } from "../../10-utilities/utilities.mjs";
-import { DATABASE_TABLE } from "../../2-database/database-types.mjs";
-import { DB_CALCULATE_PARTNERSHIP_STATS, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST } from "../../2-database/queries/partner-queries.mjs";
-import { DB_SELECT_EMAIL_SUBSCRIPTION_RECENT } from "../../2-database/queries/queries.mjs";
-import { htmlHeader, htmlSection, htmlVerticalSpace, htmlActionButton, htmlSummaryList, htmlDetailList, htmlFooter } from "../components/email-template-components.mjs";
-import { htmlNewPartnerProfileTable, htmlPartnershipBlock } from "../components/email-template-items.mjs";
-import { renderDatabaseTableUsage, htmlUserStats, htmlUserRoleDistribution, htmlUserWalkLevelDistribution } from "../components/email-template-renders.mjs";
-import { htmlSummaryPairList } from "../components/email-template-table.mjs";
-import { applyTemplate, EMAIL_TEMPLATE_TYPE, EMAIL_REPLACEMENT } from "../email-template-manager.mjs";
-import { EmailReportContent, EMAIL_COLOR } from "../email-types.mjs";
-import { formatDate } from "../email-utilities.mjs";
+import { NewPartnerListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { DatabasePartnershipStats } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { WebsiteSubscription } from '../../../1-api/2-auth/auth-types.mjs';
+import { getEnvironment, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { DATABASE_TABLE } from '../../2-database/database-types.mjs';
+import { DB_CALCULATE_PARTNERSHIP_STATS, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST } from '../../2-database/queries/partner-queries.mjs';
+import { DB_SELECT_EMAIL_SUBSCRIPTION_RECENT } from '../../2-database/queries/queries.mjs';
+import { htmlHeader, htmlSection, htmlVerticalSpace, htmlActionButton, htmlSummaryList, htmlDetailList, htmlFooter } from '../components/email-template-components.mjs';
+import { htmlNewPartnerProfileTable, htmlPartnershipBlock } from '../components/email-template-items.mjs';
+import { renderDatabaseTableUsage, htmlUserStats, htmlUserRoleDistribution, htmlUserWalkLevelDistribution } from '../components/email-template-renders.mjs';
+import { htmlSummaryPairList } from '../components/email-template-table.mjs';
+import { applyTemplate, EMAIL_TEMPLATE_TYPE, EMAIL_REPLACEMENT } from '../email-template-manager.mjs';
+import { EmailReportContent, EMAIL_COLOR } from '../email-types.mjs';
+import { formatDate } from '../email-utilities.mjs';
 
 
 

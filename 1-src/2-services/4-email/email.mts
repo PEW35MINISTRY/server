@@ -13,8 +13,7 @@ import { assembleDailyLogReport as assembleDailyLogReportText, assembleDeploymen
 import { assembleUserReportHTML, assemblePartnerReportHTML } from './configurations/email-reports-user.mjs';
 import { EmailSubscription, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { getEmailSignature } from './email-utilities.mjs';
-import { getEnvironment } from '../10-utilities/env-utilities.mjs';
-import { getAWSMetadata } from '../10-utilities/utilities.mjs';
+import { getEnvironment, getAWSMetadata } from '../10-utilities/utilities.mjs';
 import { SERVER_START_TIMESTAMP, SERVER_START_TIMESTAMP_PATH } from '../../server.mjs';
 
 
