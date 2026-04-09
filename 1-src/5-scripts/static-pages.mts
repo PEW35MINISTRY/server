@@ -1,3 +1,5 @@
+import '../env.mjs'; //Import first from a separate file, so environment variables are initialized once before ESM import evaluation.
+
 /**
  * Static HTML Page Build Script
  * -------------------------------------
@@ -11,20 +13,19 @@
  * 
  * Usage: Run during build. Make sure ASSET_URL is set.
  */
-import dotenv from 'dotenv';
-dotenv.config(); 
+
 import { readFile, writeFile, mkdir, readdir, stat } from 'fs/promises';
 import path from 'path';
-import { getEnvironment } from '../2-services/10-utilities/utilities.mjs';
+import { getEnvExists, getEnvBase, getEnvironment } from '../2-services/10-utilities/env-utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
 
 //Assets must be hosted in AWS CDN for non-local environments
-if(!(process.env.ASSET_URL) && getEnvironment() !== ENVIRONMENT_TYPE.LOCAL) {
+if(!getEnvExists('ASSET_URL') && getEnvironment() !== ENVIRONMENT_TYPE.LOCAL) {
   throw new Error(`Missing required ${getEnvironment()} environment variable: ASSET_URL`);
 }
 
-const ASSET_URL = process.env.ASSET_URL || 'http://localhost:3000/assets';
-const ENVIRONMENT_BASE_URL = process.env.ENVIRONMENT_BASE_URL || 'http://localhost:5000';
+const ASSET_URL:string = getEnvBase(console.error, 'ASSET_URL', 'string', 'http://localhost:3000/assets');
+const ENVIRONMENT_BASE_URL = getEnvBase(console.error, 'ENVIRONMENT_BASE_URL', 'string', 'http://localhost:5000');
 
 //Relative Paths from /0-compiled/5-scripts/
 const SOURCE_DIRECTORY = path.join('.', '1-src', '0-assets', 'static-pages');

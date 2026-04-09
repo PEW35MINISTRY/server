@@ -10,7 +10,7 @@ import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } f
 import { DB_SELECT_USER_CONTENT_LIST } from '../../2-services/2-database/queries/content-queries.mjs';
 import { hash, verify } from 'argon2';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
+import { getEnvironment } from '../../2-services/10-utilities/env-utilities.mjs';
 import { Exception } from '../api-types.mjs';
 import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
 

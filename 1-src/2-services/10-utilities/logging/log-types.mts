@@ -3,8 +3,7 @@ import path from 'path';
 const __dirname = path.resolve();
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { getEnvironment } from '../utilities.mjs';
-import { EmailAttachment } from '../../4-email/email-types.mjs';
+import { getEnvironment } from '../env-utilities.mjs';
 
 
 export enum LOG_SOURCE {
