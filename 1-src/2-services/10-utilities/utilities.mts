@@ -1,7 +1,9 @@
 import { createHash } from 'crypto';
 import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
+import { getEnvBase, getEnvEnumBase } from './env-utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-types.mjs';
+import * as log from './logging/log.mjs';
 import { AWSMetadata } from '../4-email/email-types.mjs';
 
 
@@ -11,6 +13,10 @@ import { AWSMetadata } from '../4-email/email-types.mjs';
  *  - Effects new models & search cache                       *
  *  - Only applies to user table; circles inherit from leader *
  **************************************************************/
+export const getEnv = <T=string,>(name:string, expectedType:'string' | 'number' | 'boolean' = 'string', defaultValue?:T):T | undefined => getEnvBase<T>(log.warn, name, expectedType, defaultValue);
+
+export const getEnvEnum = <T extends Record<string, string>>(name:string, enumObject:T, defaultValue?:T[keyof T]):T[keyof T]|undefined => getEnvEnumBase<T>(log.error, name, enumObject, defaultValue);
+
 /* Parse Environment | (Don't default to PRODUCTION for security) */
 export const getEnvironment = ():ENVIRONMENT_TYPE => ENVIRONMENT_TYPE[process.env.ENVIRONMENT as keyof typeof ENVIRONMENT_TYPE] || ENVIRONMENT_TYPE.DEVELOPMENT;
 
