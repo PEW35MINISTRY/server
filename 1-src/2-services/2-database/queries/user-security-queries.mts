@@ -229,7 +229,7 @@ export const DB_FLUSH_EXPIRED_TOKENS = async(type?:DATABASE_TOKEN_TYPE_ENUM):Pro
 
 
 /****************************************
- *    MAIl SUBSCRIPTION QUERIES         *
+ *   EMAIL SUBSCRIPTION QUERIES         *
  * userID | subscription                *
  ****************************************/
 
@@ -267,12 +267,11 @@ export const DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP = async(subscriptio
     return rows.reduce((map, row) => map.set(row.userID, row.email), new Map<number, string>());
 }
 
-//Subscriptions are raw string in DB_CONSUME_TOKEN, controoled input by enum EmailSubscription
+//Subscriptions are raw string in DB_CONSUME_TOKEN, controlled input by enum EmailSubscription
 export const DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH = async(userID:number, ...subscriptions:EmailSubscription[]):Promise<boolean> => {
     //Filter for valid subscriptions
     subscriptions = subscriptions.filter(subscription => {
-        const isValid:boolean = (String(subscription) === String(subscription).toUpperCase())
-            && Object.prototype.hasOwnProperty.call(EmailSubscription, String(subscription));
+        const isValid:boolean = Object.values(EmailSubscription).includes(subscription);
 
         if(!isValid)
             log.db('DB_INSERT_EMAIL_SUBSCRIPTION_BATCH: invalid subscription input', userID, subscription);
@@ -286,22 +285,25 @@ export const DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH = async(userID:number, ...s
         return false;
 
     const valueList = subscriptions.map(() => '(?, ?)').join(', ');
-    const response = await execute('INSERT INTO user_email_subscription ( userID, subscription ) '
-        + 'SELECT ?, valuesList.subscription FROM (VALUES ' + valueList + ') valuesList(userID, subscription) '
+    const response = await command('INSERT INTO user_email_subscription ( userID, subscription ) '
+        + 'SELECT ?, valuesList.subscription '
+        + `FROM (VALUES ${valueList} ) valuesList(userID, subscription) `
         + 'INNER JOIN user ON user.userID = ? '
         + 'WHERE user.isEmailVerified = 1 '
         + 'ON DUPLICATE KEY UPDATE;',
         subscriptions.flatMap(subscription => [userID, subscription]).concat([userID]));
 
-    return (response !== undefined);
+    return (response?.affectedRows > 0);
 }
 
 export const DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH = async(userID:number, ...subscriptions:EmailSubscription[]):Promise<boolean> => {
+    if(subscriptions.length === 0)
+        return false;
 
     const response = await command('DELETE FROM user_email_subscription '
         + 'WHERE userID = ? '
             + 'AND LOWER(subscription) IN (' + subscriptions.map(() => 'LOWER(?)').join(', ') + ');',
         [userID, ...subscriptions]);
 
-    return (response !== undefined);
+    return (response?.affectedRows ?? 0) > 0;
 }

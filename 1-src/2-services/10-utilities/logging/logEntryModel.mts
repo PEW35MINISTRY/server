@@ -149,6 +149,13 @@ export default class LOG_ENTRY {
         return prefix + `${summaryMessage.slice(0, (maxCharacters - prefix.length))}`;
     }
 
+    toStringLimit = (lines:number = 4):string => {
+        const visibleMessages:string[] = this.messages.slice(0, lines);
+        const messageSection:string = (visibleMessages.length > 0) ? visibleMessages.join('\n') : '(no message)';
+
+        return formatLogDate(this.date) + ' ' + this.type + ' :: ' + messageSection;
+    }
+
     toString = ():string => {
         const messageSection:string = (this.messages.length > 0) ? this.messages.join('\n') : '(no message)';
         const traceIndent:number = 4;

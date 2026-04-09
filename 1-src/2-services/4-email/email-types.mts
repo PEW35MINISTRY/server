@@ -77,3 +77,13 @@ export type EmailReportContent = {
     body:string,
     isHTML:boolean
 }
+
+export type AWSMetadata = {
+    instanceID:string,
+    instanceType:string,
+    availabilityZone:string,
+    awsRegion:string,
+    publicHostname:string,
+    publicIP:string,
+    privateIP:string,
+}

@@ -13,6 +13,7 @@ import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/in
 import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
 import { Exception } from '../api-types.mjs';
 import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
+import { isInternalEmail } from '../../2-services/4-email/email-utilities.mjs';
 
 
 /********************
@@ -168,7 +169,10 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
             || ((getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)
             && isMaxRoleGreaterThan({testUserRole: RoleEnum.DEMO_USER, currentMaxUserRole: userProfile.getHighestRole()})))) { //Skip Demo-User Only Profiles
 
-        await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
+            if(!isInternalEmail(userProfile.email)
+                || isMaxRoleGreaterThan({testUserRole: RoleEnum.DEVELOPER, currentMaxUserRole: userProfile.getHighestRole()}))
+                    await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
+
         return new Exception(403, 'Email address is not verified.', 'Please Verify Email');
     }
 

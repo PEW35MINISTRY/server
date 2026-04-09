@@ -1,16 +1,19 @@
+import { existsSync, readFileSync } from 'fs';
+import path, { join } from 'path';
+import * as log from '../../10-utilities/logging/log.mjs';
 import { LogType, LogDailyTrend, DatabaseTableUsage } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
-import { makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { ENVIRONMENT_TYPE, makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { fetchS3LogsByDateRange, calculateLogDailyTrends } from '../../10-utilities/logging/log-s3-utilities.mjs';
 import { LOG_BURST_EVENT_THRESHOLD } from '../../10-utilities/logging/log-types.mjs';
 import LOG_ENTRY from '../../10-utilities/logging/logEntryModel.mjs';
-import { getEnvironment } from '../../10-utilities/utilities.mjs';
-import { DATABASE_TABLE } from '../../2-database/database-types.mjs';
+import { checkAWSAuthentication, getAWSMetadata, getEnvironment, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_TABLE } from '../../2-database/database-types.mjs';
 import { DB_CALCULATE_TABLE_USAGE } from '../../2-database/queries/queries.mjs';
 import { htmlText, htmlVerticalSpace, htmlActionButton, htmlSection, htmlDetailList } from '../components/email-template-components.mjs';
 import { renderLogList, renderDatabaseTableUsage, renderLogTrendTable } from '../components/email-template-renders.mjs';
-import { EmailReportContent } from '../email-types.mjs';
-import { formatDate } from '../email-utilities.mjs';
-
+import { AWSMetadata, EmailReportContent } from '../email-types.mjs';
+import { formatDate, formatDuration } from '../email-utilities.mjs';
+import { SERVER_START_TIMESTAMP, SERVER_START_TIMESTAMP_PATH } from '../../../server.mjs';
 
 
 /************************************
@@ -104,39 +107,39 @@ export const assembleDailyLogReport = async(type:LogType = LogType.ERROR):Promis
     const totalToday:number = logList.reduce((sum:number, log:LOG_ENTRY) => sum + 1 + log.duplicateList.length, 0);
 
     return {subject: `EP ${nowDayOfWeek}'s ${makeDisplayText(type)} Report - ${makeDisplayText(getEnvironment())}`, isHTML:false,
-        body: `${nowDayOfWeek}'s ${makeDisplayText(type)} Report\n`
+        body: `${nowDayOfWeek} ${makeDisplayText(type)} Report\n`.toUpperCase()
+            + '-----------------------------------------------\n\n'
+            + `Information Generated (CST): ${formatDate(new Date(), true)}\n`
             + `Environment: ${makeDisplayText(getEnvironment())}\n`
             + `Range: ${new Date(startTimestamp).toLocaleString('en-US', { timeZone:'America/Chicago' })} - ${new Date(nowTimestamp).toLocaleString('en-US', { timeZone:'America/Chicago' })}\n`
-            + '\n\n'
+            + '\n'
             + `Unique ${makeDisplayText(type)}s: ${logList.length}\n`
             + `Total Occurrences: ${totalToday}\n`
             + `Duplicates: ${totalToday > 0 ? ((((totalToday - logList.length) / totalToday) * 100).toFixed(2)) : '0.00'}% (${totalToday - logList.length})\n`
-            + '\n\n'
             + ((dailyTrends.length >= 8)
-                    ? `${dailyTrends[0].total >= dailyTrends[1].total ? 'Increase' : 'Decrease'} compared to Yesterday: ${dailyTrends[1].total > 0 ? `${Math.round((Math.abs(dailyTrends[0].total - dailyTrends[1].total) / dailyTrends[1].total) * 100)}%` : `${dailyTrends[0].total - dailyTrends[1].total}`} (${dailyTrends[0].total} vs ${dailyTrends[1].total})\n`
-                    + `${dailyTrends[0].total >= weeklyAverage ? 'Increase' : 'Decrease'} compared to Weekly Average: ${weeklyAverage > 0 ? `${Math.round((Math.abs(dailyTrends[0].total - weeklyAverage) / weeklyAverage) * 100)}%` : `${dailyTrends[0].total - weeklyAverage}`} (${dailyTrends[0].total} vs ${Math.round(weeklyAverage)})\n`
-                    + `${dailyTrends[0].total >= dailyTrends[7].total ? 'Increase' : 'Decrease'} compared to last ${nowDayOfWeek}: ${dailyTrends[7].total > 0 ? `${Math.round((Math.abs(dailyTrends[0].total - dailyTrends[7].total) / dailyTrends[7].total) * 100)}%` : `${dailyTrends[0].total - dailyTrends[7].total}`} (${dailyTrends[0].total} vs ${dailyTrends[7].total})\n`
-                    + '\n\n'
+                    ? `${dailyTrends[0].total >= dailyTrends[1].total ? 'Increase' : 'Decrease'} vs. Yesterday: ${dailyTrends[1].total > 0 ? `${Math.round((Math.abs(dailyTrends[0].total - dailyTrends[1].total) / dailyTrends[1].total) * 100)}%` : `${dailyTrends[0].total - dailyTrends[1].total}`} (${dailyTrends[0].total} vs ${dailyTrends[1].total})\n`
+                    + `${dailyTrends[0].total >= weeklyAverage ? 'Increase' : 'Decrease'} vs. Weekly Average: ${weeklyAverage > 0 ? `${Math.round((Math.abs(dailyTrends[0].total - weeklyAverage) / weeklyAverage) * 100)}%` : `${dailyTrends[0].total - weeklyAverage}`} (${dailyTrends[0].total} vs ${Math.round(weeklyAverage)})\n`
+                    + `${dailyTrends[0].total >= dailyTrends[7].total ? 'Increase' : 'Decrease'} vs. last ${nowDayOfWeek}: ${dailyTrends[7].total > 0 ? `${Math.round((Math.abs(dailyTrends[0].total - dailyTrends[7].total) / dailyTrends[7].total) * 100)}%` : `${dailyTrends[0].total - dailyTrends[7].total}`} (${dailyTrends[0].total} vs ${dailyTrends[7].total})\n`
+                    + '\n'
                 : '')
             + ((affectedRouteMap.size > 0)
                     ? `Most Affected Routes\n`
                     + `--------------------\n`
                     + `${Array.from(affectedRouteMap.entries()).sort((a,b) => b[1] - a[1]).slice(0, 5).map(([route, count]) => `(${count}) ${route}`).join('\n')}\n`
-                    + '\n\n'
+                    + '\n'
                 : '')
             + ((impactedUserMap.size > 0)
                     ? `Most Impacted Users\n`
                     + `-------------------\n`
                     + `${Array.from(impactedUserMap.entries()).sort((a,b) => b[1] - a[1]).slice(0, 10).map(([userID, count]) => `(${count}) User #${userID}: ${process.env.ENVIRONMENT_BASE_URL}/portal/edit/profile/${userID}`).join('\n')}\n`
-                    + '\n\n'
+                    + '\n'
                 : '')
             + ((burstEvents.length > 0)
                     ? `Identified Burst Events\n`
                     + `-----------------------\n`
                     + `${burstEvents.map(item => `(${item.quantity}) ${LOG_ENTRY.summarize(item.entry, undefined, 100)}`).join('\n')}\n`
-                    + '\n\n'
+                    + '\n'
                 : '')
-            + '\n\n'
             + `== See Latest ${makeDisplayText(type)} Logs ==\n${process.env.ENVIRONMENT_BASE_URL}/portal/logs/${type}`
             + '\n\n'
             + await renderLogList(type, { maxEntries:100, pastDays:2, html:false })
@@ -166,17 +169,19 @@ export const assembleWeeklySystemReport = async():Promise<EmailReportContent> =>
 
     return {subject: `EP Server Status System Report - ${makeDisplayText(getEnvironment())}`, isHTML:false,
         body: `SERVER STATUS SYSTEM REPORT\n`
+            + '---------------------------\n\n'
             + `Information Generated (CST): ${formatDate(new Date(), true)}\n`
             + `Environment: ${getEnvironment()}`
+            + `User Source: ${getModelSourceEnvironment()}`
             + '\n\n'
             + `Weekly Summary\n`
             + `--------------\n`
-            + `${currentWeekErrorTotal >= previousWeekErrorTotal ? 'Increase' : 'Decrease'} Errors: ${previousWeekErrorTotal > 0 ? Math.round((Math.abs(currentWeekErrorTotal - previousWeekErrorTotal) / previousWeekErrorTotal) * 100) : (currentWeekErrorTotal > 0 ? 100 : 0)}% (${currentWeekErrorTotal} vs ${previousWeekErrorTotal})\n`
-            + `${currentWeekWarnTotal >= previousWeekWarnTotal ? 'Increase' : 'Decrease'} Warnings: ${previousWeekWarnTotal > 0 ? Math.round((Math.abs(currentWeekWarnTotal - previousWeekWarnTotal) / previousWeekWarnTotal) * 100) : (currentWeekWarnTotal > 0 ? 100 : 0)}% (${currentWeekWarnTotal} vs ${previousWeekWarnTotal})\n`
-            + `Email Success Rate: ${emailSuccessRate}% (${emailLogs.length - emailFailCount} success, ${emailFailCount} fail)\n`
+            + `${currentWeekErrorTotal >= previousWeekErrorTotal ? 'Increase' : 'Decrease'} in Errors: ${previousWeekErrorTotal > 0 ? Math.round((Math.abs(currentWeekErrorTotal - previousWeekErrorTotal) / previousWeekErrorTotal) * 100) : (currentWeekErrorTotal > 0 ? 100 : 0)}% (${currentWeekErrorTotal} vs ${previousWeekErrorTotal})\n`
+            + `${currentWeekWarnTotal >= previousWeekWarnTotal ? 'Increase' : 'Decrease'} in Warnings: ${previousWeekWarnTotal > 0 ? Math.round((Math.abs(currentWeekWarnTotal - previousWeekWarnTotal) / previousWeekWarnTotal) * 100) : (currentWeekWarnTotal > 0 ? 100 : 0)}% (${currentWeekWarnTotal} vs ${previousWeekWarnTotal})\n`
+            + `Email Success Rate: ${emailSuccessRate}% (${emailLogs.length - emailFailCount} success, ${emailFailCount} failures)\n`
             + '\n'
             + `New User Growth: ${previousUserTotal > 0 ? Math.round((userStats.created7Days / previousUserTotal) * 100) : 0}% (${userStats.created7Days} new)\n`
-            + `New Users vs 30-day Average: ${userStats.created7Days >= expectedWeeklyUsers ? 'increase' : 'decrease'} ${expectedWeeklyUsers > 0 ? Math.round((Math.abs(userStats.created7Days - expectedWeeklyUsers) / expectedWeeklyUsers) * 100) : (userStats.created7Days > 0 ? 100 : 0)}% (${userStats.created7Days} vs ${expectedWeeklyUsers} expected)\n`
+            + `New Users vs. 30-Day Average: ${expectedWeeklyUsers > 0 ? Math.round((Math.abs(userStats.created7Days - expectedWeeklyUsers) / expectedWeeklyUsers) * 100) : (userStats.created7Days > 0 ? 100 : 0)}% ${userStats.created7Days >= expectedWeeklyUsers ? 'increase' : 'decrease'} (${userStats.created7Days} vs ${expectedWeeklyUsers} expected)\n`
             + '\n\n'
             + await renderDatabaseTableUsage([DATABASE_TABLE.USER, DATABASE_TABLE.PARTNER, DATABASE_TABLE.SUBSCRIPTION], false, 'User Database Usage')
             + '\n\n'
@@ -197,6 +202,109 @@ export const assembleWeeklySystemReport = async():Promise<EmailReportContent> =>
             + await renderLogList(LogType.DB, { maxEntries:25, pastDays:7, html:false })
         };
 }
+
+
+/* DEPLOY STATUS & CONFIGURATIONS */
+export const assembleDeploymentSystemReport = async():Promise<EmailReportContent> => {
+    try {
+        const now:Date = new Date();
+        let lastRestart:Date = existsSync(SERVER_START_TIMESTAMP_PATH) ? new Date(readFileSync(SERVER_START_TIMESTAMP_PATH, 'utf8').trim()) : SERVER_START_TIMESTAMP;
+        if(isNaN(lastRestart.getTime())) lastRestart = SERVER_START_TIMESTAMP;
+        const lastRestartDurationMS:number = SERVER_START_TIMESTAMP.getTime() - lastRestart.getTime();
+        const lastRestartCheck:boolean = (isNaN(lastRestart.getTime()) || (lastRestartDurationMS / (1000 * 60)) < 5.0);
+
+        const packageJsonPath:string = path.join(process.cwd(), 'package.json');
+        const packageJson:{version:string} = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+        const version:string = packageJson.version ?? '0.0.0';
+
+        const gitBranch:string = process.env.GIT_BUILD_BRANCH ?? 'BRANCH';
+        const gitCommit:string = process.env.GIT_BUILD_COMMIT ?? 'COMMIT';
+        const branchCheck:boolean = !!gitBranch && (gitBranch.includes('release') || gitBranch === 'master');
+
+        const environmentCheck:boolean = (process.env.ENVIRONMENT === undefined) || (getEnvironment() !== ENVIRONMENT_TYPE.PRODUCTION);
+        const modelSourceCheck:boolean = (process.env.DEFAULT_MODEL_SOURCE_ENVIRONMENT === undefined) || (getModelSourceEnvironment() !== DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION);
+
+        const awsAuthenticated:boolean = await checkAWSAuthentication();
+        const awsMetadata:AWSMetadata|undefined = await getAWSMetadata();
+        const ec2Check:boolean|undefined = awsMetadata ? true : (getEnvironment() === ENVIRONMENT_TYPE.LOCAL ? undefined : false); //Not expected locally
+
+        const overallCheck:boolean = lastRestartCheck && environmentCheck && modelSourceCheck && branchCheck && (ec2Check !== false);
+
+        return {subject:`EP Deployment Report - ${makeDisplayText(getEnvironment())}`, isHTML:false,
+            body:`SYSTEM DEPLOYMENT REPORT\n`
+                + '-----------------------\n'
+                + `Information Generated (CST): ${formatDate(now, true)}\n\n`
+
+                + `Environment Verification Checks\n`
+                + `-------------------------------\n`
+                + `${overallCheck ? '✅' : '⚠️'} Overall Check: ${overallCheck ? 'OK' : 'WARNING'}\n`
+                + `${environmentCheck ? '✅' : '⚠️'} Environment Check: ${environmentCheck ? 'OK' : 'WARNING'}\n`
+                + `${modelSourceCheck ? '✅' : '⚠️'} Environment Check: ${environmentCheck ? 'OK' : 'WARNING'}\n`
+                + `${branchCheck ? '✅' : '⚠️'} Branch Check: ${branchCheck ? 'OK' : 'WARNING'}\n`
+                + `${lastRestartCheck ? '✅' : '⚠️'} Last Restart Check: ${lastRestartCheck ? 'OK' : 'WARNING'}\n`
+                + `${(ec2Check === undefined) ? '➖' : ec2Check ? '✅' : '⚠️'} EC2 Check: ${(ec2Check === undefined) ? 'OK-Local' : ec2Check ? 'OK' : 'WARNING'}\n`
+
+                + '\nConfiguration Settings\n'
+                + '----------------------\n'
+                + `${(environmentCheck) ? '✅' : '⚠️'} Environment: ${getEnvironment()}\n`
+                + `${modelSourceCheck ? '✅' : '⚠️'} Model Source Environment: ${getModelSourceEnvironment()}\n\n`
+                + `SERVER_PORT: ${process.env.SERVER_PORT ?? ''}\n`
+                + `SERVER_PATH: ${process.env.SERVER_PATH ?? ''}\n`
+                + `EMAIL_DOMAIN: ${process.env.EMAIL_DOMAIN ?? ''}\n`
+                + `ENVIRONMENT_BASE_URL: ${process.env.ENVIRONMENT_BASE_URL ?? ''}\n`
+                + `ASSET_URL: ${process.env.ASSET_URL ?? ''}\n\n`
+
+                //Expected Enabled
+                + `${process.env.ENABLE_CRON === 'true' ? '✅' : '⚠️'} SEND_EMAILS: ${process.env.ENABLE_CRON ?? ''}\n`
+                + `${process.env.SEND_EMAILS === 'true' ? '✅' : '⚠️'} SEND_EMAILS: ${process.env.SEND_EMAILS ?? ''}\n`
+                + `${process.env.SAVE_LOGS_LOCALLY === 'true' ? '✅' : '⚠️'} SAVE_LOGS_LOCALLY: ${process.env.SAVE_LOGS_LOCALLY ?? ''}\n`
+                + `${process.env.UPLOAD_LOGS_S3 === 'true' ? '✅' : '⚠️'} UPLOAD_LOGS_S3: ${process.env.UPLOAD_LOGS_S3 ?? ''}\n`
+                + `${process.env.SAVE_AUTH_LOGS === 'true' ? '✅' : '⚠️'} SAVE_AUTH_LOGS: ${process.env.SAVE_AUTH_LOGS ?? ''}\n`
+                + `${process.env.SAVE_EVENT_LOGS === 'true' ? '✅' : '⚠️'} SAVE_EVENT_LOGS: ${process.env.SAVE_EVENT_LOGS ?? ''}\n`
+
+                //Expected Local Features Disabled in Production
+                + `${process.env.PRINT_LOGS_TO_CONSOLE === 'true' ? '⚠️' : '✅'} PRINT_LOGS_TO_CONSOLE: ${process.env.PRINT_LOGS_TO_CONSOLE ?? ''}\n`
+                + `${process.env.DEBUG_SEARCH === 'true' ? '⚠️' : '✅'} DEBUG_SEARCH: ${process.env.DEBUG_SEARCH ?? ''}\n\n`
+
+                + '\nDeployment\n'
+                + '----------\n'
+                + `Version: ${version}\n`
+                + `Git Branch: ${gitBranch}\n`
+                + `Git Commit: ${gitCommit}\n`
+                + `Server Restart Timestamp: ${SERVER_START_TIMESTAMP.toISOString()}\n`
+                + `Current Runtime Duration: ${formatDuration(SERVER_START_TIMESTAMP)}\n`
+
+                + `\nLast Restart Timestamp: ${lastRestart.toISOString()}\n`
+                + `Last Runtime Duration: ${formatDuration(lastRestart, SERVER_START_TIMESTAMP)}\n`
+
+                + '\nPM2 Manager\n'
+                + '-----------\n'
+                + `PM2 App Name: ${process.env.name ?? '-'}\n`
+                + `PM2 ID: ${process.env.pm_id ?? '-'}\n`
+                + `PM2 Instance: ${process.env.NODE_APP_INSTANCE ?? '-'}\n`
+                + `Process ID: ${process.pid}\n`
+
+                + '\nAWS\n'
+                + '---\n'
+                + `${awsAuthenticated ? '✅' : '⚠️'} Authentication: ${awsAuthenticated ? 'YES' : 'NO'}\n`
+                + `${(ec2Check === undefined) ? '➖' : ec2Check ? '✅' : '⚠️'} EC2 Check: ${(ec2Check === undefined) ? 'OK-Local' : ec2Check ? 'OK' : 'WARNING'}\n`
+                + (awsMetadata
+                    ? `Instance ID: ${awsMetadata.instanceID}\n`
+                        + `Instance Type: ${awsMetadata.instanceType}\n`
+                        + `Region: ${awsMetadata.awsRegion}\n`
+                        + `Availability Zone: ${awsMetadata.availabilityZone}\n`
+                        + `Private IP: ${awsMetadata.privateIP}\n`
+                        + `Public IP: ${awsMetadata.publicIP}\n`
+                        + `Public Hostname: ${awsMetadata.publicHostname}\n`                       
+                    : '')
+                + `\n\n== Login to Portal ==\n${process.env.ENVIRONMENT_BASE_URL}/portal/dashboard\n`
+        };
+    } catch(error) {
+        log.error('ERROR Generating Deployment Report:', error);
+        return {subject: '', isHTML:false, body:''};
+    }
+}
+
 
 
 /* Local Utilities */

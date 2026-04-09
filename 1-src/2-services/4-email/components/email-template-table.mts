@@ -23,8 +23,8 @@ export const textSummaryTable = (title:string, columnLabelList:string[], rowList
 
 
 //Columns are nested and labeled in each row
-export const renderLabeledRowTable  = (title:string, columnLabelList:string[], rowList:(string|number)[][], footerText:string[] = []):string =>
-    [`===== ${title} =====`,
+export const renderLabeledRowTable  = (title:string|undefined, columnLabelList:string[], rowList:(string|number)[][], footerText:string[] = []):string =>
+    [title ? `===== ${title} =====` : '',
     ...rowList.map(row => {
       const label = String(row[0]);
       const values = row.slice(1)
@@ -37,14 +37,14 @@ export const renderLabeledRowTable  = (title:string, columnLabelList:string[], r
 
 
 
-export const htmlSummaryTable=(title:string, columnLabelList:string[], rowList:(string|number)[][], details:[string, string][] = []):string=>
+export const htmlSummaryTable=(title:string|undefined, columnLabelList:string[], rowList:(string|number)[][], details:[string, string][] = []):string=>
     `<table width="100%" border="0" cellspacing="0" cellpadding="0" role="presentation" align="center" style="margin:0 auto;">
         <tr>
             <td align="center" valign="top">
                 <table max-width="${EMAIL_CONTENT_MAX_WIDTH}" border="0" cellspacing="0" cellpadding="0" class="full_width" role="presentation" align="center" style="margin:0 auto;">
                     <tr>
                         <td>
-                            ${htmlTitle(title, 'center', EMAIL_COLOR.PRIMARY)}
+                            ${title ? htmlTitle(title, 'center', EMAIL_COLOR.PRIMARY) : ''}
                             <table width="100%" border="0" cellspacing="0" cellpadding="0" role="presentation" style="border-collapse:collapse;">
                                 <thead>
                                     <tr style="background-color:${EMAIL_COLOR.ACCENT};">
@@ -76,7 +76,7 @@ export const htmlSummaryTable=(title:string, columnLabelList:string[], rowList:(
 
     
 //Two COlumn Table
-export const htmlSummaryPairList = (title:string, valueMap:Map<string, string | number>):string =>
+export const htmlSummaryPairList = (title:string, valueMap:Map<string, string | number>, details:[string, string][] = []):string =>
     `<div style="width:100%; margin:0 auto; max-width:${EMAIL_CONTENT_MAX_WIDTH};">
         ${htmlTitle(title)}
         <table width="100%" border="0" cellspacing="0" cellpadding="4" role="presentation"
@@ -88,5 +88,6 @@ export const htmlSummaryPairList = (title:string, valueMap:Map<string, string | 
                     <td align="right" valign="top" style="padding:4px 8px; color:${EMAIL_COLOR.BLACK};">${value}</td>
                 </tr>`
             ).join('\n')}
+            ${htmlDetailTableRows(details, 2)}
         </table>
     </div>`;

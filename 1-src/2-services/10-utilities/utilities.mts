@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-types.mjs';
+import { AWSMetadata } from '../4-email/email-types.mjs';
 
 
 
@@ -30,6 +31,45 @@ export const checkAWSAuthentication = async():Promise<boolean> => {
         return false;
     }
 }
+
+
+//Undefined indicates Local and non-EC2 without accessible IMDS
+export const getAWSMetadata = async():Promise<AWSMetadata | undefined> => {
+    try {
+        const tokenResponse:Response = await fetch('http://169.254.169.254/latest/api/token', {
+            method: 'PUT', headers: { 'X-aws-ec2-metadata-token-ttl-seconds': '21600' },
+        });
+
+        if(!tokenResponse.ok) return undefined;
+        const token:string = await tokenResponse.text();
+
+        const getValue = async(path:string):Promise<string> => {
+            const response:Response = await fetch(`http://169.254.169.254${path}`, {
+                method: 'GET', headers: { 'X-aws-ec2-metadata-token': token },
+            });
+
+            if(!response.ok) 
+                throw new Error('metadata fetch failed');
+            else
+                return response.text();
+        };
+
+        const availabilityZone:string = await getValue('/latest/meta-data/placement/availability-zone');
+        return {
+            instanceID: await getValue('/latest/meta-data/instance-id'),
+            instanceType: await getValue('/latest/meta-data/instance-type'),
+            availabilityZone,
+            awsRegion: availabilityZone ? availabilityZone.slice(0, -1) : '',
+            publicIP: await getValue('/latest/meta-data/public-ipv4').catch(() => ''),
+            privateIP: await getValue('/latest/meta-data/local-ipv4').catch(() => ''),
+            publicHostname: await getValue('/latest/meta-data/public-hostname').catch(() => ''),
+        };
+    } catch {
+        console.log('Uncaught error while fetching AWS Metadata.');
+        return undefined;
+    }
+}
+
 
 /*********************
  * GENERIC UTILITIES *
@@ -65,6 +105,12 @@ export const stringifyErrorMessage = (message:any):string => {
     //AWS SDK V2 & JS Error object
     else if(message instanceof Error)
       return `${message.name}: ${message.message}`;
+
+    else if(message instanceof Map)
+      return JSON.stringify(Array.from(message.entries()));
+
+    else if(message instanceof Set)
+      return JSON.stringify(Array.from(message.values()));
 
     else if(typeof message === 'object') {
       try {

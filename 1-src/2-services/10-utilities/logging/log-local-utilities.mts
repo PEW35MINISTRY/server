@@ -131,7 +131,7 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
                 - (estimateBytes(type, (lastReadIndex + 1) * maxEntries) 
                     * (2.0 - LOG_ESTIMATE_CONFIDENCE))));
         
-        if(startByte > 0 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`NOTE: Reading local ${type} log file at byte: ${startByte} of total size: ${await calculateLogSize(type)} bytes.`);
+        if(startByte > 0 && process.env.PRINT_LOGS_TO_CONSOLE === 'true') console.log(`NOTE: Reading local ${type} log file at byte: ${startByte} of total size: ${await calculateLogSize(type)} bytes.`);
 
         const readInterface = readline.createInterface({
             input: fs.createReadStream(getLogFilePath(type), { encoding: 'utf-8', start: startByte }),

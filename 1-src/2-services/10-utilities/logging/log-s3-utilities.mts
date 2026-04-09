@@ -26,8 +26,12 @@ const saveLogLocally = async(type:LogType, ...messages:string[]):Promise<boolean
 //Calculate Daily Trends for Log Type (Days split by America/Chicago Midnight)
 export const calculateLogDailyTrends = async(type:LogType, pastDays:number = 7, logList?:LOG_ENTRY[]):Promise<LogDailyTrend[]> => {
     const now:Date = new Date();
-    const parts = new Intl.DateTimeFormat('en-US', { timeZone:'America/Chicago', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(now);
-    const chicagoMidnightUTC:number = Date.UTC( Number(parts.find(p => p.type === 'year')?.value ?? 0), Number(parts.find(p => p.type === 'month')?.value ?? 1) - 1, Number(parts.find(p => p.type === 'day')?.value ?? 1) );
+    const chicagoDateFormatter = new Intl.DateTimeFormat('en-US', { timeZone:'America/Chicago', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23',}).formatToParts(now);
+    const chicagoMidnightUTC:number = now.getTime()
+        - (Number(chicagoDateFormatter.find(p => p.type === 'hour')?.value ?? 0) * 60 * 60 * 1000)
+        - (Number(chicagoDateFormatter.find(p => p.type === 'minute')?.value ?? 0) * 60 * 1000)
+        - (Number(chicagoDateFormatter.find(p => p.type === 'second')?.value ?? 0) * 1000)
+        - now.getMilliseconds();
 
     const dailyTrendBuckets:LogDailyTrend[] = Array.from({ length:pastDays + 1 }, (_, i):LogDailyTrend => ({ startTimestamp:chicagoMidnightUTC - (i * (24 * 60 * 60 * 1000)), total:0, unique:0, burstEvents:0 }));
 
@@ -35,7 +39,7 @@ export const calculateLogDailyTrends = async(type:LogType, pastDays:number = 7, 
     const entries:LOG_ENTRY[] = logList ?? await fetchS3LogsByDateRange(type, chicagoMidnightUTC - (pastDays * 24 * 60 * 60 * 1000), now.getTime());
     
     entries.forEach((entry:LOG_ENTRY) => {
-        const dayIndex:number = Math.floor((chicagoMidnightUTC - entry.getTimestamp()) / (24 * 60 * 60 * 1000));
+        const dayIndex:number = Math.floor((chicagoMidnightUTC - entry.getTimestamp()) / (24 * 60 * 60 * 1000)) + 1;
 
         if(dayIndex >= 0 && dayIndex <= pastDays) {
             dailyTrendBuckets[dayIndex].unique += 1;
@@ -89,7 +93,7 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
         const response:ListObjectsV2CommandOutput = await s3LogClient.send(command);
 
         if(!response.Contents || !Array.isArray(response.Contents) || response.Contents.length === 0) {
-            if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
+            if(process.env.PRINT_LOGS_TO_CONSOLE === 'true') console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
             return []; //No entries matching prefix exist
         }
 
@@ -257,7 +261,7 @@ export const deleteS3LogsByDay = async(type:LogType, date:Date = new Date()):Pro
      const response:ListObjectsV2CommandOutput = await s3LogClient.send(command);
 
      if(!response.Contents || !Array.isArray(response.Contents) || response.Contents.length === 0) {
-        if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
+        if(process.env.PRINT_LOGS_TO_CONSOLE === 'true') console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
         return false; //No entries matching prefix exist
      }
 

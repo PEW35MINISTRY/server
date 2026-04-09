@@ -3,6 +3,7 @@ import { makeDisplayText } from "../../../0-assets/field-sync/input-config-sync/
 import { RoleEnum } from "../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs";
 import { calculateLogDailyTrends, fetchS3LogsByDateRange } from "../../10-utilities/logging/log-s3-utilities.mjs";
 import LOG_ENTRY from "../../10-utilities/logging/logEntryModel.mjs";
+import { getModelSourceEnvironment } from "../../10-utilities/utilities.mjs";
 import { DATABASE_TABLE } from "../../2-database/database-types.mjs";
 import { DB_CALCULATE_TABLE_USAGE, DB_CALCULATE_USER_TABLE_STATS } from "../../2-database/queries/queries.mjs";
 import { EMAIL_FONT_FAMILY, EMAIL_FONT_SIZE, EMAIL_COLOR } from "../email-types.mjs";
@@ -14,7 +15,7 @@ import { htmlSummaryPairList, htmlSummaryTable, renderLabeledRowTable } from "./
 /***********************************
 * CUSTOM IMPLEMENTATION COMPONENTS *
 ************************************/
-export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:boolean = true, title:string = 'Database Table Usage'):Promise<string> =>{
+export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:boolean = true, title?:string):Promise<string> =>{
     const rowList:(number|string)[][] = [];
     
     for(const tableName of tableNames) {
@@ -36,7 +37,8 @@ export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:
     
     return html ? htmlSummaryTable(title, ['Table', 'Total', '24H', '24H(m)', 'W', 'W(m)', 'M', 'M(m)'], 
                                     rowList, [['* New Growth:', 'These are new row entries in the last 24 hours, past week, and month.'],
-                                              ['* Continual Usage:', '(m) notation is the percentage of existing rows modified']])
+                                              ['* Continual Usage:', '(m) notation is the percentage of existing rows modified'],
+                                            ])
 
         : renderLabeledRowTable(title, ['Table', 'Total', '24H', '24H(m)', 'W', 'W(m)', 'M', 'M(m)'], 
                             rowList, ['* New Growth: These are new row entries in the last 24 hours, week, and month.',
@@ -73,7 +75,8 @@ export const htmlUserStats = async():Promise<string> => {
         ['Circle Managers', stats.roleMap[RoleEnum.CIRCLE_MANAGER]],
         ['Inactive', stats.roleMap[RoleEnum.INACTIVE]],
         ['*Reported*', stats.roleMap[RoleEnum.REPORTED]],
-    ]));
+    ]), 
+    [['* Filtered Source Environment:', makeDisplayText(getModelSourceEnvironment())]]);
 }
 
 
@@ -85,7 +88,7 @@ export const htmlUserWalkLevelDistribution = async():Promise<string> => {
         valueMap.set(`Walk Level ${level}`, count);
     });
 
-    return htmlSummaryPairList('Walk Level Distribution:', valueMap);
+    return htmlSummaryPairList('Walk Level Distribution:', valueMap, [['* Filtered Source Environment:', makeDisplayText(getModelSourceEnvironment())]]);
 };
 
 
@@ -97,7 +100,7 @@ export const htmlUserRoleDistribution = async():Promise<string> => {
         valueMap.set(role.toString(), count); // Convert enum value to string label
     });
 
-    return htmlSummaryPairList('User Role Distribution:', valueMap);
+    return htmlSummaryPairList('User Role Distribution:', valueMap, [['* Filtered Source Environment:', makeDisplayText(getModelSourceEnvironment())]]);
 };
 
 
@@ -117,14 +120,12 @@ export const renderLogList = async(type:LogType, { maxEntries = 50, pastDays = 1
                <span style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.GRAY_DARK}; font-weight:normal;">[${count} in last ${Math.ceil(hoursAgo)}H of ${pastDays} days]</span>
                ${logList.slice(0, maxEntries).map(entry => `
                    <div style="margin-top:6px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_DARK}; line-height:${EMAIL_FONT_SIZE.DETAIL};">
-                       ${entry.toString()}
-                       ${entry.fileKey ? ` <a href="${entry.fileKey}" style="color:${EMAIL_COLOR.BLUE}; text-decoration:none;">See Full Entry</a>` : ''}
+                       ${entry.toStringLimit(4)}
                     </div>`
+                    //${entry.fileKey ? ` <a href="${entry.fileKey}" style="color:${EMAIL_COLOR.BLUE}; text-decoration:none;">See Full Entry</a>` : ''}
                ).join('\n')}
             </div>`
 
-        :   '='.repeat(5) + ` ${makeDisplayText(type)} Log Latest: [${count} in last ${Math.ceil(hoursAgo)}H of ${pastDays} days] ` + '='.repeat(5) + '\n\n'
-            + logList.slice(0, maxEntries).map(entry =>
-                `${entry.toString()}${entry.fileKey ? `\nLink: ${entry.fileKey}` : ''}`
-            ).join('\n\n');
+        :   '='.repeat(5) + ` ${makeDisplayText(type)} Log Latest: ${count} in last ${Math.ceil(hoursAgo)}H (${pastDays} days) ` + '='.repeat(5) + '\n\n'
+            + logList.slice(0, maxEntries).map(entry => `${entry.toStringLimit(4)}`).join('\n\n');
 }

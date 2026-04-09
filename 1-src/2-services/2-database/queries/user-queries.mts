@@ -16,6 +16,7 @@ import { DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUE
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
 import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST, DB_SELECT_USER_ROLES } from './user-security-queries.mjs';
+import { isInternalEmail } from '../../4-email/email-utilities.mjs';
 
 
 /**************************************************************************
@@ -112,7 +113,7 @@ export const DB_SELECT_UNVERIFIED_EMAIL_MAP = async(minAccountAgeDays:number = 3
         + 'AND createdDT >= (UTC_TIMESTAMP() - INTERVAL ? DAY);',
         [minAccountAgeDays, maxAccountAgeDays]);
 
-    return rows.reduce((map, row) => map.set(row.userID, {firstName:row.firstName, email:row.email}), new Map<number, {firstName:string, email:string}>());
+    return rows.filter(row => !isInternalEmail(row.email)).reduce((map, row) => map.set(row.userID, {firstName:row.firstName, email:row.email}), new Map<number, {firstName:string, email:string}>());
 }
 
 export const DB_IS_USER_EMAIL_VERIFIED = async(userID:number):Promise<boolean> => {

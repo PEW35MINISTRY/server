@@ -7,6 +7,11 @@
 
 import { EMAIL_SENDER_ADDRESS, EmailSenderAddress  } from "./email-types.mjs";
 
+export const isInternalEmail = (email:string):boolean => {
+    return (process.env.EMAIL_DOMAIN || '') !== '' &&
+        email.toLowerCase().trim().split('@')[1]?.endsWith((process.env.EMAIL_DOMAIN || '').toLowerCase().trim()) === true;
+}
+
 export const formatDate = (value?:Date|string, includeTime?:boolean, timeZone:string = 'America/Chicago'):string => {
     if(!value) return '';
 
@@ -25,8 +30,14 @@ export const formatDate = (value?:Date|string, includeTime?:boolean, timeZone:st
         : { month: '2-digit', day: '2-digit', year: 'numeric', timeZone };
 
     return new Intl.DateTimeFormat('en-US', options).format(date);
-};
+}
 
+
+export const formatDuration = (startDate:Date, endDate:Date = new Date()):string => {
+    const difference:number = endDate.getTime() - startDate.getTime();
+    const duration:number = Math.abs(difference);
+    return `${(difference < 0) ? '-' : ''}${Math.floor(duration / (24 * 60 * 60 * 1000))}D ${Math.floor(duration / (60 * 60 * 1000)) % 24}H ${Math.floor(duration / (60 * 1000)) % 60}M ${Math.floor(duration / 1000) % 60}S ${duration % 1000}ms`;
+}
 
 export const getEmailSignature = (sender:EmailSenderAddress): string[] => {
   switch(sender) {

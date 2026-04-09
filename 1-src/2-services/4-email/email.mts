@@ -1,23 +1,21 @@
+import { readFileSync, existsSync } from 'fs';
+import path from 'path';
 import * as log from '../10-utilities/logging/log.mjs';
 import LOG_ENTRY from '../10-utilities/logging/logEntryModel.mjs';
-import { EMAIL_COLOR, EMAIL_SENDER_ADDRESS, EmailReportContent, EmailSenderAddress  } from './email-types.mjs';
+import { AWSMetadata, EMAIL_SENDER_ADDRESS, EmailReportContent, EmailSenderAddress  } from './email-types.mjs';
 import { sendLogTextEmail, sendTemplateEmail, sendTextEmail } from './email-transporter.mjs';
-import { htmlNewPartnerProfileTable, htmlPartnershipBlock, htmlProfileBlock } from './components/email-template-items.mjs';
 import { applyTemplate, EMAIL_REPLACEMENT, EMAIL_TEMPLATE_TYPE } from './email-template-manager.mjs';
-import { htmlHeader, htmlTitle, htmlText, htmlSection, htmlAccessCode, htmlActionButton, htmlFooter, htmlVerticalSpace, htmlDetailList } from './components/email-template-components.mjs';
-import { renderDatabaseTableUsage, htmlUserStats, htmlUserRoleDistribution, htmlUserWalkLevelDistribution, renderLogList, renderLogTrendTable } from './components/email-template-renders.mjs';
-import { formatDate, getEmailSignature } from './email-utilities.mjs';
+import { htmlHeader, htmlText, htmlAccessCode, htmlActionButton, htmlFooter, htmlVerticalSpace, htmlDetailList } from './components/email-template-components.mjs';
 import { DB_SELECT_USER, DB_SELECT_USER_BATCH_EMAIL_MAP } from '../2-database/queries/user-queries.mjs';
-import { getEnvironment } from '../10-utilities/utilities.mjs';
-import { DATABASE_TABLE } from '../2-database/database-types.mjs';
-import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { DatabasePartnershipStats, EmailSubscription, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
-import { WebsiteSubscription } from '../../1-api/2-auth/auth-types.mjs';
-import { DB_SELECT_EMAIL_SUBSCRIPTION_RECENT } from '../2-database/queries/queries.mjs';
-import { NewPartnerListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { DB_CALCULATE_PARTNERSHIP_STATS, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST } from '../2-database/queries/partner-queries.mjs';
+import { ENVIRONMENT_TYPE, makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP } from '../2-database/queries/user-security-queries.mjs';
-import { assembleDailyLogReport as assembleDailyLogReportText, assembleLogAlertReport, assembleWeeklySystemReport as assembleWeeklySystemReportText } from './configurations/email-log-reports.mjs';
+import { assembleDailyLogReport as assembleDailyLogReportText, assembleDeploymentSystemReport, assembleLogAlertReport, assembleWeeklySystemReport as assembleWeeklySystemReportText } from './configurations/email-reports-logs.mjs';
+import { assembleUserReportHTML, assemblePartnerReportHTML } from './configurations/email-reports-user.mjs';
+import { EmailSubscription, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { getEmailSignature } from './email-utilities.mjs';
+import { getEnvironment } from '../10-utilities/env-utilities.mjs';
+import { getAWSMetadata } from '../10-utilities/utilities.mjs';
+import { SERVER_START_TIMESTAMP, SERVER_START_TIMESTAMP_PATH } from '../../server.mjs';
 
 
 
@@ -82,7 +80,10 @@ const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, u
  *************************/
 export const getEmailReportContent = async(subscription:EmailSubscription):Promise<EmailReportContent> => {
     const subject:string = `EP ${makeDisplayText(subscription)} Report`;
-    switch(subscription){
+    switch(subscription) {
+        case EmailSubscription.SYSTEM_DEPLOYMENT:
+            return await assembleDeploymentSystemReport();
+
         case EmailSubscription.SYSTEM_DAILY:
             return await assembleDailyLogReportText(LogType.ERROR);
 
@@ -108,6 +109,8 @@ export const sendEmailReport = async(subscription:EmailSubscription, emailRecipi
         return false;
 
     const { subject, body, isHTML }:EmailReportContent = await getEmailReportContent(subscription);
+    if(subject.length === 0 || body.length === 0)
+        return false;
 
     if(sendIndividually) //Append unsubscribe link
         return (await Promise.all(
@@ -137,9 +140,9 @@ export const sendEmailReport = async(subscription:EmailSubscription, emailRecipi
 }
 
 
-/********************************
- * LOGS & ADMIN REPORT HANDLERS *
- ********************************/
+/*************************
+ * CUSTOM EMAIL HANDLERS *
+ *************************/
 export const sendEmailLogAlert = async(entry:LOG_ENTRY):Promise<boolean> => {
     const recipientMap:Map<number, string> = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(EmailSubscription.SYSTEM_IMMEDIATE);
     const textBody:string[] = await assembleLogAlertReport(entry, false);
@@ -166,125 +169,31 @@ export const sendEmailLogAlert = async(entry:LOG_ENTRY):Promise<boolean> => {
 }
 
 
+/* Triggers on System Restart */
+export const sendEmailSystemDeploymentReport = async():Promise<void> => {
+    try {
+        if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) 
+            return;
 
-const assembleUserReportHTML = async():Promise<EmailReportContent> => {
-    const subscriptionList:WebsiteSubscription[] = await DB_SELECT_EMAIL_SUBSCRIPTION_RECENT(90);
-    const partnershipStats:DatabasePartnershipStats = await DB_CALCULATE_PARTNERSHIP_STATS();
+        const awsMetadata:AWSMetadata|undefined = await getAWSMetadata();
+        if(awsMetadata === undefined) //Indicates not on EC2 environment
+             return;
 
-    const formatPercent = (value:number, total:number):string => `${Math.round(total > 0 ? (value / total) * 100 : 0)}%`;
+        //Prevent Infinite Loop
+        if(existsSync(SERVER_START_TIMESTAMP_PATH)) {
+            const previousServerStartTimestamp:Date = new Date(readFileSync(SERVER_START_TIMESTAMP_PATH, 'utf8').trim());
 
-    return {subject: 'EP User Status Report', isHTML:true,
-        body: await applyTemplate({type: EMAIL_TEMPLATE_TYPE.TABLE_ROWS,
-            replacementMap: new Map([[EMAIL_REPLACEMENT.EMAIL_SUBJECT, 'EP User Status Report']]),
-            bodyList: [
-                htmlHeader(),
-                htmlSection('User Status Report', 'left', EMAIL_COLOR.ACCENT),
-                htmlVerticalSpace(30),
-                await renderDatabaseTableUsage([DATABASE_TABLE.USER], true),
-                await htmlUserStats(),
-                await htmlUserRoleDistribution(),
-                await htmlUserWalkLevelDistribution(),
+            if(!isNaN(previousServerStartTimestamp.getTime()) && ((SERVER_START_TIMESTAMP.getTime() - previousServerStartTimestamp.getTime()) / (1000 * 60)) < 1) {
+                return;
+            }
+        }
 
-                htmlTitle('Prayer Request Trends:'),
-                await renderDatabaseTableUsage([DATABASE_TABLE.PRAYER_REQUEST, DATABASE_TABLE.PRAYER_REQUEST_COMMENT], true),
-
-                htmlSection('Partnerships', 'left', EMAIL_COLOR.ACCENT),
-                await renderDatabaseTableUsage([DATABASE_TABLE.PARTNER], true),
-                htmlDetailList([
-                    ['Users in Partnerships:', `${formatPercent(partnershipStats.usersInPartnerships, partnershipStats.totalUsers)} (${partnershipStats.usersInPartnerships})`],
-                    ['Unmatched Users:', `${formatPercent(partnershipStats.unassignedPartners, partnershipStats.totalUsers)} (${partnershipStats.unassignedPartners})`],
-                    ['Pending Partnerships:', `${formatPercent(partnershipStats.pendingPartnerships, partnershipStats.partnerships + partnershipStats.pendingPartnerships)} (${partnershipStats.pendingPartnerships})`],
-                    ['Partnerships Accepted last week:', `${partnershipStats.acceptedLastWeek}`],
-                    ['Average Time Waiting to be Matched:', `${Number(partnershipStats.newUserAverageWaitTimeHours).toFixed(1)} Hours`],
-                ]),
-
-                htmlActionButton([{label:'Portal Management', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/dashboard`, style:'PRIMARY'}]),
-
-                ...(subscriptionList.length ? [
-                    htmlSection('Website Subscriptions:', 'left', EMAIL_COLOR.ACCENT),
-                    await renderDatabaseTableUsage([DATABASE_TABLE.SUBSCRIPTION], true),
-                    htmlDetailList(subscriptionList.map(sub => [
-                        formatDate(sub.createdDT),
-                        [sub.email, sub.role, sub.note].filter(Boolean).join(' | ')
-                    ]))] 
-                    : []),
-
-                htmlDetailList([
-                    ['Information Generated (CST):', formatDate(new Date(), true)],
-                    ['Environment:', makeDisplayText(getEnvironment())],
-                ], 'Environment Details:'),
-                htmlFooter(),
-            ],
-            verticalSpacing: 5
-        })};
-}
-
-
-export const assemblePartnerReportHTML = async():Promise<EmailReportContent> => {
-    const unassignedProfileList:NewPartnerListItem[] = await DB_SELECT_UNASSIGNED_PARTNER_USER_LIST(30);
-    const pendingPartnershipList:[NewPartnerListItem, NewPartnerListItem][] = await DB_SELECT_PENDING_PARTNER_PAIR_LIST(15);
-
-    const partnershipStats:DatabasePartnershipStats = await DB_CALCULATE_PARTNERSHIP_STATS();
-
-    const formatPercent = (value:number, total:number):string => `${Math.round(total > 0 ? (value / total) * 100 : 0)}%`;
-
-    return {
-        subject: 'EP Partnership Status Report',
-        isHTML: true,
-        body: await applyTemplate({
-            type: EMAIL_TEMPLATE_TYPE.TABLE_ROWS,
-            replacementMap: new Map([
-                [EMAIL_REPLACEMENT.EMAIL_SUBJECT, 'EP Partnership Status Report'],
-            ]),
-            bodyList: [
-                htmlHeader(),
-                htmlSection('Partnership Status Report', 'left', EMAIL_COLOR.ACCENT),
-                htmlVerticalSpace(30),
-
-                htmlTitle('Summary'),
-                htmlDetailList([
-                    ['Total Active Partnerships:', `${partnershipStats.partnerships}`],
-                    ['Users in Partnerships:', `${formatPercent(partnershipStats.usersInPartnerships, partnershipStats.totalUsers)} (${partnershipStats.usersInPartnerships})`],
-                    ['Pending Partnerships:', `${formatPercent(partnershipStats.pendingPartnerships, partnershipStats.partnerships + partnershipStats.pendingPartnerships)} (${partnershipStats.pendingPartnerships})`],
-                    ['Partnerships Accepted last week:', `${partnershipStats.acceptedLastWeek}`],
-                    ['Partnerships Accepted last month:', `${partnershipStats.acceptedLastMonth}`],
-                ]),
-
-                htmlDetailList([
-                    ['Unmatched Users:', `${formatPercent(partnershipStats.unassignedPartners, partnershipStats.totalUsers)} (${partnershipStats.unassignedPartners})`],
-                    ['New User Average Time Waiting to be Matched:', `${Number(partnershipStats.newUserAverageWaitTimeHours).toFixed(1)} Hours`],
-                    ['Waited More than 24 Hours:', `${partnershipStats.wait24Hours}`],
-                    ['Waited More than 7 Days:', `${partnershipStats.wait7Days}`],
-                ]),
-
-                htmlTitle('Matching Criteria'),
-                htmlDetailList([
-                    ['Gender Match Required:', partnershipStats.matchGender ? 'Yes' : 'No'],
-                    ['Allowed Age Range:', `±${partnershipStats.ageYearRange} years`],
-                    ['Allowed Walk Level Range:', `±${partnershipStats.walkLevelRange}`],
-                ]),
-
-                htmlTitle('Partnership Activity'),
-                await renderDatabaseTableUsage([DATABASE_TABLE.PARTNER], true),
-
-                htmlSection('Unmatched Users'),
-                htmlNewPartnerProfileTable(unassignedProfileList, true),
-
-                htmlSection('Pending Partnerships'),
-                htmlPartnershipBlock(
-                    pendingPartnershipList.map((partnerPair) => ({ profile: partnerPair[0], partner: partnerPair[1] })), undefined, true ),
-
-                htmlActionButton([{label:'Partnership Management', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/partnership/pending`, style:'PRIMARY'}]),
-
-                htmlDetailList([
-                    ['Information Generated (CST):', formatDate(new Date(), true)],
-                    ['Environment:', makeDisplayText(getEnvironment())],
-                ], 'Environment Details:'),
-
-                htmlFooter(),
-            ],
-            verticalSpacing: 5,
-        }),
-    };
-}
-
+        if(process.env.PRINT_LOGS_TO_CONSOLE === 'true')
+            console.log((await assembleDeploymentSystemReport()).body);
+        else
+            await sendEmailReport(EmailSubscription.SYSTEM_DEPLOYMENT, undefined, true);
+        
+    } catch(error) {
+        log.warn('WARNING - Failed to handle system start deployment report', error);
+    }
+};
