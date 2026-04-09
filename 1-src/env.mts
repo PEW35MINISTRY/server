@@ -28,4 +28,5 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 
 //Evaluate required Environment Variables
 import verifyEnvironmentVariables from './5-scripts/env-verification.mjs';
-verifyEnvironmentVariables();
+if(!verifyEnvironmentVariables()) 
+    throw new Error('Required ENV Variables are Missing');

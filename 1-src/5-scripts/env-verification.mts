@@ -169,7 +169,7 @@ const verifyEnvironmentVariables = ():boolean => {
         //Dependents are therefore required
         for(const dependentName of dependents) {
             const dependentValue:string | undefined = getEnvExists(dependentName);
-            if(dependentValue === undefined || dependentValue.toLowerCase() === 'false') { //Boolean cannot be false
+            if(dependentValue === undefined || dependentValue.toLowerCase() === 'false') { //Dependent boolean cannot be false
                 console.error(`[DEPENDENT] Missing Env: ${variableName} is set, so ${dependentName} must also be set${definition.description ? `\n${variableName}: ${definition.description}` : ''}`);
                 isValid = false;
             }

@@ -1,4 +1,4 @@
-import { ENVIRONMENT_TYPE } from "../../0-assets/field-sync/input-config-sync/inputField.mjs";
+import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 
 /***************************************************************************
 * Base Utility for retrieving Environment Variables                        *
@@ -23,7 +23,7 @@ export const isEnvironment = (...environments:ENVIRONMENT_TYPE[]):boolean => env
 /* Retrieve Environment variable and cast accordingly */
 export const getEnvBase = <T=string,>(logger:(...args:string[]) => void, name:string, expectedType:'string' | 'number' | 'boolean' = 'string', defaultValue?:T):T | undefined => {
     const rawValue:string | undefined = process.env[name];
-    if(rawValue === undefined || rawValue === undefined || String(rawValue).trim() === '') {
+    if(rawValue === undefined || rawValue === null || String(rawValue).trim() === '') {
         if(defaultValue === undefined) logger('Missing Environment Variable with No default provided:', name);
         return defaultValue;
     }
@@ -32,7 +32,7 @@ export const getEnvBase = <T=string,>(logger:(...args:string[]) => void, name:st
     if(expectedType === undefined || expectedType === 'string') return value as T;
 
     if(expectedType === 'number') {
-        const numeric: number = Number(value);
+        const numeric:number = Number(value);
         return Number.isNaN(numeric) ? defaultValue : (numeric as T);
     }
 
