@@ -133,7 +133,7 @@ export const sendEmailReport = async(subscription:EmailSubscription, emailRecipi
                 body +
                     htmlVerticalSpace(5) +
                     htmlDetailList([
-                        ['*', `Contact ${EMAIL_SENDER_ADDRESS.ADMIN} to unsubscribe from ${makeDisplayText(subscription)}.`],
+                        ['*', `Contact <a href="mailto:${EMAIL_SENDER_ADDRESS.ADMIN}">${EMAIL_SENDER_ADDRESS.ADMIN}</a> to unsubscribe from ${makeDisplayText(subscription)}.`],
                     ]),
                 EMAIL_SENDER_ADDRESS.ADMIN, recipientMap )
             : await sendLogTextEmail(subject, body + `\n\n* Contact ${EMAIL_SENDER_ADDRESS.ADMIN} to unsubscribe from ${makeDisplayText(subscription)}.`, recipientMap);
@@ -157,7 +157,7 @@ export const sendEmailLogAlert = async(entry:LOG_ENTRY):Promise<boolean> => {
             ...(await assembleLogAlertReport(entry, true)),
             htmlVerticalSpace(5),
             htmlDetailList([
-                ['*', `Contact ${EMAIL_SENDER_ADDRESS.ADMIN} to unsubscribe from ${makeDisplayText(EmailSubscription.SYSTEM_IMMEDIATE)} alerts.`],
+                ['*', `Contact <a href="mailto:${EMAIL_SENDER_ADDRESS.ADMIN}">${EMAIL_SENDER_ADDRESS.ADMIN}</a> to unsubscribe from ${EmailSubscription.SYSTEM_IMMEDIATE} alerts.`],
             ]),
         ],
         getAlternativeTextBody:() =>

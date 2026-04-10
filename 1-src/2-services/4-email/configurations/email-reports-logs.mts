@@ -48,7 +48,6 @@ export const assembleLogAlertReport = async(entry:LOG_ENTRY, html:boolean = fals
                     htmlVerticalSpace(5),
                 ]
                 : []),
-            htmlSection('Latest Related Logs'),
             await renderLogList(entry.type, { maxEntries:25, html:true }),
         ];
 
@@ -70,7 +69,6 @@ export const assembleLogAlertReport = async(entry:LOG_ENTRY, html:boolean = fals
                     '\n\n',
                 ]
                 : []),
-            'Latest Related Logs',
             await renderLogList(entry.type, { maxEntries:25, html:false }),
         ];
 }
