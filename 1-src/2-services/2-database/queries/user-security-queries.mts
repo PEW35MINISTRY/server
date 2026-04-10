@@ -268,6 +268,8 @@ export const DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP = async(subscriptio
 
 //Subscriptions are raw string, controlled input by enum EmailSubscription
 export const DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH = async(userID:number, ...subscriptions:EmailSubscription[]):Promise<boolean> => {
+        log.db(`DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH: input | userID: ${userID} | subscriptions: ${JSON.stringify(subscriptions)}`);
+
     //Filter for valid subscriptions
     subscriptions = subscriptions.filter(subscription => {
         const isValid:boolean = Object.values(EmailSubscription).includes(subscription);

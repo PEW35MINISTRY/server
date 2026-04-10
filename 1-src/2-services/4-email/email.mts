@@ -111,7 +111,7 @@ export const sendEmailReport = async(subscription:EmailSubscription, emailRecipi
     if(subject.length === 0 || body.length === 0)
         return false;
 
-    if(sendIndividually) //Append unsubscribe link
+    if(sendIndividually) { //Append unsubscribe link
         return (await Promise.all(
             Array.from(recipientMap.entries()).map(async([receiverID, emailAddress]) =>
                 isHTML
@@ -127,15 +127,17 @@ export const sendEmailReport = async(subscription:EmailSubscription, emailRecipi
             )
         )).every(Boolean);
 
-    return isHTML
-        ? await sendTemplateEmail(subject,
-            body +
-                htmlVerticalSpace(5) +
-                htmlDetailList([
-                    ['*', `Contact ${EMAIL_SENDER_ADDRESS.ADMIN} to unsubscribe from ${makeDisplayText(subscription)}.`],
-                ]),
-            EMAIL_SENDER_ADDRESS.ADMIN, recipientMap )
-        : await sendLogTextEmail(subject, body + `\n\n* Contact ${EMAIL_SENDER_ADDRESS.ADMIN} to unsubscribe from ${makeDisplayText(subscription)}.`, recipientMap);
+    } else {
+        return isHTML
+            ? await sendTemplateEmail(subject,
+                body +
+                    htmlVerticalSpace(5) +
+                    htmlDetailList([
+                        ['*', `Contact ${EMAIL_SENDER_ADDRESS.ADMIN} to unsubscribe from ${makeDisplayText(subscription)}.`],
+                    ]),
+                EMAIL_SENDER_ADDRESS.ADMIN, recipientMap )
+            : await sendLogTextEmail(subject, body + `\n\n* Contact ${EMAIL_SENDER_ADDRESS.ADMIN} to unsubscribe from ${makeDisplayText(subscription)}.`, recipientMap);
+    }
 }
 
 

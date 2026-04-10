@@ -29,6 +29,7 @@ export const assembleLogAlertReport = async(entry:LOG_ENTRY, html:boolean = fals
                 ['Environment:', makeDisplayText(getEnvironment())],
                 ['Type:', `${entry.type}`],
                 ['Timestamp:', entry.date.toISOString()],
+                ['Current Runtime Duration:', formatDuration(SERVER_START_TIMESTAMP)]
             ], 'Alert Summary'),
             htmlVerticalSpace(5),
             htmlText(entry.toString()),
@@ -111,6 +112,7 @@ export const assembleDailyLogReport = async(type:LogType = LogType.ERROR):Promis
             + '-----------------------------------------------\n\n'
             + `Information Generated (CST): ${formatDate(new Date(), true)}\n`
             + `Environment: ${makeDisplayText(getEnvironment())}\n`
+            + `Current Runtime Duration: ${formatDuration(SERVER_START_TIMESTAMP)}\n`
             + `Range: ${new Date(startTimestamp).toLocaleString('en-US', { timeZone:'America/Chicago' })} - ${new Date(nowTimestamp).toLocaleString('en-US', { timeZone:'America/Chicago' })}\n`
             + '\n'
             + `Unique ${makeDisplayText(type)}s: ${logList.length}\n`
@@ -173,6 +175,7 @@ export const assembleWeeklySystemReport = async():Promise<EmailReportContent> =>
             + `Information Generated (CST): ${formatDate(new Date(), true)}\n`
             + `Environment: ${getEnvironment()}`
             + `User Source: ${getModelSourceEnvironment()}`
+            + `Current Runtime Duration: ${formatDuration(SERVER_START_TIMESTAMP)}`
             + '\n\n'
             + `Weekly Summary\n`
             + `--------------\n`

@@ -2,14 +2,14 @@ import express, { NextFunction, Request, Response, Router } from 'express';
 import URL, { URLSearchParams } from 'url';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, EmailSubscription, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, EmailSubscription, RoleEnum, SIGNUP_PROFILE_FIELDS } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_TOKEN_TYPE_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_DELETE_CONTACT_CACHE, DB_DELETE_USER, DB_FLUSH_USER_SEARCH_CACHE_ADMIN, DB_INSERT_USER, DB_SELECT_USER, DB_SELECT_USER_PROFILE, DB_UNIQUE_USER_EXISTS, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import { DB_INSERT_USER_ROLE, DB_SELECT_USER_ROLES, DB_DELETE_USER_ROLE, DB_CONSUME_TOKEN, DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST, DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH, DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH } from '../../2-services/2-database/queries/user-security-queries.mjs';
-import { EmailVerifyConfirmRequest, JwtClientEmailSubscriptionRequest, JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
-import { assembleLoginResponse, getEmailLogin, isMaxRoleGreaterThan, LoginMethod, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
+import { EmailVerifyConfirmRequest, JwtClientRequest, JwtRequest } from '../2-auth/auth-types.mjs';
+import { assembleLoginResponse, isMaxRoleGreaterThan, LoginMethod, validateNewRoleTokenList } from '../2-auth/auth-utilities.mjs';
 import { Exception, generateJWTRequest, ImageTypeEnum, JwtSearchRequest } from '../api-types.mjs';
 import { clearImage, clearImageByID, uploadImage } from '../../2-services/10-utilities/image-utilities.mjs';
 import { ProfileEditRequest, ProfileEditWalkLevelRequest, ProfileImageRequest, ProfileSignupRequest } from './profile-types.mjs';
@@ -337,54 +337,6 @@ export const DELETE_contactCache = async(request: JwtClientRequest, response: Re
     } else
         next(new Exception(500, `Failed to flush user ${request.clientID} contact cache.`, 'Flush failed'));
 }
-
-
-
-/********************* 
-* EMAIL SUBSCRIPTION *
-**********************/
-//Returned with ProfileResponse, but edited seaperetly here:
-export const PATCH_userEmailSubscription = async(request:JwtClientEmailSubscriptionRequest, response:Response, next:NextFunction) => {
-    const subscriptions:EmailSubscription[] = request.body;
-
-    if(!Array.isArray(subscriptions) || subscriptions.length === 0)
-        return next(new Exception(400, 'Patch Email Subscription Failed - subscriptions must be a non-empty array.', 'Invalid Inputs'));
-
-    if(subscriptions.find(subscription => Object.values(EmailSubscription).indexOf(subscription) === -1) !== undefined)
-        return next(new Exception(400, 'Patch Email Subscription Failed - subscriptions contains an invalid EmailSubscription value.', 'Invalid Subscription'));
-
-    /* Select current subscriptions */
-    const currentSubscriptionList:EmailSubscription[] = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST(request.clientID);
-
-    /* Delete removed subscriptions */
-    const subscriptionDeleteList:EmailSubscription[] = currentSubscriptionList.filter(subscription => subscriptions.indexOf(subscription) === -1);
-    if((subscriptionDeleteList.length > 0) && (await DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH(request.clientID, ...subscriptionDeleteList)) === false)
-        return next(new Exception(500, 'Patch Email Subscription Failed - failed to delete subscriptions.', 'Delete Failed'));
-
-    /* Insert new subscriptions */
-    const subscriptionInsertList:EmailSubscription[] = subscriptions.filter(subscription => currentSubscriptionList.indexOf(subscription) === -1);
-    if((subscriptionInsertList.length > 0) && (await DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH(request.clientID, ...subscriptionInsertList)) === false)
-        return next(new Exception(500, 'Patch Email Subscription Failed - failed to insert subscriptions.', 'Insert Failed'));
-
-    return response.status(200).send(currentSubscriptionList);
-}
-
-
-export const DELETE_userEmailSubscription = async(request:JwtClientEmailSubscriptionRequest, response:Response, next:NextFunction) => {
-    const subscriptions:EmailSubscription[] = request.body;
-
-    if(!Array.isArray(subscriptions) || subscriptions.length === 0)
-        return next(new Exception(400, 'Delete Email Subscription Failed - subscriptions must be a non-empty array.', 'Invalid Inputs'));
-
-    //Do not validate subscription enum values here; allow delete of outdated subscription strings still stored in DB
-    if((await DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH(request.clientID, ...subscriptions)) === false)
-        return next(new Exception(500, 'Delete Email Subscription Failed - failed to delete subscriptions.', 'Delete Failed'));
-
-    /* Select updated subscriptions */
-    const updatedSubscriptionList:EmailSubscription[] = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST(request.clientID);
-    return response.status(204).send(updatedSubscriptionList);
-}
-
 
 
 /***********************

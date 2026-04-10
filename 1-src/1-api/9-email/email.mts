@@ -5,7 +5,7 @@ import { EmailSubscription } from '../../0-assets/field-sync/input-config-sync/p
 import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { EMAIL_ADDRESS_REGEX_SIMPLE, EmailReportContent } from '../../2-services/4-email/email-types.mjs';
-import { DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH, DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH } from '../../2-services/2-database/queries/user-security-queries.mjs';
+import { DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import { DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { getEmailReportContent, sendEmailReport } from '../../2-services/4-email/email.mjs';
