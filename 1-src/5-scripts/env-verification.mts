@@ -132,14 +132,6 @@ const REQUIRED_ENV_CONFIGURATION:Record<string, EnvDefinition> = {
             [ENVIRONMENT_TYPE.DEVELOPMENT]: Requirement.RECOMMENDED
         }
     },
-
-    //LAMBDA MANAGEMENT
-    LAMBDA_NAME: {
-         requirement: {
-            [ENVIRONMENT_TYPE.PRODUCTION]: Requirement.RECOMMENDED
-        },
-        dependent: ['LAMBDA_REGION']
-    },
 }
 
 
@@ -167,11 +159,13 @@ const verifyEnvironmentVariables = ():boolean => {
             console.warn(`[RECOMMENDED] Missing Env: ${variableName}${definition.description ? ` - ${definition.description}` : ''}`);
 
         //Dependents are therefore required
-        for(const dependentName of dependents) {
-            const dependentValue:string | undefined = getEnvExists(dependentName);
-            if(dependentValue === undefined || dependentValue.toLowerCase() === 'false') { //Dependent boolean cannot be false
-                console.error(`[DEPENDENT] Missing Env: ${variableName} is set, so ${dependentName} must also be set${definition.description ? `\n${variableName}: ${definition.description}` : ''}`);
-                isValid = false;
+        if(value !== undefined || requirement === Requirement.REQUIRED) {
+            for(const dependentName of dependents) {
+                const dependentValue:string | undefined = getEnvExists(dependentName);
+                if(dependentValue === undefined || dependentValue.toLowerCase() === 'false') { //Dependent boolean cannot be false
+                    console.error(`[DEPENDENT] Missing Env: ${variableName} is set, so ${dependentName} must also be set${definition.description ? `\n${variableName}: ${definition.description}` : ''}`);
+                    isValid = false;
+                }
             }
         }
     }
