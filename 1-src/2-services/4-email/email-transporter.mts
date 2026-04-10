@@ -131,6 +131,9 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:Em
  **************************************************************/
 export const sendLogTextEmail = async(subject:string, text:string, recipientMap:Map<number, string>):Promise<boolean> => {
     try {
+        if(subject.length === 0 || text.length === 0)
+            return false;
+
         const recipientAddresses:string[] = [...recipientMap.entries()]
                 .filter(([userID, email]) => {
                     if (!EMAIL_ADDRESS_REGEX_SIMPLE.test(email)) {

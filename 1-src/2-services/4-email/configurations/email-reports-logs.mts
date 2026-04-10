@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from 'fs';
 import path, { join } from 'path';
+import { getEnvironment } from '../../10-utilities/env-utilities.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
 import { LogType, LogDailyTrend, DatabaseTableUsage } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { ENVIRONMENT_TYPE, makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { fetchS3LogsByDateRange, calculateLogDailyTrends } from '../../10-utilities/logging/log-s3-utilities.mjs';
 import { LOG_BURST_EVENT_THRESHOLD } from '../../10-utilities/logging/log-types.mjs';
 import LOG_ENTRY from '../../10-utilities/logging/logEntryModel.mjs';
-import { checkAWSAuthentication, getAWSMetadata, getEnvironment, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { checkAWSAuthentication, getAWSMetadata, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_TABLE } from '../../2-database/database-types.mjs';
 import { DB_CALCULATE_TABLE_USAGE } from '../../2-database/queries/queries.mjs';
 import { htmlText, htmlVerticalSpace, htmlActionButton, htmlSection, htmlDetailList } from '../components/email-template-components.mjs';
@@ -117,7 +118,7 @@ export const assembleDailyLogReport = async(type:LogType = LogType.ERROR):Promis
             + '\n'
             + `Unique ${makeDisplayText(type)}s: ${logList.length}\n`
             + `Total Occurrences: ${totalToday}\n`
-            + `Duplicates: ${totalToday > 0 ? ((((totalToday - logList.length) / totalToday) * 100).toFixed(2)) : '0.00'}% (${totalToday - logList.length})\n`
+            + `Duplicates: ${totalToday > 0 ? ((((totalToday - logList.length) / totalToday) * 100).toFixed(0)) : '0.00'}% (${totalToday - logList.length})\n`
             + ((dailyTrends.length >= 8)
                     ? `${dailyTrends[0].total >= dailyTrends[1].total ? 'Increase' : 'Decrease'} vs. Yesterday: ${dailyTrends[1].total > 0 ? `${Math.round((Math.abs(dailyTrends[0].total - dailyTrends[1].total) / dailyTrends[1].total) * 100)}%` : `${dailyTrends[0].total - dailyTrends[1].total}`} (${dailyTrends[0].total} vs ${dailyTrends[1].total})\n`
                     + `${dailyTrends[0].total >= weeklyAverage ? 'Increase' : 'Decrease'} vs. Weekly Average: ${weeklyAverage > 0 ? `${Math.round((Math.abs(dailyTrends[0].total - weeklyAverage) / weeklyAverage) * 100)}%` : `${dailyTrends[0].total - weeklyAverage}`} (${dailyTrends[0].total} vs ${Math.round(weeklyAverage)})\n`
@@ -173,9 +174,9 @@ export const assembleWeeklySystemReport = async():Promise<EmailReportContent> =>
         body: `SERVER STATUS SYSTEM REPORT\n`
             + '---------------------------\n\n'
             + `Information Generated (CST): ${formatDate(new Date(), true)}\n`
-            + `Environment: ${getEnvironment()}`
-            + `User Source: ${getModelSourceEnvironment()}`
-            + `Current Runtime Duration: ${formatDuration(SERVER_START_TIMESTAMP)}`
+            + `Environment: ${getEnvironment()}\n`
+            + `User Source: ${getModelSourceEnvironment()}\n`
+            + `Current Runtime Duration: ${formatDuration(SERVER_START_TIMESTAMP)}\n`
             + '\n\n'
             + `Weekly Summary\n`
             + `--------------\n`
@@ -196,7 +197,7 @@ export const assembleWeeklySystemReport = async():Promise<EmailReportContent> =>
             + '\n\n'
             + await renderLogTrendTable([LogType.ERROR, LogType.WARN, LogType.DB, LogType.EMAIL, LogType.AUTH, LogType.EVENT], false)
             + '\n\n'
-            + `== See Latest Logs ==\n${process.env.ENVIRONMENT_BASE_URL}/portal/logs`
+            + `____ See Latest Logs ____\n${process.env.ENVIRONMENT_BASE_URL}/portal/logs\n`
             + '\n\n'
             + await renderLogList(LogType.ERROR, { maxEntries:50, pastDays:7, html:false })
             + '\n\n'
@@ -224,8 +225,8 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
         const gitCommit:string = process.env.GIT_BUILD_COMMIT ?? 'COMMIT';
         const branchCheck:boolean = !!gitBranch && (gitBranch.includes('release') || gitBranch === 'master');
 
-        const environmentCheck:boolean = (process.env.ENVIRONMENT === undefined) || (getEnvironment() !== ENVIRONMENT_TYPE.PRODUCTION);
-        const modelSourceCheck:boolean = (process.env.DEFAULT_MODEL_SOURCE_ENVIRONMENT === undefined) || (getModelSourceEnvironment() !== DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION);
+        const environmentCheck:boolean = (process.env.ENVIRONMENT !== undefined) || (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION);
+        const modelSourceCheck:boolean = (process.env.DEFAULT_MODEL_SOURCE_ENVIRONMENT !== undefined) || (getModelSourceEnvironment() === DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION);
 
         const awsAuthenticated:boolean = await checkAWSAuthentication();
         const awsMetadata:AWSMetadata|undefined = await getAWSMetadata();
@@ -238,7 +239,7 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                 + '-----------------------\n'
                 + `Information Generated (CST): ${formatDate(now, true)}\n\n`
 
-                + `Environment Verification Checks\n`
+                + `Health Checks\n`
                 + `-------------------------------\n`
                 + `${overallCheck ? '✅' : '⚠️'} Overall Check: ${overallCheck ? 'OK' : 'WARNING'}\n`
                 + `${environmentCheck ? '✅' : '⚠️'} Environment Check: ${environmentCheck ? 'OK' : 'WARNING'}\n`
@@ -251,11 +252,11 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                 + '----------------------\n'
                 + `${(environmentCheck) ? '✅' : '⚠️'} Environment: ${getEnvironment()}\n`
                 + `${modelSourceCheck ? '✅' : '⚠️'} Model Source Environment: ${getModelSourceEnvironment()}\n\n`
-                + `SERVER_PORT: ${process.env.SERVER_PORT ?? ''}\n`
-                + `SERVER_PATH: ${process.env.SERVER_PATH ?? ''}\n`
-                + `EMAIL_DOMAIN: ${process.env.EMAIL_DOMAIN ?? ''}\n`
-                + `ENVIRONMENT_BASE_URL: ${process.env.ENVIRONMENT_BASE_URL ?? ''}\n`
-                + `ASSET_URL: ${process.env.ASSET_URL ?? ''}\n\n`
+                + `SERVER_PORT: ${process.env.SERVER_PORT ?? '?'}\n`
+                + `SERVER_PATH: ${process.env.SERVER_PATH ?? '?'}\n`
+                + `EMAIL_DOMAIN: ${process.env.EMAIL_DOMAIN ?? '?'}\n`
+                + `ENVIRONMENT_BASE_URL: ${process.env.ENVIRONMENT_BASE_URL ?? '?'}\n`
+                + `ASSET_URL: ${process.env.ASSET_URL ?? '?'}\n\n`
 
                 //Expected Enabled
                 + `${process.env.ENABLE_CRON === 'true' ? '✅' : '⚠️'} ENABLE_CRON: ${process.env.ENABLE_CRON ?? ''}\n`
@@ -266,8 +267,8 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                 + `${process.env.SAVE_EVENT_LOGS === 'true' ? '✅' : '⚠️'} SAVE_EVENT_LOGS: ${process.env.SAVE_EVENT_LOGS ?? ''}\n`
 
                 //Expected Local Features Disabled in Production
-                + `${process.env.PRINT_LOGS_TO_CONSOLE === 'true' ? '⚠️' : '✅'} PRINT_LOGS_TO_CONSOLE: ${process.env.PRINT_LOGS_TO_CONSOLE ?? ''}\n`
-                + `${process.env.DEBUG_SEARCH === 'true' ? '⚠️' : '✅'} DEBUG_SEARCH: ${process.env.DEBUG_SEARCH ?? ''}\n\n`
+                + `${process.env.PRINT_LOGS_TO_CONSOLE === 'true' ? '❌' : '✅'} PRINT_LOGS_TO_CONSOLE: ${process.env.PRINT_LOGS_TO_CONSOLE ?? ''}\n`
+                + `${process.env.DEBUG_SEARCH === 'true' ? '❌' : '✅'} DEBUG_SEARCH: ${process.env.DEBUG_SEARCH ?? ''}\n\n`
 
                 + '\nDeployment\n'
                 + '----------\n'

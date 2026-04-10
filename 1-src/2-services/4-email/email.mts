@@ -78,7 +78,6 @@ const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, u
  * HTML REPORT HANDLERS *
  *************************/
 export const getEmailReportContent = async(subscription:EmailSubscription):Promise<EmailReportContent> => {
-    const subject:string = `EP ${makeDisplayText(subscription)} Report`;
     switch(subscription) {
         case EmailSubscription.SYSTEM_DEPLOYMENT:
             return await assembleDeploymentSystemReport();
@@ -97,7 +96,7 @@ export const getEmailReportContent = async(subscription:EmailSubscription):Promi
 
         default:
             log.error(`getEmailReportContent :: Email Report of unsupported subscription type requested: ${subscription}`);
-            return { subject, body:'', isHTML: false };
+            return { subject: '', body:'', isHTML: false };
     }
 }
 

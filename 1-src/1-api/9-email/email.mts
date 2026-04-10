@@ -66,6 +66,8 @@ export const GET_EmailReportDownloadFile = async(request:ReportSubscriptionReque
             ? await getEmailReportContent(subscription)
             : await assembleDailyLogReport(logType);
 
+            
+
     const fileName:string = `${subscription ?? logType}_report_${Math.floor((Date.now() % (24 * 60 * 60 * 1000)) / 1000)}.${isHTML ? 'html' : 'txt'}`;
 
     response.setHeader('Content-Disposition', `attachment; filename='${fileName}'`);

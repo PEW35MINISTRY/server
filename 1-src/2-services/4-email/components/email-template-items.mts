@@ -66,7 +66,7 @@ export const htmlPartnershipBlock = (partnershipList:{profile:PartnerListItem, p
                                     <col style="width:${EMAIL_PROFILE_IMAGE_SIZE * 1.5}px;">
                                 </colgroup>
                                 ${partnershipList.map((item, index) =>
-                                    `${(index > 0) ? `<tr><td colspan="4" height="${EMAIL_ROW_MARGIN}" style="line-height:${EMAIL_ROW_MARGIN}px; font-size:${EMAIL_ROW_MARGIN}px;">&nbsp;</td></tr>`:''}
+                                    `${(index > 0) ? `<tr><td colspan="4" height="${EMAIL_ROW_MARGIN}" style="line-height:${EMAIL_ROW_MARGIN}; font-size:${EMAIL_ROW_MARGIN};">&nbsp;</td></tr>`:''}
                                     <tr>
                                         <td align="left" valign="top">
                                             <img src="${item.profile.image || DEFAULT_PROFILE_URL}" width="${EMAIL_PROFILE_IMAGE_SIZE}" height="${EMAIL_PROFILE_IMAGE_SIZE}" style="vertical-align:middle;border-radius:50%;" alt="Profile ${item.profile.displayName}">
