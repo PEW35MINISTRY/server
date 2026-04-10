@@ -89,7 +89,7 @@ export const POST_LogPartitionBucket = async (request:JwtAdminRequest, response:
 export const POST_LogEntry = async(type:LogType|'ALERT'|undefined, request:LogEntryNewRequest, response:Response, next:NextFunction) => {
     /* Identifying Log Type via URL parameter */
     const rawLogType = String(type ?? request.params.type ?? '').toUpperCase().trim();
-    const sendAlertEmail:boolean = (type === 'ALERT'); //Alert Error is type LogType.ERROR and sends email
+    const sendAlertEmail:boolean = (rawLogType === 'ALERT'); //Alert Error is type LogType.ERROR and sends email
 
     let logType:LogType = sendAlertEmail ? LogType.ERROR : LogType[rawLogType as keyof typeof LogType];
     if(logType === undefined) 

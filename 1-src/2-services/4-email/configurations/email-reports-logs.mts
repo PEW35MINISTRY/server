@@ -264,7 +264,7 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                 + `${SAVE_LOGS_LOCALLY ? '✅' : '⚠️'} SAVE_LOGS_LOCALLY: ${SAVE_LOGS_LOCALLY}\n`
                 + `${UPLOAD_LOGS_S3 ? '✅' : '⚠️'} UPLOAD_LOGS_S3: ${UPLOAD_LOGS_S3}\n`
                 + `${SAVE_AUTH_LOGS ? '✅' : '⚠️'} SAVE_AUTH_LOGS: ${SAVE_AUTH_LOGS}\n`
-                + `${SAVE_EVENT_LOGS ? '✅' : '⚠️'} SAVE_EVENT_LOGS: ${SAVE_EVENT_LOGS}\n`
+                + `${SAVE_EVENT_LOGS ? '✅' : '⚠️'} SAVE_EVENT_LOGS: ${SAVE_EVENT_LOGS}\n\n`
 
                 //Expected Local Features Disabled in Production
                 + `${PRINT_LOGS_TO_CONSOLE ? '❌' : '✅'} PRINT_LOGS_TO_CONSOLE: ${PRINT_LOGS_TO_CONSOLE}\n`
