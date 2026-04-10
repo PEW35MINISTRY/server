@@ -1,13 +1,13 @@
 import { existsSync, readFileSync } from 'fs';
 import path, { join } from 'path';
-import { getEnvironment } from '../../10-utilities/env-utilities.mjs';
+import { getEnvironment, isEnvironment } from '../../10-utilities/env-utilities.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
 import { LogType, LogDailyTrend, DatabaseTableUsage } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { ENVIRONMENT_TYPE, makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { fetchS3LogsByDateRange, calculateLogDailyTrends } from '../../10-utilities/logging/log-s3-utilities.mjs';
-import { LOG_BURST_EVENT_THRESHOLD } from '../../10-utilities/logging/log-types.mjs';
+import { LOG_BURST_EVENT_THRESHOLD, PRINT_LOGS_TO_CONSOLE, SAVE_AUTH_LOGS, SAVE_EVENT_LOGS, SAVE_LOGS_LOCALLY, SEND_LOG_EMAILS, UPLOAD_LOGS_S3 } from '../../10-utilities/logging/log-types.mjs';
 import LOG_ENTRY from '../../10-utilities/logging/logEntryModel.mjs';
-import { checkAWSAuthentication, getAWSMetadata, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { checkAWSAuthentication, getAWSMetadata, getEnv, getEnvEnum, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_TABLE } from '../../2-database/database-types.mjs';
 import { DB_CALCULATE_TABLE_USAGE } from '../../2-database/queries/queries.mjs';
 import { htmlText, htmlVerticalSpace, htmlActionButton, htmlSection, htmlDetailList } from '../components/email-template-components.mjs';
@@ -36,13 +36,13 @@ export const assembleLogAlertReport = async(entry:LOG_ENTRY, html:boolean = fals
             htmlText(entry.toString()),
             htmlActionButton([
                 { label:'More Details', link:entry.fileKey, style:'OUTLINE' },
-                { label:'Portal Logs', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/logs`, style:'ACCENT' },
+                { label:'Portal Logs', link:`${getEnv('ENVIRONMENT_BASE_URL')}/portal/logs`, style:'ACCENT' },
             ]),
             htmlVerticalSpace(5),
             ...(impactedUserMap.size > 0
                 ? [
                     htmlDetailList(
-                        Array.from(impactedUserMap.keys()).map((userID:number) => [`User #${userID}:`, `${process.env.ENVIRONMENT_BASE_URL}/portal/edit/profile/${userID}`]),
+                        Array.from(impactedUserMap.keys()).map((userID:number) => [`User #${userID}:`, `${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/profile/${userID}`]),
                         'Impacted Users'
                     ),
                     htmlVerticalSpace(5),
@@ -61,12 +61,12 @@ export const assembleLogAlertReport = async(entry:LOG_ENTRY, html:boolean = fals
             '\n\n',
             entry.toString(),
             `More Details: ${entry.fileKey}`,
-            `Portal Logs: ${process.env.ENVIRONMENT_BASE_URL}/portal/logs`,
+            `Portal Logs: ${getEnv('ENVIRONMENT_BASE_URL')}/portal/logs`,
             '\n\n',
             ...(impactedUserMap.size > 0
                 ? [
                     'Impacted Users',
-                    ...Array.from(impactedUserMap.entries()).map(([userID]) => `User #${userID}: ${process.env.ENVIRONMENT_BASE_URL}/portal/edit/profile/${userID}`),
+                    ...Array.from(impactedUserMap.entries()).map(([userID]) => `User #${userID}: ${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/profile/${userID}`),
                     '\n\n',
                 ]
                 : []),
@@ -134,7 +134,7 @@ export const assembleDailyLogReport = async(type:LogType = LogType.ERROR):Promis
             + ((impactedUserMap.size > 0)
                     ? `Most Impacted Users\n`
                     + `-------------------\n`
-                    + `${Array.from(impactedUserMap.entries()).sort((a,b) => b[1] - a[1]).slice(0, 10).map(([userID, count]) => `(${count}) User #${userID}: ${process.env.ENVIRONMENT_BASE_URL}/portal/edit/profile/${userID}`).join('\n')}\n`
+                    + `${Array.from(impactedUserMap.entries()).sort((a,b) => b[1] - a[1]).slice(0, 10).map(([userID, count]) => `(${count}) User #${userID}: ${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/profile/${userID}`).join('\n')}\n`
                     + '\n'
                 : '')
             + ((burstEvents.length > 0)
@@ -143,7 +143,7 @@ export const assembleDailyLogReport = async(type:LogType = LogType.ERROR):Promis
                     + `${burstEvents.map(item => `(${item.quantity}) ${LOG_ENTRY.summarize(item.entry, undefined, 100)}`).join('\n')}\n`
                     + '\n'
                 : '')
-            + `== See Latest ${makeDisplayText(type)} Logs ==\n${process.env.ENVIRONMENT_BASE_URL}/portal/logs/${type}`
+            + `== See Latest ${makeDisplayText(type)} Logs ==\n${getEnv('ENVIRONMENT_BASE_URL')}/portal/logs/${type}`
             + '\n\n'
             + await renderLogList(type, { maxEntries:100, pastDays:2, html:false })
         };
@@ -197,7 +197,7 @@ export const assembleWeeklySystemReport = async():Promise<EmailReportContent> =>
             + '\n\n'
             + await renderLogTrendTable([LogType.ERROR, LogType.WARN, LogType.DB, LogType.EMAIL, LogType.AUTH, LogType.EVENT], false)
             + '\n\n'
-            + `____ See Latest Logs ____\n${process.env.ENVIRONMENT_BASE_URL}/portal/logs\n`
+            + `____ See Latest Logs ____\n${getEnv('ENVIRONMENT_BASE_URL')}/portal/logs\n`
             + '\n\n'
             + await renderLogList(LogType.ERROR, { maxEntries:50, pastDays:7, html:false })
             + '\n\n'
@@ -221,16 +221,16 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
         const packageJson:{version:string} = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
         const version:string = packageJson.version ?? '0.0.0';
 
-        const gitBranch:string = process.env.GIT_BUILD_BRANCH ?? 'BRANCH';
-        const gitCommit:string = process.env.GIT_BUILD_COMMIT ?? 'COMMIT';
+        const gitBranch:string = getEnv('GIT_BUILD_BRANCH') ?? 'BRANCH';
+        const gitCommit:string = getEnv('GIT_BUILD_COMMIT') ?? 'COMMIT';
         const branchCheck:boolean = !!gitBranch && (gitBranch.includes('release') || gitBranch === 'master');
 
-        const environmentCheck:boolean = (process.env.ENVIRONMENT !== undefined) || (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION);
-        const modelSourceCheck:boolean = (process.env.DEFAULT_MODEL_SOURCE_ENVIRONMENT !== undefined) || (getModelSourceEnvironment() === DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION);
+        const environmentCheck:boolean = (getEnv('ENVIRONMENT') !== undefined) && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION);
+        const modelSourceCheck:boolean = (getEnvEnum('DEFAULT_MODEL_SOURCE_ENVIRONMENT', DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM) !== undefined) && (getModelSourceEnvironment() === DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION);
 
         const awsAuthenticated:boolean = await checkAWSAuthentication();
         const awsMetadata:AWSMetadata|undefined = await getAWSMetadata();
-        const ec2Check:boolean|undefined = awsMetadata ? true : (getEnvironment() === ENVIRONMENT_TYPE.LOCAL ? undefined : false); //Not expected locally
+        const ec2Check:boolean|undefined = awsMetadata ? true : (isEnvironment(ENVIRONMENT_TYPE.LOCAL) ? undefined : false); //Not expected locally
 
         const overallCheck:boolean = lastRestartCheck && environmentCheck && modelSourceCheck && branchCheck && (ec2Check !== false);
 
@@ -252,23 +252,23 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                 + '----------------------\n'
                 + `${(environmentCheck) ? '✅' : '⚠️'} Environment: ${getEnvironment()}\n`
                 + `${modelSourceCheck ? '✅' : '⚠️'} Model Source Environment: ${getModelSourceEnvironment()}\n\n`
-                + `SERVER_PORT: ${process.env.SERVER_PORT ?? '?'}\n`
-                + `SERVER_PATH: ${process.env.SERVER_PATH ?? '?'}\n`
-                + `EMAIL_DOMAIN: ${process.env.EMAIL_DOMAIN ?? '?'}\n`
-                + `ENVIRONMENT_BASE_URL: ${process.env.ENVIRONMENT_BASE_URL ?? '?'}\n`
-                + `ASSET_URL: ${process.env.ASSET_URL ?? '?'}\n\n`
+                + `SERVER_PORT: ${getEnv('SERVER_PORT', 'string', '?')}\n`
+                + `SERVER_PATH: ${getEnv('SERVER_PATH', 'string', '?')}\n`
+                + `EMAIL_DOMAIN: ${getEnv('EMAIL_DOMAIN', 'string', '?')}\n`
+                + `ENVIRONMENT_BASE_URL: ${getEnv('ENVIRONMENT_BASE_URL', 'string', '?')}\n`
+                + `ASSET_URL: ${getEnv('ASSET_URL', 'string', '?')}\n\n`
 
                 //Expected Enabled
-                + `${process.env.ENABLE_CRON === 'true' ? '✅' : '⚠️'} ENABLE_CRON: ${process.env.ENABLE_CRON ?? ''}\n`
-                + `${process.env.SEND_EMAILS === 'true' ? '✅' : '⚠️'} SEND_EMAILS: ${process.env.SEND_EMAILS ?? ''}\n`
-                + `${process.env.SAVE_LOGS_LOCALLY === 'true' ? '✅' : '⚠️'} SAVE_LOGS_LOCALLY: ${process.env.SAVE_LOGS_LOCALLY ?? ''}\n`
-                + `${process.env.UPLOAD_LOGS_S3 === 'true' ? '✅' : '⚠️'} UPLOAD_LOGS_S3: ${process.env.UPLOAD_LOGS_S3 ?? ''}\n`
-                + `${process.env.SAVE_AUTH_LOGS === 'true' ? '✅' : '⚠️'} SAVE_AUTH_LOGS: ${process.env.SAVE_AUTH_LOGS ?? ''}\n`
-                + `${process.env.SAVE_EVENT_LOGS === 'true' ? '✅' : '⚠️'} SAVE_EVENT_LOGS: ${process.env.SAVE_EVENT_LOGS ?? ''}\n`
+                + `${getEnv<boolean>('ENABLE_CRON', 'boolean') === true ? '✅' : '⚠️'} ENABLE_CRON: ${getEnv('ENABLE_CRON', 'string', '*false*')}\n`
+                + `${SEND_LOG_EMAILS ? '✅' : '⚠️'} SEND_LOG_EMAILS: ${SEND_LOG_EMAILS}\n`
+                + `${SAVE_LOGS_LOCALLY ? '✅' : '⚠️'} SAVE_LOGS_LOCALLY: ${SAVE_LOGS_LOCALLY}\n`
+                + `${UPLOAD_LOGS_S3 ? '✅' : '⚠️'} UPLOAD_LOGS_S3: ${UPLOAD_LOGS_S3}\n`
+                + `${SAVE_AUTH_LOGS ? '✅' : '⚠️'} SAVE_AUTH_LOGS: ${SAVE_AUTH_LOGS}\n`
+                + `${SAVE_EVENT_LOGS ? '✅' : '⚠️'} SAVE_EVENT_LOGS: ${SAVE_EVENT_LOGS}\n`
 
                 //Expected Local Features Disabled in Production
-                + `${process.env.PRINT_LOGS_TO_CONSOLE === 'true' ? '❌' : '✅'} PRINT_LOGS_TO_CONSOLE: ${process.env.PRINT_LOGS_TO_CONSOLE ?? ''}\n`
-                + `${process.env.DEBUG_SEARCH === 'true' ? '❌' : '✅'} DEBUG_SEARCH: ${process.env.DEBUG_SEARCH ?? ''}\n\n`
+                + `${PRINT_LOGS_TO_CONSOLE ? '❌' : '✅'} PRINT_LOGS_TO_CONSOLE: ${PRINT_LOGS_TO_CONSOLE}\n`
+                + `${getEnv<boolean>('DEBUG_SEARCH', 'boolean') === true ? '❌' : '✅'} DEBUG_SEARCH: ${getEnv('DEBUG_SEARCH', 'string', '*false*')}\n\n`
 
                 + '\nDeployment\n'
                 + '----------\n'
@@ -294,7 +294,7 @@ export const assembleDeploymentSystemReport = async():Promise<EmailReportContent
                         + `Public IP: ${awsMetadata.publicIP}\n`
                         + `Public Hostname: https://${awsMetadata.publicHostname}\n`                       
                     : '')
-                + `\n\n== Login to Portal ==\n${process.env.ENVIRONMENT_BASE_URL}/portal/dashboard\n`
+                + `\n\n== Login to Portal ==\n${getEnv('ENVIRONMENT_BASE_URL')}/portal/dashboard\n`
         };
     } catch(error) {
         log.error('ERROR Generating Deployment Report:', error);

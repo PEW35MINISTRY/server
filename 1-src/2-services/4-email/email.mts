@@ -13,8 +13,9 @@ import { assembleUserReportHTML, assemblePartnerReportHTML } from './configurati
 import { EmailSubscription } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { getEmailSignature } from './email-utilities.mjs';
-import { getEnvironment, getAWSMetadata } from '../10-utilities/utilities.mjs';
+import { getEnvironment, getAWSMetadata, getEnv } from '../10-utilities/utilities.mjs';
 import { SERVER_START_TIMESTAMP, SERVER_START_TIMESTAMP_PATH } from '../../server.mjs';
+import { PRINT_LOGS_TO_CONSOLE } from '../10-utilities/logging/log-types.mjs';
 
 
 
@@ -118,11 +119,11 @@ export const sendEmailReport = async(subscription:EmailSubscription, emailRecipi
                         body +
                             htmlVerticalSpace(5) +
                             htmlActionButton([
-                                { label:'Unsubscribe', link:`${process.env.ENVIRONMENT_BASE_URL}/api/report-unsubscribe/client/${receiverID}/subscription/${subscription}`, style:'OUTLINE' },
+                                { label:'Unsubscribe', link:`${getEnv('ENVIRONMENT_BASE_URL')}/api/report-unsubscribe/client/${receiverID}/subscription/${subscription}`, style:'OUTLINE' },
                             ]),
                         EMAIL_SENDER_ADDRESS.ADMIN, new Map([[receiverID, emailAddress]])
                     )
-                    : await sendLogTextEmail(subject, body + `\n\nUnsubscribe: ${process.env.ENVIRONMENT_BASE_URL}/api/report-unsubscribe/client/${receiverID}/subscription/${subscription}`, new Map([[receiverID, emailAddress]]))
+                    : await sendLogTextEmail(subject, body + `\n\nUnsubscribe: ${getEnv('ENVIRONMENT_BASE_URL')}/api/report-unsubscribe/client/${receiverID}/subscription/${subscription}`, new Map([[receiverID, emailAddress]]))
             )
         )).every(Boolean);
 
@@ -188,7 +189,7 @@ export const sendEmailSystemDeploymentReport = async():Promise<void> => {
             }
         }
 
-        if(process.env.PRINT_LOGS_TO_CONSOLE === 'true')
+        if(PRINT_LOGS_TO_CONSOLE)
             console.log((await assembleDeploymentSystemReport()).body);
         else
             await sendEmailReport(EmailSubscription.SYSTEM_DEPLOYMENT, undefined, true);

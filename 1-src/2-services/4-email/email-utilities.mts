@@ -1,3 +1,5 @@
+import { getEnv } from "../10-utilities/utilities.mjs";
+import { EMAIL_SENDER_ADDRESS, EmailSenderAddress  } from "./email-types.mjs";
 
 
 
@@ -5,11 +7,9 @@
  * INDEPENDENT EMAIL UTILITIES *
  *******************************/
 
-import { EMAIL_SENDER_ADDRESS, EmailSenderAddress  } from "./email-types.mjs";
-
 export const isInternalEmail = (email:string):boolean => {
-    return (process.env.EMAIL_DOMAIN || '') !== '' &&
-        email.toLowerCase().trim().split('@')[1]?.endsWith((process.env.EMAIL_DOMAIN || '').toLowerCase().trim()) === true;
+    return (getEnv('EMAIL_DOMAIN')) &&
+        email.toLowerCase().trim().split('@')[1]?.endsWith((getEnv('EMAIL_DOMAIN')).toLowerCase().trim()) === true;
 }
 
 export const formatDate = (value?:Date|string, includeTime?:boolean, timeZone:string = 'America/Chicago'):string => {

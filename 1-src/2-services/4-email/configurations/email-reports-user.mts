@@ -2,7 +2,7 @@ import { NewPartnerListItem } from '../../../0-assets/field-sync/api-type-sync/p
 import { DatabasePartnershipStats } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { WebsiteSubscription } from '../../../1-api/2-auth/auth-types.mjs';
-import { getEnvironment, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
+import { getEnv, getEnvironment, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { DATABASE_TABLE } from '../../2-database/database-types.mjs';
 import { DB_CALCULATE_PARTNERSHIP_STATS, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST } from '../../2-database/queries/partner-queries.mjs';
 import { DB_SELECT_EMAIL_SUBSCRIPTION_RECENT } from '../../2-database/queries/queries.mjs';
@@ -53,7 +53,7 @@ export const assembleUserReportHTML = async():Promise<EmailReportContent> => {
                     ])
                 ),
 
-                htmlActionButton([{label:'Portal Management', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/dashboard`, style:'PRIMARY'}]),
+                htmlActionButton([{label:'Portal Management', link:`${getEnv('ENVIRONMENT_BASE_URL')}/portal/dashboard`, style:'PRIMARY'}]),
 
                 ...(subscriptionList.length ? [
                     htmlSection('Website Subscriptions:', 'left', EMAIL_COLOR.ACCENT),
@@ -128,7 +128,7 @@ export const assemblePartnerReportHTML = async():Promise<EmailReportContent> => 
                 htmlPartnershipBlock(
                     pendingPartnershipList.map((partnerPair) => ({ profile: partnerPair[0], partner: partnerPair[1] })), undefined, true ),
 
-                htmlActionButton([{label:'Partnership Management', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/partnership/pending`, style:'PRIMARY'}]),
+                htmlActionButton([{label:'Partnership Management', link:`${getEnv('ENVIRONMENT_BASE_URL')}/portal/partnership/pending`, style:'PRIMARY'}]),
 
                 htmlDetailList([
                     ['Information Generated (CST):', formatDate(new Date(), true)],
