@@ -2,7 +2,7 @@ import express, { NextFunction, Request, Response, Router } from 'express';
 import URL, { URLSearchParams } from 'url';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { EDIT_PROFILE_FIELDS, EDIT_PROFILE_FIELDS_ADMIN, EmailSubscription, RoleEnum, SIGNUP_PROFILE_FIELDS, SIGNUP_PROFILE_FIELDS_USER } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_TOKEN_TYPE_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS_REQUIRED } from '../../2-services/2-database/database-types.mjs';
 import { DB_DELETE_CIRCLE_USER_STATUS, DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES, DB_SELECT_USER_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_DELETE_ALL_USER_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
@@ -22,7 +22,6 @@ import { populateDemoRelations } from '../../2-services/10-utilities/mock-utilit
 import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
 import { SignupProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { getEnvironment } from '../../2-services/10-utilities/utilities.mjs';
-import { EmailSubscription } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 
 
 
@@ -202,14 +201,28 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
 
         else {
             //Handle userRoleList: Add new user roles, already verified permission above
-            const deleteRoleList:DATABASE_USER_ROLE_ENUM[] = currentRoleList.filter((role) => (!editProfile.userRoleList.includes(role))).map((role) => DATABASE_USER_ROLE_ENUM[role]);
-            if(deleteRoleList.length > 0 && !DB_DELETE_USER_ROLE({userID:editProfile.userID, userRoleList: deleteRoleList}))
-                log.error(`Edit Profile Failed :: Error removing userRoles ${JSON.stringify(deleteRoleList)} to ${editProfile.userID}`);
+            const saveUserRole:boolean = (editProfile.userRoleList.length > 1); //Only save 'USER' role for multi role users
+            editProfile.userRoleList = await USER.syncDatabaseList<RoleEnum, DATABASE_USER_ROLE_ENUM>({
+                userID: editProfile.userID,
+                newList: editProfile.userRoleList.filter((role:RoleEnum) => (role !== RoleEnum.USER || saveUserRole)),
+                currentList: currentRoleList,
+                DBInsertBatch: async(userID:number, ...insertList:DATABASE_USER_ROLE_ENUM[]) => await DB_INSERT_USER_ROLE({userID, userRoleList: insertList}),
+                DBDeleteBatch: async(userID:number, ...deleteList:DATABASE_USER_ROLE_ENUM[]) => await DB_DELETE_USER_ROLE({userID, userRoleList: deleteList}),
+                DBSelectList: DB_SELECT_USER_ROLES,
+                mapToDatabaseEnum: (role:RoleEnum):DATABASE_USER_ROLE_ENUM|undefined => DATABASE_USER_ROLE_ENUM[role],
+            });
 
-            const saveUserRole:boolean = editProfile.userRoleList.length > 1; //Only save 'USER' role for multi role users
-            const insertRoleList:DATABASE_USER_ROLE_ENUM[] = editProfile.userRoleList?.filter((role) => ((role !== RoleEnum.USER || saveUserRole) && !currentRoleList.includes(role))).map((role) => DATABASE_USER_ROLE_ENUM[role]);
-            if(insertRoleList.length > 0 && !DB_INSERT_USER_ROLE({userID:editProfile.userID, userRoleList: insertRoleList}))
-                log.error(`Edit Profile Failed :: Error assigning userRoles ${JSON.stringify(insertRoleList)} to ${editProfile.userID}`);
+            if(currentProfile.isEmailVerified && Array.isArray(editProfile.emailSubscriptionList)) {
+                currentProfile.emailSubscriptionList = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST(currentProfile.userID);
+                editProfile.emailSubscriptionList = await USER.syncDatabaseList<EmailSubscription>({
+                    userID: editProfile.userID,
+                    newList: editProfile.emailSubscriptionList,
+                    currentList: currentProfile.emailSubscriptionList,
+                    DBInsertBatch: DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH,
+                    DBDeleteBatch: DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH,
+                    DBSelectList: DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST,
+                });
+            }
             
             editProfile.modifiedDT = new Date(); //Local update, database sets modifiedDT
             response.status(202).send(editProfile.toJSON());

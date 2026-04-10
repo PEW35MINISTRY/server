@@ -1,8 +1,7 @@
 import { execute, command, query, batch } from '../database.mjs';
 import { DATABASE_USER_ROLE_ENUM, CommandResponseType, DATABASE_TOKEN, DATABASE_TOKEN_TYPE_ENUM } from '../database-types.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
-import { RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { EmailSubscription } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { RoleEnum, EmailSubscription } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
 
 /**************************************************************************
@@ -284,14 +283,11 @@ export const DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH = async(userID:number, ...s
     if(subscriptions.length === 0)
         return false;
 
-    const valueList = subscriptions.map(() => '(?, ?)').join(', ');
-    const response = await command('INSERT INTO user_email_subscription ( userID, subscription ) '
-        + 'SELECT ?, valuesList.subscription '
-        + `FROM (VALUES ${valueList} ) valuesList(userID, subscription) `
-        + 'INNER JOIN user ON user.userID = ? '
-        + 'WHERE user.isEmailVerified = 1 '
-        + 'ON DUPLICATE KEY UPDATE;',
-        subscriptions.flatMap(subscription => [userID, subscription]).concat([userID]));
+    const placeholderList:string = subscriptions.map(() => '(?, ?)').join(', ');
+    const response:CommandResponseType = await command(
+        'INSERT IGNORE INTO user_email_subscription (userID, subscription) '
+        + `VALUES ${placeholderList};`,
+    [...subscriptions.flatMap((subscription:EmailSubscription) => [userID, subscription])]);
 
     return (response?.affectedRows > 0);
 }
@@ -300,10 +296,10 @@ export const DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH = async(userID:number, ...s
     if(subscriptions.length === 0)
         return false;
 
-    const response = await command('DELETE FROM user_email_subscription '
+    const response:CommandResponseType = await command('DELETE FROM user_email_subscription '
         + 'WHERE userID = ? '
             + 'AND LOWER(subscription) IN (' + subscriptions.map(() => 'LOWER(?)').join(', ') + ');',
         [userID, ...subscriptions]);
 
-    return (response?.affectedRows ?? 0) > 0;
+    return (response?.affectedRows > 0);
 }

@@ -1,7 +1,8 @@
 import express, { NextFunction, Request, Response, Router } from 'express';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
-import { EmailSubscription, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { EmailSubscription } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { EMAIL_ADDRESS_REGEX_SIMPLE, EmailReportContent } from '../../2-services/4-email/email-types.mjs';
 import { DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH, DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH } from '../../2-services/2-database/queries/user-security-queries.mjs';
@@ -33,19 +34,6 @@ export const GET_EmailSubscriptionUnsubscribe = async(request:Request, response:
         log.event(`User ${clientID} has successfully unsubscribed from ${subscription} internal emails.`);
     else
         log.warn(`FAILED - User ${clientID} has failed to unsubscribed from ${subscription} internal emails.`);
-}
-
-
-export const POST_EmailSubscription = async(request:ReportSubscriptionClientRequest, response:Response, next:NextFunction):Promise<void> => {
-    const subscription:EmailSubscription = EmailSubscription[String(request.params.subscription ?? '').toUpperCase().trim()];
-
-    if(subscription === undefined)
-        return next(new Exception(400, `Invalid 'type' parameter :: ${request.params.subscription}`, 'Invalid Report Type'));
-
-    if(await DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH(request.clientID, subscription))
-        response.status(200).send(`User ${request.clientID} has successfully subscribed to ${subscription} internal emails.`);
-    else
-        next(new Exception(500, `FAILED - User ${request.clientID} has failed to subscribed to ${subscription} internal emails.`));
 }
 
 

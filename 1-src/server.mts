@@ -15,7 +15,8 @@ import { schedule } from 'node-cron';
 import { getEnvironment } from './2-services/10-utilities/env-utilities.mjs';
 import { checkAWSAuthentication, toStringArray } from './2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST, SENSITIVE_KEYWORDS } from './0-assets/field-sync/input-config-sync/inputField.mjs';
-import { EmailSubscription, ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { EmailSubscription } from './0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
 import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest, LogSearchRequest, LogEntryNewRequest, ReportSubscriptionClientRequest } from './1-api/2-auth/auth-types.mjs';
@@ -34,7 +35,7 @@ import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveIm
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
 import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceDetailAdmin, GET_notificationDeviceList, PATCH_notificationDeviceAdmin, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser } from './1-api/8-notification/notification.mjs';
-import { GET_EmailReportDownloadFile, GET_EmailSubscriptionUnsubscribe, POST_EmailReportAdmin, POST_EmailSubscription, POST_EmailSubscriptionBroadcastAdmin } from './1-api/9-email/email.mjs';
+import { GET_EmailReportDownloadFile, GET_EmailSubscriptionUnsubscribe, POST_EmailReportAdmin, POST_EmailSubscriptionBroadcastAdmin } from './1-api/9-email/email.mjs';
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
@@ -78,7 +79,7 @@ if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYP
     //Run at 13:00 UTC - Mondays 7AM CST
     schedule('0 13 * * 1', async () => await sendEmailReport(EmailSubscription.USER_WEEKLY));
     //Run at 13:00 UTC - First Friday of month 7AM CST
-    schedule('0 13 1-7 * 5', async () => await sendEmailReport(EmailSubscription.PARTNER_MONTHLY));
+    schedule('0 13 1-7 * 5', async () => await sendEmailReport(EmailSubscription.PARTNER_WEEKLY));
 
     //Run at 08:00-8:02 UTC - 2AM CST
     schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
@@ -438,7 +439,6 @@ apiServer.post('/api/admin/log/:type/report', (request:LogEntryNewRequest, respo
 apiServer.use('/api/admin/client/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 apiServer.get('/api/admin/client/:client/token-list', GET_userActiveTokensAdmin);
 apiServer.post('/api/admin/client/:client/reset-password', POST_resetPasswordAdmin);
-apiServer.post('/api/admin/client/:client/subscription/:subscription', POST_EmailSubscription);
 
 apiServer.post('/api/admin/client/:client/send/email-verify', POST_emailVerifyResend);
 

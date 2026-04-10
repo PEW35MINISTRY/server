@@ -29,18 +29,6 @@ export interface ServerDebugErrorResponse extends ServerErrorResponse {
 };
 
 
-/* EMAIL TYPES & HANDLING */
-export enum EmailSubscription {
-    USER_WEEKLY = 'USER_WEEKLY',
-    PARTNER_MONTHLY = 'PARTNER_MONTHLY',
-
-    SYSTEM_DEPLOYMENT = 'SYSTEM_DEPLOYMENT',
-    SYSTEM_IMMEDIATE = 'SYSTEM_IMMEDIATE',
-    SYSTEM_DAILY = 'SYSTEM_DAILY',
-    SYSTEM_WEEKLY = 'SYSTEM_WEEKLY',
-}
-
-
 /* SERVER LOG CATEGORIES & TYPES */
 //Server Additional Types: 1-src\2-services\10-utilities\logging\log-types.mts
 export enum LogLocation {

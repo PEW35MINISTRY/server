@@ -1,9 +1,8 @@
 /************* ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ *************/
-import { GenderEnum, ModelSourceEnvironmentEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
+import { EmailSubscription, GenderEnum, ModelSourceEnvironmentEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
 import { CircleAnnouncementListItem, CircleListItem } from './circle-types.mjs'
 import { ContentListItem } from './content-types.mjs';
 import { PrayerRequestListItem } from './prayer-request-types.mjs'
-import { EmailSubscription } from './utility-types.mjs';
 
 /**************************************************************************
 *                   PROFILE TYPES                                         *

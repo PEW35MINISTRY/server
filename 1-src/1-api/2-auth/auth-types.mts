@@ -1,10 +1,10 @@
 
 import { NextFunction, Request, Response } from 'express';
 import { IncomingHttpHeaders } from 'http';
-import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { RoleEnum, EmailSubscription } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { JwtPayload } from 'jsonwebtoken';
 import { LoginRequestBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
-import { EmailSubscription, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 
 
 /****************************************************************************************

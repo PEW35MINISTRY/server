@@ -1,5 +1,4 @@
 import { readFileSync, existsSync } from 'fs';
-import path from 'path';
 import * as log from '../10-utilities/logging/log.mjs';
 import LOG_ENTRY from '../10-utilities/logging/logEntryModel.mjs';
 import { AWSMetadata, EMAIL_SENDER_ADDRESS, EmailReportContent, EmailSenderAddress  } from './email-types.mjs';
@@ -11,7 +10,8 @@ import { ENVIRONMENT_TYPE, makeDisplayText } from '../../0-assets/field-sync/inp
 import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP } from '../2-database/queries/user-security-queries.mjs';
 import { assembleDailyLogReport as assembleDailyLogReportText, assembleDeploymentSystemReport, assembleLogAlertReport, assembleWeeklySystemReport as assembleWeeklySystemReportText } from './configurations/email-reports-logs.mjs';
 import { assembleUserReportHTML, assemblePartnerReportHTML } from './configurations/email-reports-user.mjs';
-import { EmailSubscription, LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { EmailSubscription } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { getEmailSignature } from './email-utilities.mjs';
 import { getEnvironment, getAWSMetadata } from '../10-utilities/utilities.mjs';
 import { SERVER_START_TIMESTAMP, SERVER_START_TIMESTAMP_PATH } from '../../server.mjs';
@@ -92,7 +92,7 @@ export const getEmailReportContent = async(subscription:EmailSubscription):Promi
         case EmailSubscription.USER_WEEKLY:
             return await assembleUserReportHTML();
 
-        case EmailSubscription.PARTNER_MONTHLY:
+        case EmailSubscription.PARTNER_WEEKLY:
             return await assemblePartnerReportHTML();
 
         default:
