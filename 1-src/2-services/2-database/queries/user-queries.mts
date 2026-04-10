@@ -238,13 +238,13 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
     preparedColumns += ` AND ( userID != ? )`; 
     valueList.push(userID);
 
-    const result:CommandResponseType = await command(`SELECT COUNT(*) FROM user WHERE ${preparedColumns};`, valueList); 
+    const result = await execute(`SELECT COUNT(*) FROM user WHERE ${preparedColumns};`, valueList);
 
-    if(result === undefined) return true;    
-    else if(result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 1)
+    if(!result || result.length === 0) return false;
+    else if(Number(result[0]['COUNT(*)']) > 1)
         log.warn(`Multiple Accounts Detected with matching fields`, JSON.stringify(validFieldMap));
 
-    return (result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 0);
+    return (Number(result[0]['COUNT(*)']) > 0);
 }
 
 

@@ -252,23 +252,17 @@ export const DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP = async(subscriptio
         return new Map();
     }
 
-    const rows = await execute('SELECT userID, email '
+    const rows = await execute('SELECT user.userID, user.email '
         + 'FROM user_email_subscription '
         + 'INNER JOIN user ON user.userID = user_email_subscription.userID '
         + 'WHERE LOWER(user_email_subscription.subscription) = LOWER(?) '
-            + 'AND user.isEmailVerified = 1;', [subscription]);
-
-    if((rows === undefined) || (rows.length === 0)) {
-        log.db('DB_SELECT_EMAIL_LIST_BY_SUBSCRIPTION: zero results', subscription);
-        return new Map();
-    }
+        + 'AND user.isEmailVerified = 1;', [subscription]);
 
     return rows.reduce((map, row) => map.set(row.userID, row.email), new Map<number, string>());
 }
 
 //Subscriptions are raw string, controlled input by enum EmailSubscription
 export const DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH = async(userID:number, ...subscriptions:EmailSubscription[]):Promise<boolean> => {
-        log.db(`DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH: input | userID: ${userID} | subscriptions: ${JSON.stringify(subscriptions)}`);
 
     //Filter for valid subscriptions
     subscriptions = subscriptions.filter(subscription => {

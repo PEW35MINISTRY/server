@@ -78,8 +78,8 @@ if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYP
 
     //Run at 13:00 UTC - Mondays 7AM CST
     schedule('0 13 * * 1', async () => await sendEmailReport(EmailSubscription.USER_WEEKLY));
-    //Run at 13:00 UTC - First Friday of month 7AM CST
-    schedule('0 13 1-7 * 5', async () => await sendEmailReport(EmailSubscription.PARTNER_WEEKLY));
+    //Run at 13:00 UTC - Fridays 7AM CST
+    schedule('0 13 * * 5', async () => await sendEmailReport(EmailSubscription.PARTNER_WEEKLY));
 
     //Run at 08:00-8:02 UTC - 2AM CST
     schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
