@@ -38,13 +38,13 @@ export const DB_CALCULATE_TABLE_USAGE = async(tableName:DATABASE_TABLE):Promise<
         log.warn('DB_CALCULATE_TABLE_USAGE', 'Table supports DT fields but returned all zeros', tableName, row);
   
     return {
-      totalRows: row?.totalRows ?? 0,
-      created24Hours: row?.created24Hours ?? 0,
-      created7Days: row?.created7Days ?? 0,
-      created30Days: row?.created30Days ?? 0,
-      modified24Hours: row?.modified24Hours ?? 0,
-      modified7Days: row?.modified7Days ?? 0,
-      modified30Days: row?.modified30Days ?? 0,
+        totalRows: Number(row?.totalRows ?? 0),
+        created24Hours: Number(row?.created24Hours ?? 0),
+        created7Days: Number(row?.created7Days ?? 0),
+        created30Days: Number(row?.created30Days ?? 0),
+        modified24Hours: Number(row?.modified24Hours ?? 0),
+        modified7Days: Number(row?.modified7Days ?? 0),
+        modified30Days: Number(row?.modified30Days ?? 0),
     };
 }
 
@@ -59,42 +59,58 @@ export const DB_CALCULATE_USER_TABLE_STATS = async(modelSourceEnvironment:DATABA
         + 'SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS modified30Days, '
         
         + 'SUM(isEmailVerified = 1) AS emailVerified, '
-        + [1,2,3,4,5,6,7,8,9,10].map((level) => `SUM(walkLevel = ${level}) AS 'walkLevel_${level}'`).join(', \n') 
+        + [1,2,3,4,5,6,7,8,9,10].map((level) => `SUM(CASE WHEN walkLevel = ${level} AND (`
+            + `NOT EXISTS (`
+                + `SELECT 1 `
+                + `FROM user_role ur0 `
+                + `WHERE ur0.userID = user.userID`
+            + `) `
+            + `OR EXISTS (`
+                + `SELECT 1 `
+                + `FROM user_role ur1 `
+                + `JOIN user_role_defined urd1 ON ur1.userRoleID = urd1.userRoleID `
+                + `WHERE ur1.userID = user.userID `
+                  + `AND urd1.userRole = '${RoleEnum.USER}'`
+            + `)`
+        + `) THEN 1 ELSE 0 END) AS \`walkLevel_${level}\``).join(', \n')
         + ', '
 
-        + Object.values(DATABASE_USER_ROLE_ENUM).map((role) =>
-            `(SELECT COUNT(*) 
-                FROM user_role 
-                JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID 
-                WHERE user_role_defined.userRole = '${role}') AS ${role}`
+        + Object.values(RoleEnum).map((role) =>
+            `(SELECT COUNT(DISTINCT user.userID) `
+                + `FROM user `
+                + `JOIN user_role ON user.userID = user_role.userID `
+                + `JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID `
+                + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}' `
+                  + `AND user_role_defined.userRole = '${role}') AS ${role}`
             ).join(', \n')
 
-        + `, (SELECT COUNT(*) 
-                FROM user 
-                LEFT JOIN user_role ON user.userID = user_role.userID 
-                WHERE user_role.userID IS NULL) AS NO_ROLE `
+        + `, (SELECT COUNT(*) `
+                + `FROM user `
+                + `LEFT JOIN user_role ON user.userID = user_role.userID `
+                + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}' `
+                  + `AND user_role.userID IS NULL) AS NO_ROLE `
 
         + 'FROM user '
         + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}';`);
     
     return {
-        totalRows: row?.totalRows ?? 0,
-        created24Hours: row?.created24Hours ?? 0,
-        created7Days: row?.created7Days ?? 0,
-        created30Days: row?.created30Days ?? 0,
-        modified24Hours: row?.modified24Hours ?? 0,
-        modified7Days: row?.modified7Days ?? 0,
-        modified30Days: row?.modified30Days ?? 0,
-        emailVerified: row?.emailVerified ?? 0,
+        totalRows: Number(row?.totalRows ?? 0),
+        created24Hours: Number(row?.created24Hours ?? 0),
+        created7Days: Number(row?.created7Days ?? 0),
+        created30Days: Number(row?.created30Days ?? 0),
+        modified24Hours: Number(row?.modified24Hours ?? 0),
+        modified7Days: Number(row?.modified7Days ?? 0),
+        modified30Days: Number(row?.modified30Days ?? 0),
+        emailVerified: Number(row?.emailVerified ?? 0),
         walkLevelMap: Object.fromEntries(
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => [
-                level, row ? (row[`walkLevel_${level}`] ?? 0) : 0
+                level, Number(row?.[`walkLevel_${level}`] ?? 0)
             ])
         ),
         roleMap: Object.fromEntries(Object.values(RoleEnum).map(role => [
-            role, row ? (row[role] ?? 0) : 0
+            role, Number(row?.[role] ?? 0)
         ])) as Record<RoleEnum, number>,
-        unassignedUsers: row?.NO_ROLE ?? 0,
+        unassignedUsers: Number(row?.NO_ROLE ?? 0),
     };
 };
 

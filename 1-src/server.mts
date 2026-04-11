@@ -12,8 +12,8 @@ import cors from 'cors';
 import { schedule } from 'node-cron';
 
 //Import Types
-import { getEnvironment } from './2-services/10-utilities/env-utilities.mjs';
-import { checkAWSAuthentication, toStringArray } from './2-services/10-utilities/utilities.mjs';
+import { getEnvironment, isEnvironment } from './2-services/10-utilities/env-utilities.mjs';
+import { checkAWSAuthentication, getEnv, toStringArray } from './2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST, SENSITIVE_KEYWORDS } from './0-assets/field-sync/input-config-sync/inputField.mjs';
 import { EmailSubscription } from './0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
@@ -55,7 +55,7 @@ import { sendEmailReport, sendEmailSystemDeploymentReport } from './2-services/4
  *********************/
 export const SERVER_START_TIMESTAMP_PATH:string = path.join(process.cwd(), 'SERVER_START_TIMESTAMP.txt');
 export const SERVER_START_TIMESTAMP:Date = new Date();
-const SERVER_PORT = process.env.SERVER_PORT || 5000;
+const SERVER_PORT:number = getEnv<number>('SERVER_PORT', 'number', 5000);
 const publicServer: Application = express();
 const apiServer: Application = express();
 
@@ -70,7 +70,7 @@ writeFileSync(SERVER_START_TIMESTAMP_PATH, SERVER_START_TIMESTAMP.toISOString(),
 
 
 //*** CRON JOBS ***/
-if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)) {
+if((getEnv<boolean>('ENABLE_CRON', 'boolean')) && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION)) {
     //Run at 15:00 UTC - 9am CST
     // schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
     //Run at 01:00 UTC - Sundays 7pm CST
@@ -89,7 +89,7 @@ if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYP
 }
 
 /* CRON JOBS FOR DEVELOPMENT & PRODUCTION */
-if((process.env.ENABLE_CRON === 'true') && (getEnvironment() !== ENVIRONMENT_TYPE.LOCAL)) {
+if((getEnv<boolean>('ENABLE_CRON', 'boolean')) && !isEnvironment(ENVIRONMENT_TYPE.LOCAL)) {
     //Run at 13:01 UTC - Mondays 7AM CST
     schedule('1 13 * * 1', async () => await sendEmailReport(EmailSubscription.SYSTEM_WEEKLY));
     //Run at 02:00 UTC - Daily 8PM CST

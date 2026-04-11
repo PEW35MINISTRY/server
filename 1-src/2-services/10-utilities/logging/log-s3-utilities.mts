@@ -7,7 +7,7 @@ import { getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { writeLogFile } from './log-local-utilities.mjs';
 import { Exception } from '../../../1-api/api-types.mjs';
-import { LOG_BURST_EVENT_THRESHOLD, LOG_SEARCH_DEFAULT_MAX_ENTRIES, LOG_SEARCH_DEFAULT_TIMESPAN, MAX_PARALLEL_CONNECTIONS } from './log-types.mjs';
+import { LOG_BURST_EVENT_THRESHOLD, LOG_SEARCH_DEFAULT_MAX_ENTRIES, LOG_SEARCH_DEFAULT_TIMESPAN, MAX_PARALLEL_CONNECTIONS, PRINT_LOGS_TO_CONSOLE } from './log-types.mjs';
 /* DO NOT IMPORT [ log from '/10-utilities/logging/log.mjs' ] to AVOID INFINITE LOOP */
 
 
@@ -93,7 +93,7 @@ export const fetchS3LogsByDay = async(type:LogType, date:Date = new Date(), maxE
         const response:ListObjectsV2CommandOutput = await s3LogClient.send(command);
 
         if(!response.Contents || !Array.isArray(response.Contents) || response.Contents.length === 0) {
-            if(process.env.PRINT_LOGS_TO_CONSOLE === 'true') console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
+            if(PRINT_LOGS_TO_CONSOLE) console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
             return []; //No entries matching prefix exist
         }
 
@@ -261,7 +261,7 @@ export const deleteS3LogsByDay = async(type:LogType, date:Date = new Date()):Pro
      const response:ListObjectsV2CommandOutput = await s3LogClient.send(command);
 
      if(!response.Contents || !Array.isArray(response.Contents) || response.Contents.length === 0) {
-        if(process.env.PRINT_LOGS_TO_CONSOLE === 'true') console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
+        if(PRINT_LOGS_TO_CONSOLE) console.log(`Note: Reading S3 Log Day - Zero results for ${LOG_ENTRY.createDayS3KeyPrefix(type, date)}`);
         return false; //No entries matching prefix exist
      }
 

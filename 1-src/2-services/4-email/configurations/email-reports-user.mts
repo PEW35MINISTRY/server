@@ -35,7 +35,6 @@ export const assembleUserReportHTML = async():Promise<EmailReportContent> => {
                 htmlVerticalSpace(30),
                 await renderDatabaseTableUsage([DATABASE_TABLE.USER], true),
                 await htmlUserStats(),
-                await htmlUserRoleDistribution(),
                 await htmlUserWalkLevelDistribution(),
 
                 htmlSection('Prayer Request Trends:', 'left', EMAIL_COLOR.ACCENT),

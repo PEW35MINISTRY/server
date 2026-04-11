@@ -49,7 +49,7 @@ export const renderDatabaseTableUsage = async(tableNames:DATABASE_TABLE[], html:
 export const renderLogTrendTable = async(typeList:LogType[], html:boolean = true,):Promise<string> => {
     const nowTimestamp:number = Date.now();
     const columnLabelList:string[] = ['Type', ...Array.from({ length:7 }, (_, i) =>
-        new Date(nowTimestamp - ((6 - i) * 24 * 60 * 60 * 1000)).toLocaleDateString('en-US', { weekday:'short', timeZone:'America/Chicago' }).slice(0, 1)
+        new Date(nowTimestamp - ((6 - i) * 24 * 60 * 60 * 1000)).toLocaleDateString('en-US', { weekday:'short', timeZone:'America/Chicago' })
     )];
 
     const rowList:(string|number)[][] = await Promise.all(typeList.map(async(type:LogType):Promise<(string|number)[]> =>
@@ -65,16 +65,16 @@ export const htmlUserStats = async():Promise<string> => {
 
     return htmlSummaryPairList('User Statistics', new Map<string, string | number>([
         ['Total Users', stats.totalRows],
-        ['Active', stats.emailVerified],
-        ['Active as %', (stats.totalRows > 0) ? ((stats.emailVerified / stats.totalRows) * 100).toFixed(2) + '%' : '0%'],
+        ['Email Verified', stats.emailVerified],
+        ['Email Verified as %', (stats.totalRows > 0) ? ((stats.emailVerified / stats.totalRows) * 100).toFixed(2) + '%' : '0%'],
         ['Users', stats.roleMap[RoleEnum.USER]],
         ['Users (Unassigned)', stats.unassignedUsers],
-        ['Demo Users', stats.roleMap[RoleEnum.DEMO_USER]],
-        ['Test Users', stats.roleMap[RoleEnum.TEST_USER]],
-        ['Circle Leaders', stats.roleMap[RoleEnum.CIRCLE_LEADER]],
-        ['Circle Managers', stats.roleMap[RoleEnum.CIRCLE_MANAGER]],
-        ['Inactive', stats.roleMap[RoleEnum.INACTIVE]],
-        ['*Reported*', stats.roleMap[RoleEnum.REPORTED]],
+        ['Demo Users', stats.roleMap[RoleEnum.DEMO_USER] > 0 ? stats.roleMap[RoleEnum.DEMO_USER] : '-'],
+        ['Test Users', stats.roleMap[RoleEnum.TEST_USER] > 0 ? stats.roleMap[RoleEnum.TEST_USER] : '-'],
+        ['Circle Leaders', stats.roleMap[RoleEnum.CIRCLE_LEADER] > 0 ? stats.roleMap[RoleEnum.CIRCLE_LEADER] : '-'],
+        ['Circle Managers', stats.roleMap[RoleEnum.CIRCLE_MANAGER] > 0 ? stats.roleMap[RoleEnum.CIRCLE_MANAGER] : '-'],
+        ['Inactive', stats.roleMap[RoleEnum.INACTIVE] > 0 ? stats.roleMap[RoleEnum.INACTIVE] : '-'],
+        ['*Reported*', stats.roleMap[RoleEnum.REPORTED] > 0 ? stats.roleMap[RoleEnum.REPORTED] : '-'],
     ]), 
     [['* Filtered Source Environment:', makeDisplayText(getModelSourceEnvironment())]]);
 }
@@ -82,23 +82,25 @@ export const htmlUserStats = async():Promise<string> => {
 
 export const htmlUserWalkLevelDistribution = async():Promise<string> => {
     const stats = await DB_CALCULATE_USER_TABLE_STATS();
+    const totalUserCount:number = Object.values(stats.walkLevelMap).reduce((sum, count) => sum + Number(count), 0); //Limited to RoleEnum.USER and unassigned Users
 
-    const valueMap = new Map<string, string|number>();
+    const valueMap = new Map<string, string>();
     Object.entries(stats.walkLevelMap).forEach(([level, count]) => {
-        valueMap.set(`Walk Level ${level}`, count);
+        valueMap.set(`Walk Level ${level}`, count > 0 ? `${count} (${((count / totalUserCount) * 100).toFixed(0)}%)` : '-');
     });
 
-    return htmlSummaryPairList('Walk Level Distribution:', valueMap, [['* Filtered Source Environment:', makeDisplayText(getModelSourceEnvironment())]]);
+    return htmlSummaryPairList('Walk Level Distribution:', valueMap, [
+        ['* Eligible Users:', `${totalUserCount}`],
+        ['* Filtered Source Environment:', makeDisplayText(getModelSourceEnvironment())]]);
 };
 
 
 export const htmlUserRoleDistribution = async():Promise<string> => {
     const stats = await DB_CALCULATE_USER_TABLE_STATS();
 
-    const valueMap = new Map<string, string|number>();
-    Object.entries(stats.roleMap).forEach(([role, count]) =>{
-        valueMap.set(role.toString(), count); // Convert enum value to string label
-    });
+    const valueMap = new Map<string, number>(Object.entries(stats.roleMap)
+        .filter(([, count]) => Number(count) > 0)
+        .map(([role, count]) => [role.toString(), Number(count)]));
 
     return htmlSummaryPairList('User Role Distribution:', valueMap, [['* Filtered Source Environment:', makeDisplayText(getModelSourceEnvironment())]]);
 };

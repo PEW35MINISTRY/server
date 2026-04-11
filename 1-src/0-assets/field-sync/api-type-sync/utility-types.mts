@@ -1,6 +1,6 @@
 /***** ONLY DEPENDENCY:./inputField - Define all other types locally *****/
 import { ENVIRONMENT_TYPE } from "../input-config-sync/inputField.mjs";
-import { RoleEnum } from "../input-config-sync/profile-field-config.mjs";
+import { ModelSourceEnvironmentEnum, RoleEnum } from "../input-config-sync/profile-field-config.mjs";
 
 
 /*********************************
@@ -60,7 +60,9 @@ export type LogListItem = {
 /* ADMIN DASHBOARD STATISTICS */
 export type AdminStatsResponse = {
     generatedDT:string,
+    runtimeDurationMS:number,
     environment:ENVIRONMENT_TYPE,
+    modelSourceEnvironment:ModelSourceEnvironmentEnum,
     databaseUsageMap:Record<string, DatabaseTableUsage>,
     logDailyTrendMap:Record<LogType, LogDailyTrend[]>,
     userStats:DatabaseUserStats,

@@ -524,22 +524,22 @@ export const DB_CALCULATE_PARTNERSHIP_STATS = async(modelSourceEnvironment:DATAB
         ageYearRange: ageYearRange,
         walkLevelRange: walkLevelRange,
 
-        totalUsers: row?.totalUsers ?? 0,
-        usersInPartnerships: row?.usersInPartnerships ?? 0,
-        unassignedPartners: row?.unassignedPartners ?? 0,
+        totalUsers: Number(row?.totalUsers ?? 0),
+        usersInPartnerships: Number(row?.usersInPartnerships ?? 0),
+        unassignedPartners: Number(row?.unassignedPartners ?? 0),
 
-        partnerships: row?.partnerships ?? 0,
-        pendingPartnerships: row?.pendingPartnerships ?? 0,
-        availablePartners: row?.availablePartners ?? 0,
+        partnerships: Number(row?.partnerships ?? 0),
+        pendingPartnerships: Number(row?.pendingPartnerships ?? 0),
+        availablePartners: Number(row?.availablePartners ?? 0),
 
-        availablePartnerCapacity: row?.availablePartnerCapacity ?? 0,
-        filledPartnerCapacity: row?.filledPartnerCapacity ?? 0,
+        availablePartnerCapacity: Number(row?.availablePartnerCapacity ?? 0),
+        filledPartnerCapacity: Number(row?.filledPartnerCapacity ?? 0),
 
         newUserAverageWaitTimeHours: Number(row?.newUserAverageWaitTimeHours ?? 0),
-        wait24Hours: row?.wait24Hours ?? 0,
-        wait7Days: row?.wait7Days ?? 0,
-        acceptedLastWeek: row?.acceptedLastWeek ?? 0,
-        acceptedLastMonth: row?.acceptedLastMonth ?? 0,
+        wait24Hours: Number(row?.wait24Hours ?? 0),
+        wait7Days: Number(row?.wait7Days ?? 0),
+        acceptedLastWeek: Number(row?.acceptedLastWeek ?? 0),
+        acceptedLastMonth: Number(row?.acceptedLastMonth ?? 0),
     } satisfies DatabasePartnershipStats;
 }
 
