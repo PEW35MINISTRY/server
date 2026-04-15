@@ -3,7 +3,7 @@ import { Readable } from 'stream';
 import { DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, ListObjectsV2CommandOutput, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import LOG_ENTRY from './logEntryModel.mjs';
 import { LogDailyTrend, LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
-import { getEnvironment } from '../utilities.mjs';
+import { getDateInChicago, getEnvironment } from '../utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { writeLogFile } from './log-local-utilities.mjs';
 import { Exception } from '../../../1-api/api-types.mjs';
@@ -26,20 +26,15 @@ const saveLogLocally = async(type:LogType, ...messages:string[]):Promise<boolean
 //Calculate Daily Trends for Log Type (Days split by America/Chicago Midnight)
 export const calculateLogDailyTrends = async(type:LogType, pastDays:number = 7, logList?:LOG_ENTRY[]):Promise<LogDailyTrend[]> => {
     const now:Date = new Date();
-    const chicagoDateFormatter = new Intl.DateTimeFormat('en-US', { timeZone:'America/Chicago', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23',}).formatToParts(now);
-    const chicagoMidnightUTC:number = now.getTime()
-        - (Number(chicagoDateFormatter.find(p => p.type === 'hour')?.value ?? 0) * 60 * 60 * 1000)
-        - (Number(chicagoDateFormatter.find(p => p.type === 'minute')?.value ?? 0) * 60 * 1000)
-        - (Number(chicagoDateFormatter.find(p => p.type === 'second')?.value ?? 0) * 1000)
-        - now.getMilliseconds();
+    const chicagoMidnightMS:number = getDateInChicago().getMilliseconds();
 
-    const dailyTrendBuckets:LogDailyTrend[] = Array.from({ length:pastDays + 1 }, (_, i):LogDailyTrend => ({ startTimestamp:chicagoMidnightUTC - (i * (24 * 60 * 60 * 1000)), total:0, unique:0, burstEvents:0 }));
+    const dailyTrendBuckets:LogDailyTrend[] = Array.from({ length:pastDays + 1 }, (_, i):LogDailyTrend => ({ startTimestamp:chicagoMidnightMS - (i * (24 * 60 * 60 * 1000)), total:0, unique:0, burstEvents:0 }));
 
     //Populate buckets by S3 log entries from now back through current Chicago day plus prior whole days
-    const entries:LOG_ENTRY[] = logList ?? await fetchS3LogsByDateRange(type, chicagoMidnightUTC - (pastDays * 24 * 60 * 60 * 1000), now.getTime());
+    const entries:LOG_ENTRY[] = logList ?? await fetchS3LogsByDateRange(type, chicagoMidnightMS - (pastDays * 24 * 60 * 60 * 1000), now.getTime());
     
     entries.forEach((entry:LOG_ENTRY) => {
-        const dayIndex:number = Math.floor((chicagoMidnightUTC - entry.getTimestamp()) / (24 * 60 * 60 * 1000)) + 1;
+        const dayIndex:number = Math.floor((chicagoMidnightMS - entry.getTimestamp()) / (24 * 60 * 60 * 1000)) + 1;
 
         if(dayIndex >= 0 && dayIndex <= pastDays) {
             dailyTrendBuckets[dayIndex].unique += 1;

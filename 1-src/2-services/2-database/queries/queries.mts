@@ -3,7 +3,7 @@ import { DatabaseTableUsage, DatabaseUserStats } from '../../../0-assets/field-s
 import { command, execute, query, validateColumns } from '../database.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
 import { WebsiteSubscription } from '../../../1-api/2-auth/auth-types.mjs';
-import { RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { RoleEnum, walkLevelMultiplier, walkLevelOptions } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 
 
@@ -59,36 +59,37 @@ export const DB_CALCULATE_USER_TABLE_STATS = async(modelSourceEnvironment:DATABA
         + 'SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS modified30Days, '
         
         + 'SUM(isEmailVerified = 1) AS emailVerified, '
-        + [1,2,3,4,5,6,7,8,9,10].map((level) => `SUM(CASE WHEN walkLevel = ${level} AND (`
-            + `NOT EXISTS (`
-                + `SELECT 1 `
-                + `FROM user_role ur0 `
-                + `WHERE ur0.userID = user.userID`
-            + `) `
-            + `OR EXISTS (`
-                + `SELECT 1 `
-                + `FROM user_role ur1 `
-                + `JOIN user_role_defined urd1 ON ur1.userRoleID = urd1.userRoleID `
-                + `WHERE ur1.userID = user.userID `
-                  + `AND urd1.userRole = '${RoleEnum.USER}'`
+        + Array.from(walkLevelOptions.keys()).sort((a, b) => a - b).map((walkLevel) => 
+            `SUM(CASE WHEN walkLevel BETWEEN ${((walkLevel - 1) * walkLevelMultiplier) + 1} AND ${walkLevel * walkLevelMultiplier} AND ( ` //Range Selection: 1-2, 3-4, 5-6, 7-8, 9-10
+            + 'NOT EXISTS ( '
+                + 'SELECT 1 '
+                + 'FROM user_role '
+                + 'WHERE user_role.userID = user.userID '
+            + ') '
+            + 'OR EXISTS ( '
+                + 'SELECT 1 '
+                + 'FROM user_role '
+                + 'JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
+                + 'WHERE user_role.userID = user.userID '
+                + `AND user_role_defined.userRole = '${RoleEnum.USER}'`
             + `)`
-        + `) THEN 1 ELSE 0 END) AS \`walkLevel_${level}\``).join(', \n')
+        + `) THEN 1 ELSE 0 END) AS \`walkLevel_${walkLevel * walkLevelMultiplier}\``).join(', \n')
         + ', '
 
-        + Object.values(RoleEnum).map((role) =>
+        + Object.values(RoleEnum).reverse().map((role) =>
             `(SELECT COUNT(DISTINCT user.userID) `
-                + `FROM user `
-                + `JOIN user_role ON user.userID = user_role.userID `
-                + `JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID `
+                + 'FROM user '
+                + 'JOIN user_role ON user.userID = user_role.userID '
+                + 'JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
                 + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}' `
                   + `AND user_role_defined.userRole = '${role}') AS ${role}`
             ).join(', \n')
 
-        + `, (SELECT COUNT(*) `
-                + `FROM user `
-                + `LEFT JOIN user_role ON user.userID = user_role.userID `
+        + ', (SELECT COUNT(*) '
+                + 'FROM user '
+                + 'LEFT JOIN user_role ON user.userID = user_role.userID '
                 + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}' `
-                  + `AND user_role.userID IS NULL) AS NO_ROLE `
+                  + 'AND user_role.userID IS NULL) AS NO_ROLE '
 
         + 'FROM user '
         + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}';`);
@@ -103,8 +104,8 @@ export const DB_CALCULATE_USER_TABLE_STATS = async(modelSourceEnvironment:DATABA
         modified30Days: Number(row?.modified30Days ?? 0),
         emailVerified: Number(row?.emailVerified ?? 0),
         walkLevelMap: Object.fromEntries(
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => [
-                level, Number(row?.[`walkLevel_${level}`] ?? 0)
+            Array.from(walkLevelOptions.keys()).sort((a, b) => a - b).map((walkLevel) => [
+                walkLevel * walkLevelMultiplier, Number(row?.['walkLevel_' + (walkLevel * walkLevelMultiplier)] ?? 0)
             ])
         ),
         roleMap: Object.fromEntries(Object.values(RoleEnum).map(role => [

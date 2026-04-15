@@ -65,8 +65,7 @@ export const htmlUserStats = async():Promise<string> => {
 
     return htmlSummaryPairList('User Statistics', new Map<string, string | number>([
         ['Total Users', stats.totalRows],
-        ['Email Verified', stats.emailVerified],
-        ['Email Verified as %', (stats.totalRows > 0) ? ((stats.emailVerified / stats.totalRows) * 100).toFixed(2) + '%' : '0%'],
+        ['Email Verified', `${stats.emailVerified} (${(stats.totalRows > 0) ? ((stats.emailVerified / stats.totalRows) * 100).toFixed(0) + '%' : '0%'})`],
         ['Users', stats.roleMap[RoleEnum.USER]],
         ['Users (Unassigned)', stats.unassignedUsers],
         ['Demo Users', stats.roleMap[RoleEnum.DEMO_USER] > 0 ? stats.roleMap[RoleEnum.DEMO_USER] : '-'],

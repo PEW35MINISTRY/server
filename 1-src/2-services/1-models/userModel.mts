@@ -251,6 +251,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
     * RELATED UTILITIES *
     *********************/
     //Simple Unique Enum matching for updating RoleEnum and EmailSubscription
+    //Identifies and executes necessary insert/delete of list entries; by differentiating between newList vs currentList
     static async syncDatabaseList<T, DB_T = T>({userID, newList, currentList, DBInsertBatch, DBDeleteBatch, DBSelectList, mapToDatabaseEnum = (value:T):DB_T => value as unknown as DB_T}
                                           :{userID:number, newList:T[], currentList:T[], DBInsertBatch:(userID:number, ...insertList:DB_T[]) => Promise<boolean>, DBDeleteBatch:(userID:number, ...deleteList:DB_T[]) => Promise<boolean>, DBSelectList:(userID:number) => Promise<T[]>, mapToDatabaseEnum?:(value:T) => DB_T|undefined}):Promise<T[]> {
         const normalizedNewList:T[] = [...new Set(newList)];

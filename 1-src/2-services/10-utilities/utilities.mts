@@ -93,6 +93,16 @@ export const isEnumValue = <T,>(enumObj: T, value: any): value is T[keyof T] => 
       
 export const getSHA256Hash = (value:string) => createHash('sha256').update(value).digest('hex');
 
+// Returns the UTC Date object for the given Chicago hour/minute on the same Chicago day (Supports Daylight Savings)
+export const getDateInChicago = (hour:number = 0, minutes:number = 0, date:Date = new Date()):Date => {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit', timeZoneName: 'longOffset' }).formatToParts(date);
+    const year = parts.find((p) => p.type === 'year')?.value ?? '2026';
+    const month = parts.find((p) => p.type === 'month')?.value ?? '01';
+    const day = parts.find((p) => p.type === 'day')?.value ?? '01';
+    const offset = (parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+00:00').replace('GMT', '');
+
+    return new Date(`${year}-${month}-${day}T${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00${offset}`);
+}
 
 
 /***************************************
