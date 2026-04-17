@@ -103,7 +103,7 @@ export const getEmailReportContent = async(subscription:EmailSubscription):Promi
 
 
 export const sendEmailReport = async(subscription:EmailSubscription, emailRecipientMap?:Map<number, string>, sendIndividually:boolean = false):Promise<boolean> => {
-    const recipientMap:Map<number, string> = emailRecipientMap ?? await await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(subscription);
+    const recipientMap:Map<number, string> = emailRecipientMap ?? await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(subscription);
     if(recipientMap.size === 0)
         return false;
 

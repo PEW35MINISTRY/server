@@ -109,7 +109,7 @@ export const assembleDailyLogReport = async(type:LogType = LogType.ERROR):Promis
     return {subject: `EP ${nowDayOfWeek}'s ${makeDisplayText(type)} Report - ${makeDisplayText(getEnvironment())}`, isHTML:false,
         body: `${nowDayOfWeek} ${makeDisplayText(type)} Report\n`.toUpperCase()
             + '-----------------------------------------------\n\n'
-            + `Information Generated (CST): ${formatDate(new Date(), true)}\n`
+            + `Information Generated (CST): ${formatDate(new Date(nowTimestamp), true)}\n`
             + `Environment: ${makeDisplayText(getEnvironment())}\n`
             + `Current Runtime Duration: ${formatDuration(SERVER_START_TIMESTAMP)}\n`
             + '\n'
