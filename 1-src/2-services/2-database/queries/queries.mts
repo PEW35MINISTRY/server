@@ -1,9 +1,10 @@
-import { CommandResponseType, DATABASE_TABLE, DATABASE_USER_ROLE_ENUM, TABLES_SUPPORTING_DT } from '../database-types.mjs';
+import { CommandResponseType, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_TABLE, DATABASE_USER_ROLE_ENUM, TABLES_SUPPORTING_DT } from '../database-types.mjs';
 import { DatabaseTableUsage, DatabaseUserStats } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
 import { WebsiteSubscription } from '../../../1-api/2-auth/auth-types.mjs';
-import { RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { RoleEnum, walkLevelMultiplier, walkLevelOptions } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 
 
 
@@ -37,17 +38,17 @@ export const DB_CALCULATE_TABLE_USAGE = async(tableName:DATABASE_TABLE):Promise<
         log.warn('DB_CALCULATE_TABLE_USAGE', 'Table supports DT fields but returned all zeros', tableName, row);
   
     return {
-      totalRows: row?.totalRows ?? 0,
-      created24Hours: row?.created24Hours ?? 0,
-      created7Days: row?.created7Days ?? 0,
-      created30Days: row?.created30Days ?? 0,
-      modified24Hours: row?.modified24Hours ?? 0,
-      modified7Days: row?.modified7Days ?? 0,
-      modified30Days: row?.modified30Days ?? 0,
+        totalRows: Number(row?.totalRows ?? 0),
+        created24Hours: Number(row?.created24Hours ?? 0),
+        created7Days: Number(row?.created7Days ?? 0),
+        created30Days: Number(row?.created30Days ?? 0),
+        modified24Hours: Number(row?.modified24Hours ?? 0),
+        modified7Days: Number(row?.modified7Days ?? 0),
+        modified30Days: Number(row?.modified30Days ?? 0),
     };
 }
 
-export const DB_CALCULATE_USER_TABLE_STATS = async():Promise<DatabaseUserStats> => {
+export const DB_CALCULATE_USER_TABLE_STATS = async(modelSourceEnvironment:DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM = getModelSourceEnvironment()):Promise<DatabaseUserStats> => {
     const [row] = await query('SELECT '
         + 'COUNT(*) AS totalRows, '
         + 'SUM(CASE WHEN createdDT >= NOW() - INTERVAL 1 DAY THEN 1 ELSE 0 END) AS created24Hours, '
@@ -58,41 +59,59 @@ export const DB_CALCULATE_USER_TABLE_STATS = async():Promise<DatabaseUserStats> 
         + 'SUM(CASE WHEN modifiedDT >= NOW() - INTERVAL 30 DAY THEN 1 ELSE 0 END) AS modified30Days, '
         
         + 'SUM(isEmailVerified = 1) AS emailVerified, '
-        + [1,2,3,4,5,6,7,8,9,10].map((level) => `SUM(walkLevel = ${level}) AS 'walkLevel_${level}'`).join(', \n') 
+        + Array.from(walkLevelOptions.keys()).sort((a, b) => a - b).map((walkLevel) => 
+            `SUM(CASE WHEN walkLevel BETWEEN ${((walkLevel - 1) * walkLevelMultiplier) + 1} AND ${walkLevel * walkLevelMultiplier} AND ( ` //Range Selection: 1-2, 3-4, 5-6, 7-8, 9-10
+            + 'NOT EXISTS ( '
+                + 'SELECT 1 '
+                + 'FROM user_role '
+                + 'WHERE user_role.userID = user.userID '
+            + ') '
+            + 'OR EXISTS ( '
+                + 'SELECT 1 '
+                + 'FROM user_role '
+                + 'JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
+                + 'WHERE user_role.userID = user.userID '
+                + `AND user_role_defined.userRole = '${RoleEnum.USER}'`
+            + `)`
+        + `) THEN 1 ELSE 0 END) AS \`walkLevel_${walkLevel * walkLevelMultiplier}\``).join(', \n')
         + ', '
 
-        + Object.values(DATABASE_USER_ROLE_ENUM).map((role) =>
-            `(SELECT COUNT(*) 
-                FROM user_role 
-                JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID 
-                WHERE user_role_defined.userRole = '${role}') AS ${role}`
+        + Object.values(RoleEnum).reverse().map((role) =>
+            `(SELECT COUNT(DISTINCT user.userID) `
+                + 'FROM user '
+                + 'JOIN user_role ON user.userID = user_role.userID '
+                + 'JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
+                + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}' `
+                  + `AND user_role_defined.userRole = '${role}') AS ${role}`
             ).join(', \n')
 
-        + `, (SELECT COUNT(*) 
-                FROM user 
-                LEFT JOIN user_role ON user.userID = user_role.userID 
-                WHERE user_role.userID IS NULL) AS NO_ROLE `
+        + ', (SELECT COUNT(*) '
+                + 'FROM user '
+                + 'LEFT JOIN user_role ON user.userID = user_role.userID '
+                + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}' `
+                  + 'AND user_role.userID IS NULL) AS NO_ROLE '
 
-        + `FROM user;`); 
+        + 'FROM user '
+        + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}';`);
     
     return {
-        totalRows: row?.totalRows ?? 0,
-        created24Hours: row?.created24Hours ?? 0,
-        created7Days: row?.created7Days ?? 0,
-        created30Days: row?.created30Days ?? 0,
-        modified24Hours: row?.modified24Hours ?? 0,
-        modified7Days: row?.modified7Days ?? 0,
-        modified30Days: row?.modified30Days ?? 0,
-        emailVerified: row?.emailVerified ?? 0,
+        totalRows: Number(row?.totalRows ?? 0),
+        created24Hours: Number(row?.created24Hours ?? 0),
+        created7Days: Number(row?.created7Days ?? 0),
+        created30Days: Number(row?.created30Days ?? 0),
+        modified24Hours: Number(row?.modified24Hours ?? 0),
+        modified7Days: Number(row?.modified7Days ?? 0),
+        modified30Days: Number(row?.modified30Days ?? 0),
+        emailVerified: Number(row?.emailVerified ?? 0),
         walkLevelMap: Object.fromEntries(
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => [
-                level, row ? (row[`walkLevel_${level}`] ?? 0) : 0
+            Array.from(walkLevelOptions.keys()).sort((a, b) => a - b).map((walkLevel) => [
+                walkLevel * walkLevelMultiplier, Number(row?.['walkLevel_' + (walkLevel * walkLevelMultiplier)] ?? 0)
             ])
         ),
         roleMap: Object.fromEntries(Object.values(RoleEnum).map(role => [
-            role, row ? (row[role] ?? 0) : 0
+            role, Number(row?.[role] ?? 0)
         ])) as Record<RoleEnum, number>,
-        unassignedUsers: row?.NO_ROLE ?? 0,
+        unassignedUsers: Number(row?.NO_ROLE ?? 0),
     };
 };
 

@@ -1,9 +1,10 @@
 import { createHash } from 'crypto';
 import { S3Client, ListBucketsCommand } from '@aws-sdk/client-s3';
-import { getEnvBase, getEnvEnumBase } from './env-utilities.mjs';
+import { getEnvBase, getEnvEnumBase, getEnvironment as getEnvironmentSource } from './env-utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM } from '../2-database/database-types.mjs';
 import * as log from './logging/log.mjs';
+import { AWSMetadata } from '../4-email/email-types.mjs';
 
 
 
@@ -16,8 +17,8 @@ export const getEnv = <T=string,>(name:string, expectedType:'string' | 'number' 
 
 export const getEnvEnum = <T extends Record<string, string>>(name:string, enumObject:T, defaultValue?:T[keyof T]):T[keyof T]|undefined => getEnvEnumBase<T>(log.error, name, enumObject, defaultValue);
 
-/* Parse Environment | (Don't default to PRODUCTION for security) */
-export const getEnvironment = ():ENVIRONMENT_TYPE => ENVIRONMENT_TYPE[process.env.ENVIRONMENT as keyof typeof ENVIRONMENT_TYPE] || ENVIRONMENT_TYPE.DEVELOPMENT;
+//TODO: Temporary redirect to single source
+export const getEnvironment = ():ENVIRONMENT_TYPE => getEnvironmentSource();
 
 export const getModelSourceEnvironment = (): DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM => {
     return DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM[process.env.DEFAULT_MODEL_SOURCE_ENVIRONMENT as keyof typeof DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM] 
@@ -37,6 +38,45 @@ export const checkAWSAuthentication = async():Promise<boolean> => {
     }
 }
 
+
+//Undefined indicates Local and non-EC2 without accessible IMDS
+export const getAWSMetadata = async():Promise<AWSMetadata | undefined> => {
+    try {
+        const tokenResponse:Response = await fetch('http://169.254.169.254/latest/api/token', {
+            method: 'PUT', headers: { 'X-aws-ec2-metadata-token-ttl-seconds': '21600' },
+        });
+
+        if(!tokenResponse.ok) return undefined;
+        const token:string = await tokenResponse.text();
+
+        const getValue = async(path:string):Promise<string> => {
+            const response:Response = await fetch(`http://169.254.169.254${path}`, {
+                method: 'GET', headers: { 'X-aws-ec2-metadata-token': token },
+            });
+
+            if(!response.ok) 
+                throw new Error('metadata fetch failed');
+            else
+                return response.text();
+        };
+
+        const availabilityZone:string = await getValue('/latest/meta-data/placement/availability-zone');
+        return {
+            instanceID: await getValue('/latest/meta-data/instance-id'),
+            instanceType: await getValue('/latest/meta-data/instance-type'),
+            availabilityZone,
+            awsRegion: availabilityZone ? availabilityZone.slice(0, -1) : '',
+            publicIP: await getValue('/latest/meta-data/public-ipv4').catch(() => ''),
+            privateIP: await getValue('/latest/meta-data/local-ipv4').catch(() => ''),
+            publicHostname: await getValue('/latest/meta-data/public-hostname').catch(() => ''),
+        };
+    } catch {
+        console.log('Uncaught error while fetching AWS Metadata.');
+        return undefined;
+    }
+}
+
+
 /*********************
  * GENERIC UTILITIES *
  *********************/
@@ -53,6 +93,16 @@ export const isEnumValue = <T,>(enumObj: T, value: any): value is T[keyof T] => 
       
 export const getSHA256Hash = (value:string) => createHash('sha256').update(value).digest('hex');
 
+// Returns the UTC Date object for the given Chicago hour/minute on the same Chicago day (Supports Daylight Savings)
+export const getDateInChicago = (hour:number = 0, minutes:number = 0, date:Date = new Date()):Date => {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit', timeZoneName: 'longOffset' }).formatToParts(date);
+    const year = parts.find((p) => p.type === 'year')?.value ?? '2026';
+    const month = parts.find((p) => p.type === 'month')?.value ?? '01';
+    const day = parts.find((p) => p.type === 'day')?.value ?? '01';
+    const offset = (parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+00:00').replace('GMT', '');
+
+    return new Date(`${year}-${month}-${day}T${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00${offset}`);
+}
 
 
 /***************************************
@@ -71,6 +121,12 @@ export const stringifyErrorMessage = (message:any):string => {
     //AWS SDK V2 & JS Error object
     else if(message instanceof Error)
       return `${message.name}: ${message.message}`;
+
+    else if(message instanceof Map)
+      return JSON.stringify(Array.from(message.entries()));
+
+    else if(message instanceof Set)
+      return JSON.stringify(Array.from(message.values()));
 
     else if(typeof message === 'object') {
       try {

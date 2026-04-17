@@ -1,7 +1,7 @@
-import { htmlHeader, htmlText, htmlBulletList, htmlActionButton, htmlFooter } from "../components/email-template-components.mjs";
-import { applyTemplate, EMAIL_TEMPLATE_TYPE, EMAIL_REPLACEMENT } from "../email-template-manager.mjs";
-import { sendTemplateEmail } from "../email-transporter.mjs";
-import { EMAIL_SENDER_ADDRESS } from "../email-types.mjs";
+import { htmlHeader, htmlText, htmlBulletList, htmlActionButton, htmlFooter } from '../components/email-template-components.mjs';
+import { applyTemplate, EMAIL_TEMPLATE_TYPE, EMAIL_REPLACEMENT } from '../email-template-manager.mjs';
+import { sendTemplateEmail } from '../email-transporter.mjs';
+import { EMAIL_SENDER_ADDRESS } from '../email-types.mjs';
 
 
 /***********************************

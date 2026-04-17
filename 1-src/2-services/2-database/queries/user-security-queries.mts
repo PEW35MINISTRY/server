@@ -1,12 +1,12 @@
 import { execute, command, query, batch } from '../database.mjs';
 import { DATABASE_USER_ROLE_ENUM, CommandResponseType, DATABASE_TOKEN, DATABASE_TOKEN_TYPE_ENUM } from '../database-types.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
-import { RoleEnum } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { RoleEnum, EmailSubscription } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
 
 /**************************************************************************
 /*       DEFINING AND HANDLING ALL QUERIES HERE 
-/* TABLES: user_role, user_role_defined, user_token
+/* TABLES: user_role, user_role_defined, user_token, user_email_subscription
 ***************************************************************************/
 
 /* Prevent SQL Injection Protocol:
@@ -223,4 +223,79 @@ export const DB_FLUSH_EXPIRED_TOKENS = async(type?:DATABASE_TOKEN_TYPE_ENUM):Pro
         + 'WHERE expirationDT < NOW() AND type = ?;', [type]);
 
     return (response !== undefined);  //Success on non-error
+}
+
+
+
+/****************************************
+ *   EMAIL SUBSCRIPTION QUERIES         *
+ * userID | subscription                *
+ ****************************************/
+
+export const DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST = async(userID:number):Promise<EmailSubscription[]> => {
+    const rows = await execute('SELECT subscription FROM user_email_subscription '
+        + 'WHERE userID = ? '
+        + 'ORDER BY subscription;', [userID]);
+
+    //Log warning for outdated subscriptions; still returns all
+    rows.forEach(row => {
+        if(Object.values(EmailSubscription).indexOf(row.subscription) === -1)
+            log.db('DB_SELECT_EMAIL_SUBSCRIPTION_LIST: invalid subscription returned from select userID=' + userID + ' subscription=' + row.subscription);
+    });
+
+    return rows.map(row => EmailSubscription[row.subscription]);
+}
+
+export const DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP = async(subscription:EmailSubscription):Promise<Map<number, string>> => {
+    if(Object.values(EmailSubscription).indexOf(subscription) === -1) {
+        log.db('DB_SELECT_EMAIL_LIST_BY_SUBSCRIPTION: invalid subscription input', subscription);
+        return new Map();
+    }
+
+    const rows = await execute('SELECT user.userID, user.email '
+        + 'FROM user_email_subscription '
+        + 'INNER JOIN user ON user.userID = user_email_subscription.userID '
+        + 'WHERE LOWER(user_email_subscription.subscription) = LOWER(?) '
+        + 'AND user.isEmailVerified = 1;', [subscription]);
+
+    return rows.reduce((map, row) => map.set(row.userID, row.email), new Map<number, string>());
+}
+
+//Subscriptions are raw string, controlled input by enum EmailSubscription
+export const DB_INSERT_USER_EMAIL_SUBSCRIPTION_BATCH = async(userID:number, ...subscriptions:EmailSubscription[]):Promise<boolean> => {
+
+    //Filter for valid subscriptions
+    subscriptions = subscriptions.filter(subscription => {
+        const isValid:boolean = Object.values(EmailSubscription).includes(subscription);
+
+        if(!isValid)
+            log.db('DB_INSERT_EMAIL_SUBSCRIPTION_BATCH: invalid subscription input', userID, subscription);
+
+        return isValid;
+    });
+
+    subscriptions = [...new Set(subscriptions)];
+
+    if(subscriptions.length === 0)
+        return false;
+
+    const placeholderList:string = subscriptions.map(() => '(?, ?)').join(', ');
+    const response:CommandResponseType = await command(
+        'INSERT IGNORE INTO user_email_subscription (userID, subscription) '
+        + `VALUES ${placeholderList};`,
+    [...subscriptions.flatMap((subscription:EmailSubscription) => [userID, subscription])]);
+
+    return (response?.affectedRows > 0);
+}
+
+export const DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH = async(userID:number, ...subscriptions:EmailSubscription[]):Promise<boolean> => {
+    if(subscriptions.length === 0)
+        return false;
+
+    const response:CommandResponseType = await command('DELETE FROM user_email_subscription '
+        + 'WHERE userID = ? '
+            + 'AND LOWER(subscription) IN (' + subscriptions.map(() => 'LOWER(?)').join(', ') + ');',
+        [userID, ...subscriptions]);
+
+    return (response?.affectedRows > 0);
 }

@@ -1,9 +1,10 @@
 
 import { NextFunction, Request, Response } from 'express';
 import { IncomingHttpHeaders } from 'http';
-import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { RoleEnum, EmailSubscription } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { JwtPayload } from 'jsonwebtoken';
 import { LoginRequestBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
+import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 
 
 /****************************************************************************************
@@ -109,6 +110,10 @@ export interface JwtClientPartnerRequest extends JwtClientRequest {
     partnerID:number,
 };
 
+export interface JwtClientEmailSubscriptionRequest extends JwtClientRequest {
+    body: EmailSubscription[]
+};
+
 export interface JwtCircleRequest extends JwtRequest {
     params: JwtRequest['params'] & {
         circle:string,
@@ -166,3 +171,18 @@ export interface LogEntryKeyRequest extends JwtAdminRequest {
         key:string
     }
 };
+
+export interface ReportSubscriptionRequest extends JwtAdminRequest {
+    params:JwtAdminRequest['params'] & {
+        subscription:EmailSubscription|LogType
+    }
+};
+
+export interface ReportSubscriptionClientRequest extends JwtClientRequest {
+    params:JwtClientRequest['params'] & {
+        subscription:EmailSubscription|LogType
+    },
+    query: {
+        email:string
+    }
+}

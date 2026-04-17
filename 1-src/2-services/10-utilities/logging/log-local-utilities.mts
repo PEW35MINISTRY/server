@@ -1,7 +1,7 @@
 import fs, { promises as fsPromises } from 'fs';
 import { NextFunction, Response } from 'express';
 import readline from 'readline';
-import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE, SAVE_LOGS_LOCALLY, LOG_SEARCH_DEFAULT_MAX_ENTRIES } from './log-types.mjs';
+import { LOG_DIRECTORY, getLogFilePath, LOG_MAX_SIZE_BYTES, LOG_ROLLOVER_SIZE_BYTES, LOG_ESTIMATE_CONFIDENCE, SAVE_LOGS_LOCALLY, LOG_SEARCH_DEFAULT_MAX_ENTRIES, PRINT_LOGS_TO_CONSOLE } from './log-types.mjs';
 import { LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import LOG_ENTRY, { logDateRegex } from './logEntryModel.mjs';
 import { getEnvironment } from '../utilities.mjs';
@@ -131,7 +131,7 @@ export const readLogFile = async (type:LogType, maxEntries:number|undefined = un
                 - (estimateBytes(type, (lastReadIndex + 1) * maxEntries) 
                     * (2.0 - LOG_ESTIMATE_CONFIDENCE))));
         
-        if(startByte > 0 && getEnvironment() === ENVIRONMENT_TYPE.LOCAL) console.log(`NOTE: Reading local ${type} log file at byte: ${startByte} of total size: ${await calculateLogSize(type)} bytes.`);
+        if(startByte > 0 && PRINT_LOGS_TO_CONSOLE) console.log(`NOTE: Reading local ${type} log file at byte: ${startByte} of total size: ${await calculateLogSize(type)} bytes.`);
 
         const readInterface = readline.createInterface({
             input: fs.createReadStream(getLogFilePath(type), { encoding: 'utf-8', start: startByte }),

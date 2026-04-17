@@ -10,6 +10,7 @@ import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/in
 import { athenaSearchS3Logs } from '../../2-services/10-utilities/logging/log-s3-athena-search.mjs';
 import { updateAthenaPartitions } from '../../2-services/10-utilities/athena.mjs';
 import { LOG_DEFAULT_ERROR_PERCENTAGE, LOG_SEARCH_DEFAULT_MAX_ENTRIES, LOG_SEARCH_DEFAULT_TIMESPAN } from '../../2-services/10-utilities/logging/log-types.mjs';
+import { sendEmailLogAlert } from '../../2-services/4-email/email.mjs';
 
 
 //Fetch individual entry by S3 File Key
@@ -86,18 +87,13 @@ export const POST_LogPartitionBucket = async (request:JwtAdminRequest, response:
 
 /* Save New Log Entry */
 export const POST_LogEntry = async(type:LogType|'ALERT'|undefined, request:LogEntryNewRequest, response:Response, next:NextFunction) => {
-    let logType:LogType;
-    const sendAlertEmail:boolean = (type === 'ALERT'); //Alert Error is type LogType.ERROR and sends email
-    
-    if(sendAlertEmail) {
-        logType = LogType.ERROR;
     /* Identifying Log Type via URL parameter */
-    } else if(type === undefined) {
-        logType = LogType[String(request.params.type ?? '').toUpperCase().trim() as keyof typeof LogType];
+    const rawLogType = String(type ?? request.params.type ?? '').toUpperCase().trim();
+    const sendAlertEmail:boolean = (rawLogType === 'ALERT'); //Alert Error is type LogType.ERROR and sends email
 
-        if(logType === undefined) 
-            return next(new Exception(400, `Failed to parse log type :: missing 'type' parameter :: ${request.params.type}`, 'Missing Log Type'));
-    }
+    let logType:LogType = sendAlertEmail ? LogType.ERROR : LogType[rawLogType as keyof typeof LogType];
+    if(logType === undefined) 
+        return next(new Exception(400, `Failed to parse log type :: missing 'type' parameter :: ${request.params.type}`, 'Missing Log Type'));
 
     /* Identifying Location from Query parameter */
     const location = LogLocation[request.query.location as string] || (getEnvironment() === ENVIRONMENT_TYPE.LOCAL) ? LogLocation.LOCAL : LogLocation.S3;
@@ -116,8 +112,7 @@ export const POST_LogEntry = async(type:LogType|'ALERT'|undefined, request:LogEn
     
     else {
         if(sendAlertEmail)
-            console.warn('Email Alert not supported yet.');
-            // await sendLogAlertEmail(logEntry);
+            await sendEmailLogAlert(logEntry);
         return response.status(202).send(logEntry.toJSON());
     }
 }

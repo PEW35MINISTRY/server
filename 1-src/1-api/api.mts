@@ -7,12 +7,17 @@ import { createMockCircle, createMockPrayerRequest, createMockUser, populateDemo
 import { DB_SELECT_USER } from '../2-services/2-database/queries/user-queries.mjs';
 import { CreateDemoRequest } from './3-profile/profile-types.mjs';
 import PRAYER_REQUEST from '../2-services/1-models/prayerRequestModel.mjs';
-import { getEnvironment } from '../2-services/10-utilities/utilities.mjs';
+import { getEnvironment, getModelSourceEnvironment } from '../2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE } from '../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { answerAndNotifyPrayerRequests } from '../3-lambda/prayer-request/prayer-request-expired-script.mjs';
-import { AdminStatsResponse } from '../0-assets/field-sync/api-type-sync/utility-types.mjs';
+import { AdminStatsResponse, LogDailyTrend, LogType } from '../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { DB_CALCULATE_TABLE_USAGE, DB_CALCULATE_USER_TABLE_STATS } from '../2-services/2-database/queries/queries.mjs';
 import { DATABASE_TABLE } from '../2-services/2-database/database-types.mjs';
+import { calculateLogDailyTrends } from '../2-services/10-utilities/logging/log-s3-utilities.mjs';
+import { DB_CALCULATE_PARTNERSHIP_STATS } from '../2-services/2-database/queries/partner-queries.mjs';
+import { SERVER_START_TIMESTAMP } from '../server.mjs';
+import { ModelSourceEnvironmentEnum } from '../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+
 
 const router:Router = express.Router();
 
@@ -32,12 +37,20 @@ export default router;
 export const GET_AdminStatistics = async(request:JwtAdminRequest, response:Response, next:NextFunction) =>
     response.status(200).json({
         generatedDT: new Date().toISOString(),
+        runtimeDurationMS: (new Date().getTime() - SERVER_START_TIMESTAMP.getTime()),
+        
         environment: getEnvironment(),
+        modelSourceEnvironment: ModelSourceEnvironmentEnum[getModelSourceEnvironment()],
 
         databaseUsageMap: Object.fromEntries(await Promise.all(
                 Object.entries(DATABASE_TABLE).map(async ([name, table]) => [name, await DB_CALCULATE_TABLE_USAGE(table)]))),
 
+        logDailyTrendMap: Object.fromEntries(await Promise.all(
+            Object.values(LogType).map(async(type):Promise<[LogType, LogDailyTrend[]]> => [ type, await calculateLogDailyTrends(type) ]))) as Record<LogType, LogDailyTrend[]>,
+
         userStats: await DB_CALCULATE_USER_TABLE_STATS(),
+
+        partnershipStats: await DB_CALCULATE_PARTNERSHIP_STATS(),
     } satisfies AdminStatsResponse);
 
 

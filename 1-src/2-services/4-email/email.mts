@@ -1,21 +1,21 @@
+import { readFileSync, existsSync } from 'fs';
 import * as log from '../10-utilities/logging/log.mjs';
 import LOG_ENTRY from '../10-utilities/logging/logEntryModel.mjs';
-import { EMAIL_COLOR, EMAIL_SENDER_ADDRESS, EmailSenderAddress  } from './email-types.mjs';
+import { AWSMetadata, EMAIL_SENDER_ADDRESS, EmailReportContent, EmailSenderAddress  } from './email-types.mjs';
 import { sendLogTextEmail, sendTemplateEmail, sendTextEmail } from './email-transporter.mjs';
-import { htmlPartnershipBlock, htmlProfileBlock } from './components/email-template-items.mjs';
 import { applyTemplate, EMAIL_REPLACEMENT, EMAIL_TEMPLATE_TYPE } from './email-template-manager.mjs';
-import { htmlHeader, htmlTitle, htmlText, htmlSection, htmlAccessCode, htmlActionButton, htmlFooter, htmlVerticalSpace, htmlDetailList } from './components/email-template-components.mjs';
-import { renderDatabaseTableUsage, htmlUserStats, htmlUserRoleDistribution, htmlUserWalkLevelDistribution, renderLogList } from './components/email-template-renders.mjs';
-import { formatDate, getEmailSignature } from './email-utilities.mjs';
+import { htmlHeader, htmlText, htmlAccessCode, htmlActionButton, htmlFooter, htmlVerticalSpace, htmlDetailList } from './components/email-template-components.mjs';
 import { DB_SELECT_USER, DB_SELECT_USER_BATCH_EMAIL_MAP } from '../2-database/queries/user-queries.mjs';
-import { getEnvironment } from '../10-utilities/utilities.mjs';
-import { DATABASE_TABLE } from '../2-database/database-types.mjs';
-import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { ENVIRONMENT_TYPE, makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP } from '../2-database/queries/user-security-queries.mjs';
+import { assembleDailyLogReport as assembleDailyLogReportText, assembleDeploymentSystemReport, assembleLogAlertReport, assembleWeeklySystemReport as assembleWeeklySystemReportText } from './configurations/email-reports-logs.mjs';
+import { assembleUserReportHTML, assemblePartnerReportHTML } from './configurations/email-reports-user.mjs';
+import { EmailSubscription } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
-import { WebsiteSubscription } from '../../1-api/2-auth/auth-types.mjs';
-import { DB_SELECT_EMAIL_SUBSCRIPTION_RECENT } from '../2-database/queries/queries.mjs';
-import { NewPartnerListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST } from '../2-database/queries/partner-queries.mjs';
+import { getEmailSignature } from './email-utilities.mjs';
+import { getEnvironment, getAWSMetadata, getEnv } from '../10-utilities/utilities.mjs';
+import { SERVER_START_TIMESTAMP, SERVER_START_TIMESTAMP_PATH } from '../../server.mjs';
+import { PRINT_LOGS_TO_CONSOLE } from '../10-utilities/logging/log-types.mjs';
 
 
 
@@ -78,113 +78,123 @@ const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, u
 /************************
  * HTML REPORT HANDLERS *
  *************************/
-export const sendEmailUserReport = async(recipientEmail:string, ...userIDList:number[]):Promise<boolean> => {
-    const recipientMap = recipientEmail ? new Map<number, string>([[-1, recipientEmail]]) : await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
-    const templateHtml = await assembleUserReportHTML();
-    return await sendTemplateEmail(`EP User Status | ${makeDisplayText(getEnvironment())} Environment`, templateHtml, EMAIL_SENDER_ADDRESS.SYSTEM, recipientMap);
-}
+export const getEmailReportContent = async(subscription:EmailSubscription):Promise<EmailReportContent> => {
+    switch(subscription) {
+        case EmailSubscription.SYSTEM_DEPLOYMENT:
+            return await assembleDeploymentSystemReport();
 
-export const assembleUserReportHTML = async():Promise<string> => {
-    const subscriptionList:WebsiteSubscription[] = await DB_SELECT_EMAIL_SUBSCRIPTION_RECENT(90);
-    const unassignedProfileList:NewPartnerListItem[] = await DB_SELECT_UNASSIGNED_PARTNER_USER_LIST(200);
-    const pendingPartnershipList:[NewPartnerListItem, NewPartnerListItem][] = await DB_SELECT_PENDING_PARTNER_PAIR_LIST(200);
+        case EmailSubscription.SYSTEM_DAILY:
+            return await assembleDailyLogReportText(LogType.ERROR);
 
-    return await applyTemplate({type: EMAIL_TEMPLATE_TYPE.TABLE_ROWS,
-        replacementMap: new Map([[EMAIL_REPLACEMENT.EMAIL_SUBJECT, 'User Status Report']]),
-        bodyList: [
-            htmlHeader(),
-            htmlSection('User Status Report', 'left', EMAIL_COLOR.ACCENT),
-            htmlVerticalSpace(30),
-            await renderDatabaseTableUsage([DATABASE_TABLE.USER], true),
-            await htmlUserStats(),
-            await htmlUserRoleDistribution(),
-            await htmlUserWalkLevelDistribution(),
+        case EmailSubscription.SYSTEM_WEEKLY:
+            return await assembleWeeklySystemReportText();
 
-            htmlTitle('Prayer Request Trends:'),
-            await renderDatabaseTableUsage([DATABASE_TABLE.PRAYER_REQUEST, DATABASE_TABLE.PRAYER_REQUEST_COMMENT], true),
+        case EmailSubscription.USER_WEEKLY:
+            return await assembleUserReportHTML();
 
-            htmlSection('Partnerships', 'left', EMAIL_COLOR.ACCENT),
-            await renderDatabaseTableUsage([DATABASE_TABLE.PARTNER], true),
+        case EmailSubscription.PARTNER_WEEKLY:
+            return await assemblePartnerReportHTML();
 
-            htmlTitle('Unassigned Users:'),
-            ...unassignedProfileList.slice(0, 10).map(profile => htmlProfileBlock(profile, true)),
-            htmlDetailList([['Total Unassigned Users:', `${unassignedProfileList.length}`]]),
-
-            htmlPartnershipBlock(pendingPartnershipList.slice(0, 10).map(partnerPair => ({ profile: partnerPair[0], partner: partnerPair[1] })), 'Pending Partnerships:', true, [['Total Pending Partnerships:', `${pendingPartnershipList.length}`]]),
-
-            htmlActionButton([{label:'Partnership Management', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/partnership/pending`, style:'PRIMARY'}]),
-
-            ...(subscriptionList.length ? [
-                htmlSection('Website Subscriptions:', 'left', EMAIL_COLOR.ACCENT),
-                await renderDatabaseTableUsage([DATABASE_TABLE.SUBSCRIPTION], true),
-                htmlDetailList(subscriptionList.map(sub => [
-                    formatDate(sub.createdDT),
-                    [sub.email, sub.role, sub.note].filter(Boolean).join(' | ')
-                ]))] 
-                : []),
-
-            htmlDetailList([
-                ['Information Generated (CST):', formatDate(new Date(), true)],
-                ['Environment:', makeDisplayText(getEnvironment())],
-            ], 'Environment Details:'),
-            htmlFooter(),
-        ],
-        verticalSpacing: 5
-    });
+        default:
+            log.error(`getEmailReportContent :: Email Report of unsupported subscription type requested: ${subscription}`);
+            return { subject: '', body:'', isHTML: false };
+    }
 }
 
 
-/********************************
- * LOGS & ADMIN REPORT HANDLERS *
- ********************************/
-//TODO Auto determine recipients
-export const sendEmailLogAlert = async(entry:LOG_ENTRY, ...userIDList:number[]):Promise<boolean> => 
-    sendBrandedEmail({
+export const sendEmailReport = async(subscription:EmailSubscription, emailRecipientMap?:Map<number, string>, sendIndividually:boolean = false):Promise<boolean> => {
+    const recipientMap:Map<number, string> = emailRecipientMap ?? await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(subscription);
+    if(recipientMap.size === 0)
+        return false;
+
+    const { subject, body, isHTML }:EmailReportContent = await getEmailReportContent(subscription);
+    if(subject.length === 0 || body.length === 0)
+        return false;
+
+    if(sendIndividually) { //Append unsubscribe link
+        return (await Promise.all(
+            Array.from(recipientMap.entries()).map(async([receiverID, emailAddress]) =>
+                isHTML
+                    ? await sendTemplateEmail(subject,
+                        body +
+                            htmlVerticalSpace(5) +
+                            htmlActionButton([
+                                { label:'Unsubscribe', link:`${getEnv('ENVIRONMENT_BASE_URL')}/api/report-unsubscribe/client/${receiverID}/subscription/${subscription}`, style:'OUTLINE' },
+                            ]),
+                        EMAIL_SENDER_ADDRESS.ADMIN, new Map([[receiverID, emailAddress]])
+                    )
+                    : await sendLogTextEmail(subject, body + `\n\nUnsubscribe: ${getEnv('ENVIRONMENT_BASE_URL')}/api/report-unsubscribe/client/${receiverID}/subscription/${subscription}`, new Map([[receiverID, emailAddress]]))
+            )
+        )).every(Boolean);
+
+    } else {
+        return isHTML
+            ? await sendTemplateEmail(subject,
+                body +
+                    htmlVerticalSpace(5) +
+                    htmlDetailList([
+                        ['*', `Contact <a href="mailto:${EMAIL_SENDER_ADDRESS.ADMIN}">${EMAIL_SENDER_ADDRESS.ADMIN}</a> to unsubscribe from ${makeDisplayText(subscription)}.`],
+                    ]),
+                EMAIL_SENDER_ADDRESS.ADMIN, recipientMap )
+            : await sendLogTextEmail(subject, body + `\n\n* Contact ${EMAIL_SENDER_ADDRESS.ADMIN} to unsubscribe from ${makeDisplayText(subscription)}.`, recipientMap);
+    }
+}
+
+
+/*************************
+ * CUSTOM EMAIL HANDLERS *
+ *************************/
+export const sendEmailLogAlert = async(entry:LOG_ENTRY):Promise<boolean> => {
+    const recipientMap:Map<number, string> = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(EmailSubscription.SYSTEM_IMMEDIATE);
+    const textBody:string[] = await assembleLogAlertReport(entry, false);
+    
+    return sendBrandedEmail({
         subject: `EP Alert: System ${entry.type}`,
         sender: EMAIL_SENDER_ADDRESS.SYSTEM,
-        userIDList,
+        emailRecipientMap: recipientMap,
+        userIDList: Array.from(recipientMap.keys()),
         bodyList: [
-            htmlText(entry.toString()),
+            ...(await assembleLogAlertReport(entry, true)),
             htmlVerticalSpace(5),
-            htmlActionButton([{label:'More Details', link:entry.fileKey, style:'OUTLINE'},
-                {label:'Portal Logs', link:`${process.env.ENVIRONMENT_BASE_URL}/portal/logs`, style:'ACCENT'}]),
-            htmlSection('Latest Error Logs'),
-            await renderLogList(LogType.ERROR, 25, true)
+            htmlDetailList([
+                ['*', `Contact <a href="mailto:${EMAIL_SENDER_ADDRESS.ADMIN}">${EMAIL_SENDER_ADDRESS.ADMIN}</a> to unsubscribe from ${EmailSubscription.SYSTEM_IMMEDIATE} alerts.`],
+            ]),
         ],
-        getAlternativeTextBody:(name) =>
-            [...(name?[name]:[]),
-            entry.toString(),
-            `\nPortal Logs: ${entry.fileKey}`,
-            `\nMore Details: ${process.env.ENVIRONMENT_BASE_URL}/portal/logs\n`,
-            renderLogList(LogType.ERROR, 25, false),
-      ].join('\n')
+        getAlternativeTextBody:() =>
+            [
+                ...textBody,
+                '\n\n',
+                `* Contact ${EMAIL_SENDER_ADDRESS.ADMIN} to unsubscribe from ${makeDisplayText(EmailSubscription.SYSTEM_IMMEDIATE)} alerts.`,
+            ].join('\n')
     });
-
-
-export const sendEmailLogReport = async(recipientEmail:string, ...userIDList:number[]):Promise<boolean> => {
-    const recipientMap = recipientEmail ? new Map<number, string>([[-1, recipientEmail]]) : await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList);
-    const textBody = await assembleLogReportText();
-    return await sendLogTextEmail(`EP Server Status | ${makeDisplayText(getEnvironment())} Environment`, textBody, recipientMap);
 }
 
-export const assembleLogReportText = async():Promise<string> => {
-    return `SERVER STATUS REPORT\n`
-        + `Date:${new Date().toISOString()}\n`
-        + `Environment:${getEnvironment()}`
-        + '\n\n'
-        + await renderDatabaseTableUsage([DATABASE_TABLE.USER, DATABASE_TABLE.PARTNER, DATABASE_TABLE.SUBSCRIPTION], false, 'User Database Usage')
-        + '\n\n'
-        + await renderDatabaseTableUsage([DATABASE_TABLE.CIRCLE, DATABASE_TABLE.CIRCLE_USER, DATABASE_TABLE.CIRCLE_ANNOUNCEMENT], false, 'Circle Database Usage')
-        + '\n\n'
-        + await renderDatabaseTableUsage([DATABASE_TABLE.PRAYER_REQUEST, DATABASE_TABLE.CONTENT], false, 'Content Database Usage')
-        + '\n\n'
-        + await renderDatabaseTableUsage([DATABASE_TABLE.USER_CACHE, DATABASE_TABLE.CONTACT_CACHE, DATABASE_TABLE.CIRCLE_CACHE], false, 'Database Search Cache')
-        + '\n\n'
-        + await renderLogList(LogType.ERROR, 50, false)
-        + '\n\n'
-        + await renderLogList(LogType.WARN, 25, false)
-        + '\n\n'
-        + await renderLogList(LogType.DB, 25, false)
-        + '\n\n'
-        + `== See Latest Logs ==\n${process.env.ENVIRONMENT_BASE_URL}/portal/logs`;
-}
+
+/* Triggers on System Restart */
+export const sendEmailSystemDeploymentReport = async():Promise<void> => {
+    try {
+        if(getEnvironment() === ENVIRONMENT_TYPE.LOCAL) 
+            return;
+
+        const awsMetadata:AWSMetadata|undefined = await getAWSMetadata();
+        if(awsMetadata === undefined) //Indicates not on EC2 environment
+             return;
+
+        //Prevent Infinite Loop
+        if(existsSync(SERVER_START_TIMESTAMP_PATH)) {
+            const previousServerStartTimestamp:Date = new Date(readFileSync(SERVER_START_TIMESTAMP_PATH, 'utf8').trim());
+
+            if(!isNaN(previousServerStartTimestamp.getTime()) && ((SERVER_START_TIMESTAMP.getTime() - previousServerStartTimestamp.getTime()) / (1000 * 60)) < 1) {
+                return;
+            }
+        }
+
+        if(PRINT_LOGS_TO_CONSOLE)
+            console.log((await assembleDeploymentSystemReport()).body);
+        else
+            await sendEmailReport(EmailSubscription.SYSTEM_DEPLOYMENT, undefined, true);
+        
+    } catch(error) {
+        log.warn('WARNING - Failed to handle system start deployment report', error);
+    }
+};

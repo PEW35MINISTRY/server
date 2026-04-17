@@ -275,10 +275,6 @@ const validateInput = ({field, value, jsonObj}:{field:InputField, value:string, 
         return { passed: true, message: "Cleared", description: "Value is null" };
 
     } else {    
-        const result:InputValidationResult = validateInputFields({ field, value, getInputField:(f) => jsonObj[f], simpleValidationOnly: false });
-    
-        if(!result.passed) log.warn('Failed Validation:', value, result.description);
-    
-        return result;
+        return validateInputFields({ field, value, getInputField:(f) => jsonObj[f], simpleValidationOnly: false });
     };
 }
