@@ -1,8 +1,9 @@
-import dotenv from 'dotenv';
-dotenv.config(); 
-import fs, { readFileSync } from 'fs';
+import './env.mjs'; //Import first from a separate file, so environment variables are initialized once before ESM import evaluation.
+import { fileURLToPath } from 'url';
 import path, { join } from 'path';
-const __dirname = path.resolve();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import fs, { readFileSync, writeFileSync } from 'fs';
 import { createServer, request } from 'http';
 import express, { Application , Request, Response, NextFunction, response} from 'express';
 import { Server, Socket } from 'socket.io';
@@ -11,14 +12,15 @@ import cors from 'cors';
 import { schedule } from 'node-cron';
 
 //Import Types
-import { checkAWSAuthentication, getEnvironment, toStringArray } from './2-services/10-utilities/utilities.mjs';
+import { getEnvironment, isEnvironment } from './2-services/10-utilities/env-utilities.mjs';
+import { checkAWSAuthentication, getEnv, toStringArray } from './2-services/10-utilities/utilities.mjs';
 import { ENVIRONMENT_TYPE, SUPPORTED_IMAGE_EXTENSION_LIST, SENSITIVE_KEYWORDS } from './0-assets/field-sync/input-config-sync/inputField.mjs';
+import { EmailSubscription } from './0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { ServerDebugErrorResponse, ServerErrorResponse } from './0-assets/field-sync/api-type-sync/utility-types.mjs';
 import {Exception, JwtSearchRequest} from './1-api/api-types.mjs'
 import { DefaultEventsMap } from 'socket.io/dist/typed-events.js';
-import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest, LogSearchRequest, LogEntryNewRequest } from './1-api/2-auth/auth-types.mjs';
+import { JwtAdminRequest, JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtClientStatusRequest, JwtPrayerRequest, JwtRequest, JwtClientStatusFilterRequest, LogSearchRequest, LogEntryNewRequest, ReportSubscriptionClientRequest } from './1-api/2-auth/auth-types.mjs';
 import { JwtCircleClientRequest } from './1-api/4-circle/circle-types.mjs';
-import { EmailReportRequest } from './1-api/9-email/email-types.mjs';
 
 //Import Routes
 import apiRoutes, {GET_AdminStatistics, GET_createMockCircle, GET_createMockPrayerRequest, GET_createMockUser, POST_populateDemoUser, POST_PrayerRequestExpiredScript } from './1-api/api.mjs';
@@ -33,7 +35,7 @@ import { DELETE_contentArchive, DELETE_contentArchiveImage, GET_contentArchiveIm
 import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search-utilities.mjs';
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
 import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceDetailAdmin, GET_notificationDeviceList, PATCH_notificationDeviceAdmin, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser } from './1-api/8-notification/notification.mjs';
-import { GET_EmailReport, POST_EmailReport } from './1-api/9-email/email.mjs';
+import { GET_EmailReportDownloadFile, GET_EmailSubscriptionUnsubscribe, POST_EmailReportAdmin, POST_EmailSubscriptionBroadcastAdmin } from './1-api/9-email/email.mjs';
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
@@ -45,13 +47,15 @@ import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_FLUSH_USER_SEARCH_CACHE_ADMIN } from '
 import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/circle-queries.mjs';
 import { DB_FLUSH_EXPIRED_TOKENS } from './2-services/2-database/queries/user-security-queries.mjs';
 import { sendEmailVerificationReminderBatch } from './2-services/4-email/configurations/email-verification.mjs';
+import { sendEmailReport, sendEmailSystemDeploymentReport } from './2-services/4-email/email.mjs';
 
 
 /********************
     EXPRESS SEVER
  *********************/
+export const SERVER_START_TIMESTAMP_PATH:string = path.join(process.cwd(), 'SERVER_START_TIMESTAMP.txt');
 export const SERVER_START_TIMESTAMP:Date = new Date();
-const SERVER_PORT = process.env.SERVER_PORT || 5000;
+const SERVER_PORT:number = getEnv<number>('SERVER_PORT', 'number', 5000);
 const publicServer: Application = express();
 const apiServer: Application = express();
 
@@ -61,19 +65,35 @@ const apiServer: Application = express();
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
 await initializeDatabase(); 
 await checkAWSAuthentication();
+await sendEmailSystemDeploymentReport();
+writeFileSync(SERVER_START_TIMESTAMP_PATH, SERVER_START_TIMESTAMP.toISOString(), 'utf8');
+
 
 //*** CRON JOBS ***/
-if((process.env.ENABLE_CRON === 'true') && (getEnvironment() === ENVIRONMENT_TYPE.PRODUCTION)) {
-  //Run at 15:00 UTC - 9am CST
-  // schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
-  //Run at 01:00 UTC - Sundays 7pm CST
-  schedule("1 1 * * 1", async () => sendEmailVerificationReminderBatch());
+if((getEnv<boolean>('ENABLE_CRON', 'boolean')) && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION)) {
+    //Run at 15:00 UTC - 9am CST
+    // schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
+    //Run at 01:00 UTC - Sundays 7pm CST
+    schedule("1 1 * * 1", async () => sendEmailVerificationReminderBatch());
 
-  //Run at 08:00-8:02 UTC - 2AM CST
-  schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
-  schedule("1 8 * * *", async () => DB_FLUSH_CONTACT_CACHE_ADMIN());
-  schedule("2 8 * * *", async () => DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN());
-  schedule("3 8 * * *", async () => DB_FLUSH_EXPIRED_TOKENS());
+    //Run at 13:00 UTC - Mondays 7AM CST
+    schedule('0 13 * * 1', async () => await sendEmailReport(EmailSubscription.USER_WEEKLY));
+    //Run at 13:00 UTC - Fridays 7AM CST
+    schedule('0 13 * * 5', async () => await sendEmailReport(EmailSubscription.PARTNER_WEEKLY));
+
+    //Run at 08:00-8:02 UTC - 2AM CST
+    schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
+    schedule("1 8 * * *", async () => DB_FLUSH_CONTACT_CACHE_ADMIN());
+    schedule("2 8 * * *", async () => DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN());
+    schedule("3 8 * * *", async () => DB_FLUSH_EXPIRED_TOKENS());
+}
+
+/* CRON JOBS FOR DEVELOPMENT & PRODUCTION */
+if((getEnv<boolean>('ENABLE_CRON', 'boolean')) && !isEnvironment(ENVIRONMENT_TYPE.LOCAL)) {
+    //Run at 13:01 UTC - Mondays 7AM CST
+    schedule('1 13 * * 1', async () => await sendEmailReport(EmailSubscription.SYSTEM_WEEKLY));
+    //Run at 02:00 UTC - Daily 8PM CST
+    schedule('0 2 * * *', async () => await sendEmailReport(EmailSubscription.SYSTEM_DAILY));
 }
 
 
@@ -126,7 +146,7 @@ apiServer.use(express.json()); //Formatting Request Body
 
 apiServer.get('/resources/available-account', GET_AvailableAccount); //Utility for available email/username
 
-apiServer.post('/subscribe', POST_emailSubscribe);
+apiServer.post('/subscribe', POST_emailSubscribe); //Website Update Subscription
 
 apiServer.post('/signup', POST_signup); //Optional query: populate=true
 
@@ -182,6 +202,7 @@ apiServer.get('/api/email-verify', GET_emailVerifyConfirm);
 apiServer.post('/api/email-verify', POST_emailVerifyAndLogin);
 apiServer.post('/api/password-forgot', POST_resetPasswordInitialize);
 apiServer.post('/api/password-reset', POST_resetPasswordConfirm);
+apiServer.get('/api/report-unsubscribe/client/:clientID/subscription/:subscription', GET_EmailSubscriptionUnsubscribe)
 
 
 /************************************************************/
@@ -424,10 +445,11 @@ apiServer.post('/api/admin/client/:client/send/email-verify', POST_emailVerifyRe
 apiServer.get('/api/admin/notification/device/:device', GET_notificationDeviceDetailAdmin);
 apiServer.patch('/api/admin/notification/device/:device', PATCH_notificationDeviceAdmin);
 
-apiServer.get('/api/admin/email/report/:type', GET_EmailReport);
-apiServer.post('/api/admin/email/report/:type', POST_EmailReport);
-apiServer.use('/api/admin/email/report/:type/client/:client', (request:EmailReportRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
-apiServer.post('/api/admin/email/report/:type/client/:client', POST_EmailReport);
+apiServer.get('/api/admin/email/report/:subscription', GET_EmailReportDownloadFile);
+apiServer.post('/api/admin/email/report/:subscription', POST_EmailReportAdmin);
+apiServer.post('/api/admin/email/report/:subscription/broadcast', POST_EmailSubscriptionBroadcastAdmin);
+apiServer.use('/api/admin/email/report/:subscription/client/:client', (request:ReportSubscriptionClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
+apiServer.post('/api/admin/email/report/:subscription/client/:client', POST_EmailReportAdmin);
 
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractCircleMiddleware(request, response, next));
 apiServer.use('/api/admin/circle/:circle/join/:client', (request:JwtCircleClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));

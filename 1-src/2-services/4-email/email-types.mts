@@ -1,3 +1,4 @@
+import { getEnvBase } from "../10-utilities/env-utilities.mjs";
 
 
 
@@ -5,9 +6,9 @@
 * EMAIL DEFAULTS & CONTROLS *
 *****************************/
 export const EMAIL_SENDER_ADDRESS = {
-  SYSTEM: `system@${process.env.EMAIL_DOMAIN}`,
-  ADMIN: `admin@${process.env.EMAIL_DOMAIN}`,
-  SUPPORT: `support@${process.env.EMAIL_DOMAIN}`,
+  SYSTEM: `system@${getEnvBase(console.warn, 'EMAIL_DOMAIN')}`,
+  ADMIN: `admin@${getEnvBase(console.warn, 'EMAIL_DOMAIN')}`,
+  SUPPORT: `support@${getEnvBase(console.warn, 'EMAIL_DOMAIN')}`,
 } 
 
 export type EmailSenderAddress = typeof EMAIL_SENDER_ADDRESS[keyof typeof EMAIL_SENDER_ADDRESS];
@@ -15,9 +16,9 @@ export type EmailSenderAddress = typeof EMAIL_SENDER_ADDRESS[keyof typeof EMAIL_
 //Stronger validation in input configs
 export const EMAIL_ADDRESS_REGEX_SIMPLE:RegExp = new RegExp(/^[^\s@]+@[^\s@]+\.[^\s@]+$/i);
 
-export const DEFAULT_PROFILE_URL:string = `${process.env.ASSET_URL}/images/icons/profile-icon-blue.png`;
+export const DEFAULT_PROFILE_URL:string = `${getEnvBase(console.warn, 'ASSET_URL')}/images/icons/profile-icon-blue.png`;
 
-export const DEFAULT_CIRCLE_URL:string = `${process.env.ASSET_URL}/icons/circle-icon-blue.png`;
+export const DEFAULT_CIRCLE_URL:string = `${getEnvBase(console.warn, 'ASSET_URL')}/icons/circle-icon-blue.png`;
 
 
 /* EMAIL STYLING */
@@ -72,4 +73,18 @@ export type EmailAttachment = {
     mimeType:string,
 }
 
+export type EmailReportContent = {
+    subject:string,
+    body:string,
+    isHTML:boolean
+}
 
+export type AWSMetadata = {
+    instanceID:string,
+    instanceType:string,
+    availabilityZone:string,
+    awsRegion:string,
+    publicHostname:string,
+    publicIP:string,
+    privateIP:string,
+}

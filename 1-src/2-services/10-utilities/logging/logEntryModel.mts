@@ -1,7 +1,6 @@
 import * as log from './log.mjs';
 import { LogListItem, LogType } from '../../../0-assets/field-sync/api-type-sync/utility-types.mjs';
-import { ENVIRONMENT_TYPE } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { getEnvironment, stringifyErrorMessage } from '../utilities.mjs';
+import { stringifyErrorMessage } from '../utilities.mjs';
 import { LOG_SIMILAR_TIME_RANGE, LOG_SOURCE, PRINT_LOGS_TO_CONSOLE } from './log-types.mjs';
 import { AthenaFieldSchema } from '../athena.mjs';
 
@@ -135,18 +134,26 @@ export default class LOG_ENTRY {
     
 
     /* TEXT */
-    createDuplicateSummary = (entry:LOG_ENTRY, maxCharacters:number = 200):string => {
+    addDuplicate = (entry:LOG_ENTRY) => this.duplicateList.push(this.createDuplicateSummary(entry));
+
+    createDuplicateSummary = (entry:LOG_ENTRY):string => {
         //Identify First Unique Message
-        const uniqueMessages = entry.messages.filter(m => !this.messages.includes(m));
-        const summaryMessage = uniqueMessages.length > 0 ? uniqueMessages[0] 
-                                : entry.messages[0] || 'Unknown Error';
-    
+        const uniqueMessages:string[] = entry.messages.filter(m => !this.messages.includes(m));
+        return LOG_ENTRY.summarize(entry, (uniqueMessages.length > 0) ? [uniqueMessages[0]] : entry.messages);
+    }
+
+    static summarize = (entry:LOG_ENTRY, messages?:string[], maxCharacters:number = 200):string => {
         const prefix:string = formatLogTime(entry.date) + ' :: ';
+        const summaryMessage:string = (messages ?? entry.messages)[0] || 'Unknown Error';
         return prefix + `${summaryMessage.slice(0, (maxCharacters - prefix.length))}`;
     }
 
-    addDuplicate = (entry:LOG_ENTRY) => this.duplicateList.push(this.createDuplicateSummary(entry));
+    toStringLimit = (lines:number = 4):string => {
+        const visibleMessages:string[] = this.messages.slice(0, lines);
+        const messageSection:string = (visibleMessages.length > 0) ? visibleMessages.join('\n') : '(no message)';
 
+        return formatLogDate(this.date) + ' ' + this.type + ' :: ' + messageSection;
+    }
 
     toString = ():string => {
         const messageSection:string = (this.messages.length > 0) ? this.messages.join('\n') : '(no message)';
@@ -244,6 +251,21 @@ export default class LOG_ENTRY {
         }
     }
 
+    //Return preserves the capture group order for each regex match
+    getRegexMatches = (regex:RegExp):string[][] => {
+        const matches:string[][] = [];
+
+        this.messages.forEach(message => {
+            const flags:string = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
+            const pattern:RegExp = new RegExp(regex.source, flags);
+
+            for(const match of message.matchAll(pattern))
+                matches.push(match.slice(1));
+        });
+
+        return matches;
+    }
+
 
     /* Internal Log Utilities */
     getTimestamp = ():number => this.date.getTime();
@@ -251,6 +273,7 @@ export default class LOG_ENTRY {
     getDailyTimestamp = ():number => this.date.getTime() % 86400000;
 
     getMinuteTimestamp = ():number => this.date.getTime() % 3600000;
+    
 
     /* EQUALS COMPARISON */
     equals = (entry:LOG_ENTRY):boolean =>

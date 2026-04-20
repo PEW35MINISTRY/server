@@ -1,12 +1,13 @@
 import { Response, NextFunction } from 'express';
 import * as log from '../2-services/10-utilities/logging/log.mjs';
-import { Exception, JwtSearchRequest, SearchDetailServer, SearchTypeInfoServer } from './api-types.mjs';
+import { Exception, JwtSearchRequest } from './api-types.mjs';
 import { ProfileListItem } from '../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { RoleEnum } from '../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import BASE_MODEL from '../2-services/1-models/baseModel.mjs';
 import { DATABASE_USER_ROLE_ENUM } from '../2-services/2-database/database-types.mjs';
 import { SearchType, DisplayItemType, SEARCH_MIN_CHARS } from '../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { DB_IS_ANY_USER_ROLE } from '../2-services/2-database/queries/user-security-queries.mjs';
+import { SearchDetailServer, SearchTypeInfoServer } from './api-search-configuration.mjs';
 
 
 /*********************************

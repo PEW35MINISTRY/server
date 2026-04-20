@@ -33,7 +33,7 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
             }).map(([userID, email]) => email);
 
         if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(senderAddress)) {
-            log.error('Blocked HTML Email - No valid recipients', JSON.stringify(recipientMap), subject);
+            log.error('Blocked HTML Email - No valid recipients', recipientMap, 'from sender: ', senderAddress, subject);
             return false;
         }
 
@@ -63,9 +63,12 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
         });
 
         const result = await client.send(command);
-        return (result.$metadata.httpStatusCode === 200);
+        const succeeded:boolean = (result.$metadata.httpStatusCode === 200);
+        log.email(succeeded ? 'Successfully sent HTML email' : 'Failed to send HTML email', subject, 'to recipients: ', recipientAddresses, 'from original recipient map: ', recipientMap, 'from sender: ', senderAddress);
+        return succeeded;
     } catch (error) {
-        log.error('Failed to send HTML email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap));
+        log.error('Failed to send HTML email: ', subject, 'with error: ', error, 'to recipients: ', recipientMap, 'from sender: ', senderAddress); 
+        log.email('Error Failed to send HTML email', subject, 'to recipients: ', recipientMap, 'from sender: ', senderAddress, 'with error: ', error);
         return false;
     }
 }
@@ -85,7 +88,7 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:Em
             }).map(([userID, email]) => email);
 
         if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(senderAddress)) {
-            log.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
+            log.error('Blocked TEXT Email - No valid recipients', recipientMap, 'from sender: ', senderAddress, subject);
             return false;
         }
 
@@ -111,9 +114,13 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:Em
         });
 
         const result = await client.send(command);
-        return (result.$metadata.httpStatusCode === 200);
+        const succeeded:boolean = (result.$metadata.httpStatusCode === 200);
+        log.email(succeeded ? 'Successfully sent TEXT email' : 'Failed to send TEXT email', subject, 'to recipients: ', recipientAddresses, 'from original recipient map: ', recipientMap, 'from sender: ', senderAddress);
+        return succeeded;
     } catch (error) {
-        log.error('Failed to send TEXT email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap), 'with text body: ', text); return false;
+        log.error('Failed to send TEXT email: ', subject, 'with error: ', error, 'to recipients: ', recipientMap, 'from sender: ', senderAddress, 'with text body: ', text); 
+        log.email('Error Failed to send TEXT email', subject, 'to recipients: ', recipientMap, 'from sender: ', senderAddress, 'with error: ', error);
+        return false;
     }
 };
 
@@ -124,6 +131,9 @@ export const sendTextEmail = async(subject:string, text:string, senderAddress:Em
  **************************************************************/
 export const sendLogTextEmail = async(subject:string, text:string, recipientMap:Map<number, string>):Promise<boolean> => {
     try {
+        if(subject.length === 0 || text.length === 0)
+            return false;
+
         const recipientAddresses:string[] = [...recipientMap.entries()]
                 .filter(([userID, email]) => {
                     if (!EMAIL_ADDRESS_REGEX_SIMPLE.test(email)) {
@@ -133,7 +143,7 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
                 }).map(([userID, email]) => email);
 
         if((recipientAddresses.length === 0) || !EMAIL_ADDRESS_REGEX_SIMPLE.test(EMAIL_SENDER_ADDRESS.SYSTEM)) {
-            log.error('Blocked TEXT Email - No valid recipients', JSON.stringify(recipientMap), subject);
+            log.error('Blocked TEXT Email - No valid recipients', recipientMap, 'from sender: ', EMAIL_SENDER_ADDRESS.SYSTEM, subject);
             return false;
         }
 
@@ -195,9 +205,12 @@ export const sendLogTextEmail = async(subject:string, text:string, recipientMap:
         });
 
         const result = await client.send(command);
-        return (result.$metadata.httpStatusCode === 200);
+        const succeeded:boolean = (result.$metadata.httpStatusCode === 200);
+        log.email(succeeded ? 'Successfully sent LOG ATTACHMENT email' : 'Failed to send LOG ATTACHMENT email', subject, 'to recipients: ', recipientAddresses, 'from original recipient map: ', recipientMap, 'from sender: ', EMAIL_SENDER_ADDRESS.SYSTEM);
+        return succeeded;
     } catch (error) {
-        log.error('Failed to send LOG attachment email: ', subject, 'with error: ', error, 'to recipients: ', JSON.stringify(recipientMap));
+        log.error('Failed to send LOG ATTACHMENT email: ', subject, 'with error: ', error, 'to recipients: ', recipientMap, 'from sender: ', EMAIL_SENDER_ADDRESS.SYSTEM, 'with text body: ', text); 
+        log.email('Error Failed to send LOG ATTACHMENT email', subject, 'to recipients: ', recipientMap, 'from sender: ', EMAIL_SENDER_ADDRESS.SYSTEM, 'with error: ', error);
         return false;
     }
 }

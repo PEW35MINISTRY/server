@@ -46,6 +46,16 @@ export enum RoleEnum {
 
 export const GENERAL_USER_ROLES:RoleEnum[] = [RoleEnum.USER, RoleEnum.TEST_USER, RoleEnum.DEMO_USER];
 
+export enum EmailSubscription {
+    USER_WEEKLY = 'USER_WEEKLY',
+    PARTNER_WEEKLY = 'PARTNER_WEEKLY',
+
+    SYSTEM_DEPLOYMENT = 'SYSTEM_DEPLOYMENT',
+    SYSTEM_IMMEDIATE = 'SYSTEM_IMMEDIATE',
+    SYSTEM_DAILY = 'SYSTEM_DAILY',
+    SYSTEM_WEEKLY = 'SYSTEM_WEEKLY',
+}
+
 export enum UserSearchRefineEnum {
     ALL = 'ALL',                     //default search all fields
     ID = 'ID',                       //userID exact match
@@ -131,6 +141,7 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
     new InputSelectionField({title: 'Source Environment', field: 'modelSourceEnvironment', required: true, type: InputType.SELECT_LIST, selectOptionList: Object.values(ModelSourceEnvironmentEnum), environmentList:[ENVIRONMENT_TYPE.DEVELOPMENT]}),
     new InputField({title: 'Email Address', field: 'email', type: InputType.EMAIL, required: true, unique: true,  validationRegex: EMAIL_REGEX }),
     new InputSelectionField({title: 'Email Verified', field: 'isEmailVerified', required: true, type: InputType.SELECT_LIST, selectOptionList: ['true', 'false']}),
+    new InputSelectionField({title: 'Email Subscription', field: 'emailSubscriptionList', type: InputType.MULTI_SELECTION_LIST, selectOptionList: Object.values(EmailSubscription)}),
     ...EDIT_PROFILE_FIELDS,
     new InputSelectionField({title: 'Gender', field: 'gender', type: InputType.SELECT_LIST, required: true, selectOptionList: Object.values(GenderEnum)}),
     new InputField({title: 'Date of Birth', field: 'dateOfBirth', type: InputType.DATE, required: true, value: getDOBMaxDate(RoleEnum.USER).toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Must be age 13 or older.'  }),

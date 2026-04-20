@@ -15,7 +15,8 @@ import { DB_SELECT_PARTNER_LIST } from './partner-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST, DB_SELECT_PRAYER_REQUEST_USER_LIST } from './prayer-request-queries.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import CIRCLE_ANNOUNCEMENT from '../../1-models/circleAnnouncementModel.mjs';
-import { DB_SELECT_USER_ROLES } from './user-security-queries.mjs';
+import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST, DB_SELECT_USER_ROLES } from './user-security-queries.mjs';
+import { isInternalEmail } from '../../4-email/email-utilities.mjs';
 
 
 /**************************************************************************
@@ -112,7 +113,7 @@ export const DB_SELECT_UNVERIFIED_EMAIL_MAP = async(minAccountAgeDays:number = 3
         + 'AND createdDT >= (UTC_TIMESTAMP() - INTERVAL ? DAY);',
         [minAccountAgeDays, maxAccountAgeDays]);
 
-    return rows.reduce((map, row) => map.set(row.userID, {firstName:row.firstName, email:row.email}), new Map<number, {firstName:string, email:string}>());
+    return rows.filter(row => !isInternalEmail(row.email)).reduce((map, row) => map.set(row.userID, {firstName:row.firstName, email:row.email}), new Map<number, {firstName:string, email:string}>());
 }
 
 export const DB_IS_USER_EMAIL_VERIFIED = async(userID:number):Promise<boolean> => {
@@ -132,6 +133,7 @@ export const DB_POPULATE_USER_PROFILE = async(user:USER):Promise<USER> => {
 
     /* Role List */
     user.userRoleList = await DB_SELECT_USER_ROLES(user.userID);
+    user.emailSubscriptionList = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST(user.userID);
 
     /* Circle Memberships */
     const allCircleList:CircleListItem[] = await DB_SELECT_USER_CIRCLES(user.userID);  //Includes all statuses
@@ -236,13 +238,13 @@ export const DB_UNIQUE_USER_EXISTS = async(filterMap:Map<string, any>, validateA
     preparedColumns += ` AND ( userID != ? )`; 
     valueList.push(userID);
 
-    const result:CommandResponseType = await command(`SELECT COUNT(*) FROM user WHERE ${preparedColumns};`, valueList); 
+    const result = await execute(`SELECT COUNT(*) FROM user WHERE ${preparedColumns};`, valueList);
 
-    if(result === undefined) return true;    
-    else if(result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 1)
+    if(!result || result.length === 0) return false;
+    else if(Number(result[0]['COUNT(*)']) > 1)
         log.warn(`Multiple Accounts Detected with matching fields`, JSON.stringify(validFieldMap));
 
-    return (result[0] !== undefined && result[0]['COUNT(*)'] !== undefined && result[0]['COUNT(*)'] as number > 0);
+    return (Number(result[0]['COUNT(*)']) > 0);
 }
 
 

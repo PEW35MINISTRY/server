@@ -1,5 +1,5 @@
 /************* ONLY DEPENDENCIES FROM DIRECTORY: /field-sync/ *************/
-import { GenderEnum, ModelSourceEnvironmentEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
+import { EmailSubscription, GenderEnum, ModelSourceEnvironmentEnum, PartnerStatusEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs'
 import { CircleAnnouncementListItem, CircleListItem } from './circle-types.mjs'
 import { ContentListItem } from './content-types.mjs';
 import { PrayerRequestListItem } from './prayer-request-types.mjs'
@@ -54,7 +54,7 @@ export interface ProfilePublicResponse extends ProfileListItem {
 export const PROFILE_PROPERTY_LIST = [ //Sync to ProfileResponse
     'userID', 'modelSourceEnvironment', 'displayName', 'firstName', 'lastName', 'email', 'isEmailVerified', 'emailVerifiedDT', 'gender', 'postalCode', 'dateOfBirth', 'maxPartners', 'walkLevel', 'notes', 'image',
     'createdDT', 'modifiedDT', 
-    'userRole', 'userRoleList',
+    'userRole', 'userRoleList', 'emailSubscriptionList',
     'circleList', 'circleInviteList', 'circleRequestList', 'circleAnnouncementList',
     'partnerList', 'partnerPendingUserList', 'partnerPendingPartnerList',
     'newPrayerRequestList', 'ownedPrayerRequestList', 'expiringPrayerRequestList', 'recommendedContentList', 'contactList', 'profileAccessList'
@@ -85,6 +85,7 @@ export interface ProfileResponse extends ProfileListItem {
     modifiedDT: string,
 
     userRoleList: RoleEnum[],
+    emailSubscriptionList: EmailSubscription[],
     circleList?: CircleListItem[],
     circleInviteList?: CircleListItem[],
     circleRequestList?: CircleListItem[],

@@ -1,3 +1,4 @@
+import '../../env.mjs'; //Import first from a separate file, so environment variables are initialized once before ESM import evaluation.
 import { ExpiredPrayerRequest } from "../../1-api/5-prayer-request/prayer-request-types.mjs";
 import { sendNotificationMessage } from "../../1-api/8-notification/notification-utilities.mjs";
 import * as log from '../../2-services/10-utilities/logging/log.mjs';

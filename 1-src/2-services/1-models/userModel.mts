@@ -2,7 +2,7 @@ import { CircleListItem } from '../../0-assets/field-sync/api-type-sync/circle-t
 import { PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { NewPartnerListItem, PartnerListItem, PROFILE_NEW_PARTNER_PROPERTY_LIST, PROFILE_PROPERTY_LIST, PROFILE_PUBLIC_PROPERTY_LIST, ProfileListItem, ProfilePublicResponse, ProfileResponse } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import InputField, { InputSelectionField, InputType } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
-import { GenderEnum, ModelSourceEnvironmentEnum, RoleEnum, getDOBMaxDate, getDOBMinDate } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { GenderEnum, ModelSourceEnvironmentEnum, RoleEnum, getDOBMaxDate, getDOBMinDate, EmailSubscription } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import BiDirectionalMap from '../../0-assets/modules/BiDirectionalMap.mjs';
 import { ProfileEditRequest } from '../../1-api/3-profile/profile-types.mjs';
 import { DATABASE_USER, USER_TABLE_COLUMNS, USER_TABLE_COLUMNS_EDIT } from '../2-database/database-types.mjs';
@@ -25,7 +25,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   static PUBLIC_PROPERTY_LIST = PROFILE_PUBLIC_PROPERTY_LIST;
   static NEW_PARTNER_PROPERTY_LIST = PROFILE_NEW_PARTNER_PROPERTY_LIST;
   static USER_PROPERTY_LIST = PROFILE_PROPERTY_LIST;
-  static PROPERTY_LIST = [...USER_TABLE_COLUMNS, 'userRole', 'userRoleList']; //Fields Cloned
+  static PROPERTY_LIST = [...USER_TABLE_COLUMNS, 'userRole', 'userRoleList', 'emailSubscriptionList']; //Fields Cloned
 
   userID: number = -1;
   modelSourceEnvironment:ModelSourceEnvironmentEnum = ModelSourceEnvironmentEnum[getModelSourceEnvironment() as keyof typeof ModelSourceEnvironmentEnum];
@@ -52,6 +52,7 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
   userRoleList: RoleEnum[] = [RoleEnum.USER];
   get userRole():RoleEnum { return this.getHighestRole(); }
 
+  emailSubscriptionList:EmailSubscription[] = [];
   circleList: CircleListItem[] = [];                 //Includes: MEMBER|LEADER
   circleInviteList: CircleListItem[] = [];
   circleRequestList: CircleListItem[] = [];
@@ -243,4 +244,41 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
 
     return true;
   }
+
+
+
+   /*********************
+    * RELATED UTILITIES *
+    *********************/
+    //Simple Unique Enum matching for updating RoleEnum and EmailSubscription
+    //Identifies and executes necessary insert/delete of list entries; by differentiating between newList vs currentList
+    static async syncDatabaseList<T, DB_T = T>({userID, newList, currentList, DBInsertBatch, DBDeleteBatch, DBSelectList, mapToDatabaseEnum = (value:T):DB_T => value as unknown as DB_T}
+                                          :{userID:number, newList:T[], currentList:T[], DBInsertBatch:(userID:number, ...insertList:DB_T[]) => Promise<boolean>, DBDeleteBatch:(userID:number, ...deleteList:DB_T[]) => Promise<boolean>, DBSelectList:(userID:number) => Promise<T[]>, mapToDatabaseEnum?:(value:T) => DB_T|undefined}):Promise<T[]> {
+        const normalizedNewList:T[] = [...new Set(newList)];
+        const normalizedCurrentList:T[] = [...new Set(currentList)];
+        const insertList:T[] = normalizedNewList.filter((value:T) => !normalizedCurrentList.includes(value));
+        const deleteList:T[] = normalizedCurrentList.filter((value:T) => !normalizedNewList.includes(value));
+
+        const insertMapped:{value:T, DBValue:DB_T}[] = insertList.reduce((list:{value:T, DBValue:DB_T}[], value:T) => {
+            if(mapToDatabaseEnum(value) === undefined) log.warn('USER.syncDatabaseList: failed to map newList value to database value', userID, value);
+            else list.push({value, DBValue:mapToDatabaseEnum(value)});
+            return list;
+        }, []);
+
+        const deleteMapped:{value:T, DBValue:DB_T}[] = deleteList.reduce((list:{value:T, DBValue:DB_T}[], value:T) => {
+            if(mapToDatabaseEnum(value) !== undefined) list.push({value, DBValue:mapToDatabaseEnum(value)});
+            return list;
+        }, []);
+
+        const didInsert:boolean = (insertMapped.length === 0) ? true : await DBInsertBatch(userID, ...insertMapped.map((entry:{value:T, DBValue:DB_T}) => entry.DBValue));
+        if(!didInsert) log.error('USER.syncDatabaseList: failed to insert database list values', userID, insertMapped.map((entry:{value:T, DBValue:DB_T}) => entry.value));
+
+        const didDelete:boolean = (deleteMapped.length === 0) ? true : await DBDeleteBatch(userID, ...deleteMapped.map((entry:{value:T, DBValue:DB_T}) => entry.DBValue));
+        if(!didDelete) log.error('USER.syncDatabaseList: failed to delete database list values', userID, deleteMapped.map((entry:{value:T, DBValue:DB_T}) => entry.value));
+
+        if(!didInsert || !didDelete) 
+            return DBSelectList(userID);
+        else
+          return [...normalizedNewList];
+    }
 };

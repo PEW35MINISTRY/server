@@ -39,7 +39,7 @@ export enum DATABASE_TABLE {
 
     CONTENT = 'content',
 
-    SUBSCRIPTION = 'subscription',
+    SUBSCRIPTION = 'subscription', //Website Subscription
     NOTIFICATION_DEVICE = 'notification_device',
 
     USER_CACHE = 'user_search_cache',
