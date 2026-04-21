@@ -1,7 +1,11 @@
 import { CircleAnnouncementListItem, CircleListItem } from "../../../0-assets/field-sync/api-type-sync/circle-types.mjs";
+import { ContentListItem } from "../../../0-assets/field-sync/api-type-sync/content-types.mjs";
+import { PrayerRequestCommentListItem, PrayerRequestListItem } from "../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs";
 import { NewPartnerListItem, PartnerListItem, ProfileListItem } from "../../../0-assets/field-sync/api-type-sync/profile-types.mjs";
-import { makeDisplayText } from "../../../0-assets/field-sync/input-config-sync/inputField.mjs";
+import { makeDisplayList, makeDisplayText } from "../../../0-assets/field-sync/input-config-sync/inputField.mjs";
 import CIRCLE_ANNOUNCEMENT from "../../1-models/circleAnnouncementModel.mjs";
+import USER from "../../1-models/userModel.mjs";
+import { getEnv } from "../../10-utilities/utilities.mjs";
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_PARTNER_STATUS_ENUM } from "../../2-database/database-types.mjs";
 import { DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_ANNOUNCEMENT_ALL_CIRCLES, DB_SELECT_CIRCLE_ANNOUNCEMENT_CURRENT, DB_SELECT_USER_CIRCLES } from "../../2-database/queries/circle-queries.mjs";
 import { DB_SELECT_PARTNER_LIST } from "../../2-database/queries/partner-queries.mjs";
@@ -16,22 +20,27 @@ import { htmlDetailTableRows, htmlTitle, htmlVerticalSpace } from "./email-templ
  * Email Template List Item Components *
  ***************************************/
 
-export const renderEmailProfile = async(userID:number, includeUserID?:boolean, details?:[string, string][]):Promise<string> => {
-    const profile:ProfileListItem = (await DB_SELECT_USER(new Map([['userID', userID]]))).toListItem();
+export const htmlUserContextProfile = (user:USER, details?:[string, string][]):string => {
 
-    return htmlProfileBlock(profile, includeUserID, details);
+    return htmlProfileBlock(user.toListItem(), true, [
+        ['Full Name:', `${user.firstName} ${user.lastName}`],
+        ['Email:', makeDisplayText(user.email)],
+        ['Roles:', makeDisplayList(user.userRoleList.map(role => String(role))).join(', ')],
+        ['Joined EP:', formatDate(user.createdDT)],
+        ...details
+    ], true);
 }
 
 
 /* PROFILE */
-export const htmlProfileBlock = (profile:ProfileListItem, includeUserID:boolean = false, details:[string, string][] = []):string =>
-    `<table border="0" cellspacing="0" cellpadding="0" class="full_width" align="left" role="presentation">
+export const htmlProfileBlock = (profile:ProfileListItem, includeUserID:boolean = false, details:[string, string][] = [], fullWidth:boolean = false):string =>
+    `<<table border="0" cellspacing="0" cellpadding="0" ${fullWidth ? `width="100%" style="width:100%; max-width:${EMAIL_CONTENT_MAX_WIDTH};"` : ''} role="presentation">
         <tr>
             <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
                 <img src="${profile.image || DEFAULT_PROFILE_URL}" width="${EMAIL_PROFILE_IMAGE_SIZE}" height="${EMAIL_PROFILE_IMAGE_SIZE}" style="vertical-align:middle; border-radius:50%; margin-right:${EMAIL_PROFILE_IMAGE_SIZE / 2}px;" alt="Profile"/>
-                ${includeUserID ? 
-                    `<b>${profile.firstName}</b> <span style="font-style:italic; color:${EMAIL_COLOR.BLACK};">(${profile.displayName})</span><span style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; font-weight:normal;"> | #${profile.userID}</span>`
-                    : `<b>${profile.displayName}</b>`}                                        
+                ${includeUserID
+                    ? `<a href="${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/user/${profile.userID}" style="color:${EMAIL_COLOR.PRIMARY}; text-decoration:none;"><b>${profile.firstName}</b></a> <span style="font-style:italic; color:${EMAIL_COLOR.BLACK};">(${profile.displayName})</span><span style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; font-weight:normal;"> | #${profile.userID}</span>`
+                    : `<b>${profile.displayName}</b>`}
             </td>
         </tr>
         ${details.length ? htmlVerticalSpace(10) : ''}
@@ -142,27 +151,26 @@ export const renderEmailCircleList = async(userID:number, status?:DATABASE_CIRCL
 
 
 
-const htmlCircleBlock = (circleList:CircleListItem[], title?:string, includeCircleID:boolean = false, details:[string, string][] = []):string => {
+export const htmlCircleBlock = (circleList:CircleListItem[], title?:string, includeCircleID:boolean = false, details:[string, string][] = []):string => {
     if(!circleList?.length) return '';
 
     return `<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" align="left" style="border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
         <tr>
             <td align="left" valign="top">
                 ${title ? htmlTitle(title) : ''}
-                <table width="${EMAIL_CONTENT_MAX_WIDTH}" border="0" cellspacing="0" cellpadding="0" role="presentation" align="left" style="margin:0; border-collapse:collapse; table-layout:fixed; max-width:${EMAIL_CONTENT_MAX_WIDTH}; width:100%; mso-table-lspace:0pt; mso-table-rspace:0pt;">
-                    <colgroup>
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" role="presentation" align="left" style="margin:0; border-collapse:collapse; table-layout:fixed; max-width:${EMAIL_CONTENT_MAX_WIDTH}; width:100%; mso-table-lspace:0pt; mso-table-rspace:0pt;">                    <colgroup>
                         <col style="width:${EMAIL_PROFILE_IMAGE_SIZE * 1.5}px;">
                         <col style="width:auto;">
                     </colgroup>
-                    ${circleList.map((circle,index) => 
+                    ${circleList.map((circle:CircleListItem) =>
                         `<tr>
                             <td align="left" valign="top">
                                 <img src="${circle.image || DEFAULT_CIRCLE_URL}" width="${EMAIL_PROFILE_IMAGE_SIZE}" height="${EMAIL_PROFILE_IMAGE_SIZE}" style="vertical-align:middle; border-radius:50%;" alt="Circle ${circle.name}">
                             </td>
-                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
+                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
                                 <div style="font-weight:bold; color:${EMAIL_COLOR.ACCENT};">
-                                    ${includeCircleID ? 
-                                        `${circle.name}<span style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; font-weight:normal;"> | #${circle.circleID}</span>`
+                                    ${includeCircleID
+                                        ? `<a href="${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/circle/${circle.circleID}" style="color:${EMAIL_COLOR.ACCENT}; text-decoration:none;">${circle.name}</a><span style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; font-weight:normal;"> | #${circle.circleID}</span>`
                                         : `${circle.name}`}
                                 </div>
                                 <div style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_DARK};">
@@ -229,3 +237,119 @@ const htmlCircleAnnouncementBlock = (announcementPairList:{circle:CircleListItem
         ${htmlDetailTableRows(details, 1)}
     </table>`;
 };
+
+
+
+/* PRAYER REQUESTS */
+export const htmlPrayerRequestBlock = (request:PrayerRequestListItem, includeID:boolean = false, details:[string, string][] = []):string =>
+    `<table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%; max-width:${EMAIL_CONTENT_MAX_WIDTH};" role="presentation">
+        <tr>
+            <td align="left" valign="top" style="font-size:0; padding:0;">
+                <div style="display:inline-block; width:100%; max-width:420px; vertical-align:top;">
+                    <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%;" role="presentation">
+                        <tr>
+                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
+                                ${includeID
+                                    ? `<a href="${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/prayer-request/${request.prayerRequestID}" style="color:${EMAIL_COLOR.PRIMARY}; text-decoration:none;"><b>${request.topic}</b></a><span style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; font-weight:normal;"> | #${request.prayerRequestID}</span>`
+                                    : `<b>${request.topic}</b>`}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)}; white-space:pre-wrap;">
+                                ${request.description}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.DETAIL)};">
+                                ${request.tagList.length ? request.tagList.join(', ') : 'No tags'} | ${request.prayerCount} prayer${request.prayerCount === 1 ? '' : 's'}
+                            </td>
+                        </tr>
+                        ${details.length ? htmlVerticalSpace(10) : ''}
+                        ${htmlDetailTableRows(details)}
+                    </table>
+                </div>
+                <div style="display:inline-block; width:100%; max-width:220px; vertical-align:top;">
+                    <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%;" role="presentation">
+                        <tr>
+                            <td align="right" valign="top" style="padding-top:0; padding-left:12px;">
+                                ${htmlProfileBlock(request.requestorProfile, includeID)}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>`;
+
+
+export const htmlPrayerRequestCommentBlock = (comment:PrayerRequestCommentListItem, includeID:boolean = false, details:[string, string][] = []):string =>
+    `<table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%; max-width:${EMAIL_CONTENT_MAX_WIDTH};" role="presentation">
+        <tr>
+            <td align="left" valign="top" style="font-size:0; padding:0;">
+                <div style="display:inline-block; width:100%; max-width:420px; vertical-align:top;">
+                    <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%; max-width:${EMAIL_CONTENT_MAX_WIDTH};" role="presentation">
+                        <tr>
+                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
+                                ${includeID
+                                    ? `<a href="${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/prayer-request/${comment.prayerRequestID}" style="color:${EMAIL_COLOR.PRIMARY}; text-decoration:none;"><b>Prayer Request Comment</b></a><span style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; font-weight:normal;"> | #${comment.commentID}</span>`
+                                    : `<b>Prayer Request Comment</b>`}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)}; white-space:pre-wrap;">
+                                ${comment.message}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.DETAIL)};">
+                                ${comment.likeCount} like${comment.likeCount === 1 ? '' : 's'} | ${comment.createdDT}${includeID ? ` | Prayer Request #${comment.prayerRequestID}` : ''}
+                            </td>
+                        </tr>
+                        ${details.length ? htmlVerticalSpace(10) : ''}
+                        ${htmlDetailTableRows(details)}
+                    </table>
+                </div>
+                <div style="display:inline-block; width:100%; max-width:220px; vertical-align:top;">
+                    <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%;" role="presentation">
+                        <tr>
+                            <td align="right" valign="top" style="padding-top:0; padding-left:12px;">
+                                ${htmlProfileBlock(comment.commenterProfile, includeID)}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>`;
+
+
+
+    /* CONTENT MEDIA */
+    export const htmlContentBlock = (content:ContentListItem, includeID:boolean = false, details:[string,string][] = []):string =>
+        `<table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%; max-width:${EMAIL_CONTENT_MAX_WIDTH};" role="presentation">
+            <tr>
+                <td align="left" valign="top" style="width:100%; font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
+                    ${includeID
+                        ? `<a href="${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/content/${content.contentID}" style="color:${EMAIL_COLOR.PRIMARY}; text-decoration:none;"><b>${content.title || content.url || `Content #${content.contentID}`}</b></a><span style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; font-weight:normal;"> | #${content.contentID}</span>`
+                        : `<b>${content.title || content.url || `Content #${content.contentID}`}</b>`}
+                </td>
+            </tr>
+            ${content.description ? `
+            <tr>
+                <td align="left" valign="top" style="width:100%; font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)}; white-space:pre-wrap;">
+                    ${content.description}
+                </td>
+            </tr>` : ''}
+            <tr>
+                <td align="left" valign="top" style="width:100%; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_LIGHT}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.DETAIL)};">
+                    ${content.type} | ${content.source} | ${content.likeCount} like${content.likeCount === 1 ? '' : 's'} | ${content.modifiedDT}
+                </td>
+            </tr>
+            ${content.url || content.keywordList.length || details.length ? htmlVerticalSpace(10) : ''}
+            ${htmlDetailTableRows([
+                ...(content.url ? [['URL', content.url] as [string,string]] : []),
+                ...(content.keywordList.length ? [['Keywords', content.keywordList.join(', ')] as [string,string]] : []),
+                ...details
+            ])}
+        </table>`;
+

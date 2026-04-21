@@ -44,7 +44,7 @@ export const sendEmailToken = async({subject, token, message, buttonTitle, butto
 
 
 //Applies header/footer and provides plainText fallback
-const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, userIDList, emailRecipientMap, bodyList, getAlternativeTextBody}
+export const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, userIDList, emailRecipientMap, bodyList, getAlternativeTextBody}
                               :{subject:string, sender:EmailSenderAddress, userIDList:number[], emailRecipientMap?:Map<number, string>, bodyList:string[], getAlternativeTextBody?:(name?:string) => string}):Promise<boolean> => {
     let recipientMap:Map<number, string> = emailRecipientMap ?? await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList); //Validated in sendTemplateEmail
 

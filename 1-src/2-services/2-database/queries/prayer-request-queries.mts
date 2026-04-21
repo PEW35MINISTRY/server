@@ -1,6 +1,6 @@
 import * as log from '../../10-utilities/logging/log.mjs';
 import { batch, command, execute, validateColumns } from '../database.mjs';
-import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_PRAYER_REQUEST, DATABASE_PRAYER_REQUEST_COMMENT, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_EDIT, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
+import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_MODERATION_STATUS, DATABASE_PRAYER_REQUEST, DATABASE_PRAYER_REQUEST_COMMENT, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_EDIT, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
@@ -574,6 +574,17 @@ export const DB_DELETE_PRAYER_REQUEST_COMMENT_LIKE = async(commentID:number, use
         [commentID, userID]);
 
   return (response !== undefined) && (response.affectedRows === 1);
+};
+
+export const DB_SET_PRAYER_REQUEST_COMMENT_MODERATION = async(commentID:number, status:DATABASE_MODERATION_STATUS|undefined): Promise<boolean> => {
+
+    const response:CommandResponseType = await command(
+        'UPDATE prayer_request_comment '
+        + 'SET moderationStatus = ? '
+        + 'WHERE commentID = ?;',
+    [status ?? null, commentID]);
+
+    return ((response !== undefined) && (response.affectedRows === 1));
 };
 
 

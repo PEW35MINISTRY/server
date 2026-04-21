@@ -71,6 +71,13 @@ export const TABLES_SUPPORTING_DT: Map<DATABASE_TABLE, Array<'createdDT' | 'modi
 ]);
 
 
+export enum DATABASE_MODERATION_STATUS {
+    REPORTED = 'REPORTED',
+    BLOCKED = 'BLOCKED',
+}
+
+
+
 /******************************************************************* 
 *           Database `user` Table Created: 6/25/2023 
 ********************************************************************/
