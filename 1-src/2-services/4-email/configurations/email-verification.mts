@@ -19,7 +19,7 @@ const sendVerifyEmail = async({userID, email, token, firstName}:{userID:number, 
     const html = await applyTemplate({type: EMAIL_TEMPLATE_TYPE.SIMPLE,
         replacementMap: new Map([[EMAIL_REPLACEMENT.EMAIL_SUBJECT, 'Verify Email Address']]),
         bodyList: [
-            htmlHeader(),
+        htmlHeader(firstName ? (firstName + ',') : undefined),
             htmlText('Please verify your email address to complete your Encouraging Prayer account setup. \nClick the button below to confirm your email. \nThis request is time-limited for your security.  \n\nNote: Email verification is required before resetting your password.'),
             ...(token.length < 10 ? [htmlAccessCode(token, 'Enter in the app:')] : []),
             htmlActionButton([

@@ -7,7 +7,7 @@ import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-databas
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtData, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
-import { checkJWTBlacklist, getJWTData, isMaxRoleGreaterThan, verifyJWT } from './auth-utilities.mjs';
+import { isJWTBlacklisted, getJWTData, isMaxRoleGreaterThan, verifyJWT } from './auth-utilities.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
 

@@ -1,13 +1,15 @@
-import { makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
+import { ENVIRONMENT_TYPE, makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { EmailSubscription, getDateYearsAgo } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import USER from '../../1-models/userModel.mjs'
-import { getEnvironment } from '../../10-utilities/env-utilities.mjs';
+import { getEnvironment, isEnvironment } from '../../10-utilities/env-utilities.mjs';
 import { getModelSourceEnvironment, getEnv } from '../../10-utilities/utilities.mjs';
 import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP } from '../../2-database/queries/user-security-queries.mjs';
-import { htmlHeader, htmlSection, htmlTitle, htmlFooter, htmlText, htmlDetailList, htmlNumberedList, htmlBulletList } from '../components/email-template-components.mjs';
-import { htmlUserContextProfile } from '../components/email-template-items.mjs';
+import { htmlHeader, htmlSection, htmlTitle, htmlFooter, htmlText, htmlDetailList, htmlNumberedList, htmlBulletList, htmlVerticalSpace, htmlBulletLinkList } from '../components/email-template-components.mjs';
+import { htmlPrayerRequestBlock, htmlProfileBlock, htmlUserContextProfile } from '../components/email-template-items.mjs';
 import { EMAIL_SENDER_ADDRESS } from '../email-types.mjs';
-import { formatDate } from '../email-utilities.mjs';
+import { formatDate, getEmailSignature } from '../email-utilities.mjs';
 import { sendBrandedEmail } from '../email.mjs';
 
 
@@ -19,7 +21,7 @@ export const sendModerationEmail = async({ reportingSubject, description, report
 
     //Under 18, must include EMAIL_YOUTH_SAFETY for communication record
     const minorInvolved:boolean = !!reportingUser.dateOfBirth && (reportingUser.dateOfBirth.getTime() < getDateYearsAgo(18).getTime());
-    if(minorInvolved) 
+    if(minorInvolved && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION)) 
         recipientMap.set(-2, getEnv('EMAIL_YOUTH_PROTECTION'));
     
     return await sendBrandedEmail({
@@ -28,9 +30,8 @@ export const sendModerationEmail = async({ reportingSubject, description, report
         userIDList: Array.from(recipientMap.keys()),
         emailRecipientMap: recipientMap,
         bodyList: [
-            htmlHeader('Safety Team'),
-            htmlText(
-                `The following ${makeDisplayText(reportingSubject)} has been flagged and requires investigation.  `
+            htmlText('Safety Team,'),
+            htmlText(`The following ${makeDisplayText(reportingSubject)} has been flagged and requires investigation.  `
                 + 'Please review the details below carefully in accordance with the Encouraging Prayer Policies and Terms of Use.  '
                 + 'This case requires manual action in the Admin Portal. The system will take no further automated action, and the status will remain pending until resolved.'
             ),
@@ -54,24 +55,151 @@ export const sendModerationEmail = async({ reportingSubject, description, report
                 htmlTitle('Related Records'),
                 ...relatedHTMLList.map((html):string => html),
             ]),
+            htmlVerticalSpace(10),
 
             htmlTitle('Reporting User'),
             htmlUserContextProfile(reportingUser),
+            htmlVerticalSpace(10),
 
-            htmlBulletList([
-                'Terms of Use: https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/EP_Terms_Of_Use.pdf',
-                `Privacy Policy: ${getEnv('ENVIRONMENT_BASE_URL')}/privacy-policy`,
-                `Child Safety Policy: ${getEnv('ENVIRONMENT_BASE_URL')}/child-safety-policy`, 
-                'Youth Protection: https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/EP_Youth_Protection_Policy.pdf',
+            htmlBulletLinkList([
+                {
+                    label: 'Terms of Use',
+                    link: 'https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/EP_Terms_Of_Use.pdf'
+                },
+                {
+                    label: 'Privacy Policy',
+                    link: `${getEnv('ENVIRONMENT_BASE_URL')}/privacy-policy`
+                },
+                {
+                    label: 'Child Safety Policy',
+                    link: `${getEnv('ENVIRONMENT_BASE_URL')}/child-safety-policy`
+                },
+                {
+                    label: 'Youth Protection',
+                    link: 'https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/EP_Youth_Protection_Policy.pdf'
+                }
             ], 'Additional Policy Links'),
 
             htmlDetailList([
                 ['Information Generated (CST):', formatDate(new Date(), true)],
                 ['Environment:', makeDisplayText(getEnvironment())],
                 ['User Source Environment:', makeDisplayText(getModelSourceEnvironment())],
-            ], 'Environment Details:'),
-            htmlFooter()
+            ], 'Environment Details:')
         ],
         getAlternativeTextBody:():string => alternativeTextBody ?? `Moderation Report :: ${makeDisplayText(reportingSubject)}\n\n${description}`
+    });
+}
+
+
+
+/* User-Facing Moderation Review Notice - Account Locked */
+export const sendUserLockedAccountEmail = async(user:USER): Promise<boolean> => {
+    const recipientMap: Map<number, string> = new Map([[user.userID, user.email]]);
+
+    //Under 18, must include EMAIL_YOUTH_SAFETY for communication record.
+    const minorInvolved:boolean = !!user.dateOfBirth && (user.dateOfBirth.getTime() < getDateYearsAgo(18).getTime());
+    if(minorInvolved && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION)) 
+        recipientMap.set(-2, getEnv('EMAIL_YOUTH_PROTECTION'));
+
+    return await sendBrandedEmail({
+        subject: 'Encouraging Prayer Account Under Review',
+        sender: EMAIL_SENDER_ADDRESS.SYSTEM,
+        userIDList: Array.from(recipientMap.keys()),
+        emailRecipientMap: recipientMap,
+        bodyList: [
+            htmlProfileBlock(user.toListItem(), false),
+
+            htmlText(
+                'We are writing to inform you that your Encouraging Prayer account has been temporarily locked and is currently under review by our Safety Team. '
+                + 'You will not be able to access the Encouraging Prayer App or related services until the review is complete. '
+                + 'At this time, your account has not been permanently banned. '
+                + 'Our Safety Team is reviewing a reported incident and will be in touch within the next few days. '
+                + `If you have additional questions, please contact Support at ${EMAIL_SENDER_ADDRESS.SUPPORT}.`
+            ),
+
+            htmlBulletLinkList([
+                {
+                    label: 'Terms of Use',
+                    link: 'https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/EP_Terms_Of_Use.pdf'
+                },
+                {
+                    label: 'Privacy Policy',
+                    link: `${getEnv('ENVIRONMENT_BASE_URL')}/privacy-policy`
+                },
+                {
+                    label: 'Child Safety Policy',
+                    link: `${getEnv('ENVIRONMENT_BASE_URL')}/child-safety-policy`
+                },
+                {
+                    label: 'Youth Protection',
+                    link: 'https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/EP_Youth_Protection_Policy.pdf'
+                }
+            ], 'Policy Links')
+        ],
+        getAlternativeTextBody: (): string => (
+            `${user.firstName},\n\n`
+            + 'We are writing to inform you that your Encouraging Prayer account has been temporarily locked and is currently under review by our Safety Team. '
+            + 'You will not be able to access the Encouraging Prayer App or related services until the review is complete.\n\n'
+            + 'At this time, your account has not been permanently banned. '
+            + 'Our Safety Team is reviewing a reported incident and will be in touch within the next few days.\n\n'
+            + `If you have additional questions, please contact Support at ${EMAIL_SENDER_ADDRESS.SUPPORT}.\n\n`
+            + getEmailSignature(EMAIL_SENDER_ADDRESS.ADMIN).join('\n')
+        )
+    });
+}
+
+
+/* User-Facing Moderation Review Notice - Prayer Request Temporarily Removed */
+export const sendPrayerRequestRemovedEmail = async(user:USER, flaggedPrayerRequest:PrayerRequestListItem): Promise<boolean> => {
+    const recipientMap: Map<number, string> = new Map([[user.userID, user.email]]);
+
+    //Under 18, must include EMAIL_YOUTH_SAFETY for communication record.
+    const minorInvolved:boolean = !!user.dateOfBirth && (user.dateOfBirth.getTime() < getDateYearsAgo(18).getTime());
+    if(minorInvolved && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION)) 
+        recipientMap.set(-2, getEnv('EMAIL_YOUTH_PROTECTION'));
+
+    return await sendBrandedEmail({
+        subject: 'Encouraging Prayer Prayer Request Under Review',
+        sender: EMAIL_SENDER_ADDRESS.SYSTEM,
+        userIDList: Array.from(recipientMap.keys()),
+        emailRecipientMap: recipientMap,
+        bodyList: [
+            htmlText(
+                `We are writing to inform you that your prayer request, “${flaggedPrayerRequest.topic}”, has been temporarily removed and is currently under review by our Safety Team. `
+                + 'Your account has not been locked or banned, and you may continue using the Encouraging Prayer App while this review is pending. '
+                + 'Our Safety Team is reviewing a reported incident involving this prayer request and will be in touch within the next few days. '
+                + `If you have additional questions, please contact Support at ${EMAIL_SENDER_ADDRESS.SUPPORT}.`
+            ),
+
+            htmlPrayerRequestBlock(flaggedPrayerRequest, false),
+
+            htmlBulletLinkList([
+                {
+                    label: 'Terms of Use',
+                    link: 'https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/EP_Terms_Of_Use.pdf'
+                },
+                {
+                    label: 'Privacy Policy',
+                    link: `${getEnv('ENVIRONMENT_BASE_URL')}/privacy-policy`
+                },
+                {
+                    label: 'Child Safety Policy',
+                    link: `${getEnv('ENVIRONMENT_BASE_URL')}/child-safety-policy`
+                },
+                {
+                    label: 'Youth Protection',
+                    link: 'https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/EP_Youth_Protection_Policy.pdf'
+                }
+            ], 'Policy Links')
+        ],
+        getAlternativeTextBody: (): string => (
+            `${user.firstName},\n\n`
+            + `We are writing to inform you that your prayer request, "${flaggedPrayerRequest.topic}", has been temporarily removed and is currently under review by our Safety Team. `
+            + 'Your account has not been locked or banned, and you may continue using the Encouraging Prayer App while this review is pending.\n\n'
+            + 'Our Safety Team is reviewing a reported incident involving this prayer request and will be in touch within the next few days.\n\n'
+            + `If you have additional questions, please contact Support at ${EMAIL_SENDER_ADDRESS.SUPPORT}.\n\n`
+            + `Prayer Request:\n${flaggedPrayerRequest.topic}\n${flaggedPrayerRequest.description}\n\n\n`
+            + getEmailSignature(EMAIL_SENDER_ADDRESS.ADMIN).join('\n')
+        )
     });
 }

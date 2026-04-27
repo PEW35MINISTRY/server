@@ -20,7 +20,7 @@ import { htmlDetailTableRows, htmlTitle, htmlVerticalSpace } from "./email-templ
  * Email Template List Item Components *
  ***************************************/
 
-export const htmlUserContextProfile = (user:USER, details?:[string, string][]):string => {
+export const htmlUserContextProfile = (user:USER, details:[string, string][] = []):string => {
 
     return htmlProfileBlock(user.toListItem(), true, [
         ['Full Name:', `${user.firstName} ${user.lastName}`],
@@ -34,7 +34,7 @@ export const htmlUserContextProfile = (user:USER, details?:[string, string][]):s
 
 /* PROFILE */
 export const htmlProfileBlock = (profile:ProfileListItem, includeUserID:boolean = false, details:[string, string][] = [], fullWidth:boolean = false):string =>
-    `<<table border="0" cellspacing="0" cellpadding="0" ${fullWidth ? `width="100%" style="width:100%; max-width:${EMAIL_CONTENT_MAX_WIDTH};"` : ''} role="presentation">
+    `<table border="0" cellspacing="0" cellpadding="0" ${fullWidth ? `width="100%" style="width:100%; max-width:${EMAIL_CONTENT_MAX_WIDTH};"` : ''} role="presentation">
         <tr>
             <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)};">
                 <img src="${profile.image || DEFAULT_PROFILE_URL}" width="${EMAIL_PROFILE_IMAGE_SIZE}" height="${EMAIL_PROFILE_IMAGE_SIZE}" style="vertical-align:middle; border-radius:50%; margin-right:${EMAIL_PROFILE_IMAGE_SIZE / 2}px;" alt="Profile"/>
@@ -255,7 +255,7 @@ export const htmlPrayerRequestBlock = (request:PrayerRequestListItem, includeID:
                             </td>
                         </tr>
                         <tr>
-                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.PRIMARY}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)}; white-space:pre-wrap;">
+                            <td align="left" valign="top" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLACK}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT)}; white-space:pre-wrap;">
                                 ${request.description}
                             </td>
                         </tr>
@@ -268,15 +268,16 @@ export const htmlPrayerRequestBlock = (request:PrayerRequestListItem, includeID:
                         ${htmlDetailTableRows(details)}
                     </table>
                 </div>
-                <div style="display:inline-block; width:100%; max-width:220px; vertical-align:top;">
-                    <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%;" role="presentation">
-                        <tr>
-                            <td align="right" valign="top" style="padding-top:0; padding-left:12px;">
-                                ${htmlProfileBlock(request.requestorProfile, includeID)}
-                            </td>
-                        </tr>
-                    </table>
-                </div>
+                ${request.requestorProfile && 
+                    `<div style="display:inline-block; width:100%; max-width:220px; vertical-align:top;">
+                        <table border="0" cellspacing="0" cellpadding="0" width="100%" style="width:100%;" role="presentation">
+                            <tr>
+                                <td align="right" valign="top" style="padding-top:0; padding-left:12px;">
+                                    ${htmlProfileBlock(request.requestorProfile, includeID)}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>`}
             </td>
         </tr>
     </table>`;

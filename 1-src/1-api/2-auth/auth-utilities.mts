@@ -117,7 +117,7 @@ export const blackListJWT = async(userID:number):Promise<void> => {
 }
 
 
-export const checkJWTBlacklist = (userID:number):boolean => {
+export const isJWTBlacklisted = (userID:number):boolean => {
     if(JWT_BLACKLIST.size === 0) 
         return false;
 
