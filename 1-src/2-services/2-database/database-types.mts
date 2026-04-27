@@ -84,7 +84,7 @@ export enum DATABASE_MODERATION_STATUS {
 export const USER_TABLE_COLUMNS_REQUIRED:string[] = [ 'displayName', 'email', 'passwordHash' ];
 
 export const USER_TABLE_COLUMNS_EDIT:string[] = [ ...USER_TABLE_COLUMNS_REQUIRED,
-    'modelSourceEnvironment', 'firstName', 'lastName', 'isEmailVerified', 'postalCode', 'dateOfBirth', 'gender', 'walkLevel', 'maxPartners', 'image', 'notes'
+    'modelSourceEnvironment', 'firstName', 'lastName', 'isEmailVerified', 'postalCode', 'dateOfBirth', 'gender', 'walkLevel', 'maxPartners', 'image', 'notes', 'moderationStatus'
 ];
 
 export const USER_TABLE_COLUMNS:string[] = [ ...USER_TABLE_COLUMNS_EDIT,
@@ -217,7 +217,7 @@ export type DATABASE_CIRCLE_ANNOUNCEMENT = {
 export const PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED:string[] = [ 'requestorID', 'topic', 'description', 'expirationDate' ];
 
 export const PRAYER_REQUEST_TABLE_COLUMNS_EDIT:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED,
-    'isOnGoing', 'isResolved', 'tagListStringified'
+    'isOnGoing', 'isResolved', 'tagListStringified', 'moderationStatus'
 ];
 
 export const PRAYER_REQUEST_TABLE_COLUMNS:string[] = [ ...PRAYER_REQUEST_TABLE_COLUMNS_EDIT,
@@ -261,7 +261,9 @@ export interface DATABASE_PRAYER_REQUEST_EXTENDED extends DATABASE_PRAYER_REQUES
 *********************************************************************/
 export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS_REQUIRED = [ 'prayerRequestID', 'commenterID', 'message' ];
 
-export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS = [ ...PRAYER_REQUEST_COMMENT_TABLE_COLUMNS_REQUIRED,
+export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS_EDIT = [ ...PRAYER_REQUEST_COMMENT_TABLE_COLUMNS_REQUIRED, 'moderationStatus' ];
+
+export const PRAYER_REQUEST_COMMENT_TABLE_COLUMNS = [ ...PRAYER_REQUEST_COMMENT_TABLE_COLUMNS_EDIT,
     'commentID', 'likeCount', 'createdDT'   //Read only
 ];
 
@@ -291,7 +293,7 @@ export interface DATABASE_PRAYER_REQUEST_COMMENT_EXTENDED extends DATABASE_PRAYE
 export const CONTENT_TABLE_COLUMNS_REQUIRED:string[] = [ 'recorderID', 'type', 'source', 'url' ];
 
 export const CONTENT_TABLE_COLUMNS_EDIT:string[] = [ ...CONTENT_TABLE_COLUMNS_REQUIRED,
-    'likeCount', 'customType', 'customSource', 'keywordListStringified', 'title', 'description', 'image', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes'
+    'likeCount', 'customType', 'customSource', 'keywordListStringified', 'title', 'description', 'image', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'moderationStatus'
 ];
 
 export const CONTENT_TABLE_COLUMNS:string[] = [ ...CONTENT_TABLE_COLUMNS_EDIT,

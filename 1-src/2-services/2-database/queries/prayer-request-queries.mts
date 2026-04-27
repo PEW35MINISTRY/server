@@ -73,9 +73,12 @@ export const DB_SELECT_PRAYER_REQUEST_DETAIL = async(prayerRequestID:number, rec
     return prayerRequest;
 }
 
-export const DB_IS_PRAYER_REQUEST_REQUESTOR = async({prayerRequestID, userID}:{prayerRequestID:number, userID:number}):Promise<boolean> => {
+export const DB_IS_PRAYER_REQUEST_REQUESTOR = async({prayerRequestID, userID, includeUnderModeration = false}:{prayerRequestID:number, userID:number, includeUnderModeration ?: boolean}):Promise<boolean> => {
     const rows = await execute('SELECT prayerRequestID ' + 'FROM prayer_request '
-        + 'WHERE prayerRequestID = ? AND requestorID = ?;', [prayerRequestID, userID]);
+        + 'WHERE prayerRequestID = ? '
+            + `${!includeUnderModeration ? 'AND moderationStatus IS NULL ' : ''}`
+            + 'AND requestorID = ?;',
+        [prayerRequestID, userID]);
 
     return (rows.length === 1);
 }
@@ -206,6 +209,7 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOw
         + 'LEFT JOIN prayer_request_user_like ON prayer_request_user_like.prayerRequestID = prayer_request.prayerRequestID AND prayer_request_user_like.userID = ? '
         + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
         + 'WHERE prayer_request.isResolved = FALSE ' //Active Requests Only
+        + 'AND prayer_request.moderationStatus IS NULL '
         + (includeOwned ? '' : 'AND prayer_request.requestorID != ? ')
         + 'AND ( '
             //Owned by User
@@ -271,6 +275,7 @@ export const DB_SELECT_PRAYER_REQUEST_REQUESTOR_LIST = async(userID:number, isRe
         +     'AND prayer_request_user_like.userID = ? '
         + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
         + 'WHERE prayer_request.requestorID = ? '
+        + 'AND prayer_request.moderationStatus IS NULL '
         + ((isResolved !== undefined) ? 'AND prayer_request.isResolved = ? ' : '')
         + `ORDER BY prayer_request.modifiedDT DESC LIMIT ${limit};`, 
     [userID, userID, ...((isResolved !== undefined) ? [isResolved] : [])]); 
@@ -290,6 +295,7 @@ export const DB_SELECT_PRAYER_REQUEST_EXPIRED_REQUESTOR_LIST = async(userID:numb
         +     'AND prayer_request_user_like.userID = ? '
         + 'INNER JOIN user ON user.userID = prayer_request.requestorID '
         + 'WHERE prayer_request.requestorID = ? '
+        +     'AND prayer_request.moderationStatus IS NULL '
         +     'AND prayer_request.isOnGoing = 1 '
         +     'AND prayer_request.isResolved = 0 '
         +     'AND prayer_request.expirationDate < CURRENT_DATE() '
@@ -334,13 +340,15 @@ export const DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED = async (isOngoing:numb
 }
 
 //Searches for userID match among: requestor, specified recipient, member or leader of circle which is an intended recipient
-export const DB_IS_RECIPIENT_PRAYER_REQUEST = async({prayerRequestID, userID}:{prayerRequestID:number, userID:number}):Promise<boolean> => {
+export const DB_IS_RECIPIENT_PRAYER_REQUEST = async({prayerRequestID, userID, includeUnderModeration = false}:{prayerRequestID:number, userID:number, includeUnderModeration?:boolean}):Promise<boolean> => {
     const rows = await execute('SELECT prayer_request.prayerRequestID ' //search specified recipient
     + 'FROM prayer_request '
     + 'LEFT JOIN prayer_request_recipient ON prayer_request_recipient.prayerRequestID = prayer_request.prayerRequestID '
     + `LEFT JOIN circle_user ON (circle_user.circleID = prayer_request_recipient.circleID AND circle_user.status = 'MEMBER') `
     + 'LEFT JOIN circle ON circle.circleID = prayer_request_recipient.circleID '
-    + 'WHERE prayer_request.prayerRequestID = ? AND ( prayer_request.requestorID = ? OR prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? );',
+    + 'WHERE prayer_request.prayerRequestID = ? '
+        + `${!includeUnderModeration ? 'AND prayer_request.moderationStatus IS NULL ' : ''}`
+        + 'AND ( prayer_request.requestorID = ? OR prayer_request_recipient.userID = ? OR circle_user.userID = ? OR circle.leaderID = ? );',
     [ prayerRequestID, userID, userID, userID, userID ]);
 
     return (rows.length > 0);

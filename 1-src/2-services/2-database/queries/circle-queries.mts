@@ -335,7 +335,8 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
     await execute('SELECT DISTINCT circle.circleID, circle.name, circle.image, circle.leaderID, ( SELECT circle_user.status WHERE circle_user.userID = ? ) as status ' 
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
-        + 'WHERE circle_user.userID = ? OR ( circle.leaderID = ? ) '
+        + 'WHERE circle.moderationStatus IS NULL '
+        + 'AND (circle_user.userID = ? OR circle.leaderID = ?) '
         + 'GROUP BY circle.circleID '
         + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, userID, userID])
 
@@ -344,15 +345,16 @@ export const DB_SELECT_USER_CIRCLES = async(userID:number, status?:DATABASE_CIRC
     await execute('SELECT DISTINCT circle.circleID, circle.leaderID, circle.name, circle.description, circle.image, ( SELECT circle_user.status WHERE circle_user.userID = ? ) as status ' 
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
-        + 'WHERE ( circle_user.userID = ? AND circle_user.status = ? ) '
-        + 'OR ( circle.leaderID = ? ) '
+        + 'WHERE circle.moderationStatus IS NULL '
+        + 'AND ((circle_user.userID = ? AND circle_user.status = ?) OR circle.leaderID = ?) '
         + 'GROUP BY circle.circleID '
         + 'ORDER BY ( circle.leaderID = ? ) DESC, circle_user.modifiedDT DESC;', [userID, userID, status, userID, userID])
 
     : await execute('SELECT DISTINCT circle.circleID, circle.name, circle.image, circle.leaderID, circle_user.status ' 
         + 'FROM circle '
         + 'LEFT JOIN circle_user ON circle.circleID = circle_user.circleID '
-        + 'WHERE (circle_user.userID = ?  AND circle_user.status = ? ) '
+        + 'WHERE circle.moderationStatus IS NULL '
+        + 'AND circle_user.userID = ? AND circle_user.status = ? '
         + 'GROUP BY circle.circleID '
         + 'ORDER BY circle_user.modifiedDT DESC;', [userID, status]);
  
@@ -377,13 +379,14 @@ export const DB_SELECT_CIRCLE_MANAGER_IDS = async(userID:number):Promise<number[
 }
 
 //Circle Manager access to User Profile | Searches if userID is a current member of any of leaderID circles and verifies leaderID is a CIRCLE_MANAGER' role
-export const DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES = async({leaderID, userID}:{leaderID:number, userID:number}):Promise<boolean> => {
+export const DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES = async({leaderID, userID, includeUnderModeration = false}:{leaderID:number, userID:number, includeUnderModeration?:boolean}):Promise<boolean> => {
     //undefined status ignores field
     const rows = await execute('SELECT circle_user.circleID ' + 'FROM circle_user '
     + 'LEFT JOIN circle ON circle.circleID = circle_user.circleID '
     + 'LEFT JOIN user_role ON user_role.userID = circle.leaderID '
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
-    + 'WHERE user_role_defined.userRole = ? AND circle.leaderID = ? AND circle_user.userID = ? AND circle_user.STATUS = ?;', 
+    + 'WHERE user_role_defined.userRole = ? AND circle.leaderID = ? AND circle_user.userID = ? AND circle_user.STATUS = ? '
+        + `${!includeUnderModeration ? 'AND circle_user.moderationStatus IS NULL ' : ''};`,
     [DATABASE_USER_ROLE_ENUM.CIRCLE_MANAGER, leaderID, userID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER]);
 
     return (rows.length > 0);
@@ -401,6 +404,7 @@ export const DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES = async(leaderID:nu
             + 'LEFT JOIN user_role ON user_role.userID = user.userID '
                 + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
             + 'WHERE circle_user.status = ? '
+                + 'AND user.moderationStatus IS NULL '
                 + 'AND circle.leaderID = ? '
                 + 'AND leader_role_defined.userRole = ? '
                 + `AND (user_role_defined.userRole IN (${GENERAL_USER_ROLES.map(r => `'${r}'`).join(', ')}) OR user_role_defined.userRole IS NULL) `
@@ -415,6 +419,7 @@ export const DB_SELECT_MEMBERS_OF_ALL_LEADER_MANAGED_CIRCLES = async(leaderID:nu
             + 'JOIN user_role AS leader_role ON leader_role.userID = circle.leaderID '
                 + 'JOIN user_role_defined AS leader_role_defined ON leader_role_defined.userRoleID = leader_role.userRoleID '
             + 'WHERE circle_user.status = ? '
+                + 'AND user.moderationStatus IS NULL '
                 + 'AND circle.leaderID = ? '
                 + 'AND leader_role_defined.userRole = ? '
             + 'ORDER BY user.modifiedDT DESC '
@@ -463,38 +468,51 @@ export const DB_SELECT_CIRCLE_USER_LIST = async(circleID:number, status?:DATABAS
     return [...rows.reverse().map(row => ({userID: row.userID || -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || ''}))];
 }
 
-export const DB_IS_CIRCLE_USER_OR_LEADER = async({userID, circleID, status}:{userID:number, circleID:number, status?:DATABASE_CIRCLE_STATUS_ENUM}):Promise<boolean> => {
+export const DB_IS_CIRCLE_USER_OR_LEADER = async({userID, circleID, status, includeUnderModeration = false}:{userID:number, circleID:number, status?:DATABASE_CIRCLE_STATUS_ENUM, includeUnderModeration?:boolean}):Promise<boolean> => {
     //undefined status ignores field
     const rows = (status === undefined) ?
     await execute('SELECT userID ' + 'FROM circle_user '
-        + 'WHERE userID = ? AND circleID = ? '
+        + 'LEFT JOIN circle ON circle.circleID = circle_user.circleID '
+        + 'WHERE circle_user.userID = ? AND circle_user.circleID = ? '
+            + `${!includeUnderModeration ? 'AND circle.moderationStatus IS NULL ' : ''}`
         + 'UNION ALL '
-        + 'SELECT leaderID as userID ' + 'FROM circle '
-        + 'WHERE leaderID = ? AND circleID = ?;', [userID, circleID, userID, circleID])
+        + 'SELECT leaderID as userID FROM circle '
+        + 'WHERE leaderID = ? AND circleID = ? '
+            + `${!includeUnderModeration ? 'AND moderationStatus IS NULL ' : ''};`,
+        [userID, circleID, userID, circleID])
 
     //Leader included in MEMBER search
     : (status === DATABASE_CIRCLE_STATUS_ENUM.MEMBER) ?
     await execute('SELECT userID ' + 'FROM circle_user '
-        + 'WHERE userID = ? AND circleID = ? AND status = ? '
+        + 'LEFT JOIN circle ON circle.circleID = circle_user.circleID '
+        + 'WHERE circle_user.userID = ? AND circle_user.circleID = ? AND circle_user.status = ? '
+            + `${!includeUnderModeration ? 'AND circle.moderationStatus IS NULL ' : ''}`
         + 'UNION ALL '
-        + 'SELECT leaderID as userID ' + 'FROM circle '
-        + 'WHERE leaderID = ? AND circleID = ?;', [userID, circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, userID, circleID])
+        + 'SELECT leaderID as userID FROM circle '
+        + 'WHERE leaderID = ? AND circleID = ? '
+            + `${!includeUnderModeration ? 'AND moderationStatus IS NULL ' : ''};`, 
+        [userID, circleID, DATABASE_CIRCLE_STATUS_ENUM.MEMBER, userID, circleID])
 
     : await execute('SELECT userID ' + 'FROM circle_user '
-        + 'WHERE userID = ? AND circleID = ? AND status = ?;', [userID, circleID, status])
+        + 'LEFT JOIN circle ON circle.circleID = circle_user.circleID '
+        + 'WHERE circle_user.userID = ? AND circle_user.circleID = ? AND circle_user.status = ? '
+            + `${!includeUnderModeration ? 'AND circle.moderationStatus IS NULL ' : ''};`, 
+        [userID, circleID, status]);
 
     return (rows.length > 0);
 }
 
 //Verify Circle Leader and still hold Leader Role
-export const DB_IS_CIRCLE_LEADER = async({leaderID, circleID}:{leaderID:number, circleID:number}):Promise<boolean> => {
+export const DB_IS_CIRCLE_LEADER = async({leaderID, circleID, includeUnderModeration = false}:{leaderID:number, circleID:number, includeUnderModeration?:boolean}):Promise<boolean> => {
     //undefined status ignores field
     const rows = await execute('SELECT leaderID ' + 'FROM circle '
-    + 'LEFT JOIN user_role ON user_role.userID = leaderID '
+    + 'LEFT JOIN user ON user.userID = circle.leaderID '
+    + 'LEFT JOIN user_role ON user_role.userID = circle.leaderID '
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
-    + 'WHERE leaderID = ? '
-    + 'AND circleID = ? '
-    + 'AND user_role_defined.userRole IN (?, ?) ;',
+    + 'WHERE circle.leaderID = ? '
+        + 'AND circle.circleID = ? '
+        + `${!includeUnderModeration ? 'AND user.moderationStatus IS NULL AND circle.moderationStatus IS NULL ' : ''}`
+        + 'AND user_role_defined.userRole IN (?, ?) ;',
     [leaderID, circleID, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER, DATABASE_USER_ROLE_ENUM.CIRCLE_MANAGER]);
 
     return (rows.length > 0);

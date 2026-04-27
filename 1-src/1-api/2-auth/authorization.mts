@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
-import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES as DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_IS_USER_PARTNER_ANY_STATUS } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DB_IS_PRAYER_REQUEST_REQUESTOR, DB_IS_RECIPIENT_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-security-queries.mjs';
@@ -33,13 +33,12 @@ export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: 
         const JWTData:JwtData = getJWTData(rawJWTToken);
 
         if(!JWTData || JWTData.jwtUserID === undefined || JWTData.jwtUserID <= 0 || JWTData.jwtUserRole === undefined) {
-            log.auth(`Failed to parse JWT for user: ${request.headers['user-id']}`, `UserID from token: ${JWTData.jwtUserID}`, 
-                        `User Role from token: ${JWTData.jwtUserRole}`, 'JWT: ', rawJWTToken.slice(0, 15));
-            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Failed to parse JWT: ${request.headers['jwt']}`, 'Invalid Token'));
+            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Failed to parse JWT | UserID from header: ${request.headers['user-id']} `
+                + `| UserID from token: ${JWTData?.jwtUserID} | User Role from token: ${JWTData?.jwtUserRole} | JWT: ${rawJWTToken.slice(0, 15)}...`, 'Invalid Token'));
 
-        } else if(!checkJWTBlacklist(JWTData.jwtUserID)) {
-            log.auth(`Blacklisted JWT rejected for user: ${JWTData.jwtUserID}`, `User Role from token: ${JWTData.jwtUserRole}`, 'JWT: ', rawJWTToken.slice(0, 15));
-            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: JWT blacklisted for user: ${JWTData.jwtUserID}`, 'Invalid Token'));
+        } else if(isJWTBlacklisted(JWTData.jwtUserID)) {
+            next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: JWT blacklisted for user: ${JWTData.jwtUserID} `
+                + `| User Role from token: ${JWTData.jwtUserRole} | JWT: ${rawJWTToken.slice(0, 15)}...`, 'Invalid Token'));
 
         } else {
             request.jwt = rawJWTToken
@@ -75,7 +74,7 @@ export const authenticatePrayerRequestRecipientMiddleware = async(request: JwtPr
         const prayerRequestID:number = parseInt(request.params.prayer);
 
         if((request.jwtUserRole === RoleEnum.ADMIN) 
-            || await DB_IS_RECIPIENT_PRAYER_REQUEST({prayerRequestID: prayerRequestID, userID: request.jwtUserID})) {
+            || await DB_IS_RECIPIENT_PRAYER_REQUEST({prayerRequestID: prayerRequestID, userID: request.jwtUserID, includeUnderModeration: false})) {
 
             request.prayerRequestID = prayerRequestID;
             log.auth(`AUTHENTICATED :: PRAYER REQUEST RECIPIENT :: status verified: User: ${request.jwtUserID} is a recipient of prayer request: ${prayerRequestID}`);
@@ -98,7 +97,7 @@ export const authenticatePrayerRequestRequestorMiddleware = async(request: JwtPr
         const prayerRequestID:number = parseInt(request.params.prayer);
 
         if((request.jwtUserRole === RoleEnum.ADMIN)
-            || await DB_IS_PRAYER_REQUEST_REQUESTOR({prayerRequestID: prayerRequestID, userID: request.jwtUserID})) {
+            || await DB_IS_PRAYER_REQUEST_REQUESTOR({prayerRequestID: prayerRequestID, userID: request.jwtUserID, includeUnderModeration: false})) {
 
             request.prayerRequestID = prayerRequestID;
             log.auth(`AUTHENTICATED :: PRAYER REQUEST REQUESTOR :: status verified: User: ${request.jwtUserID} is the requestor of prayer request: ${prayerRequestID}`);
@@ -178,7 +177,7 @@ export const authenticateClientAccessMiddleware = async(request: JwtClientReques
     //Verify Requestor Authorization
     if((request.jwtUserID === request.clientID)
         || (request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
-        || (await DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES({userID: request.clientID, leaderID: request.jwtUserID}))) {
+        || (await DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES({userID: request.clientID, leaderID: request.jwtUserID, includeUnderModeration: false}))) {
 
             request.clientID = request.clientID;
             log.auth(`AUTHENTICATED :: PROFILE :: profile status verified: User: ${request.jwtUserID} has access to Client: ${request.clientID}`);
@@ -208,7 +207,7 @@ export const extractCircleMiddleware = async(request: JwtCircleRequest, response
 export const authenticateCircleMembershipMiddleware = async(request: JwtCircleRequest, response: Response, next: NextFunction):Promise<void> => {
 
     if((request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
-        || await DB_IS_CIRCLE_USER_OR_LEADER({userID: request.jwtUserID, circleID: request.circleID, status: DATABASE_CIRCLE_STATUS_ENUM.MEMBER})) {
+        || await DB_IS_CIRCLE_USER_OR_LEADER({userID: request.jwtUserID, circleID: request.circleID, status: DATABASE_CIRCLE_STATUS_ENUM.MEMBER, includeUnderModeration: false})) {
             log.auth(`AUTHENTICATED :: CIRCLE MEMBER :: status verified: User: ${request.jwtUserID} is a member of circle: ${request.circleID}`);
             next();
 
@@ -223,7 +222,7 @@ export const authenticateCircleLeaderMiddleware = async(request: JwtCircleReques
     if((request.jwtUserRole === RoleEnum.ADMIN 
             && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
         || (isMaxRoleGreaterThan({testUserRole: RoleEnum.CIRCLE_LEADER, currentMaxUserRole: request.jwtUserRole}) 
-            && await DB_IS_CIRCLE_LEADER({leaderID: request.jwtUserID, circleID: request.circleID}))) {
+            && await DB_IS_CIRCLE_LEADER({leaderID: request.jwtUserID, circleID: request.circleID, includeUnderModeration: false}))) {
 
         log.auth(`AUTHENTICATED :: CIRCLE LEADER :: status verified: User: ${request.jwtUserID} is a Circle Leader of circle: ${request.circleID}`);
         next();

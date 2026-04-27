@@ -26,7 +26,7 @@ export const DB_IS_USER_ROLE = async(userID:number, userRole:DATABASE_USER_ROLE_
     const rows = await execute('SELECT * ' + 'FROM user '
         + 'LEFT JOIN user_role ON user_role.userID = user.userID '
         + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
-        + 'WHERE user.userID = ? '
+        + 'WHERE user.userID = ? AND user.moderationStatus IS NULL '  //Excludes users under moderation from privileges
         + `AND (user_role_defined.userRole = ? OR (user_role.userRoleID IS NULL AND ? = TRUE AND ? = 'USER'));`, 
             [userID, userRole, useDefaultUser, userRole]); 
 
@@ -42,7 +42,7 @@ export const DB_IS_ANY_USER_ROLE = async(userID:number, userRoleList:DATABASE_US
     const rows = await execute('SELECT * ' + 'FROM user '
     + 'LEFT JOIN user_role ON user_role.userID = user.userID '
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
-    + 'WHERE user.userID = ? '
+    + 'WHERE user.userID = ? AND user.moderationStatus IS NULL '  //Excludes users under moderation from privileges
     + `AND (${preparedColumns} OR (user_role.userRoleID IS NULL AND ? = TRUE));`,
         [userID, ...userRoleList, useDefaultUser]); 
 
@@ -248,7 +248,7 @@ export const DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST = async(userID:number):Promi
 
 export const DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP = async(subscription:EmailSubscription):Promise<Map<number, string>> => {
     if(Object.values(EmailSubscription).indexOf(subscription) === -1) {
-        log.db('DB_SELECT_EMAIL_LIST_BY_SUBSCRIPTION: invalid subscription input', subscription);
+        log.db('DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP: invalid subscription input', subscription);
         return new Map();
     }
 
@@ -256,7 +256,11 @@ export const DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP = async(subscriptio
         + 'FROM user_email_subscription '
         + 'INNER JOIN user ON user.userID = user_email_subscription.userID '
         + 'WHERE LOWER(user_email_subscription.subscription) = LOWER(?) '
-        + 'AND user.isEmailVerified = 1;', [subscription]);
+            + 'AND user.isEmailVerified = 1 '
+            + 'AND user.moderationStatus IS NULL;', [subscription]);
+
+    if(rows.length === 0)
+        log.db('DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP: No active subscriptions', subscription);
 
     return rows.reduce((map, row) => map.set(row.userID, row.email), new Map<number, string>());
 }

@@ -1,12 +1,12 @@
+import * as log from '../../10-utilities/logging/log.mjs';
 import { PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ENVIRONMENT_TYPE, makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { EmailSubscription, getDateYearsAgo } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import USER from '../../1-models/userModel.mjs'
 import { getEnvironment, isEnvironment } from '../../10-utilities/env-utilities.mjs';
 import { getModelSourceEnvironment, getEnv } from '../../10-utilities/utilities.mjs';
 import { DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP } from '../../2-database/queries/user-security-queries.mjs';
-import { htmlHeader, htmlSection, htmlTitle, htmlFooter, htmlText, htmlDetailList, htmlNumberedList, htmlBulletList, htmlVerticalSpace, htmlBulletLinkList } from '../components/email-template-components.mjs';
+import { htmlSection, htmlTitle, htmlText, htmlDetailList, htmlNumberedList, htmlVerticalSpace, htmlBulletLinkList } from '../components/email-template-components.mjs';
 import { htmlPrayerRequestBlock, htmlProfileBlock, htmlUserContextProfile } from '../components/email-template-items.mjs';
 import { EMAIL_SENDER_ADDRESS } from '../email-types.mjs';
 import { formatDate, getEmailSignature } from '../email-utilities.mjs';
@@ -18,6 +18,11 @@ export const sendModerationEmail = async({ reportingSubject, description, report
                                         :{ reportingSubject:string, description:string, reportingUser:USER, flaggedHTMLList:string[], relatedHTMLList?:string[], alternativeTextBody?:string }):Promise<boolean> => {
 
     const recipientMap:Map<number, string> = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(EmailSubscription.SAFETY_TEAM);
+
+    if(recipientMap.size === 0) {
+        log.error('sendModerationEmail: No recipients for flagged items for review, email subscription:', EmailSubscription.SAFETY_TEAM);
+        return false;
+    }
 
     //Under 18, must include EMAIL_YOUTH_SAFETY for communication record
     const minorInvolved:boolean = !!reportingUser.dateOfBirth && (reportingUser.dateOfBirth.getTime() < getDateYearsAgo(18).getTime());

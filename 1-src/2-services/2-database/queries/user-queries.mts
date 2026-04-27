@@ -385,6 +385,7 @@ export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments
         + '    OR (user.userID = partner.partnerID AND partner.userID = ? ) '
         + `) AND partner.status = 'PARTNER' `
         + 'WHERE user.userID != ? '
+        + 'AND user.moderationStatus IS NULL '
         + 'AND ( '
         + '    circle_user.circleID IN ( '
         + '        SELECT circleID '

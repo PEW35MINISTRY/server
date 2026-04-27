@@ -15,7 +15,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
 
     //Static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = ['requestorID', 'topic', 'description']; //exclude: prayerRequestID, complex types, and lists
-    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'createdDT', 'modifiedDT', 'prayerCount', 'prayerCountRecipient', 'requestorProfile', 'commentList', 'userLikedList', 'userRecipientList', 'circleRecipientList' ];
+    static PROPERTY_LIST = [ 'prayerRequestID', 'requestorID', 'topic', 'description', 'isOnGoing', 'isResolved', 'tagList', 'expirationDate', 'createdDT', 'modifiedDT', 'moderationStatus', 'prayerCount', 'prayerCountRecipient', 'requestorProfile', 'commentList', 'userLikedList', 'userRecipientList', 'circleRecipientList' ];
 
     prayerRequestID: number = -1;
     requestorID: number;
@@ -25,6 +25,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
     isResolved: boolean;
     tagList: PrayerRequestTagEnum[] = [];
     expirationDate: Date;
+    moderationStatus?:string|null;
 
     //Database - Read Only
     createdDT:Date;
@@ -136,6 +137,7 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
                 ['tagListStringified', (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST) => { 
                     return (JSON.stringify(Array.from(model.tagList).sort()) !== JSON.stringify(Array.from(baseModel.tagList).sort())) 
                     ? JSON.stringify(model.tagList) : undefined; }],
+                ['moderationStatus', (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST) => model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
             ])});
 
     override getUniqueDatabaseProperties = (baseModel:PRAYER_REQUEST):Map<string, any> => PRAYER_REQUEST.getUniqueDatabaseProperties(this, baseModel);

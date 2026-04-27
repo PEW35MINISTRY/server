@@ -225,9 +225,12 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
                     await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
 
         return new Exception(403, 'Email address is not verified.', 'Please Verify Email');
-    }
 
-    return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
+    } else if(userProfile.moderationStatus !== undefined || isJWTBlacklisted(userProfile.userID))
+        return new Exception(403, `Login Blocked with moderation status: ${userProfile.moderationStatus}.`, 'Account Locked');
+    
+    else
+        return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
 }
 
 
