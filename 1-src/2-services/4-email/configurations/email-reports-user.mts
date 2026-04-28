@@ -13,6 +13,7 @@ import { htmlSummaryPairList } from '../components/email-template-table.mjs';
 import { applyTemplate, EMAIL_TEMPLATE_TYPE, EMAIL_REPLACEMENT } from '../email-template-manager.mjs';
 import { EmailReportContent, EMAIL_COLOR } from '../email-types.mjs';
 import { formatDate } from '../email-utilities.mjs';
+import { htmlActiveModerationList } from './email-moderation.mjs';
 
 
 
@@ -23,6 +24,8 @@ import { formatDate } from '../email-utilities.mjs';
 export const assembleUserReportHTML = async():Promise<EmailReportContent> => {
     const subscriptionList:WebsiteSubscription[] = await DB_SELECT_EMAIL_SUBSCRIPTION_RECENT(90);
     const partnershipStats:DatabasePartnershipStats = await DB_CALCULATE_PARTNERSHIP_STATS();
+
+    const activeModeration:{total:number, htmlList:string[], text:string} = await htmlActiveModerationList('TITLE');
 
     const formatPercent = (value:number, total:number):string => `${Math.round(total > 0 ? (value / total) * 100 : 0)}%`;
 
@@ -53,6 +56,11 @@ export const assembleUserReportHTML = async():Promise<EmailReportContent> => {
                 ),
 
                 htmlActionButton([{label:'Portal Management', link:`${getEnv('ENVIRONMENT_BASE_URL')}/portal/dashboard`, style:'PRIMARY'}]),
+
+                ...(activeModeration.total ? [
+                    htmlSection(`Under Active Moderation: (${activeModeration.total})`, 'left', EMAIL_COLOR.ACCENT),
+                    ...activeModeration.htmlList] 
+                    : []),
 
                 ...(subscriptionList.length ? [
                     htmlSection('Website Subscriptions:', 'left', EMAIL_COLOR.ACCENT),

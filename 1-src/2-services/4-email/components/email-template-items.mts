@@ -13,7 +13,7 @@ import { DB_SELECT_PARTNER_LIST } from "../../2-database/queries/partner-queries
 import { DB_SELECT_USER } from "../../2-database/queries/user-queries.mjs";
 import { EMAIL_FONT_FAMILY, EMAIL_FONT_SIZE, EMAIL_COLOR, getEmailLineHeight, EMAIL_ROW_MARGIN, EMAIL_PROFILE_IMAGE_SIZE, EMAIL_CONTENT_MAX_WIDTH, DEFAULT_CIRCLE_URL, DEFAULT_PROFILE_URL } from "../email-types.mjs";
 import { formatDate } from "../email-utilities.mjs";
-import { htmlDetailTableRows, htmlTitle, htmlTableVerticalSpace } from "./email-template-components.mjs";
+import { htmlDetailTableRows, htmlTitle, htmlTableVerticalSpace, htmlVerticalSpace } from "./email-template-components.mjs";
 
 
 

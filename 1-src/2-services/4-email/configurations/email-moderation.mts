@@ -1,9 +1,9 @@
+import { ModeratedCircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
+import { ModeratedContentListItem } from '../../../0-assets/field-sync/api-type-sync/content-types.mjs';
+import { ModeratedPrayerRequestListItem, ModeratedPrayerRequestCommentListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
+import { ModeratedProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { EmailSubscription } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { ModeratedContentListItem } from '../../../1-api/11-content/content-types.mjs';
-import { ModeratedProfileListItem } from '../../../1-api/3-profile/profile-types.mjs';
-import { ModeratedCircleListItem } from '../../../1-api/4-circle/circle-types.mjs';
-import { ModeratedPrayerRequestListItem, ModeratedPrayerRequestCommentListItem } from '../../../1-api/5-prayer-request/prayer-request-types.mjs';
 import USER from '../../1-models/userModel.mjs'
 import { getEnvironment } from '../../10-utilities/env-utilities.mjs';
 import { getEnv, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
@@ -175,34 +175,23 @@ export const sendUserModeratedItemRemovedEmail = async(user:USER, {subject, titl
  *       MODERATION UNDER REVIEW        *
  *         Safety Team Reminder         *
  ****************************************/
-export const sendModerationReviewReminderEmail = async():Promise<boolean> => {
+export const sendModerationReminderEmail = async():Promise<boolean> => {
     const recipientMap:Map<number, string> = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(EmailSubscription.SAFETY_TEAM);
     if(recipientMap.size === 0) return false;
 
-    const moderatedUserList:ModeratedProfileListItem[] = await DB_SELECT_USER_UNDER_MODERATION();
-    const moderatedPrayerRequestList:ModeratedPrayerRequestListItem[] = await DB_SELECT_PRAYER_REQUEST_UNDER_MODERATION();
-    const moderatedPrayerRequestCommentList:ModeratedPrayerRequestCommentListItem[] = await DB_SELECT_PRAYER_REQUEST_COMMENT_UNDER_MODERATION();
-    const moderatedContentList:ModeratedContentListItem[] = await DB_SELECT_CONTENT_UNDER_MODERATION();
-    const moderatedCircleList:ModeratedCircleListItem[] = await DB_SELECT_CIRCLE_UNDER_MODERATION();
-
-    const totalUnderModeration:number = moderatedUserList.length
-        + moderatedPrayerRequestList.length
-        + moderatedPrayerRequestCommentList.length
-        + moderatedContentList.length
-        + moderatedCircleList.length;
-
-    if(totalUnderModeration === 0) return false;
+    const activeModeration:{total:number, htmlList:string[], text:string} = await htmlActiveModerationList('SECTION');
+    if(activeModeration.total === 0) return false;
 
     return await sendBrandedEmail({
-        subject: `EP Moderation Reminder - ${totalUnderModeration} Pending`,
+        subject: `EP Moderation Reminder - ${activeModeration.total} Pending`,
         sender: EMAIL_SENDER_ADDRESS.SYSTEM,
         userIDList: Array.from(recipientMap.keys()),
         emailRecipientMap: recipientMap,
         bodyList: [
-            htmlHeader('Safety Team'),
+            htmlText('Safety Team,'),
 
             htmlText(
-                `There are currently ${totalUnderModeration} records still under moderation review. `
+                `There are currently ${activeModeration.total} records still under moderation review. `
                 + 'Please review each item and update its moderation status after a decision has been made. '
                 + 'If a record should be reinstated, restore access or visibility as appropriate. '
                 + 'If a policy violation is confirmed, apply the appropriate consequence. '
@@ -221,45 +210,7 @@ export const sendModerationReviewReminderEmail = async():Promise<boolean> => {
                 'Complete any required communication with users involved.'
             ], 'Review Steps'),
 
-            ...(moderatedUserList.length ? [
-                htmlSection(`Users Under Moderation (${moderatedUserList.length})`),
-                ...moderatedUserList.map((user:ModeratedProfileListItem):string => htmlProfileBlock(user, true, [
-                    ['Moderation Status:', user.moderationStatus],
-                    ['Last Modified:', formatDate(user.modifiedDT, true)]
-                ], true))
-            ] : []),
-
-            ...(moderatedCircleList.length ? [
-                htmlSection(`Circles Under Moderation (${moderatedCircleList.length})`),
-                ...moderatedCircleList.map((circle:ModeratedCircleListItem):string => htmlCircleBlock([circle], undefined, true, [
-                    ['Moderation Status:', circle.moderationStatus],
-                    ['Last Modified:', formatDate(circle.modifiedDT, true)]
-                ]))
-            ] : []),
-
-            ...(moderatedPrayerRequestList.length ? [
-                htmlSection(`Prayer Requests Under Moderation (${moderatedPrayerRequestList.length})`),
-                ...moderatedPrayerRequestList.map((prayerRequest:ModeratedPrayerRequestListItem):string => htmlPrayerRequestBlock(prayerRequest, true, [
-                    ['Moderation Status:', prayerRequest.moderationStatus],
-                    ['Last Modified:', formatDate(prayerRequest.modifiedDT, true)]
-                ]))
-            ] : []),
-
-            ...(moderatedPrayerRequestCommentList.length ? [
-                htmlSection(`Prayer Request Comments Under Moderation (${moderatedPrayerRequestCommentList.length})`),
-                ...moderatedPrayerRequestCommentList.map((comment:ModeratedPrayerRequestCommentListItem):string => htmlPrayerRequestCommentBlock(comment, true, [
-                    ['Moderation Status:', comment.moderationStatus],
-                    ['Last Modified:', formatDate(comment.modifiedDT, true)]
-                ]))
-            ] : []),
-
-            ...(moderatedContentList.length ? [
-                htmlSection(`Content Under Moderation (${moderatedContentList.length})`),
-                ...moderatedContentList.map((content:ModeratedContentListItem):string => htmlContentBlock(content, true, [
-                    ['Moderation Status:', content.moderationStatus],
-                    ['Last Modified:', formatDate(content.modifiedDT, true)]
-                ]))
-            ] : []),
+            ...activeModeration.htmlList,
 
             htmlBulletLinkList([
                 {label: 'Terms of Use', link: 'https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/EP_Terms_Of_Use.pdf'},
@@ -273,19 +224,111 @@ export const sendModerationReviewReminderEmail = async():Promise<boolean> => {
                 ['Environment:', makeDisplayText(getEnvironment())],
                 ['User Source Environment:', makeDisplayText(getModelSourceEnvironment())]
             ], 'Environment Details:'),
-
-            htmlFooter()
         ],
+
         getAlternativeTextBody:():string => (
             'Moderation Review Reminder\n\n'
             + `Information Generated (CST): ${formatDate(new Date(), true)}\n\n`
-            + `Records under moderation review: ${totalUnderModeration}\n`
-            + `Users: ${moderatedUserList.length}\n`
-            + `Prayer Requests: ${moderatedPrayerRequestList.length}\n`
-            + `Prayer Request Comments: ${moderatedPrayerRequestCommentList.length}\n`
-            + `Content: ${moderatedContentList.length}\n`
-            + `Circles: ${moderatedCircleList.length}\n\n`
+            + `Records under moderation review: ${activeModeration.total}\n`
+            +  activeModeration.text
+            + '\n\n'
             + 'Please investigate and resolve these records quickly. Check the Safety Team inbox for the original individual reports before making final decisions.'
         )
     });
+}
+
+
+/* Active Under Moderation */
+export const htmlActiveModerationList = async(separator:'SECTION'|'TITLE'|'NONE' = 'SECTION'):Promise<{total:number, htmlList:string[], text:string}> => {
+    const [
+        moderatedUserList,
+        moderatedCircleList,
+        moderatedPrayerRequestList,
+        moderatedPrayerRequestCommentList,
+        moderatedContentList
+    ] = await Promise.all([
+        DB_SELECT_USER_UNDER_MODERATION(),
+        DB_SELECT_CIRCLE_UNDER_MODERATION(),
+        DB_SELECT_PRAYER_REQUEST_UNDER_MODERATION(),
+        DB_SELECT_PRAYER_REQUEST_COMMENT_UNDER_MODERATION(),
+        DB_SELECT_CONTENT_UNDER_MODERATION()
+    ]);
+
+    const total:number = moderatedUserList.length
+        + moderatedCircleList.length
+        + moderatedPrayerRequestList.length
+        + moderatedPrayerRequestCommentList.length
+        + moderatedContentList.length;
+
+    const title = (text:string):string => (separator === 'SECTION') ? htmlSection(text) 
+                                          : (separator === 'TITLE') ? htmlTitle(text) : '';
+
+    return {
+        total,
+
+        htmlList: [
+            ...(moderatedUserList.length ? [
+                title(`Users Under Moderation (${moderatedUserList.length})`),
+                ...moderatedUserList.flatMap((user:ModeratedProfileListItem):string[] => [
+                    htmlProfileBlock(user, true, [['Moderation Status:', user.moderationStatus], ['Last Modified:', formatDate(user.modifiedDT, true)]], true),
+                    htmlVerticalSpace(10)
+                ])
+            ] : []),
+
+            ...(moderatedCircleList.length ? [
+                title(`Circles Under Moderation (${moderatedCircleList.length})`),
+                ...moderatedCircleList.flatMap((circle:ModeratedCircleListItem):string[] => [
+                    htmlCircleBlock(circle, true, [['Moderation Status:', circle.moderationStatus], ['Last Modified:', formatDate(circle.modifiedDT, true)]], true),
+                    htmlVerticalSpace(10)
+                ])
+            ] : []),
+
+            ...(moderatedPrayerRequestList.length ? [
+                title(`Prayer Requests Under Moderation (${moderatedPrayerRequestList.length})`),
+                ...moderatedPrayerRequestList.flatMap((prayerRequest:ModeratedPrayerRequestListItem):string[] => [
+                    htmlPrayerRequestBlock(prayerRequest, true, [['Moderation Status:', prayerRequest.moderationStatus], ['Last Modified:', formatDate(prayerRequest.modifiedDT, true)]]),
+                    htmlVerticalSpace(10)
+                ])
+            ] : []),
+
+            ...(moderatedPrayerRequestCommentList.length ? [
+                title(`Prayer Request Comments Under Moderation (${moderatedPrayerRequestCommentList.length})`),
+                ...moderatedPrayerRequestCommentList.flatMap((comment:ModeratedPrayerRequestCommentListItem):string[] => [
+                    htmlPrayerRequestCommentBlock(comment, true, [['Moderation Status:', comment.moderationStatus], ['Last Modified:', formatDate(comment.modifiedDT, true)]]),
+                    htmlVerticalSpace(10)
+                ])
+            ] : []),
+
+            ...(moderatedContentList.length ? [
+                title(`Content Under Moderation (${moderatedContentList.length})`),
+                ...moderatedContentList.flatMap((content:ModeratedContentListItem):string[] => [
+                    htmlContentBlock(content, true, [['Moderation Status:', content.moderationStatus], ['Last Modified:', formatDate(content.modifiedDT, true)]]),
+                    htmlVerticalSpace(10)
+                ])
+            ] : [])
+        ].filter(html =>( html !== '')),
+
+        text: [
+            `Records under moderation review: ${total}`,
+            '',
+            `Users Under Moderation (${moderatedUserList.length})`,
+            ...moderatedUserList.map((user:ModeratedProfileListItem):string => `- #${user.userID} ${user.firstName} ${user.displayName ? `(${user.displayName})` : ''} | ${user.moderationStatus} | ${formatDate(user.modifiedDT, true)}`),
+
+            '',
+            `Circles Under Moderation (${moderatedCircleList.length})`,
+            ...moderatedCircleList.map((circle:ModeratedCircleListItem):string => `- #${circle.circleID} ${circle.name} | ${circle.moderationStatus} | ${formatDate(circle.modifiedDT, true)}`),
+
+            '',
+            `Prayer Requests Under Moderation (${moderatedPrayerRequestList.length})`,
+            ...moderatedPrayerRequestList.map((prayerRequest:ModeratedPrayerRequestListItem):string => `- #${prayerRequest.prayerRequestID} ${prayerRequest.topic} | ${prayerRequest.moderationStatus} | ${formatDate(prayerRequest.modifiedDT, true)}`),
+
+            '',
+            `Prayer Request Comments Under Moderation (${moderatedPrayerRequestCommentList.length})`,
+            ...moderatedPrayerRequestCommentList.map((comment:ModeratedPrayerRequestCommentListItem):string => `- #${comment.commentID} Prayer Request #${comment.prayerRequestID} | ${comment.moderationStatus} | ${formatDate(comment.modifiedDT, true)}`),
+
+            '',
+            `Content Under Moderation (${moderatedContentList.length})`,
+            ...moderatedContentList.map((content:ModeratedContentListItem):string => `- #${content.contentID} ${content.title ?? content.url} | ${content.moderationStatus} | ${formatDate(content.modifiedDT, true)}`)
+        ].join('\n')
+    };
 }
