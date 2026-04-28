@@ -108,7 +108,7 @@ export const POST_circleReported = async(request:JwtCircleRequest, response:Resp
         reportingSubject:'CIRCLE', description, reportingUser,
         flaggedHTMLList:[
             htmlTitle('Flagged Circle'),
-            htmlCircleBlock([flaggedCircle.toListItem()], undefined, true, [
+            htmlCircleBlock(flaggedCircle.toListItem(), true, [
                 ['Created:', formatDate(flaggedCircle.createdDT)],
                 ['Last Modified:', formatDate(flaggedCircle.modifiedDT)]
             ]),
@@ -140,7 +140,7 @@ export const POST_circleReported = async(request:JwtCircleRequest, response:Resp
         title: flaggedCircle.name,
         flaggedHTMLList: [
             htmlTitle('Flagged Circle'),
-            htmlCircleBlock([flaggedCircle.toListItem()]),
+            htmlCircleBlock(flaggedCircle.toListItem()),
             htmlText('Note: Circle members have not yet been notified about this review; however they may see circle functionality removed temporarily.')
         ]
     });
