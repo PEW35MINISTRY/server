@@ -88,52 +88,6 @@ export const getJWTData = (jwt:string):JwtData => {
 }
 
 
-/*****************
- * BLACKLIST JWT *
- *****************/
-const JWT_BLACKLIST_MAX_SIZE:number = 1000;
-const JWT_BLACKLIST:Map<number, number> = new Map<number, number>(); //[userID, expirationTimestamp]
-
-export const blackListJWT = async(userID:number):Promise<void> => {
-    const now:number = new Date().getTime();
-
-    if(JWT_BLACKLIST.size >= JWT_BLACKLIST_MAX_SIZE) {
-        log.error('JWT_BLACKLIST_MAX_SIZE Reached:', JWT_BLACKLIST_MAX_SIZE);
-
-        for(const [blacklistedUserID, expirationTimestamp] of JWT_BLACKLIST) {
-            if(expirationTimestamp <= now) JWT_BLACKLIST.delete(blacklistedUserID);
-        }
-
-        while(JWT_BLACKLIST.size >= JWT_BLACKLIST_MAX_SIZE) {
-            const oldestBlacklistedUserID:number | undefined = JWT_BLACKLIST.keys().next().value;
-            if(!oldestBlacklistedUserID) break;
-            JWT_BLACKLIST.delete(oldestBlacklistedUserID);
-        }
-    }
-
-    const durationMilliseconds:number = parseJWTDurationToMS(getEnv('JWT_DURATION', 'string', '30d'));
-    const expirationTimestamp:number = now + durationMilliseconds;
-    JWT_BLACKLIST.set(userID, expirationTimestamp);
-}
-
-
-export const isJWTBlacklisted = (userID:number):boolean => {
-    if(JWT_BLACKLIST.size === 0) 
-        return false;
-
-    const expirationTimestamp:number | undefined = JWT_BLACKLIST.get(userID);
-    if(!expirationTimestamp) 
-        return false;
-
-    else if(expirationTimestamp <= Date.now()) {
-        JWT_BLACKLIST.delete(userID);
-        return false;
-    }
-
-    return true;
-}
-
-
 /*********************
  * NEW ACCOUNT TOKEN *
  *********************/
@@ -225,12 +179,9 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
                     await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
 
         return new Exception(403, 'Email address is not verified.', 'Please Verify Email');
+    }
 
-    } else if(userProfile.moderationStatus !== undefined || isJWTBlacklisted(userProfile.userID))
-        return new Exception(403, `Login Blocked with moderation status: ${userProfile.moderationStatus}.`, 'Account Locked');
-    
-    else
-        return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
+    return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
 }
 
 

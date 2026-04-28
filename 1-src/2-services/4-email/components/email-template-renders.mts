@@ -120,9 +120,7 @@ export const renderLogList = async(type:LogType, { maxEntries = 50, pastDays = 1
                ${htmlTitle(`Latest ${makeDisplayText(type)} Logs:`)}
                <span style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.GRAY_DARK}; font-weight:normal;">[${count} in last ${Math.ceil(hoursAgo)}H of ${pastDays} days]</span>
                ${logList.slice(0, maxEntries).map(entry => `
-                   <div style="margin-top:6px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_DARK}; line-height:${EMAIL_FONT_SIZE.DETAIL};">
-                       ${entry.toStringLimit(4)}
-                    </div>`
+                   <div style="margin-top:6px; font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.GRAY_DARK}; line-height:${EMAIL_FONT_SIZE.DETAIL};">${entry.toStringLimit(4)}</div>`
                     //${entry.fileKey ? ` <a href="${entry.fileKey}" style="color:${EMAIL_COLOR.BLUE}; text-decoration:none;">See Full Entry</a>` : ''}
                ).join('\n')}
             </div>`

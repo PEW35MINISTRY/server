@@ -3,7 +3,7 @@
  ***********************************/
 
 import { EMAIL_COLOR, EMAIL_CONTENT_MAX_WIDTH, EMAIL_FONT_FAMILY, EMAIL_FONT_SIZE, getEmailLineHeight } from "../email-types.mjs";
-import { htmlDetailTableRows, htmlTitle, htmlVerticalSpace } from "./email-template-components.mjs";
+import { htmlDetailTableRows, htmlTitle, htmlTableVerticalSpace } from "./email-template-components.mjs";
 
 //Monospaced formatted table
 export const textSummaryTable = (title:string, columnLabelList:string[], rowList:(string|number)[][], footerText:string[] = []):string => {
@@ -63,7 +63,7 @@ export const htmlSummaryTable=(title:string|undefined, columnLabelList:string[],
                                             ).join('')}
                                         </tr>`
                                     ).join('')}
-                                    ${details.length ? htmlVerticalSpace(10) : ''}
+                                    ${details.length ? htmlTableVerticalSpace(10) : ''}
                                     ${htmlDetailTableRows(details, columnLabelList.length)}
                                 </tbody>
                             </table>

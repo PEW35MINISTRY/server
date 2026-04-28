@@ -4,19 +4,18 @@ import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_SELECT_USER, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest } from './auth-types.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODERATION_STATUS } from '../../2-services/2-database/database-types.mjs';
-import { blackListJWT } from './auth-utilities.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import PRAYER_REQUEST from '../../2-services/1-models/prayerRequestModel.mjs';
 import { DB_SELECT_CONTENT, DB_UPDATE_CONTENT } from '../../2-services/2-database/queries/content-queries.mjs';
 import { DB_SELECT_PRAYER_REQUEST, DB_UPDATE_PRAYER_REQUEST, DB_SELECT_PRAYER_REQUEST_COMMENT, DB_SET_PRAYER_REQUEST_COMMENT_MODERATION } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
 import { Exception } from '../api-types.mjs';
 import CONTENT_ARCHIVE from '../../2-services/1-models/contentArchiveModel.mjs';
-import { sendModerationEmail, sendPrayerRequestRemovedEmail, sendUserLockedAccountEmail } from '../../2-services/4-email/configurations/email-moderation.mjs';
+import { sendModerationEmail, sendUserModeratedItemRemovedEmail, sendUserLockedAccountEmail } from '../../2-services/4-email/configurations/email-moderation.mjs';
 import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import LOG_ENTRY from '../../2-services/10-utilities/logging/logEntryModel.mjs';
-import { htmlActionButton, htmlTitle } from '../../2-services/4-email/components/email-template-components.mjs';
+import { htmlActionButton, htmlText, htmlTitle } from '../../2-services/4-email/components/email-template-components.mjs';
 import { htmlCircleBlock, htmlContentBlock, htmlPrayerRequestBlock, htmlPrayerRequestCommentBlock, htmlProfileBlock, htmlUserContextProfile } from '../../2-services/4-email/components/email-template-items.mjs';
-import { formatDate } from '../../2-services/4-email/email-utilities.mjs';
+import { formatDate, minorInvolved } from '../../2-services/4-email/email-utilities.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import CIRCLE from '../../2-services/1-models/circleModel.mjs';
 import { DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_USER_LIST } from '../../2-services/2-database/queries/circle-queries.mjs';
@@ -51,9 +50,9 @@ export const POST_userReported = async(request:JwtClientRequest, response:Respon
     await log.event(...logEntry.messages);
 
     await DB_UPDATE_USER(flaggedUser.userID, new Map<string, DATABASE_MODERATION_STATUS>([['moderationStatus', DATABASE_MODERATION_STATUS.BLOCKED]]));
-    await blackListJWT(flaggedUser.userID);
 
     await sendModerationEmail({
+        minorInvolved: minorInvolved(flaggedUser, reportingUser),
         reportingSubject:'USER', description, reportingUser,
         flaggedHTMLList:[
             htmlUserContextProfile(flaggedUser),
@@ -105,6 +104,7 @@ export const POST_circleReported = async(request:JwtCircleRequest, response:Resp
 
     await DB_UPDATE_USER(flaggedCircle.circleID, new Map<string, DATABASE_MODERATION_STATUS>([['moderationStatus', DATABASE_MODERATION_STATUS.BLOCKED]]));
     await sendModerationEmail({
+        minorInvolved: minorInvolved(flaggedLeader, reportingUser),
         reportingSubject:'CIRCLE', description, reportingUser,
         flaggedHTMLList:[
             htmlTitle('Flagged Circle'),
@@ -130,9 +130,19 @@ export const POST_circleReported = async(request:JwtCircleRequest, response:Resp
         ],
         relatedHTMLList:[
             htmlTitle('Circle Members'),
-            ...circleMemberList.map((member:ProfileListItem) => htmlProfileBlock(member, true))
+            ...circleMemberList.map((member:ProfileListItem) => htmlProfileBlock(member))
         ],
         alternativeTextBody: logEntry.toString()
+    });
+
+    await sendUserModeratedItemRemovedEmail(flaggedLeader, {
+        subject: 'Circle',
+        title: flaggedCircle.name,
+        flaggedHTMLList: [
+            htmlTitle('Flagged Circle'),
+            htmlCircleBlock([flaggedCircle.toListItem()]),
+            htmlText('Note: Circle members have not yet been notified about this review; however they may see circle functionality removed temporarily.')
+        ]
     });
 }
 
@@ -168,6 +178,7 @@ export const POST_contentReported = async(request:JwtContentRequest, response:Re
 
     await DB_UPDATE_CONTENT(flaggedContent.contentID, new Map<string, DATABASE_MODERATION_STATUS>([['moderationStatus', DATABASE_MODERATION_STATUS.REPORTED]]));
     await sendModerationEmail({
+        minorInvolved: minorInvolved(uploadingUser, reportingUser),
         reportingSubject:'CONTENT',
         description,
         reportingUser,
@@ -224,6 +235,7 @@ export const POST_prayerRequestReported = async(request:JwtPrayerRequest, respon
 
     await DB_UPDATE_PRAYER_REQUEST(flaggedPrayerRequest.prayerRequestID, new Map<string, DATABASE_MODERATION_STATUS>([['moderationStatus', DATABASE_MODERATION_STATUS.REPORTED]]));
     await sendModerationEmail({
+        minorInvolved: minorInvolved(flaggedUser, reportingUser),
         reportingSubject:'PRAYER_REQUEST', description, reportingUser,
         flaggedHTMLList:[
             htmlTitle('Flagged Prayer Request'),
@@ -249,7 +261,14 @@ export const POST_prayerRequestReported = async(request:JwtPrayerRequest, respon
         alternativeTextBody: logEntry.toString()
     });
     
-    await sendPrayerRequestRemovedEmail(flaggedUser, flaggedPrayerRequestListItem);
+    await sendUserModeratedItemRemovedEmail(flaggedUser, { 
+        subject: 'Prayer Request', 
+        title: flaggedPrayerRequest.topic,
+        flaggedHTMLList: [
+            htmlTitle('Flagged Prayer Request'),
+            htmlPrayerRequestBlock(flaggedPrayerRequestListItem, false)
+        ]
+    });
 }
 
 
@@ -266,10 +285,14 @@ export const POST_prayerRequestCommentReported = async(request:JwtPrayerRequest,
     const description:string = (typeof request.body?.description === 'string') && request.body.description.trim()
                                 ? request.body.description.trim() : 'No Description Provided';
 
-    const flaggedPrayerRequest:PRAYER_REQUEST = await DB_SELECT_PRAYER_REQUEST(prayerRequestID);
     const flaggedComment:PrayerRequestCommentListItem | undefined = await DB_SELECT_PRAYER_REQUEST_COMMENT(commentID, request.jwtUserID);
     const reportingUser:USER = await DB_SELECT_USER(new Map([['userID', request.jwtUserID]]));
     const flaggedUser:USER = await DB_SELECT_USER(new Map([['userID', flaggedComment.commenterProfile.userID]]));
+
+    const flaggedPrayerRequest:PRAYER_REQUEST = await DB_SELECT_PRAYER_REQUEST(prayerRequestID);
+    const prayerRequestOwnerUser:USER = await DB_SELECT_USER(new Map([['userID', request.jwtUserID]]));
+    const flaggedPrayerRequestListItem:PrayerRequestListItem = flaggedPrayerRequest.toListItem();
+    flaggedPrayerRequestListItem.requestorProfile = prayerRequestOwnerUser.toListItem();
 
     if(!flaggedPrayerRequest.isValid || flaggedComment === undefined || !reportingUser.isValid || !flaggedUser.isValid) {
         log.warn(`PRAYER REQUEST COMMENT REPORT FAILED - Prayer Request Comment Not Found`, `prayerRequestID=${prayerRequestID}`, `commentID=${commentID}`, `commenterUserID=${flaggedComment?.commenterProfile?.userID}`, `reportingUserID=${request.jwtUserID}`, `Event=${description}`);
@@ -287,6 +310,7 @@ export const POST_prayerRequestCommentReported = async(request:JwtPrayerRequest,
 
     await DB_SET_PRAYER_REQUEST_COMMENT_MODERATION(flaggedComment.commentID,  DATABASE_MODERATION_STATUS.REPORTED);
     await sendModerationEmail({
+        minorInvolved: minorInvolved(flaggedUser, prayerRequestOwnerUser, reportingUser),
         reportingSubject:'PRAYER_REQUEST_COMMENT', description, reportingUser,
         flaggedHTMLList:[
             htmlTitle('Flagged Prayer Request Comment'),
@@ -303,18 +327,20 @@ export const POST_prayerRequestCommentReported = async(request:JwtPrayerRequest,
                 },
                 {
                     label: 'Prayer Request',
-                    link: `${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/prayer-request/${request.prayerRequestID}`,
+                    link: `${getEnv('ENVIRONMENT_BASE_URL')}/portal/edit/prayer-request/${prayerRequestID}`,
                     style: 'PRIMARY'
                 }
             ]),
         ],
         relatedHTMLList:[
             htmlTitle('Corresponding Prayer Request'),
-            htmlPrayerRequestBlock(flaggedPrayerRequest.toListItem(), true, [
+            htmlPrayerRequestBlock(flaggedPrayerRequestListItem, true, [
                 ['Created:', formatDate(flaggedPrayerRequest.createdDT)],
                 ['Last Modified:', formatDate(flaggedPrayerRequest.modifiedDT)]
             ]),
         ],
         alternativeTextBody: logEntry.toString()
     });
+
+    //Note: Decided not to notify users of comment removal
 }

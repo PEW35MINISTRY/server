@@ -2,7 +2,7 @@ import * as log from '../10-utilities/logging/log.mjs';
 import fs, { PathLike, readFileSync } from 'fs';
 import path from 'path';
 const __dirname = path.resolve();
-import { htmlVerticalSpace } from './components/email-template-components.mjs';
+import { htmlTableVerticalSpace, htmlVerticalSpace } from './components/email-template-components.mjs';
 
 
 /*******************************
@@ -48,9 +48,7 @@ export const applyTemplate=async({type, replacementMap=new Map<EMAIL_REPLACEMENT
             `<tr><td align="center" valign="top">${row}</td></tr>`
             : row
         ).join(verticalSpacing ? 
-                `\n${BODY_EXPECTING_TABLE_ROWS.includes(type) ? 
-                    `<tr><td>${htmlVerticalSpace(verticalSpacing)}</td></tr>`
-                    : htmlVerticalSpace(verticalSpacing)}\n`
+                `\n${BODY_EXPECTING_TABLE_ROWS.includes(type) ? htmlTableVerticalSpace(verticalSpacing) : htmlVerticalSpace(verticalSpacing)}\n`
                 : '\n'
         ));
 

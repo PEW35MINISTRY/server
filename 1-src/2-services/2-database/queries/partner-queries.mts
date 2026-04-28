@@ -57,11 +57,7 @@ export const DB_IS_USER_PARTNER_ANY_STATUS = async(userID:number, clientID:numbe
     const preparedColumns:string = '( ' + statusList.map((key)=> `status = ?`).join(' OR ') + ' )';
 
     const rows = await execute('SELECT partner.status ' + 'FROM partner '
-        + 'INNER JOIN user ON user.userID = partner.partnerID '
-        + 'WHERE userID = ? AND partnerID = ? '
-            + 'AND user.moderationStatus IS NULL '
-            + `AND ${preparedColumns};`, 
-        [getUserID(userID, clientID), getPartnerID(userID, clientID), ...statusList]);
+        + `WHERE userID = ? AND partnerID = ? AND ${preparedColumns};`, [getUserID(userID, clientID), getPartnerID(userID, clientID), ...statusList]);
 
     if(rows.length > 1) log.db(`DB_IS_ANY_USER_PARTNER MULTIPLE RECORDS for partnership IDENTIFIED`, userID, clientID, ...statusList, JSON.stringify(rows));
 
@@ -100,7 +96,6 @@ export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PART
                 + 'FROM partner '
                 + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
                 + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
-                + 'AND user.moderationStatus IS NULL '
                 + `AND status NOT IN ('FAILED', 'ENDED');`, [userID, userID, userID])
 
         : ([DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER].includes(status)) ?
@@ -108,7 +103,6 @@ export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PART
                 + 'FROM partner '
                 + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
                 + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
-                + 'AND user.moderationStatus IS NULL '
                 + `AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
                 , [userID, userID, userID])
     
@@ -116,7 +110,6 @@ export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PART
                 + 'FROM partner '
                 + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
                 + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
-                + 'AND user.moderationStatus IS NULL '
                 + 'AND status = ?;', [userID, userID, userID, status]);
 
     //Filtered to match userID perspective
