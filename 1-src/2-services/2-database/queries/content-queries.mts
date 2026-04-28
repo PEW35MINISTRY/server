@@ -151,6 +151,7 @@ export const DB_SELECT_USER_CONTENT_LIST = async(userID:number, limit:number = L
     const rows = await execute('SELECT content.* ' 
     + 'FROM content '
     + `WHERE ( ${preparedSourceFilter} ) `
+        + 'AND content.moderationStatus IS NULL '
     + 'ORDER BY RAND() '
     + `LIMIT ${limit};`, [...MOBILE_CONTENT_SUPPORTED_SOURCES]);
  

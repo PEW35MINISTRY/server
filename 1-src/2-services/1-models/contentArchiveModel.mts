@@ -15,7 +15,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = [ 'recorderID', 'type', 'source', 'url' ]; //exclude: contentID, complex types, and lists
-    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile', 'createdDT', 'modifiedDT' ];
+    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile', 'createdDT', 'modifiedDT', 'moderationStatus' ];
 
     contentID: number = -1;
     recorderID: number; //user that recorded
@@ -35,6 +35,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
     minimumWalkLevel: number;
     maximumWalkLevel: number; 
     notes?: string;
+    moderationStatus?:string|null;
 
     //Database - Read Only
     createdDT:Date;
@@ -136,6 +137,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
                 ['tagListStringified', (model:CONTENT_ARCHIVE, baseModel:CONTENT_ARCHIVE) => { 
                     return (JSON.stringify(Array.from(model.keywordList).sort()) !== JSON.stringify(Array.from(baseModel.keywordList).sort())) 
                     ? JSON.stringify(model.keywordList) : undefined; }],
+                ['moderationStatus', (model:CONTENT_ARCHIVE, baseModel:CONTENT_ARCHIVE) => model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
             ])});
 
     override toListItem = ():ContentListItem => ({contentID: this.contentID, 
