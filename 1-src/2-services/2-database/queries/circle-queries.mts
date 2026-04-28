@@ -1,8 +1,8 @@
 import * as log from '../../10-utilities/logging/log.mjs';
-import { command, execute, validateColumns } from '../database.mjs';
-import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_EDIT, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
+import { command, execute, query, validateColumns } from '../database.mjs';
+import { CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_EDIT, CIRCLE_ANNOUNCEMENT_TABLE_COLUMNS_REQUIRED, CIRCLE_TABLE_COLUMNS, CIRCLE_TABLE_COLUMNS_EDIT, CIRCLE_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CIRCLE, DATABASE_CIRCLE_ANNOUNCEMENT, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_MODERATION_STATUS, DATABASE_USER_ROLE_ENUM, USER_TABLE_COLUMNS } from '../database-types.mjs';
 import CIRCLE from '../../1-models/circleModel.mjs';
-import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
+import { CircleListItem, ModeratedCircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleSearchRefineEnum, CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
@@ -162,6 +162,32 @@ export const DB_DELETE_CIRCLE = async(circleID:number):Promise<boolean> => { //N
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }
+
+
+
+/****************************************
+ *       MODERATION UNDER REVIEW        *
+ *           moderationStatus           *
+ ****************************************/
+export const DB_SELECT_CIRCLE_UNDER_MODERATION = async(status?:DATABASE_MODERATION_STATUS):Promise<ModeratedCircleListItem[]> => {
+    const rows = (status === undefined) ?
+        await query('SELECT circle.* '
+            + 'FROM circle '
+            + 'WHERE circle.moderationStatus IS NOT NULL '
+            + 'ORDER BY circle.modifiedDT DESC;')
+
+        : await execute('SELECT circle.* '
+            + 'FROM circle '
+            + 'WHERE circle.moderationStatus = ? '
+            + 'ORDER BY circle.modifiedDT DESC;', [status]);
+
+    return rows.map(row => ({
+        ...CIRCLE.constructByDatabase(row as DATABASE_CIRCLE).toListItem(),
+        moderationStatus: row.moderationStatus?.trim?.() ? row.moderationStatus : '[NOT NULL]',
+        modifiedDT: row.modifiedDT
+    }));
+}
+
 
 
 /**********************************

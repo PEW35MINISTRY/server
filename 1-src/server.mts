@@ -49,6 +49,7 @@ import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN } from './2-services/2-database/quer
 import { DB_FLUSH_EXPIRED_TOKENS } from './2-services/2-database/queries/user-security-queries.mjs';
 import { sendEmailVerificationReminderBatch } from './2-services/4-email/configurations/email-verification.mjs';
 import { sendEmailReport, sendEmailSystemDeploymentReport } from './2-services/4-email/email.mjs';
+import { sendModerationReminderEmail } from './2-services/4-email/configurations/email-moderation.mjs';
 
 
 /********************
@@ -81,6 +82,8 @@ if((getEnv<boolean>('ENABLE_CRON', 'boolean')) && isEnvironment(ENVIRONMENT_TYPE
     schedule('0 13 * * 1', async () => await sendEmailReport(EmailSubscription.USER_WEEKLY));
     //Run at 13:00 UTC - Fridays 7AM CST
     schedule('0 13 * * 5', async () => await sendEmailReport(EmailSubscription.PARTNER_WEEKLY));
+    //Run at 13:15 UTC - Monday/Wednesday/Friday 7:15am CST
+    schedule('15 13 * * 1,3,5', async () => sendModerationReminderEmail());
 
     //Run at 08:00-8:02 UTC - 2AM CST
     schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());

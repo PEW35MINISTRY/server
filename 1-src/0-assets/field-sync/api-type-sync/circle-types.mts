@@ -20,6 +20,11 @@ export interface CircleListItem {
     status?: CircleStatusEnum
 }
 
+export interface ModeratedCircleListItem extends CircleListItem {
+    moderationStatus:string;
+    modifiedDT:Date;
+}
+
 export interface CircleAnnouncementCreateRequestBody {
     message: string,
     startDate: string,

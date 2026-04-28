@@ -1,9 +1,9 @@
-import { ContentListItem } from '../../../0-assets/field-sync/api-type-sync/content-types.mjs';
+import { ContentListItem, ModeratedContentListItem } from '../../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import { MOBILE_CONTENT_SUPPORTED_SOURCES } from '../../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import CONTENT_ARCHIVE from '../../1-models/contentArchiveModel.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
-import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_EDIT, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT } from '../database-types.mjs';
+import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_EDIT, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT, DATABASE_MODERATION_STATUS } from '../database-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
 
 
@@ -109,6 +109,32 @@ export const DB_DELETE_CONTENT = async(contentID:number):Promise<boolean> => { /
 
     return ((response !== undefined) && (response.affectedRows === 1));
 }
+
+
+
+/****************************************
+ *       MODERATION UNDER REVIEW        *
+ *           moderationStatus           *
+ ****************************************/
+export const DB_SELECT_CONTENT_UNDER_MODERATION = async(status?:DATABASE_MODERATION_STATUS):Promise<ModeratedContentListItem[]> => {
+    const rows = (status === undefined) ?
+        await query('SELECT content.* '
+            + 'FROM content '
+            + 'WHERE content.moderationStatus IS NOT NULL '
+            + 'ORDER BY content.modifiedDT DESC;')
+
+        : await execute('SELECT content.* '
+            + 'FROM content '
+            + 'WHERE content.moderationStatus = ? '
+            + 'ORDER BY content.modifiedDT DESC;', [status]);
+
+    return rows.map(row => ({
+        ...CONTENT_ARCHIVE.constructByDatabase(row as DATABASE_CONTENT).toListItem(),
+        moderationStatus: row.moderationStatus?.trim?.() ? row.moderationStatus : '[NOT NULL]',
+        modifiedDT: row.modifiedDT
+    }));
+}
+
 
 
 /***************************

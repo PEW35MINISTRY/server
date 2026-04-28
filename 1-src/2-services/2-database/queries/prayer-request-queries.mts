@@ -1,9 +1,9 @@
 import * as log from '../../10-utilities/logging/log.mjs';
-import { batch, command, execute, validateColumns } from '../database.mjs';
+import { batch, command, execute, query, validateColumns } from '../database.mjs';
 import { CommandResponseType, DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM, DATABASE_MODERATION_STATUS, DATABASE_PRAYER_REQUEST, DATABASE_PRAYER_REQUEST_COMMENT, DATABASE_PRAYER_REQUEST_EXTENDED, PRAYER_REQUEST_TABLE_COLUMNS, PRAYER_REQUEST_TABLE_COLUMNS_EDIT, PRAYER_REQUEST_TABLE_COLUMNS_REQUIRED } from '../database-types.mjs';
 import PRAYER_REQUEST from '../../1-models/prayerRequestModel.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
-import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
+import { ModeratedPrayerRequestCommentListItem, ModeratedPrayerRequestListItem, PrayerRequestCommentListItem, PrayerRequestListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import { getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
@@ -438,6 +438,34 @@ export const DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequestID, 
 }
 
 
+
+/****************************************
+ *       MODERATION UNDER REVIEW        *
+ *           moderationStatus           *
+ ****************************************/
+export const DB_SELECT_PRAYER_REQUEST_UNDER_MODERATION = async(status?:DATABASE_MODERATION_STATUS):Promise<ModeratedPrayerRequestListItem[]> => {
+    const rows = (status === undefined) ?
+        await query('SELECT prayer_request.*, '
+            + 'user.firstName AS requestorFirstName, user.displayName AS requestorDisplayName, user.image AS requestorImage '
+            + 'FROM prayer_request '
+            + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
+            + 'WHERE prayer_request.moderationStatus IS NOT NULL '
+            + 'ORDER BY prayer_request.modifiedDT DESC;')
+
+        : await execute('SELECT prayer_request.*, '
+            + 'user.firstName AS requestorFirstName, user.displayName AS requestorDisplayName, user.image AS requestorImage '
+            + 'FROM prayer_request '
+            + 'LEFT JOIN user ON user.userID = prayer_request.requestorID '
+            + 'WHERE prayer_request.moderationStatus = ? '
+            + 'ORDER BY prayer_request.modifiedDT DESC;', [status]);
+
+    return rows.map(row => ({
+        ...PRAYER_REQUEST.constructByDatabase(row as DATABASE_PRAYER_REQUEST_EXTENDED).toListItem(),
+        moderationStatus: row.moderationStatus?.trim?.() ? row.moderationStatus : '[NOT NULL]',
+    }));
+}
+
+
 /**********************************
  *  PRAYER REQUEST SEARCH 
  **********************************/
@@ -597,6 +625,36 @@ export const DB_DELETE_PRAYER_REQUEST_COMMENT = async({commentID, prayerRequestI
 
     return (response !== undefined);
 }
+
+
+
+/****************************************
+ *       MODERATION UNDER REVIEW        *
+ *           moderationStatus           *
+ ****************************************/
+export const DB_SELECT_PRAYER_REQUEST_COMMENT_UNDER_MODERATION = async(status?:DATABASE_MODERATION_STATUS):Promise<ModeratedPrayerRequestCommentListItem[]> => {
+    const rows = (status === undefined) ?
+        await query('SELECT prayer_request_comment.*, '
+            + 'user.firstName as commenterFirstName, user.displayName as commenterDisplayName, user.image as commenterImage '
+            + 'FROM prayer_request_comment '
+            + 'LEFT JOIN user ON user.userID = prayer_request_comment.commenterID '
+            + 'WHERE prayer_request_comment.moderationStatus IS NOT NULL '
+            + 'ORDER BY prayer_request_comment.modifiedDT DESC;')
+
+        : await execute('SELECT prayer_request_comment.*, '
+            + 'user.firstName as commenterFirstName, user.displayName as commenterDisplayName, user.image as commenterImage '
+            + 'FROM prayer_request_comment '
+            + 'LEFT JOIN user ON user.userID = prayer_request_comment.commenterID '
+            + 'WHERE prayer_request_comment.moderationStatus = ? '
+            + 'ORDER BY prayer_request_comment.modifiedDT DESC;', [status]);
+
+    return PRAYER_REQUEST.constructByDatabaseCommentList(rows as DATABASE_PRAYER_REQUEST_COMMENT[]).map((comment, index) => ({
+        ...comment,
+        moderationStatus: rows[index].moderationStatus?.trim?.() ? rows[index].moderationStatus : '[NOT NULL]',
+        modifiedDT: rows[index].modifiedDT
+    }));
+}
+
 
 
 /*****************************

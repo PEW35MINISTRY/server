@@ -1,7 +1,9 @@
 import { execute, command, query, batch } from '../database.mjs';
-import { DATABASE_USER_ROLE_ENUM, CommandResponseType, DATABASE_TOKEN, DATABASE_TOKEN_TYPE_ENUM } from '../database-types.mjs';
+import { DATABASE_USER_ROLE_ENUM, CommandResponseType, DATABASE_TOKEN, DATABASE_TOKEN_TYPE_ENUM, DATABASE_MODERATION_STATUS, DATABASE_USER } from '../database-types.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
 import { RoleEnum, EmailSubscription } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { ModeratedProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import USER from '../../1-models/userModel.mjs';
 
 
 /**************************************************************************
@@ -87,6 +89,32 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
         + ' );', [userID, ...userRoleList]);
 
     return (response !== undefined);  //Success on non-error
+}
+
+
+
+/****************************************
+ *       MODERATION UNDER REVIEW        *
+ *           moderationStatus           *
+ ****************************************/
+export const DB_SELECT_USER_UNDER_MODERATION = async(status?:DATABASE_MODERATION_STATUS):Promise<ModeratedProfileListItem[]> => {
+    const rows = (status === undefined) ?
+        await query('SELECT user.* '
+            + 'FROM user '
+            + 'WHERE user.moderationStatus IS NOT NULL '
+            + 'ORDER BY user.modifiedDT DESC;')
+
+        : await execute('SELECT user.* '
+            + 'FROM user '
+            + 'WHERE user.moderationStatus = ? '
+            + 'ORDER BY user.modifiedDT DESC;', [status]);
+
+    return rows.map(row => ({
+        ...USER.constructByDatabase(row as DATABASE_USER).toListItem(),
+        moderationStatus: row.moderationStatus?.trim?.() ? row.moderationStatus : '[NOT NULL]',
+                modifiedDT: row.modifiedDT
+
+    }));
 }
 
 

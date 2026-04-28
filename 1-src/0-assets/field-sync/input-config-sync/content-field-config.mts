@@ -111,4 +111,5 @@ export const EDIT_CONTENT_FIELDS_ADMIN:InputField[] = [
     ...EDIT_CONTENT_FIELDS,
     new InputField({title: 'Recorder ID', field: 'recorderID', type: InputType.NUMBER }),
     new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min: 0, max: 3000} }),
+    new InputField({title: 'Moderation', field: 'moderationStatus', type: InputType.TEXT, length:{min:0, max:60}}),
 ];
