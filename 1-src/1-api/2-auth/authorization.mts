@@ -6,8 +6,8 @@ import { DB_IS_PRAYER_REQUEST_REQUESTOR, DB_IS_RECIPIENT_PRAYER_REQUEST } from '
 import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
-import { JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtData, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
-import { getJWTData, isMaxRoleGreaterThan, verifyJWT } from './auth-utilities.mjs';
+import { JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
+import { getJWTData as getJwtData, isMaxRoleGreaterThan, verifyJWT as verifyJwt } from './auth-utilities.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
 
@@ -24,23 +24,23 @@ export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: 
         next(new Exception(400, `FAILED AUTHENTICATED :: IDENTITY :: missing JWT in request header: ${request.headers['jwt']}`));
 
     //Verify JWT
-    else if(!verifyJWT(request.headers['jwt'])) 
+    else if(!verifyJwt(request.headers['jwt'])) 
         next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Invalid JWT for User: ${request.headers['jwt']}`, 'Please Re-login'));
 
     //Inject jwtUserID into request object
     else {
-        const rawJWTToken = request.headers['jwt'];
-        const JWTData:JwtData = getJWTData(rawJWTToken);
+        const client_token = request.headers['jwt'];
+        const token_data = getJwtData(client_token);
 
-        if(!JWTData || JWTData.jwtUserID === undefined || JWTData.jwtUserID <= 0 || JWTData.jwtUserRole === undefined) {
-            log.auth(`Failed to parse JWT for user: ${request.headers['user-id']}`, `UserID from token: ${JWTData.jwtUserID}`, 
-                        `User Role from token: ${JWTData.jwtUserRole}`, 'JWT: ', rawJWTToken.slice(0, 15));
+        if(!token_data || token_data['jwtUserID'] === undefined || token_data['jwtUserID'] <= 0 || token_data['jwtUserRole'] === undefined) {
+            log.auth(`Failed to parse JWT for user: ${request.headers['user-id']}`, `UserID from token: ${token_data['jwtUserID']}`, 
+                        `User Role from token: ${token_data['jwtUserRole']}`, 'JWT: ', client_token);
             next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Failed to parse JWT: ${request.headers['jwt']}`, 'Invalid Token'));
 
         } else {
-            request.jwt = rawJWTToken
-            request.jwtUserID = JWTData.jwtUserID;
-            request.jwtUserRole = JWTData.jwtUserRole;
+            request.jwt = client_token
+            request.jwtUserID = token_data['jwtUserID'];
+            request.jwtUserRole = token_data['jwtUserRole'];
 
             next();
         }

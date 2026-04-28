@@ -4,7 +4,6 @@ import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-fi
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_POPULATE_USER_PROFILE, DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
-import { getEnv } from '../../2-services/10-utilities/utilities.mjs';
 import { JwtData } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
@@ -87,10 +86,6 @@ export const getJWTData = (jwt:string):JwtData => {
         };
 }
 
-
-/*********************
- * NEW ACCOUNT TOKEN *
- *********************/
 export const validateNewRoleTokenList = async({newRoleList, jsonRoleTokenList, email, currentRoleList, adminOverride}
                                         :{newRoleList:RoleEnum[], jsonRoleTokenList:{role: RoleEnum, token: string}[], email:string, currentRoleList?:RoleEnum[], adminOverride?:boolean}) => 
     await [...newRoleList].every( async(role:RoleEnum) => {
@@ -242,22 +237,4 @@ export const verifyPassword = async (passwordHash:string, password:string):Promi
 
 export const generatePasswordHash = async (password:string):Promise<string> => {
     return hash(password);
-}
-
-//JWT_DURATION=2h or 15d
-const parseJWTDurationToMS = (duration:string):number => {
-    const normalizedDuration:string = duration.trim().toLowerCase();
-    const match:RegExpMatchArray | null = normalizedDuration.match(/^(\d+)\s*([smhd])$/);
-
-    if(!match) return 0;
-
-    const value:number = Number(match[1]);
-    const unit:string = match[2];
-
-    if(unit === 's') return value * 1000;
-    if(unit === 'm') return value * 60 * 1000;
-    if(unit === 'h') return value * 60 * 60 * 1000;
-    if(unit === 'd') return value * 24 * 60 * 60 * 1000;
-
-    return 0;
 }

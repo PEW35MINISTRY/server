@@ -71,9 +71,6 @@ export const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SY
         verticalSpacing: 3
     });
 
-const fileName = `debug_${Date.now()}.html`;
-writeFileSync(fileName, html);
-
     const successfullySent:boolean = await sendTemplateEmail(subject, html, sender, recipientMap);
 
     //Re-attempt | Failed logging handled in sendTemplateEmail
