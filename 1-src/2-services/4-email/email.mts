@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync } from 'fs';
 import * as log from '../10-utilities/logging/log.mjs';
 import LOG_ENTRY from '../10-utilities/logging/logEntryModel.mjs';
 import { AWSMetadata, EMAIL_SENDER_ADDRESS, EmailReportContent, EmailSenderAddress  } from './email-types.mjs';
@@ -44,15 +44,22 @@ export const sendEmailToken = async({subject, token, message, buttonTitle, butto
 
 
 //Applies header/footer and provides plainText fallback
-const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, userIDList, emailRecipientMap, bodyList, getAlternativeTextBody}
+export const sendBrandedEmail = async({subject, sender = EMAIL_SENDER_ADDRESS.SYSTEM, userIDList, emailRecipientMap, bodyList, getAlternativeTextBody}
                               :{subject:string, sender:EmailSenderAddress, userIDList:number[], emailRecipientMap?:Map<number, string>, bodyList:string[], getAlternativeTextBody?:(name?:string) => string}):Promise<boolean> => {
-    let recipientMap:Map<number, string> = emailRecipientMap ?? await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList); //Validated in sendTemplateEmail
+    //At least one real userID is required | (Filters negatives used for injected additional recipients)
+    userIDList = userIDList.filter(id => id > 0);
+    if(userIDList.length === 0) {
+        log.error(`sendBrandedEmail :: subject="${subject}" :: Real userIDs required to send Branded Email, email canceled.`);
+        return false;
+    }
+
+    const recipientMap:Map<number, string> = emailRecipientMap ?? await DB_SELECT_USER_BATCH_EMAIL_MAP(userIDList); //Validated in sendTemplateEmail
 
     const unverifiedEmailUserIDList:number[] = userIDList.filter(id => !recipientMap.has(id));
     if(unverifiedEmailUserIDList.length > 0) log.warn(`sendBrandedEmail :: subject="${subject}" :: Recipients skipped for unverified email addresses=${JSON.stringify(unverifiedEmailUserIDList)}`);
     if(recipientMap.size === 0) return false;
 
-    const firstName:string|undefined = (recipientMap.size === 1) ? (await DB_SELECT_USER(new Map([['userID', recipientMap.keys().next().value]]), false))?.firstName : undefined;
+    const firstName:string|undefined = (userIDList.length === 1) ? (await DB_SELECT_USER(new Map([['userID', userIDList[0]]]), false))?.firstName : undefined;
 
     const html = await applyTemplate({type: EMAIL_TEMPLATE_TYPE.SIMPLE,
         replacementMap: new Map([[EMAIL_REPLACEMENT.EMAIL_SUBJECT, subject]]),

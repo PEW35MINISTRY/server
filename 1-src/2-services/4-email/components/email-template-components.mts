@@ -5,7 +5,7 @@ import { EMAIL_COLOR, EMAIL_CONTENT_MAX_WIDTH, EMAIL_FONT_FAMILY, EMAIL_FONT_SIZ
 * GENERAL BODY COMPONENTS *
 ***************************/  
 export const htmlSection = (text:string, textAlign:'left'|'center'|'right' = 'center', fontColor:EMAIL_COLOR = EMAIL_COLOR.PRIMARY):string => htmlVerticalSpace(30) +
-    `<div align="${textAlign}" style="width:100%; padding:${getNumericFontSize(EMAIL_FONT_SIZE.SECTION) * 2}px auto ${getNumericFontSize(EMAIL_FONT_SIZE.SECTION)}px auto;">
+    `<div align="${textAlign}" style="width:100%; padding:${getNumericFontSize(EMAIL_FONT_SIZE.SECTION) * 2}px 0 ${getNumericFontSize(EMAIL_FONT_SIZE.SECTION)}px 0;">
         <div style="display:inline-block; width:80%; text-align:${textAlign}; font-family:${EMAIL_FONT_FAMILY.SECTION}; font-size:${EMAIL_FONT_SIZE.SECTION}; color:${fontColor}; font-weight:bold; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.SECTION, 1.5)}; padding: 0px; border-bottom:1px solid ${fontColor};">${text}</div></div>`;
 
 export const htmlTitle = (text:string, textAlign:'left'|'center'|'right' = 'left', fontColor:EMAIL_COLOR = EMAIL_COLOR.ACCENT):string => `<div style="width:100%; text-align:${textAlign}; font-family:${EMAIL_FONT_FAMILY.TITLE}; font-size:${EMAIL_FONT_SIZE.TITLE}; color:${fontColor}; font-weight:bold; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TITLE, 2)};">${text}</div>`;
@@ -17,6 +17,9 @@ export const htmlSummaryList = (details:[string, string][], title?:string):strin
 export const htmlDetailList=(details:[string, string][], title?:string):string => `${title ? `<div style="width:100%; text-align:left; font-family:${EMAIL_FONT_FAMILY.TITLE}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLACK}; font-weight:bold; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.TEXT, 1)}; margin:10px 0px 4px 0px;">${title}</div>` : ''}${details.map(([label, text])=>`<div style="font-family:${EMAIL_FONT_FAMILY.DETAIL}; font-size:${EMAIL_FONT_SIZE.DETAIL}; color:${EMAIL_COLOR.BLACK}; line-height:${getEmailLineHeight(EMAIL_FONT_SIZE.DETAIL)}; text-align:left; margin:2px 0;"><strong>${label}</strong> ${text}</div>`).join('')}`;
 
 export const htmlVerticalSpace = (pixel:number, color:string = EMAIL_COLOR.TRANSPARENT):string => `<div style="width:100%; height:${pixel}px; background-color:${color}; line-height:${pixel}px;">&nbsp;</div>`;
+
+//Use within internal <table> structures
+export const htmlTableVerticalSpace = (pixel:number, color:string = EMAIL_COLOR.TRANSPARENT):string => `<tr><td height="${pixel}" style="height:${pixel}px; background-color:${color}; line-height:${pixel}px; font-size:${pixel}px;">&nbsp;</td></tr>`;
 
 export const htmlActionButton=(buttons:{label:string, link:string, style?:'PRIMARY'|'ACCENT'|'OUTLINE'}[], title?:string, textAlign:'left'|'center'|'right' = 'center'):string =>
     `<div style="width:100%; text-align:${textAlign};">
@@ -57,7 +60,7 @@ export const htmlHeader = (greeting?:string):string =>
                         </td>
                     </tr>
                 </table>
-                ${greeting ? `<div style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLACK}; text-align:left; margin-top:15px;">${greeting}</div>` : ''}
+                ${greeting ? `<table width="100%" border="0" cellspacing="0" cellpadding="0" role="presentation"><tr><td align="left" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLACK}; padding-top:15px;">${greeting}</td></tr></table>` : ''}
             </td>
         </tr>
     </table>`;
@@ -83,9 +86,9 @@ export const htmlFooter = (signatureLines?:string[]):string =>
                         <td align="center" valign="middle">
                             <img src="https://ep-cdn-data-prod.s3.us-east-2.amazonaws.com/assets/images/brand/logo.png" alt="Encouraging Prayer Logo" height="${getNumericFontSize(EMAIL_FONT_SIZE.HEADER)}" style="display:block; margin:0 auto 8px auto;">
                             <div style="font-family:${EMAIL_FONT_FAMILY.TITLE}; font-size:${EMAIL_FONT_SIZE.TEXT}; ">
-                                <a href="https://encouragingprayer.org/" style="color:${EMAIL_COLOR.WHITE}; text-decoration:none; margin:0 8px;">Website</a> |
-                                <a href="https://pew35.org/" style="color:${EMAIL_COLOR.WHITE}; text-decoration:none; margin:0 8px;">PEW35 Ministry</a> |
-                                <a href="mailto:support@encouragingprayer.org" style="color:${EMAIL_COLOR.WHITE}; text-decoration:none; margin:0 8px;">Support</a>
+                                <span style="white-space:nowrap;"><a href="https://encouragingprayer.org/" style="color:${EMAIL_COLOR.WHITE}; text-decoration:none;">Website</a></span>
+                                <span style="white-space:nowrap;">&nbsp;|&nbsp;<a href="https://pew35.org/" style="color:${EMAIL_COLOR.WHITE}; text-decoration:none;">PEW35 Ministry</a></span>
+                                <span style="white-space:nowrap;">&nbsp;|&nbsp;<a href="mailto:support@encouragingprayer.org" style="color:${EMAIL_COLOR.WHITE}; text-decoration:none;">Support</a></span>
                             </div>
                         </td>
                     </tr>
@@ -100,6 +103,11 @@ type StringList = (string | StringList)[];
 export const htmlBulletList = (list:StringList, title?:string):string => `${title ? htmlTitle(title) : ''}${htmlList(list, 'BULLET')}`;
 
 export const htmlNumberedList = (list:StringList, title?:string):string => `${title ? htmlTitle(title) : ''}${htmlList(list, 'NUMBER')}`;
+
+export const htmlBulletLinkList = (list:{label:string, link:string}[], title?:string):string => {
+    return htmlBulletList(list.map(({label, link}:{label:string, link:string}):string =>
+        `<a href="${link}" target="_blank" rel="noopener noreferrer" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLACK}; text-decoration:underline;">${label}</a>`), title);
+};
 
 const htmlList=(items:StringList, mode:'BULLET' | 'NUMBER'):string => {
     const bulletSymbols:string[] = ['disc', 'square', 'circle'];

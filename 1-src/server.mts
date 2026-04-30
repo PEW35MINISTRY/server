@@ -36,6 +36,7 @@ import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
 import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceDetailAdmin, GET_notificationDeviceList, PATCH_notificationDeviceAdmin, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser } from './1-api/8-notification/notification.mjs';
 import { GET_EmailReportDownloadFile, GET_EmailSubscriptionUnsubscribe, POST_EmailReportAdmin, POST_EmailSubscriptionBroadcastAdmin } from './1-api/9-email/email.mjs';
+import { POST_circleReported, POST_contentReported, POST_prayerRequestCommentReported, POST_prayerRequestReported, POST_userReported } from './1-api/2-auth/moderation.mjs';
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
@@ -229,6 +230,9 @@ apiServer.get('/api/search-list/:type', (request:JwtSearchRequest, response:Resp
 apiServer.get('/api/prayer-request/user-list', GET_PrayerRequestUserList);
 apiServer.post('/api/prayer-request', POST_prayerRequest);
 
+apiServer.post('/api/prayer-request/:prayer/report', POST_prayerRequestReported);
+apiServer.post('/api/prayer-request/:prayer/comment/:comment/report', POST_prayerRequestCommentReported);
+
 apiServer.use('/api/prayer-request/:prayer', (request:JwtPrayerRequest, response:Response, next:NextFunction) => authenticatePrayerRequestRecipientMiddleware(request, response, next));
 
 apiServer.get('/api/prayer-request/:prayer', GET_PrayerRequest);
@@ -277,6 +281,7 @@ apiServer.get('/api/partner/:client/prayer-request-list', GET_PrayerRequestReque
 /******************************************************/
 apiServer.use('/api/user/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 
+apiServer.post('/api/user/:client/report', POST_userReported);
 apiServer.get('/api/user/:client/public', GET_publicProfile);
 apiServer.get('/api/user/:client/image', GET_profileImage);
 
@@ -335,6 +340,7 @@ apiServer.use('/api/circle/:circle', (request:JwtCircleRequest, response:Respons
 
 apiServer.get('/api/circle/:circle', GET_circle);  //Handles relevant circle status
 apiServer.get('/api/circle/:circle/image', GET_circleImage);
+apiServer.post('/api/circle/:circle/report', POST_circleReported);
 
 apiServer.post('/api/circle/:circle/request', POST_circleMemberRequest);
 apiServer.post('/api/circle/:circle/accept', POST_circleMemberAccept); //Existing Circle Membership Invite must exist (User Accepts)
@@ -404,6 +410,7 @@ apiServer.get('/api/content-archive/:content', GET_ContentRequest);
 apiServer.patch('/api/content-archive/:content', PATCH_contentArchive);
 apiServer.delete('/api/content-archive/:content', DELETE_contentArchive);
 
+apiServer.post('/api/content-archive/:content/report', POST_contentReported);
 apiServer.get('/api/content-archive/:content/image', GET_contentArchiveImage);
 apiServer.delete('/api/content-archive/:content/image', DELETE_contentArchiveImage);
 

@@ -113,6 +113,13 @@ const REQUIRED_ENV_CONFIGURATION:Record<string, EnvDefinition> = {
         dependent: ['EMAIL_SES_REGION', 'EMAIL_DOMAIN']
     },
 
+    EMAIL_YOUTH_PROTECTION: {
+        requirement: {
+            [ENVIRONMENT_TYPE.PRODUCTION]: Requirement.REQUIRED
+        },
+        description: 'Required for email communication involving minors'
+    },
+
     //Notifications
     SNS_REGION: {
         requirement: Requirement.RECOMMENDED

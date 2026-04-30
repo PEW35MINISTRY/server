@@ -47,6 +47,8 @@ export enum RoleEnum {
 export const GENERAL_USER_ROLES:RoleEnum[] = [RoleEnum.USER, RoleEnum.TEST_USER, RoleEnum.DEMO_USER];
 
 export enum EmailSubscription {
+    SAFETY_TEAM = 'SAFETY_TEAM',
+
     USER_WEEKLY = 'USER_WEEKLY',
     PARTNER_WEEKLY = 'PARTNER_WEEKLY',
 
