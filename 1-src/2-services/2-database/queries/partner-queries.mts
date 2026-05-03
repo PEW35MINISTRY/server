@@ -56,8 +56,16 @@ export const DB_IS_USER_PARTNER_ANY_STATUS = async(userID:number, clientID:numbe
 
     const preparedColumns:string = '( ' + statusList.map((key)=> `status = ?`).join(' OR ') + ' )';
 
-    const rows = await execute('SELECT partner.status ' + 'FROM partner '
-        + `WHERE userID = ? AND partnerID = ? AND ${preparedColumns};`, [getUserID(userID, clientID), getPartnerID(userID, clientID), ...statusList]);
+        const rows = await execute('SELECT partner.status '
+        + 'FROM partner '
+        + 'JOIN user AS partner_user ON partner_user.userID = partner.userID '
+        + 'JOIN user AS client_user ON client_user.userID = partner.partnerID '
+        + 'WHERE partner.userID = ? '
+            + 'AND partner.partnerID = ? '
+            + 'AND partner_user.moderationStatus IS NULL '
+            + 'AND client_user.moderationStatus IS NULL '
+            + `AND ${preparedColumns};`, 
+        [getUserID(userID, clientID), getPartnerID(userID, clientID), ...statusList]);
 
     if(rows.length > 1) log.db(`DB_IS_ANY_USER_PARTNER MULTIPLE RECORDS for partnership IDENTIFIED`, userID, clientID, ...statusList, JSON.stringify(rows));
 
@@ -65,8 +73,15 @@ export const DB_IS_USER_PARTNER_ANY_STATUS = async(userID:number, clientID:numbe
 }
 
 export const DB_SELECT_PARTNER_STATUS = async(userID:number, clientID:number):Promise<PartnerStatusEnum|undefined> => {
-    const rows = await execute('SELECT status ' + 'FROM partner '
-        + 'WHERE userID = ? AND partnerID = ?;', [getUserID(userID, clientID), getPartnerID(userID, clientID)]);
+        const rows = await execute('SELECT '
+        + 'CASE '
+            + `WHEN partner_user.moderationStatus IS NOT NULL OR client_user.moderationStatus IS NOT NULL THEN '${DATABASE_PARTNER_STATUS_ENUM.UNDER_REVIEW}' `
+            + 'ELSE partner.status '
+            + 'END AS status '
+        + 'FROM partner '
+        + 'JOIN user AS partner_user ON partner_user.userID = partner.userID '
+        + 'JOIN user AS client_user ON client_user.userID = partner.partnerID '
+        + 'WHERE partner.userID = ? AND partner.partnerID = ?;', [getUserID(userID, clientID), getPartnerID(userID, clientID)]);
 
     if(rows.length !== 1) log.db(`DB_SELECT_PARTNER_STATUS ${(rows.length > 1) ? 'MULTIPLE' : 'NONE'} RECORDS for partnership IDENTIFIED`, userID, clientID, JSON.stringify(rows));
 
@@ -75,9 +90,15 @@ export const DB_SELECT_PARTNER_STATUS = async(userID:number, clientID:number):Pr
 
 //Perspective of userID and PartnerListItem includes profile of partnerID
 export const DB_SELECT_PARTNERSHIP = async(userID:number, partnerID:number):Promise<PartnerListItem|undefined> => {
-    const rows = await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.status, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT ' 
+    const rows = await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, '
+    + 'CASE '
+        + `WHEN partner_user.moderationStatus IS NOT NULL OR client_user.moderationStatus IS NOT NULL THEN '${DATABASE_PARTNER_STATUS_ENUM.UNDER_REVIEW}' `
+        + 'ELSE partner.status '
+        + 'END AS status '
     + 'FROM partner '
     + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
+    + 'JOIN user AS partner_user ON partner_user.userID = partner.userID '
+    + 'JOIN user AS client_user ON client_user.userID = partner.partnerID '
     + 'WHERE user.userID = ? AND partner.userID = ? AND partner.partnerID = ?;'
     , [partnerID, getUserID(userID, partnerID), getPartnerID(userID, partnerID)]);
 
@@ -91,60 +112,59 @@ export const DB_SELECT_PARTNERSHIP = async(userID:number, partnerID:number):Prom
 
 export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PARTNER_STATUS_ENUM):Promise<PartnerListItem[]> => {
 
-    const rows:RowDataPacket[] = (status === undefined) ?
-            await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
-                + 'FROM partner '
-                + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-                + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
-                + `AND status NOT IN ('FAILED', 'ENDED');`, [userID, userID, userID])
-
-        : ([DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER].includes(status)) ?
-            await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
-                + 'FROM partner '
-                + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-                + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
-                + `AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER');`
-                , [userID, userID, userID])
-    
-            : await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
-                + 'FROM partner '
-                + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-                + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
-                + 'AND status = ?;', [userID, userID, userID, status]);
+    const rows:RowDataPacket[] = await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, '
+        + 'CASE '
+            + `WHEN partner_user.moderationStatus IS NOT NULL OR client_user.moderationStatus IS NOT NULL THEN '${DATABASE_PARTNER_STATUS_ENUM.UNDER_REVIEW}' `
+            + 'ELSE partner.status '
+            + 'END AS status '
+        + 'FROM partner '
+        + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
+        + 'JOIN user AS partner_user ON partner_user.userID = partner.userID '
+        + 'JOIN user AS client_user ON client_user.userID = partner.partnerID '
+        + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ?;',
+        [userID, userID, userID]);
 
     //Filtered to match userID perspective
     return rows.map(row => convertPartnershipPerspective(userID, row.userID, row.partnerID,
-        {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', contractDT: row.partnerContractDT, partnershipDT: row.partnershipDT,
-                status: PartnerStatusEnum[row.status]}))
-            .filter((partner:PartnerListItem) => (!status || DATABASE_PARTNER_STATUS_ENUM[partner.status] === status));
+        {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', contractDT: row.partnerContractDT, partnershipDT: row.partnershipDT, status: PartnerStatusEnum[row.status]}))
+            .filter((partner:PartnerListItem) => {
+                const partnerStatus:DATABASE_PARTNER_STATUS_ENUM = DATABASE_PARTNER_STATUS_ENUM[partner.status];
+
+                
+                if(status === DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH)
+                    return [
+                            DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH,
+                            DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER,
+                            DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER
+                        ].includes(partnerStatus);
+
+                else if(status === DATABASE_PARTNER_STATUS_ENUM.ENDED)
+                    return [
+                            DATABASE_PARTNER_STATUS_ENUM.ENDED,
+                            DATABASE_PARTNER_STATUS_ENUM.UNDER_REVIEW
+                        ].includes(partnerStatus);
+
+                else if(status !== undefined) 
+                    return partnerStatus === status;
+
+                else
+                    return [
+                        DATABASE_PARTNER_STATUS_ENUM.PARTNER,
+                        DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH,
+                        DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER,
+                        DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_PARTNER
+                    ].includes(partnerStatus);
+            });
 }
 
-
-export const DB_SELECT_PENDING_PARTNER_LIST = async(userID?:number):Promise<PartnerListItem[]> => {
-    const rows:RowDataPacket[] = (userID !== undefined) ?    
-        await execute('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
-            + 'FROM partner '
-            + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-            + 'WHERE ( partner.userID = ? OR partner.partnerID = ? ) AND user.userID != ? '
-            + `AND (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER') `
-            + 'ORDER BY partner.modifiedDT DESC;'
-            , [userID, userID, userID])
-
-        : await query('SELECT partner.userID, partner.partnerID, user.firstName, user.displayName, user.image, partner.userContractDT, partner.partnerContractDT, partner.partnershipDT, partner.status ' 
-            + 'FROM partner '
-            + 'LEFT JOIN user ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
-            + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER') `
-            + 'ORDER BY partner.modifiedDT DESC;'
-            );
-
-    return [...rows.map(row => convertPartnershipPerspective(userID || -1, row.userID, row.partnerID,
-        {userID: -1, firstName: row.firstName || '', displayName: row.displayName || '', image: row.image || '', contractDT: row.partnerContractDT, partnershipDT: row.partnershipDT,
-            status: PartnerStatusEnum[row.status]}))];
-}
 
 /* ADMIN Utility */
 export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async(limit:number = 100):Promise<[NewPartnerListItem, NewPartnerListItem][]> => {
-    const rows:RowDataPacket[] = await query('SELECT status, userContractDT, partnerContractDT, user.*, '
+    const rows:RowDataPacket[] = await query('SELECT userContractDT, partnerContractDT, user.*, '
+            + 'CASE '
+                    + `WHEN user.moderationStatus IS NOT NULL OR client.moderationStatus IS NOT NULL THEN '${DATABASE_PARTNER_STATUS_ENUM.UNDER_REVIEW}' `
+                    + 'ELSE partner.status '
+                    + 'END AS status, '
             + `${USER_TABLE_COLUMNS.map((column:string) => `client.${column} as ${camelCase('client', column)}`).join(', ')} `
             + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID) '
@@ -193,7 +213,7 @@ export const DB_DELETE_PARTNERSHIP = async(userID:number, clientID?:number, stat
     log.db(`DELETE PARTNERSHIP attempted: userID:${userID} and clientID:${clientID} with status:${(clientID === undefined) ? 'ALL PARTNER CONNECTIONS' : 'Single Partnership'}`);
 
     const response:CommandResponseType = (status !== undefined)
-        ? await command('DELETE FROM partner WHERE userID = ? OR partnerID = ? AND status = ?;', [userID, userID, status])
+        ? await command('DELETE FROM partner WHERE (userID = ? OR partnerID = ?) AND status = ?;', [userID, userID, status])
 
         : (clientID === undefined) //Delete all partnership connections
             ? await command('DELETE FROM partner WHERE userID = ? OR partnerID = ?;', [userID, userID])
@@ -240,12 +260,14 @@ export const DB_SELECT_AVAILABLE_PARTNER_LIST = async(user:USER, limit = 1): Pro
         + 'LEFT JOIN partner ON (( user.userID = partner.userID OR user.userID = partner.partnerID) '
         + '    AND ( partner.userID = ? OR partner.partnerID = ? )) '
         + 'LEFT JOIN ( '
-        + '    SELECT userID, COUNT(*) AS partnerCount '
+        + '    SELECT userID, COUNT(*) AS partnerCount ' //TODO: Not counting where userID = partner.partnerID
         + '    FROM partner '
         + `    WHERE status NOT IN ('FAILED', 'ENDED') `
         + '    GROUP BY userID '
         + ') AS partnerCounts ON user.userID = partnerCounts.userID '
         + 'WHERE user.userID != ? '
+
+            + 'AND user.moderationStatus IS NULL '
 
             + ((getEnvironment() == ENVIRONMENT_TYPE.PRODUCTION) ? 'AND user.isEmailVerified = 1 ' : '')
             
@@ -307,11 +329,16 @@ export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async(limit:number = LIST_
         + 'LEFT JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
         + 'LEFT JOIN partner ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
         + `WHERE (user_role_defined.userRole = 'USER' OR user_role.userID IS NULL) `
+        + '    AND user.moderationStatus IS NULL '
         + '    AND user.modelSourceEnvironment = ? '
         + '    AND user.maxPartners > 0 '
         + '    AND ((partner.userID IS NULL AND partner.partnerID IS NULL) '
         + `        OR (partner.status IN ('FAILED', 'ENDED') `
-        + `            AND user.userID NOT IN (SELECT userID FROM partner WHERE status NOT IN ('FAILED', 'ENDED')))) `
+        + `            AND NOT EXISTS ( `
+        + `                SELECT 1 FROM partner active_partner `
+        + `                WHERE (active_partner.userID = user.userID OR active_partner.partnerID = user.userID) `
+        + `                AND active_partner.status NOT IN ('FAILED', 'ENDED') `
+        + `            ))) `
         + 'ORDER BY user.createdDT ASC ' //Oldest Users
         + `LIMIT ${limit};`,
     
@@ -322,9 +349,15 @@ export const DB_SELECT_UNASSIGNED_PARTNER_USER_LIST = async(limit:number = LIST_
 
 //Latest Users with USER Role
 export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = false, limit:number = LIST_LIMIT):Promise<PartnerCountListItem[]> => {
-
     const totalByStatus:string = Object.values(PartnerStatusEnum)
-        .map((status) => `COALESCE(SUM(CASE WHEN partner.status = '${status}' THEN 1 ELSE 0 END), 0) ${status}`).join(', ');
+        .map((status) => 'COALESCE(SUM(CASE WHEN '
+                + 'CASE '
+                    + `WHEN partner_user.moderationStatus IS NOT NULL OR client_user.moderationStatus IS NOT NULL THEN '${DATABASE_PARTNER_STATUS_ENUM.UNDER_REVIEW}' `
+                    + 'ELSE partner.status '
+                + `END = '${status}' `
+                + 'THEN 1 ELSE 0 END), 0) '
+                + `${status}`
+        ).join(', ');
 
     const rows:RowDataPacket[] = await query(
             `SELECT user.*, ${totalByStatus} ` 
@@ -332,6 +365,8 @@ export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = 
             + 'LEFT JOIN user_role ON user.userID = user_role.userID '
             + 'LEFT JOIN user_role_defined ON user_role.userRoleID = user_role_defined.userRoleID '
             + 'LEFT JOIN partner ON (partner.userID = user.userID OR partner.partnerID = user.userID) '
+            + 'LEFT JOIN user AS partner_user ON partner_user.userID = partner.userID '
+            + 'LEFT JOIN user AS client_user ON client_user.userID = partner.partnerID '
             + `WHERE (user_role_defined.userRole = 'USER' OR user_role.userID IS NULL) `
             + 'GROUP BY user.userID '
             + `${filterFewerPartners ?
@@ -347,7 +382,7 @@ export const DB_SELECT_PARTNER_STATUS_MAP = async(filterFewerPartners:boolean = 
                 : `user.modelSourceEnvironment != '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.MOCK}', `
                 }`
             + 'user.createdDT DESC ' //Newest Users
-            + `LIMIT ${LIST_LIMIT};`);
+            + `LIMIT ${limit};`);
 
     //Note: Express can't serialize Maps, so returning a [key, value] pair array
     return rows.map(row => ({...USER.constructByDatabase(row as DATABASE_USER).toNewPartnerListItem(),
@@ -370,6 +405,7 @@ export const DB_CALCULATE_PARTNERSHIP_STATS = async(modelSourceEnvironment:DATAB
                 + 'user.modifiedDT AS userModifiedDT '
             + 'FROM user '
             + `WHERE user.modelSourceEnvironment = '${modelSourceEnvironment}' `
+                + 'AND user.moderationStatus IS NULL '
         + '), '
 
         //Filter ENDED or FAILED Partner relationships

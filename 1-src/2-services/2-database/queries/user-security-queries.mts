@@ -29,6 +29,7 @@ export const DB_IS_USER_ROLE = async(userID:number, userRole:DATABASE_USER_ROLE_
         + 'LEFT JOIN user_role ON user_role.userID = user.userID '
         + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
         + 'WHERE user.userID = ? '
+        + 'AND user.moderationStatus IS NULL '
         + `AND (user_role_defined.userRole = ? OR (user_role.userRoleID IS NULL AND ? = TRUE AND ? = 'USER'));`, 
             [userID, userRole, useDefaultUser, userRole]); 
 
@@ -45,40 +46,55 @@ export const DB_IS_ANY_USER_ROLE = async(userID:number, userRoleList:DATABASE_US
     + 'LEFT JOIN user_role ON user_role.userID = user.userID '
     + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
     + 'WHERE user.userID = ? '
+    + 'AND user.moderationStatus IS NULL '
     + `AND (${preparedColumns} OR (user_role.userRoleID IS NULL AND ? = TRUE));`,
         [userID, ...userRoleList, useDefaultUser]); 
 
     return (rows.length >= 1);
 }
 
-export const DB_SELECT_USER_ROLES = async(userID:number, defaultUserRole:boolean = true):Promise<RoleEnum[]> => {
-    const rows = await execute('SELECT user_role_defined.userRole ' 
-        + 'FROM user_role, user_role_defined '
-        + 'WHERE user_role.userRoleID = user_role_defined.userRoleID '
-        + 'AND user_role.userID = ?;', [userID]);
+export const DB_SELECT_USER_ROLES = async(userID:number, defaultUserRole:boolean = true, underModerationMarkReported:boolean = true):Promise<RoleEnum[]> => {
+    const rows = await execute('SELECT user_role_defined.userRole, user.moderationStatus ' 
+        + 'FROM user '
+        + 'LEFT JOIN user_role ON user_role.userID = user.userID '
+        + 'LEFT JOIN user_role_defined ON user_role_defined.userRoleID = user_role.userRoleID '
+        + 'WHERE user.userID = ?;', [userID]);
+
+    if(underModerationMarkReported && rows.some(row => row.moderationStatus != null))
+        return [RoleEnum.REPORTED];
 
     //Parse user roles; only pass on server supported roles
     const validRoles = [];
     rows.forEach((row) => {
         if(Object.values(RoleEnum).includes(row.userRole)) validRoles.push(RoleEnum[row.userRole]);
-        else log.db('Invalid Role, Not in Server Types', userID, row, JSON.stringify(Object.values(RoleEnum)));        
+        else if(row.userRole !== null) log.db('Invalid Role, Not in Server Types', userID, row, JSON.stringify(Object.values(RoleEnum)));        
     });
     return ((validRoles.length === 0) && defaultUserRole) ? [RoleEnum.USER] : validRoles;
 }
 
 export const DB_INSERT_USER_ROLE = async({userID, email, userRoleList}:{userID?:number, email?:string, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {
+    if(userID === undefined && email === undefined) {
+        log.warnWithTrace('DB_INSERT_USER_ROLE missing both userID and email', [userRoleList]);
+        return false;
+    }
+
     const response:CommandResponseType = 
         await command('INSERT INTO user_role ( userID, userRoleID ) VALUES '
             + userRoleList.map(() => `( ${(userID === undefined) ? '(SELECT user.userID FROM user WHERE user.email = ? )' : '?'} , `
             + '(SELECT user_role_defined.userRoleID FROM user_role_defined WHERE user_role_defined.userRole = ? ))').join(', ')
             + ' ON DUPLICATE KEY UPDATE userRoleID = VALUES(userRoleID);',
-                userRoleList.flatMap((role) => [userID || email, role]));
+                userRoleList.flatMap((role) => [userID ?? email, role]));
 
     return ((response !== undefined) && (response.affectedRows > 0));
 }
 
-export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, userRoleList:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {    
+export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, userRoleList?:DATABASE_USER_ROLE_ENUM[]}):Promise<boolean> => {    
     log.event(`DELETE USER ROLE attempted: userID:${userID}, userRoleList:${userRoleList}`);
+
+    if(userRoleList !== undefined && userRoleList.length === 0) {
+        log.warnWithTrace('DB_DELETE_USER_ROLE called with an empty userRoleList, no roles to delete', [userID]);
+        return false;
+    }
 
     const response:CommandResponseType = (userRoleList === undefined) ? //Delete All Roles
     await command('DELETE FROM user_role WHERE user_role.userID = ? ;', [userID])
@@ -97,6 +113,17 @@ export const DB_DELETE_USER_ROLE = async({userID, userRoleList}:{userID:number, 
  *       MODERATION UNDER REVIEW        *
  *           moderationStatus           *
  ****************************************/
+export const DB_IS_USER_UNDER_MODERATION = async(userID:number, moderationStatus?:DATABASE_MODERATION_STATUS):Promise<boolean> => {
+    const rows = await execute('SELECT user.userID '
+        + 'FROM user '
+        + 'WHERE user.userID = ? '
+        + ((moderationStatus !== undefined) ? 'AND user.moderationStatus = ? ' : 'AND user.moderationStatus IS NOT NULL ')
+        + ';', [userID, ...(moderationStatus !== undefined ? [moderationStatus] : [])]);
+
+    return (rows.length > 0);
+}
+
+
 export const DB_SELECT_USER_UNDER_MODERATION = async(status?:DATABASE_MODERATION_STATUS):Promise<ModeratedProfileListItem[]> => {
     const rows = (status === undefined) ?
         await query('SELECT user.* '
@@ -164,7 +191,7 @@ export const DB_SELECT_TOKEN_USER_ALL = async({userID, type}:{userID:number, typ
             + 'FROM token '
             + 'WHERE userID = ?;', [userID])
 
-        : await execute('SELECT userID, type, expirationDT '
+        : await execute('SELECT userID, type, expirationDT, createdDT '
             + 'FROM token '
             + 'WHERE userID = ? AND type = ?;', [userID, type]);
 
@@ -182,7 +209,8 @@ export const DB_INSERT_TOKEN = async(entry:DATABASE_TOKEN):Promise<boolean> => {
     const response:CommandResponseType = await command('INSERT INTO token ( userID, type, token, expirationDT ) VALUES '
         + '( ?, ?, ?, ? ) '
         + 'ON DUPLICATE KEY UPDATE ' //Combination of userID and DATABASE_TOKEN_TYPE_ENUM
-        + 'token = VALUES(token), expirationDT = VALUES(expirationDT);',
+            + 'token = VALUES(token), '
+            + 'expirationDT = VALUES(expirationDT);',
         [entry.userID, entry.type, entry.token, entry.expirationDT ?? null]); //null implies unlimited
 
     return ((response !== undefined) && (response.affectedRows > 0));
@@ -200,7 +228,8 @@ export const DB_INSERT_TOKEN_BATCH = async(entryList:DATABASE_TOKEN[]):Promise<b
 
     const response:boolean|undefined = await batch('INSERT INTO token ( userID, type, token, expirationDT ) VALUES ? '
         + 'ON DUPLICATE KEY UPDATE '
-        + 'userID = VALUES(userID), type = VALUES(type), expirationDT = VALUES(expirationDT);',
+            + 'token = VALUES(token), '
+            + 'expirationDT = VALUES(expirationDT);',
         batchList);
 
     return (response === true);
