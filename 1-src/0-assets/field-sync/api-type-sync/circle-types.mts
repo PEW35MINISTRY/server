@@ -83,6 +83,7 @@ export interface CircleEditRequestBody {
     inviteToken: string,
     image?: string,
     notes?: string,
+    moderationStatus?: string,
 }
 
 export interface CircleAnnouncementCreateRequestBody {

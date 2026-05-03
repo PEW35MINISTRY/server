@@ -196,13 +196,22 @@ export const DB_SELECT_CIRCLE_UNDER_MODERATION = async(status?:DATABASE_MODERATI
  **********************************/
 //https://code-boxx.com/mysql-search-exact-like-fuzzy/
 export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:string[], limit:number = LIST_LIMIT):Promise<CircleListItem[]> => {
-    const overlap = columnList.filter(c => CIRCLE_TABLE_COLUMNS.includes(c) && USER_TABLE_COLUMNS.includes(c));
-    if(overlap.length) log.error('DB_SELECT_CIRCLE_SEARCH column overlap between circle/user tables', overlap);
+    const overlap:string[] = columnList.filter(c => CIRCLE_TABLE_COLUMNS.includes(c) && USER_TABLE_COLUMNS.includes(c));
+    if(overlap.length) {
+        log.error('DB_SELECT_CIRCLE_SEARCH column overlap between circle/user tables', overlap);
+        return [];
+    }
 
-
+    //Resolve column name collisions with table prefix
+    const validColumnOptions:Set<string> = new Set<string>([
+        ...CIRCLE_TABLE_COLUMNS,
+        ...CIRCLE_TABLE_COLUMNS.map(column => `circle.${column}`),
+        ...USER_TABLE_COLUMNS,
+        ...USER_TABLE_COLUMNS.map(column => `user.${column}`)
+    ]);
 
     //Validate Columns prior to Query | (Searches both circle and user table columns)
-    if(!validateColumns(new Map(columnList.map(column => [column, -1])), false, [...new Set([...CIRCLE_TABLE_COLUMNS, ...USER_TABLE_COLUMNS])], [])) {
+    if(!validateColumns(new Map(columnList.map(column => [column, -1])), false, [...validColumnOptions], [])) {
         log.error('DB_SELECT_CIRCLE_SEARCH rejected for invalid columns', columnList);
         return [];
     }
@@ -223,7 +232,7 @@ export const DB_SELECT_CIRCLE_SEARCH = async(searchTerm:string, columnList:strin
         + '        ) '
         + '    ) '
         + 'AND ( '
-            + columnList.map(column => `LOWER(circle.${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')
+            + columnList.map(column => `LOWER(${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')
         + ' ) '
         + 'ORDER BY circle.modifiedDT DESC '
         + `LIMIT ${limit};`,    

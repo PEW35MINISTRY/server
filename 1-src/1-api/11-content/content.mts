@@ -92,9 +92,12 @@ export const PATCH_contentArchive =  async(request: JwtContentRequest, response:
     const editContentArchive:CONTENT_ARCHIVE|Exception = await CONTENT_ARCHIVE.constructAndEvaluateByJson({currentModel: currentContentArchive, jsonObj:request.body, fieldList: FIELD_LIST});
 
     if(currentContentArchive.isValid && !(editContentArchive instanceof Exception) && editContentArchive.isValid) {  //undefined handles next(Exception)
-        
-        if((editContentArchive.getUniqueDatabaseProperties(currentContentArchive).size > 0 )
-                && await DB_UPDATE_CONTENT(request.contentID, editContentArchive.getUniqueDatabaseProperties(currentContentArchive)) === false) 
+        const fieldChanges:Map<string, any> = editContentArchive.getUniqueDatabaseProperties(currentContentArchive);
+
+        if(fieldChanges.size === 0)
+            next(new Exception(400, `Edit Content Archive Failed :: No valid changes provided for Content Archive ${request.contentID}.`, 'No Changes'));
+
+        else if(await DB_UPDATE_CONTENT(request.contentID, fieldChanges) === false) 
             next(new Exception(500, `Edit Content Archive Failed :: Failed to update Content Archive ${request.contentID}.`, 'Save Failed'));
 
         else if (editContentArchive.image !== undefined && !isURLImageFormatted(editContentArchive.image) && contentCopyImageThumbnail(editContentArchive) === undefined)

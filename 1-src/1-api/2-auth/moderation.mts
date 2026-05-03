@@ -1,7 +1,7 @@
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Response, NextFunction } from 'express';
 import USER from '../../2-services/1-models/userModel.mjs';
-import { DB_SELECT_USER, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
+import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_SELECT_USER, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest } from './auth-types.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODERATION_STATUS } from '../../2-services/2-database/database-types.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
@@ -18,7 +18,7 @@ import { htmlCircleBlock, htmlContentBlock, htmlPrayerRequestBlock, htmlPrayerRe
 import { formatDate, minorInvolved } from '../../2-services/4-email/email-utilities.mjs';
 import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import CIRCLE from '../../2-services/1-models/circleModel.mjs';
-import { DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_USER_LIST } from '../../2-services/2-database/queries/circle-queries.mjs';
+import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_USER_LIST } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { getEnv } from '../../2-services/10-utilities/utilities.mjs';
 
 
@@ -68,6 +68,8 @@ export const POST_userReported = async(request:JwtClientRequest, response:Respon
     });
 
     await sendUserLockedAccountEmail(flaggedUser);
+    await DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN();
+    await DB_FLUSH_CONTACT_CACHE_ADMIN();
 }
 
 
@@ -144,6 +146,8 @@ export const POST_circleReported = async(request:JwtCircleRequest, response:Resp
             htmlText('Note: Circle members have not yet been notified about this review; however they may see circle functionality removed temporarily.')
         ]
     });
+    
+    await DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN();
 }
 
 

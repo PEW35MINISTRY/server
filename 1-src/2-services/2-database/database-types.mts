@@ -165,7 +165,7 @@ export enum DATABASE_PARTNER_STATUS_ENUM {
 export const CIRCLE_TABLE_COLUMNS_REQUIRED:string[] = [ 'leaderID', 'name' ];
 
 export const CIRCLE_TABLE_COLUMNS_EDIT:string[] = [ ...CIRCLE_TABLE_COLUMNS_REQUIRED,
-    'isActive', 'inviteToken', 'description', 'postalCode', 'image', 'notes'
+    'isActive', 'inviteToken', 'description', 'postalCode', 'image', 'notes', 'moderationStatus'
 ];
 
 export const CIRCLE_TABLE_COLUMNS:string[] = [ ...CIRCLE_TABLE_COLUMNS_EDIT,

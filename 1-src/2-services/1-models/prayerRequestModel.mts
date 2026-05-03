@@ -137,7 +137,8 @@ export default class PRAYER_REQUEST extends BASE_MODEL<PRAYER_REQUEST, PrayerReq
                 ['tagListStringified', (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST) => { 
                     return (JSON.stringify(Array.from(model.tagList).sort()) !== JSON.stringify(Array.from(baseModel.tagList).sort())) 
                     ? JSON.stringify(model.tagList) : undefined; }],
-                ['moderationStatus', (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST) => model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
+                ['moderationStatus', (model:PRAYER_REQUEST, baseModel:PRAYER_REQUEST) => model.moderationStatus === undefined ? undefined
+                                                                       : model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
             ])});
 
     override getUniqueDatabaseProperties = (baseModel:PRAYER_REQUEST):Map<string, any> => PRAYER_REQUEST.getUniqueDatabaseProperties(this, baseModel);
