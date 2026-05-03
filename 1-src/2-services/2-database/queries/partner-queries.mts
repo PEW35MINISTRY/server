@@ -160,16 +160,14 @@ export const DB_SELECT_PARTNER_LIST = async(userID:number, status?:DATABASE_PART
 
 /* ADMIN Utility */
 export const DB_SELECT_PENDING_PARTNER_PAIR_LIST = async(limit:number = 100):Promise<[NewPartnerListItem, NewPartnerListItem][]> => {
-    const rows:RowDataPacket[] = await query('SELECT userContractDT, partnerContractDT, user.*, '
-            + 'CASE '
-                    + `WHEN user.moderationStatus IS NOT NULL OR client.moderationStatus IS NOT NULL THEN '${DATABASE_PARTNER_STATUS_ENUM.UNDER_REVIEW}' `
-                    + 'ELSE partner.status '
-                    + 'END AS status, '
+    const rows:RowDataPacket[] = await query('SELECT status, userContractDT, partnerContractDT, user.*, '
             + `${USER_TABLE_COLUMNS.map((column:string) => `client.${column} as ${camelCase('client', column)}`).join(', ')} `
             + 'FROM partner '
             + 'LEFT JOIN user ON (partner.userID = user.userID) '
             + 'LEFT JOIN user client ON (partner.partnerID = client.userID) '
-            + `WHERE (status = 'PENDING_CONTRACT_BOTH' OR status = 'PENDING_CONTRACT_USER' OR status = 'PENDING_CONTRACT_PARTNER') `
+            + `WHERE (partner.status = 'PENDING_CONTRACT_BOTH' OR partner.status = 'PENDING_CONTRACT_USER' OR partner.status = 'PENDING_CONTRACT_PARTNER') `
+                + 'AND user.moderationStatus IS NULL '
+                + 'AND client.moderationStatus IS NULL '
             + 'ORDER BY CASE '
                 + `WHEN user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}' OR user.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' `
                     + `OR client.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.PRODUCTION}' OR client.modelSourceEnvironment = '${DATABASE_MODEL_SOURCE_ENVIRONMENT_ENUM.INTERNAL}' `
