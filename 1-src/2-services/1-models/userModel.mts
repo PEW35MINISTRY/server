@@ -13,7 +13,7 @@ import { Exception } from '../../1-api/api-types.mjs';
 import { camelCase, getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
 import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
-import { generatePasswordHash, reinstateBlacklistedUser } from '../../1-api/2-auth/auth-utilities.mjs';
+import { generatePasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
 
 
 
