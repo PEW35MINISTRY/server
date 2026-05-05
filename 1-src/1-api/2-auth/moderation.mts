@@ -3,7 +3,7 @@ import { Response, NextFunction } from 'express';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_SELECT_USER, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest } from './auth-types.mjs';
-import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODERATION_STATUS } from '../../2-services/2-database/database-types.mjs';
+import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODERATION_STATUS, DATABASE_PARTNER_STATUS_ENUM } from '../../2-services/2-database/database-types.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import PRAYER_REQUEST from '../../2-services/1-models/prayerRequestModel.mjs';
 import { DB_SELECT_CONTENT, DB_UPDATE_CONTENT } from '../../2-services/2-database/queries/content-queries.mjs';
@@ -13,13 +13,15 @@ import CONTENT_ARCHIVE from '../../2-services/1-models/contentArchiveModel.mjs';
 import { sendModerationEmail, sendUserModeratedItemRemovedEmail, sendUserLockedAccountEmail } from '../../2-services/4-email/configurations/email-moderation.mjs';
 import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import LOG_ENTRY from '../../2-services/10-utilities/logging/logEntryModel.mjs';
-import { htmlActionButton, htmlText, htmlTitle } from '../../2-services/4-email/components/email-template-components.mjs';
+import { htmlActionButton, htmlSummaryList, htmlText, htmlTitle } from '../../2-services/4-email/components/email-template-components.mjs';
 import { htmlCircleBlock, htmlContentBlock, htmlPrayerRequestBlock, htmlPrayerRequestCommentBlock, htmlProfileBlock, htmlUserContextProfile } from '../../2-services/4-email/components/email-template-items.mjs';
 import { formatDate, minorInvolved } from '../../2-services/4-email/email-utilities.mjs';
-import { ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { PartnerListItem, ProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import CIRCLE from '../../2-services/1-models/circleModel.mjs';
 import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_USER_LIST } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { getEnv } from '../../2-services/10-utilities/utilities.mjs';
+import { DB_ASSIGN_PARTNER_STATUS, DB_SELECT_PARTNERSHIP } from '../../2-services/2-database/queries/partner-queries.mjs';
+import { PartnerStatusEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
 
 
@@ -42,8 +44,11 @@ export const POST_userReported = async(request:JwtClientRequest, response:Respon
         return;
     }
 
+    const partnership:PartnerListItem|undefined = await DB_SELECT_PARTNERSHIP(reportingUser.userID, flaggedUser.userID);
+
     const logEntry:LOG_ENTRY = new LOG_ENTRY(LogType.EVENT, [
         `USER REPORTED - Review Required`, `Event=${description}`,
+        `Partnership Status: ${partnership?.status ?? 'No Partnership'}${partnership?.status ? ` since ${formatDate(partnership?.partnershipDT)}` : ''}`,
         `Flagged User: userID=${flaggedUser.userID}, displayName=${flaggedUser.displayName}, email=${flaggedUser.email}, modelSource=${flaggedUser.modelSourceEnvironment}`,
         `Reporting User: userID=${reportingUser.userID}, displayName=${reportingUser.displayName}, email=${reportingUser.email}`
     ]);
@@ -51,11 +56,24 @@ export const POST_userReported = async(request:JwtClientRequest, response:Respon
 
     await DB_UPDATE_USER(flaggedUser.userID, new Map<string, DATABASE_MODERATION_STATUS>([['moderationStatus', DATABASE_MODERATION_STATUS.BLOCKED]]));
 
+    if(partnership) {
+        await DB_ASSIGN_PARTNER_STATUS(reportingUser.userID, flaggedUser.userID, DATABASE_PARTNER_STATUS_ENUM.ENDED);
+
+        //TODO auto-assign reportingUser new partner with card #279
+    }
+
     await sendModerationEmail({
         minorInvolved: minorInvolved(flaggedUser, reportingUser),
         reportingSubject:'USER', description, reportingUser,
-        flaggedHTMLList:[
+        flaggedHTMLList: [
             htmlUserContextProfile(flaggedUser),
+            ...(partnership ? [
+                    htmlSummaryList([
+                        ['Partnership Status:', partnership.status],
+                        ['Partnership Date:', partnership.partnershipDT ? formatDate(partnership.partnershipDT) : ''],
+                        ['Reported Contract Date:', partnership.contractDT ? formatDate(partnership.contractDT) : '']
+                    ])
+                ] : []),
             htmlActionButton([
                 {
                     label: 'Reported User',

@@ -62,8 +62,6 @@ export const DB_IS_USER_PARTNER_ANY_STATUS = async(userID:number, clientID:numbe
         + 'JOIN user AS client_user ON client_user.userID = partner.partnerID '
         + 'WHERE partner.userID = ? '
             + 'AND partner.partnerID = ? '
-            + 'AND partner_user.moderationStatus IS NULL '
-            + 'AND client_user.moderationStatus IS NULL '
             + `AND ${preparedColumns};`, 
         [getUserID(userID, clientID), getPartnerID(userID, clientID), ...statusList]);
 
