@@ -15,6 +15,8 @@ import { getEnvironment } from '../../2-services/10-utilities/env-utilities.mjs'
 import { Exception } from '../api-types.mjs';
 import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
 import { isInternalEmail } from '../../2-services/4-email/email-utilities.mjs';
+import { ModeratedProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { DB_SELECT_USER_UNDER_MODERATION } from '../../2-services/2-database/queries/user-security-queries.mjs';
 
 
 /********************
@@ -88,49 +90,68 @@ export const getJWTData = (jwt:string):JwtData => {
 }
 
 
-/*****************
- * BLACKLIST JWT *
- *****************/
-const JWT_BLACKLIST_MAX_SIZE:number = 1000;
-const JWT_BLACKLIST:Map<number, number> = new Map<number, number>(); //[userID, expirationTimestamp]
+/****************************
+ * BLACKLIST JWT BY USER ID *
+ ****************************/
+const USER_BLACKLIST_MAX_SIZE:number = 1000;
+const USER_BLACKLIST:Map<number, number> = new Map<number, number>(); //[userID, expirationTimestamp]
 
-export const blackListJWT = async(userID:number):Promise<void> => {
+
+export const initializeUserBlacklist = async():Promise<void> => {
+    const durationMilliseconds:number = parseJWTDurationToMS(getEnv('JWT_DURATION', 'string', '30d'));
     const now:number = new Date().getTime();
 
-    if(JWT_BLACKLIST.size >= JWT_BLACKLIST_MAX_SIZE) {
-        log.error('JWT_BLACKLIST_MAX_SIZE Reached:', JWT_BLACKLIST_MAX_SIZE);
+    USER_BLACKLIST.clear();
+    const userList:ModeratedProfileListItem[] = await DB_SELECT_USER_UNDER_MODERATION(undefined, USER_BLACKLIST_MAX_SIZE);
+    userList.forEach((user:ModeratedProfileListItem) => {
+        const expirationTimestamp:number = user.modifiedDT.getTime() + durationMilliseconds;
+        if(expirationTimestamp > now) USER_BLACKLIST.set(user.userID, expirationTimestamp);
+    });
+}
 
-        for(const [blacklistedUserID, expirationTimestamp] of JWT_BLACKLIST) {
-            if(expirationTimestamp <= now) JWT_BLACKLIST.delete(blacklistedUserID);
+
+export const blackListUser = async(userID:number):Promise<void> => {
+    const now:number = new Date().getTime();
+
+    if(USER_BLACKLIST.size >= USER_BLACKLIST_MAX_SIZE) {
+        log.error('USER_BLACKLIST_MAX_SIZE Reached:', USER_BLACKLIST_MAX_SIZE);
+
+        for(const [blacklistedUserID, expirationTimestamp] of USER_BLACKLIST) {
+            if(expirationTimestamp <= now) USER_BLACKLIST.delete(blacklistedUserID);
         }
 
-        while(JWT_BLACKLIST.size >= JWT_BLACKLIST_MAX_SIZE) {
-            const oldestBlacklistedUserID:number | undefined = JWT_BLACKLIST.keys().next().value;
+        while(USER_BLACKLIST.size >= USER_BLACKLIST_MAX_SIZE) {
+            const oldestBlacklistedUserID:number | undefined = USER_BLACKLIST.keys().next().value;
             if(!oldestBlacklistedUserID) break;
-            JWT_BLACKLIST.delete(oldestBlacklistedUserID);
+            USER_BLACKLIST.delete(oldestBlacklistedUserID);
         }
     }
 
     const durationMilliseconds:number = parseJWTDurationToMS(getEnv('JWT_DURATION', 'string', '30d'));
     const expirationTimestamp:number = now + durationMilliseconds;
-    JWT_BLACKLIST.set(userID, expirationTimestamp);
+    USER_BLACKLIST.set(userID, expirationTimestamp);
 }
 
 
-export const isJWTBlacklisted = (userID:number):boolean => {
-    if(JWT_BLACKLIST.size === 0) 
+export const isUserBlacklisted = (userID:number):boolean => {
+    if(USER_BLACKLIST.size === 0) 
         return false;
 
-    const expirationTimestamp:number | undefined = JWT_BLACKLIST.get(userID);
+    const expirationTimestamp:number|undefined = USER_BLACKLIST.get(userID);
     if(!expirationTimestamp) 
         return false;
 
     else if(expirationTimestamp <= Date.now()) {
-        JWT_BLACKLIST.delete(userID);
+        USER_BLACKLIST.delete(userID);
         return false;
     }
 
     return true;
+}
+
+
+export const reinstateBlacklistedUser = async(userID:number):Promise<boolean> => {
+    return USER_BLACKLIST.delete(userID);
 }
 
 
@@ -226,7 +247,7 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
 
         return new Exception(403, 'Email address is not verified.', 'Please Verify Email');
 
-    } else if(userProfile.moderationStatus !== undefined || isJWTBlacklisted(userProfile.userID))
+    } else if(userProfile.moderationStatus !== undefined || isUserBlacklisted(userProfile.userID))
         return new Exception(403, `Login Blocked with moderation status: ${userProfile.moderationStatus}.`, 'Account Locked');
     
     else

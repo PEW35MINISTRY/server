@@ -230,6 +230,8 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
     } else if(field.field === 'moderationStatus') {
         this.moderationStatus = jsonObj['moderationStatus'] === undefined ? undefined
                               : jsonObj['moderationStatus']?.trim() ? jsonObj['moderationStatus'].trim().toUpperCase() : null; //Convert to NULL to clear in Database
+        
+        if(this.moderationStatus === null) reinstateBlacklistedUser(this.userID);
 
     } else if(field.field === 'userRoleTokenList') {
         this.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string] || RoleEnum.USER);

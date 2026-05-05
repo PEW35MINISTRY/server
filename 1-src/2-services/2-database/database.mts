@@ -5,6 +5,8 @@ import { SecretsManagerClient, GetSecretValueCommand, GetSecretValueResponse } f
 import { ENVIRONMENT_TYPE } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { getEnvironment } from '../10-utilities/env-utilities.mjs';
 import { getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
+import { initializeUserBlacklist } from '../../1-api/2-auth/auth-utilities.mjs';
+import { DB_SELECT_USER_UNDER_MODERATION } from './queries/user-security-queries.mjs';
 
 
 /*********************************************
@@ -32,6 +34,7 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
         log.warn('DATABASE | initializeDatabase - Terminating existing instance.');
         await DATABASE.end();
         DATABASE = undefined;
+        return;
     }
 
     /* Database Configurations */
@@ -76,6 +79,9 @@ export const initializeDatabase = async():Promise<SQL.Pool> => {
         await log.alert('DATABASE FAILED TO CONNECT', JSON.stringify(DB_CONFIGURATIONS), error, error.message);
         throw error;
     }
+
+    /* Populate Blacklisted User List */
+    initializeUserBlacklist();
 
     if(getEnvironment() !== ENVIRONMENT_TYPE.LOCAL)
         log.warn(`Database initialized in ${getEnvironment()} Environment with Default Model Source Environment as ${getModelSourceEnvironment()}.`);

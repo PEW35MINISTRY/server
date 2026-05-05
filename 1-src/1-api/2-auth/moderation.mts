@@ -4,7 +4,7 @@ import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_SELECT_USER, DB_UPDATE_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import { JwtCircleRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest } from './auth-types.mjs';
 import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_MODERATION_STATUS, DATABASE_PARTNER_STATUS_ENUM } from '../../2-services/2-database/database-types.mjs';
-import { blackListJWT } from './auth-utilities.mjs';
+import { blackListUser } from './auth-utilities.mjs';
 import { PrayerRequestCommentListItem, PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import PRAYER_REQUEST from '../../2-services/1-models/prayerRequestModel.mjs';
 import { DB_SELECT_CONTENT, DB_UPDATE_CONTENT } from '../../2-services/2-database/queries/content-queries.mjs';
@@ -56,7 +56,7 @@ export const POST_userReported = async(request:JwtClientRequest, response:Respon
     await log.event(...logEntry.messages);
 
     await DB_UPDATE_USER(flaggedUser.userID, new Map<string, DATABASE_MODERATION_STATUS>([['moderationStatus', DATABASE_MODERATION_STATUS.BLOCKED]]));
-    await blackListJWT(flaggedUser.userID);
+    await blackListUser(flaggedUser.userID);
 
     if(partnership) {
         await DB_ASSIGN_PARTNER_STATUS(reportingUser.userID, flaggedUser.userID, DATABASE_PARTNER_STATUS_ENUM.ENDED);

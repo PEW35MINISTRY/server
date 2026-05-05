@@ -7,7 +7,7 @@ import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE, DB_IS_USER_UNDER_MODERATION } fro
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtData, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
-import { isJWTBlacklisted, getJWTData, isMaxRoleGreaterThan, verifyJWT } from './auth-utilities.mjs';
+import { isUserBlacklisted, getJWTData, isMaxRoleGreaterThan, verifyJWT } from './auth-utilities.mjs';
 import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
 
@@ -36,7 +36,7 @@ export const jwtAuthenticationMiddleware = async(request: JwtRequest, response: 
             next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: Failed to parse JWT | UserID from header: ${request.headers['user-id']} `
                 + `| UserID from token: ${JWTData?.jwtUserID} | User Role from token: ${JWTData?.jwtUserRole} | JWT: ${rawJWTToken.slice(0, 15)}...`, 'Invalid Token'));
 
-        } else if(isJWTBlacklisted(JWTData.jwtUserID)) {
+        } else if(isUserBlacklisted(JWTData.jwtUserID)) {
             next(new Exception(401, `FAILED AUTHENTICATED :: IDENTITY :: JWT blacklisted for user: ${JWTData.jwtUserID} `
                 + `| User Role from token: ${JWTData.jwtUserRole} | JWT: ${rawJWTToken.slice(0, 15)}...`, 'Invalid Token'));
 
