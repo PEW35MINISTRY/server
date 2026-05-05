@@ -137,8 +137,6 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
                 ['tagListStringified', (model:CONTENT_ARCHIVE, baseModel:CONTENT_ARCHIVE) => { 
                     return (JSON.stringify(Array.from(model.keywordList).sort()) !== JSON.stringify(Array.from(baseModel.keywordList).sort())) 
                     ? JSON.stringify(model.keywordList) : undefined; }],
-                ['moderationStatus', (model:CONTENT_ARCHIVE, baseModel:CONTENT_ARCHIVE) => model.moderationStatus === undefined ? undefined
-                                                                       : model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
             ])});
 
     override toListItem = ():ContentListItem => ({contentID: this.contentID, 
@@ -173,6 +171,10 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
         } else if(field.field === 'source' && jsonObj['source'] === 'CUSTOM' && field.customField !== undefined) {
             this.source = ContentSourceEnum.CUSTOM;
             this.customSource = (jsonObj['customSource'] || '').replace(/^[a-zA-Z0-9_ ]$/g, '').replace(/ /g, '_').toUpperCase();
+
+        } else if(field.field === 'moderationStatus') {
+            this.moderationStatus = jsonObj['moderationStatus'] === undefined ? undefined
+                                  : jsonObj['moderationStatus']?.trim() ? jsonObj['moderationStatus'].trim().toUpperCase() : null; //Convert to NULL to clear in Database
 
         } else //No Field Match
             return undefined;
