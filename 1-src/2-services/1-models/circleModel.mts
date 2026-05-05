@@ -96,11 +96,7 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
 
     static getUniqueDatabaseProperties = (model:CIRCLE, baseModel:CIRCLE):Map<string, any> =>
         BASE_MODEL.getUniquePropertiesUtility<CIRCLE>({fieldList: CIRCLE_TABLE_COLUMNS_EDIT, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
-            model, baseModel, includeID: false, includeObjects: false, includeNull: true,
-            complexFieldMap: new Map([
-                ['moderationStatus', (model:CIRCLE, baseModel:CIRCLE) => model.moderationStatus === undefined ? undefined
-                                                                       : model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
-            ])});
+            model, baseModel, includeID: false, includeObjects: false, includeNull: true});
 
     override getUniqueDatabaseProperties = (baseModel:CIRCLE):Map<string, any> => CIRCLE.getUniqueDatabaseProperties(this, baseModel);
   
@@ -120,6 +116,10 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
         //Handle inviteToken for security
         if(field.field === 'inviteToken') {
             this.inviteToken = (String(jsonObj[field.field]) || '').toLowerCase();
+
+        } else if(field.field === 'moderationStatus') {
+            this.moderationStatus = jsonObj['moderationStatus'] === undefined ? undefined
+                                  : jsonObj['moderationStatus']?.trim() ? jsonObj['moderationStatus'].trim().toUpperCase() : null; //Convert to NULL to clear in Database
 
         } else //No Field Match
             return undefined;
