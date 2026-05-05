@@ -32,7 +32,7 @@ export const DB_SELECT_CONTENT = async(contentID:number):Promise<CONTENT_ARCHIVE
     + 'user.firstName as recorderFirstName, user.displayName as recorderDisplayName, user.image as recorderImage '
     + 'FROM content '
     + 'LEFT JOIN user ON user.userID = content.recorderID '
-    + 'WHERE contentID = ?', [contentID]); 
+    + 'WHERE contentID = ?;', [contentID]); 
 
     if(rows.length !== 1) {
         log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CONTENT MATCHING IDS IDENTIFIED`, contentID, JSON.stringify(rows));
@@ -45,7 +45,7 @@ export const DB_SELECT_CONTENT = async(contentID:number):Promise<CONTENT_ARCHIVE
 }
 
 export const DB_SELECT_CONTENT_BY_URL = async(url:string):Promise<CONTENT_ARCHIVE> => {
-    const rows = await execute('SELECT content.* ' + 'FROM content ' + 'WHERE url = ?', [url]); 
+    const rows = await execute('SELECT content.* ' + 'FROM content ' + 'WHERE url = ?;', [url]); 
 
     if(rows.length !== 1) {
         log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CONTENT MATCHING IDS IDENTIFIED`, url, JSON.stringify(rows));
@@ -60,10 +60,12 @@ export const DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES = async(recorderID:number =
         await execute('SELECT content.* ' 
             + 'FROM content '
             + 'WHERE recorderID = ? '
+            + 'AND content.moderationStatus IS NULL '
             + `ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT ${limit};`, [recorderID, recorderID])
     
         : await execute('SELECT content.* ' 
             + 'FROM content '
+            + 'WHERE content.moderationStatus IS NULL '
             + `ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT ${limit};`, [recorderID]);
 
     return [...rows.map(row => CONTENT_ARCHIVE.constructByDatabase(row as DATABASE_CONTENT).toListItem())];
@@ -153,6 +155,7 @@ export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:stri
     + 'WHERE ( '
         + columnList.map(column => `LOWER(${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')
     + ' ) '
+    + 'AND content.moderationStatus IS NULL '
     + `ORDER BY content.likeCount DESC `
     + `LIMIT ${limit};`, [...Array(columnList.length).fill(`${searchTerm}`)]);
  

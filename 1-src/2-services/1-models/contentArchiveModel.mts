@@ -137,7 +137,8 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
                 ['tagListStringified', (model:CONTENT_ARCHIVE, baseModel:CONTENT_ARCHIVE) => { 
                     return (JSON.stringify(Array.from(model.keywordList).sort()) !== JSON.stringify(Array.from(baseModel.keywordList).sort())) 
                     ? JSON.stringify(model.keywordList) : undefined; }],
-                ['moderationStatus', (model:CONTENT_ARCHIVE, baseModel:CONTENT_ARCHIVE) => model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
+                ['moderationStatus', (model:CONTENT_ARCHIVE, baseModel:CONTENT_ARCHIVE) => model.moderationStatus === undefined ? undefined
+                                                                       : model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
             ])});
 
     override toListItem = ():ContentListItem => ({contentID: this.contentID, 

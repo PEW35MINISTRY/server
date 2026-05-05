@@ -170,6 +170,8 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
       model, baseModel, includeID: false, includeObjects: false, includeNull: true,
       complexFieldMap: new Map([
         ['passwordHash', (model:USER, baseModel:USER) => { return (model.passwordHash !== baseModel.passwordHash) ? model.passwordHash : undefined; }],
+        ['moderationStatus', (model:USER, baseModel:USER) => model.moderationStatus === undefined ? undefined
+                                                                       : model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
       ])});
 
   override getUniqueDatabaseProperties = (baseModel:USER):Map<string, any> => USER.getUniqueDatabaseProperties(this, baseModel);

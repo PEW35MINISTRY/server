@@ -98,7 +98,8 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
         BASE_MODEL.getUniquePropertiesUtility<CIRCLE>({fieldList: CIRCLE_TABLE_COLUMNS_EDIT, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
             model, baseModel, includeID: false, includeObjects: false, includeNull: true,
             complexFieldMap: new Map([
-                ['moderationStatus', (model:CIRCLE, baseModel:CIRCLE) => model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
+                ['moderationStatus', (model:CIRCLE, baseModel:CIRCLE) => model.moderationStatus === undefined ? undefined
+                                                                       : model.moderationStatus?.trim() ? model.moderationStatus.trim().toUpperCase() : null]
             ])});
 
     override getUniqueDatabaseProperties = (baseModel:CIRCLE):Map<string, any> => CIRCLE.getUniqueDatabaseProperties(this, baseModel);

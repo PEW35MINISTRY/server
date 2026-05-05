@@ -74,7 +74,8 @@ export enum PartnerStatusEnum {
     PENDING_CONTRACT_USER = 'PENDING_CONTRACT_USER',
     PENDING_CONTRACT_PARTNER = 'PENDING_CONTRACT_PARTNER',
     ENDED = 'ENDED',
-    FAILED = 'FAILED'
+    FAILED = 'FAILED',
+    UNDER_REVIEW = 'UNDER_REVIEW'
 }
 
 export const getDateYearsAgo = (years:number):Date => {

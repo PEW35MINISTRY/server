@@ -106,7 +106,7 @@ export const htmlNumberedList = (list:StringList, title?:string):string => `${ti
 
 export const htmlBulletLinkList = (list:{label:string, link:string}[], title?:string):string => {
     return htmlBulletList(list.map(({label, link}:{label:string, link:string}):string =>
-        `<a href="${link}" target="_blank" rel="noopener noreferrer" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLUE}; text-decoration:underline;">${label}</a>`), title);
+        `<a href="${link}" target="_blank" rel="noopener noreferrer" style="font-family:${EMAIL_FONT_FAMILY.TEXT}; font-size:${EMAIL_FONT_SIZE.TEXT}; color:${EMAIL_COLOR.BLACK}; text-decoration:underline;">${label}</a>`), title);
 };
 
 const htmlList=(items:StringList, mode:'BULLET' | 'NUMBER'):string => {

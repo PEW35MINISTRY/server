@@ -2,10 +2,10 @@ import { ModeratedCircleListItem } from '../../../0-assets/field-sync/api-type-s
 import { ModeratedContentListItem } from '../../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import { ModeratedPrayerRequestListItem, ModeratedPrayerRequestCommentListItem } from '../../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { ModeratedProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
-import { makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { ENVIRONMENT_TYPE, makeDisplayText } from '../../../0-assets/field-sync/input-config-sync/inputField.mjs';
 import { EmailSubscription } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import USER from '../../1-models/userModel.mjs'
-import { getEnvironment } from '../../10-utilities/env-utilities.mjs';
+import { getEnvironment, isEnvironment } from '../../10-utilities/env-utilities.mjs';
 import { getEnv, getModelSourceEnvironment } from '../../10-utilities/utilities.mjs';
 import { DB_SELECT_CIRCLE_UNDER_MODERATION } from '../../2-database/queries/circle-queries.mjs';
 import { DB_SELECT_CONTENT_UNDER_MODERATION } from '../../2-database/queries/content-queries.mjs';
@@ -25,7 +25,7 @@ export const sendModerationEmail = async({ reportingSubject, description, report
     const recipientMap:Map<number, string> = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(EmailSubscription.SAFETY_TEAM);
 
     //Under 18, must include EMAIL_YOUTH_SAFETY for communication record
-    if(minorInvolved && getEnv('EMAIL_YOUTH_PROTECTION', 'string', false)) 
+    if(minorInvolved && getEnv('EMAIL_YOUTH_PROTECTION', 'string', false) && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION)) 
         recipientMap.set(-2, getEnv('EMAIL_YOUTH_PROTECTION'));
     
     return await sendBrandedEmail({
@@ -89,7 +89,7 @@ export const sendUserLockedAccountEmail = async(user:USER): Promise<boolean> => 
     const recipientMap: Map<number, string> = new Map([[user.userID, user.email]]);
 
     //Under 18, must include EMAIL_YOUTH_SAFETY for communication record.
-    if(minorInvolved(user) && getEnv('EMAIL_YOUTH_PROTECTION', 'string', false)) 
+    if(minorInvolved(user) && getEnv('EMAIL_YOUTH_PROTECTION', 'string', false) && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION)) 
         recipientMap.set(-2, getEnv('EMAIL_YOUTH_PROTECTION'));
 
     return await sendBrandedEmail({
@@ -133,7 +133,7 @@ export const sendUserModeratedItemRemovedEmail = async(user:USER, {subject, titl
     const recipientMap:Map<number, string> = new Map([[user.userID, user.email]]);
 
     //Under 18, must include EMAIL_YOUTH_SAFETY for communication record.
-    if(minorInvolved(user) && getEnv('EMAIL_YOUTH_PROTECTION', 'string', false)) 
+    if(minorInvolved(user) && getEnv('EMAIL_YOUTH_PROTECTION', 'string', false) && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION)) 
         recipientMap.set(-2, getEnv('EMAIL_YOUTH_PROTECTION'));
 
     return await sendBrandedEmail({
@@ -177,6 +177,10 @@ export const sendUserModeratedItemRemovedEmail = async(user:USER, {subject, titl
  ****************************************/
 export const sendModerationReminderEmail = async():Promise<boolean> => {
     const recipientMap:Map<number, string> = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(EmailSubscription.SAFETY_TEAM);
+
+    if(getEnv('EMAIL_YOUTH_PROTECTION', 'string', false) && isEnvironment(ENVIRONMENT_TYPE.PRODUCTION))
+        recipientMap.set(-2, getEnv('EMAIL_YOUTH_PROTECTION'));
+
     if(recipientMap.size === 0) return false;
 
     const activeModeration:{total:number, htmlList:string[], text:string} = await htmlActiveModerationList('SECTION');

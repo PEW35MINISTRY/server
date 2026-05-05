@@ -1,5 +1,5 @@
 import '../../env.mjs'; //Import first from a separate file, so environment variables are initialized once before ESM import evaluation.
-import { ExpiredPrayerRequest } from "../../1-api/5-prayer-request/prayer-request-types.mjs";
+import { PrayerRequestListItem } from '../../0-assets/field-sync/api-type-sync/prayer-request-types.mjs';
 import { sendNotificationMessage } from "../../1-api/8-notification/notification-utilities.mjs";
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { DB_SELECT_EXPIRED_PRAYER_REQUESTS_PAGINATED, DB_UPDATE_RESOLVE_PRAYER_REQUEST_BATCH } from "../../2-services/2-database/queries/prayer-request-queries.mjs";
@@ -40,7 +40,7 @@ export const answerShortTermExpiredPrayerRequestsBatch = async ():Promise<void> 
   }
 }
 
-const notifyExpiringPrayerRequestOwners = async (expiredPrayerRequests:ExpiredPrayerRequest[]):Promise<boolean> => {
+const notifyExpiringPrayerRequestOwners = async (expiredPrayerRequests:PrayerRequestListItem[]):Promise<boolean> => {
 
     for (const expiredPrayerRequest of expiredPrayerRequests) {
         const notifyResult = await sendNotificationMessage([expiredPrayerRequest.requestorID], `Your prayer request '${expiredPrayerRequest.topic}' is expiring soon!`);

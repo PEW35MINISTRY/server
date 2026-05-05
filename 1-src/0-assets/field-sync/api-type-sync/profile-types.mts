@@ -86,6 +86,7 @@ export interface ProfileResponse extends ProfileListItem {
     maxPartners: number,
     walkLevel: number,
     notes?: string,
+    moderationStatus?: string,
     createdDT: string,
     modifiedDT: string,
 
