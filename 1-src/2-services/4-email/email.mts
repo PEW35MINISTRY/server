@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, writeFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import * as log from '../10-utilities/logging/log.mjs';
 import LOG_ENTRY from '../10-utilities/logging/logEntryModel.mjs';
 import { AWSMetadata, EMAIL_SENDER_ADDRESS, EmailReportContent, EmailSenderAddress  } from './email-types.mjs';
@@ -153,6 +153,12 @@ export const sendEmailReport = async(subscription:EmailSubscription, emailRecipi
  *************************/
 export const sendEmailLogAlert = async(entry:LOG_ENTRY):Promise<boolean> => {
     const recipientMap:Map<number, string> = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_RECIPIENT_MAP(EmailSubscription.SYSTEM_IMMEDIATE);
+
+    if(recipientMap.size === 0) {
+        log.error('sendEmailLogAlert: No recipients for log alert email subscription:', EmailSubscription.SYSTEM_IMMEDIATE,  entry.messages);
+        return false;
+    }
+
     const textBody:string[] = await assembleLogAlertReport(entry, false);
     
     return sendBrandedEmail({

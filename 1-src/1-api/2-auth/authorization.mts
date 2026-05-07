@@ -3,7 +3,7 @@ import { DATABASE_CIRCLE_STATUS_ENUM, DATABASE_PARTNER_STATUS_ENUM, DATABASE_USE
 import { DB_IS_CIRCLE_LEADER, DB_IS_CIRCLE_USER_OR_LEADER, DB_IS_USER_MEMBER_OF_ANY_LEADER_CIRCLES as DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES } from '../../2-services/2-database/queries/circle-queries.mjs';
 import { DB_IS_USER_PARTNER_ANY_STATUS } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DB_IS_PRAYER_REQUEST_REQUESTOR, DB_IS_RECIPIENT_PRAYER_REQUEST } from '../../2-services/2-database/queries/prayer-request-queries.mjs';
-import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE } from '../../2-services/2-database/queries/user-security-queries.mjs';
+import { DB_IS_ANY_USER_ROLE, DB_IS_USER_ROLE, DB_IS_USER_UNDER_MODERATION } from '../../2-services/2-database/queries/user-security-queries.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtCircleRequest, JwtClientPartnerRequest, JwtClientRequest, JwtContentRequest, JwtPrayerRequest, JwtRequest } from './auth-types.mjs';
@@ -172,7 +172,7 @@ export const authenticatePartnerMiddleware = async(request: JwtClientRequest, re
 /* Authenticate User access to Client profile | extractClientMiddleware cached: request.clientID */
 export const authenticateClientAccessMiddleware = async(request: JwtClientRequest, response: Response, next: NextFunction):Promise<void> => {
     //Verify Requestor Authorization
-    if((request.jwtUserID === request.clientID)
+    if(((request.jwtUserID === request.clientID) &&  !(await DB_IS_USER_UNDER_MODERATION(request.jwtUserID)))
         || (request.jwtUserRole === RoleEnum.ADMIN && await DB_IS_USER_ROLE(request.jwtUserID, DATABASE_USER_ROLE_ENUM.ADMIN))
         || (await DB_IS_USER_MEMBER_OF_ANY_LEADER_MANAGED_CIRCLES({userID: request.clientID, leaderID: request.jwtUserID}))) {
 

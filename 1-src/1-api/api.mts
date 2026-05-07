@@ -17,6 +17,10 @@ import { calculateLogDailyTrends } from '../2-services/10-utilities/logging/log-
 import { DB_CALCULATE_PARTNERSHIP_STATS } from '../2-services/2-database/queries/partner-queries.mjs';
 import { SERVER_START_TIMESTAMP } from '../server.mjs';
 import { ModelSourceEnvironmentEnum } from '../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { DB_SELECT_CIRCLE_UNDER_MODERATION } from '../2-services/2-database/queries/circle-queries.mjs';
+import { DB_SELECT_CONTENT_UNDER_MODERATION } from '../2-services/2-database/queries/content-queries.mjs';
+import { DB_SELECT_PRAYER_REQUEST_UNDER_MODERATION, DB_SELECT_PRAYER_REQUEST_COMMENT_UNDER_MODERATION } from '../2-services/2-database/queries/prayer-request-queries.mjs';
+import { DB_SELECT_USER_UNDER_MODERATION } from '../2-services/2-database/queries/user-security-queries.mjs';
 
 
 const router:Router = express.Router();
@@ -51,6 +55,14 @@ export const GET_AdminStatistics = async(request:JwtAdminRequest, response:Respo
         userStats: await DB_CALCULATE_USER_TABLE_STATS(),
 
         partnershipStats: await DB_CALCULATE_PARTNERSHIP_STATS(),
+
+        activeModeration: {
+            userList: await DB_SELECT_USER_UNDER_MODERATION(),
+            circleList: await DB_SELECT_CIRCLE_UNDER_MODERATION(),
+            prayerRequestList: await DB_SELECT_PRAYER_REQUEST_UNDER_MODERATION(),
+            prayerRequestCommentList: await DB_SELECT_PRAYER_REQUEST_COMMENT_UNDER_MODERATION(),
+            contentList: await DB_SELECT_CONTENT_UNDER_MODERATION(),
+        },
     } satisfies AdminStatsResponse);
 
 

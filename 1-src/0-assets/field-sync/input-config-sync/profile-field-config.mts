@@ -74,7 +74,8 @@ export enum PartnerStatusEnum {
     PENDING_CONTRACT_USER = 'PENDING_CONTRACT_USER',
     PENDING_CONTRACT_PARTNER = 'PENDING_CONTRACT_PARTNER',
     ENDED = 'ENDED',
-    FAILED = 'FAILED'
+    FAILED = 'FAILED',
+    UNDER_REVIEW = 'UNDER_REVIEW'
 }
 
 export const getDateYearsAgo = (years:number):Date => {
@@ -151,6 +152,7 @@ export const EDIT_PROFILE_FIELDS_ADMIN:InputField[] = [
     new InputRangeField({title: 'Max Partners', field: 'maxPartners', required: true, minValue: 0, maxValue: 10, type: InputType.RANGE_SLIDER}),
     new InputField({title: 'Image URI', field: 'image', type: InputType.TEXT, length:{min:5, max:2000}}),
     new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min:0, max:3000}}),
+    new InputField({title: 'Moderation', field: 'moderationStatus', type: InputType.TEXT, length:{min:0, max:60}}),
 ];
 
 export const SIGNUP_PROFILE_FIELDS_USER:InputField[] = [

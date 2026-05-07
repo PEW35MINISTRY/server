@@ -111,9 +111,12 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
     const editPrayerRequest:PRAYER_REQUEST|Exception = await PRAYER_REQUEST.constructAndEvaluateByJson({currentModel: currentPrayerRequest, jsonObj:request.body, fieldList: FIELD_LIST});
 
     if(currentPrayerRequest.isValid && !(editPrayerRequest instanceof Exception) && editPrayerRequest.isValid) {  //undefined handles next(Exception)
-        
-        if((PRAYER_REQUEST.getUniqueDatabaseProperties(editPrayerRequest, currentPrayerRequest).size > 0 )
-                && await DB_UPDATE_PRAYER_REQUEST(request.prayerRequestID, PRAYER_REQUEST.getUniqueDatabaseProperties(editPrayerRequest, currentPrayerRequest)) === false) 
+        const fieldChanges:Map<string, any> = PRAYER_REQUEST.getUniqueDatabaseProperties(editPrayerRequest, currentPrayerRequest);
+
+        if(fieldChanges.size === 0)
+            next(new Exception(400, `Edit Prayer Request Failed :: No valid changes provided for Prayer Request ${request.prayerRequestID}.`, 'No Changes'));
+
+        else if(await DB_UPDATE_PRAYER_REQUEST(request.prayerRequestID, fieldChanges) === false) 
             next(new Exception(500, `Edit Prayer Request Failed :: Failed to update prayer request ${request.prayerRequestID}.`, 'Save Failed'));
 
         else { //Handle changes in user recipient lists

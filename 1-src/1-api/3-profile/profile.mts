@@ -192,11 +192,15 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
     if(currentProfile.isValid && !(editProfile instanceof Exception) && editProfile.isValid) {
         //Verify user roles and verify account type tokens
         const currentRoleList:RoleEnum[] = await DB_SELECT_USER_ROLES(request.clientID);
-        if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: currentRoleList, adminOverride: (request.jwtUserRole === RoleEnum.ADMIN)}) === false)
+        const fieldChanges:Map<string, any> = USER.getUniqueDatabaseProperties(editProfile, currentProfile);
+
+        if(fieldChanges.size === 0)
+            next(new Exception(400, `Edit Profile Failed :: No valid changes provided for user ${request.clientID}.`, 'No Changes'));
+
+        else if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: currentRoleList, adminOverride: (request.jwtUserRole === RoleEnum.ADMIN)}) === false)
             next(new Exception(401, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
 
-        else if((USER.getUniqueDatabaseProperties(editProfile, currentProfile).size > 0 )
-                && await DB_UPDATE_USER(request.clientID, USER.getUniqueDatabaseProperties(editProfile, currentProfile)) === false) 
+        else if(await DB_UPDATE_USER(request.clientID, fieldChanges) === false) 
             next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
 
         else {

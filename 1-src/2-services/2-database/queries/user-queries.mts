@@ -1,8 +1,6 @@
 import * as log from '../../10-utilities/logging/log.mjs';
 import USER from '../../1-models/userModel.mjs';
-import { generateJWTRequest, JwtSearchRequest } from '../../../1-api/api-types.mjs';
 import { LIST_LIMIT, SearchType } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
-import { searchList } from '../../../1-api/api-search-utilities.mjs';
 import { CircleListItem } from '../../../0-assets/field-sync/api-type-sync/circle-types.mjs';
 import { PartnerListItem, ProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import { CircleStatusEnum } from '../../../0-assets/field-sync/input-config-sync/circle-field-config.mjs';
@@ -265,10 +263,10 @@ export const DB_SELECT_USER_SEARCH = async({searchTerm, columnList, excludeGener
         + 'WHERE '
         + (searchInactive
             ? 'user_role.userRoleID IN ( '
-            + '    SELECT userRoleID FROM user_role_defined '
-            + `    WHERE userRole IN (${INACTIVE_USERS.map(r => `'${r}'`).join(', ')}) `
-            + ') AND '
-            : ''
+                + '    SELECT userRoleID FROM user_role_defined '
+                + `    WHERE userRole IN (${INACTIVE_USERS.map(r => `'${r}'`).join(', ')}) `
+                + ') AND '
+            : 'user.moderationStatus IS NULL AND '
         )
         + (!allSourceEnvironments
             ? '( '
@@ -347,13 +345,13 @@ export const DB_FLUSH_USER_SEARCH_CACHE_ADMIN = async():Promise<boolean> => {
 
 //TODO reverse search ???
 export const DB_DELETE_USER_SEARCH_REVERSE_CACHE = async(filterList:UserSearchRefineEnum[], valueList:string[]):Promise<boolean> => {
+    
+    log.error('DB_DELETE_USER_SEARCH_REVERSE_CACHE not implemented', JSON.stringify(filterList), JSON.stringify(valueList));
+    return false;
 
-
-    const response:CommandResponseType = await command('DELETE FROM user_search_cache '
-    + 'WHERE ' + `${`CONCAT_WS( ${valueList.join(`, ' ', `)} )`} LIKE ? `, 
-    []);
- 
-    return ((response !== undefined) && (response.affectedRows > 0));
+    // const response:CommandResponseType = await command('DELETE FROM user_search_cache '
+    // + 'WHERE ' + `${`CONCAT_WS( ${valueList.join(`, ' ', `)} )`} LIKE ? `, 
+    // []);
 }
 
 
@@ -385,6 +383,7 @@ export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments
         + '    OR (user.userID = partner.partnerID AND partner.userID = ? ) '
         + `) AND partner.status = 'PARTNER' `
         + 'WHERE user.userID != ? '
+        + 'AND user.moderationStatus IS NULL '
         + 'AND ( '
         + '    circle_user.circleID IN ( '
         + '        SELECT circleID '
@@ -401,8 +400,9 @@ export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments
         + '    OR ( '
         + '        ( user.userID = partner.userID '
         + '          OR user.userID = partner.partnerID ) '
-        + `        AND partner.status = 'PARTNER' `
+        + `        AND partner.status = 'PARTNER' `  //TODO redundant filter also in LEFT JOIN
         + '    ) '
+        + ') '
         + `${allSourceEnvironments ? '' :
             `${'    AND ( '
                 + '        user.modelSourceEnvironment = (SELECT modelSourceEnvironment FROM USER_MODEL_SOURCE) '
@@ -416,7 +416,7 @@ export const DB_SELECT_CONTACT_LIST = async(userID:number, allSourceEnvironments
                 + '        ) '
                 + '    ) '
             }`
-        } ) `
+        }`
         + 'ORDER BY '
         + '    CASE '
         + '        WHEN partner.userID IS NOT NULL OR partner.partnerID IS NOT NULL THEN 1 '

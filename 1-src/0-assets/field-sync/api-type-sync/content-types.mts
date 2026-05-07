@@ -25,8 +25,11 @@ export interface ContentListItem {
     modifiedDT: string,
 }
 
+export interface ModeratedContentListItem extends ContentListItem {
+    moderationStatus:string;
+}
 
-export interface ContentResponseBody extends ContentListItem{
+export interface ContentResponseBody extends ContentListItem {
     recorderID: number,
     recorderProfile: ProfileListItem, 
     gender: GenderSelectionEnum,

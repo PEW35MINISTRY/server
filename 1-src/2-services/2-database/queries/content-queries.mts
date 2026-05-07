@@ -1,9 +1,9 @@
-import { ContentListItem } from '../../../0-assets/field-sync/api-type-sync/content-types.mjs';
+import { ContentListItem, ModeratedContentListItem } from '../../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import { MOBILE_CONTENT_SUPPORTED_SOURCES } from '../../../0-assets/field-sync/input-config-sync/content-field-config.mjs';
 import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 import CONTENT_ARCHIVE from '../../1-models/contentArchiveModel.mjs';
 import * as log from '../../10-utilities/logging/log.mjs';
-import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_EDIT, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT } from '../database-types.mjs';
+import { CONTENT_TABLE_COLUMNS, CONTENT_TABLE_COLUMNS_EDIT, CONTENT_TABLE_COLUMNS_REQUIRED, CommandResponseType, DATABASE_CONTENT, DATABASE_MODERATION_STATUS } from '../database-types.mjs';
 import { command, execute, query, validateColumns } from '../database.mjs';
 
 
@@ -32,7 +32,7 @@ export const DB_SELECT_CONTENT = async(contentID:number):Promise<CONTENT_ARCHIVE
     + 'user.firstName as recorderFirstName, user.displayName as recorderDisplayName, user.image as recorderImage '
     + 'FROM content '
     + 'LEFT JOIN user ON user.userID = content.recorderID '
-    + 'WHERE contentID = ?', [contentID]); 
+    + 'WHERE contentID = ?;', [contentID]); 
 
     if(rows.length !== 1) {
         log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CONTENT MATCHING IDS IDENTIFIED`, contentID, JSON.stringify(rows));
@@ -45,7 +45,7 @@ export const DB_SELECT_CONTENT = async(contentID:number):Promise<CONTENT_ARCHIVE
 }
 
 export const DB_SELECT_CONTENT_BY_URL = async(url:string):Promise<CONTENT_ARCHIVE> => {
-    const rows = await execute('SELECT content.* ' + 'FROM content ' + 'WHERE url = ?', [url]); 
+    const rows = await execute('SELECT content.* ' + 'FROM content ' + 'WHERE url = ?;', [url]); 
 
     if(rows.length !== 1) {
         log.warn(`DB ${rows.length ? 'MULTIPLE' : 'NONE'} CONTENT MATCHING IDS IDENTIFIED`, url, JSON.stringify(rows));
@@ -60,10 +60,12 @@ export const DB_SELECT_OWNED_LATEST_CONTENT_ARCHIVES = async(recorderID:number =
         await execute('SELECT content.* ' 
             + 'FROM content '
             + 'WHERE recorderID = ? '
+            + 'AND content.moderationStatus IS NULL '
             + `ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT ${limit};`, [recorderID, recorderID])
     
         : await execute('SELECT content.* ' 
             + 'FROM content '
+            + 'WHERE content.moderationStatus IS NULL '
             + `ORDER BY ( recorderID = ? ), content.modifiedDT DESC LIMIT ${limit};`, [recorderID]);
 
     return [...rows.map(row => CONTENT_ARCHIVE.constructByDatabase(row as DATABASE_CONTENT).toListItem())];
@@ -111,6 +113,32 @@ export const DB_DELETE_CONTENT = async(contentID:number):Promise<boolean> => { /
 }
 
 
+
+/****************************************
+ *       MODERATION UNDER REVIEW        *
+ *           moderationStatus           *
+ ****************************************/
+export const DB_SELECT_CONTENT_UNDER_MODERATION = async(status?:DATABASE_MODERATION_STATUS):Promise<ModeratedContentListItem[]> => {
+    const rows = (status === undefined) ?
+        await query('SELECT content.* '
+            + 'FROM content '
+            + 'WHERE content.moderationStatus IS NOT NULL '
+            + 'ORDER BY content.modifiedDT DESC;')
+
+        : await execute('SELECT content.* '
+            + 'FROM content '
+            + 'WHERE content.moderationStatus = ? '
+            + 'ORDER BY content.modifiedDT DESC;', [status]);
+
+    return rows.map(row => ({
+        ...CONTENT_ARCHIVE.constructByDatabase(row as DATABASE_CONTENT).toListItem(),
+        moderationStatus: row.moderationStatus?.trim?.() ? row.moderationStatus : '[NOT NULL]',
+        modifiedDT: row.modifiedDT
+    }));
+}
+
+
+
 /***************************
  *  CONTENT SEARCH QUERIES
  ***************************/
@@ -127,6 +155,7 @@ export const DB_SELECT_CONTENT_SEARCH = async(searchTerm:string, columnList:stri
     + 'WHERE ( '
         + columnList.map(column => `LOWER(${column}) LIKE LOWER(CONCAT("%", ?, "%"))`).join(' OR ')
     + ' ) '
+    + 'AND content.moderationStatus IS NULL '
     + `ORDER BY content.likeCount DESC `
     + `LIMIT ${limit};`, [...Array(columnList.length).fill(`${searchTerm}`)]);
  
@@ -151,6 +180,7 @@ export const DB_SELECT_USER_CONTENT_LIST = async(userID:number, limit:number = L
     const rows = await execute('SELECT content.* ' 
     + 'FROM content '
     + `WHERE ( ${preparedSourceFilter} ) `
+        + 'AND content.moderationStatus IS NULL '
     + 'ORDER BY RAND() '
     + `LIMIT ${limit};`, [...MOBILE_CONTENT_SUPPORTED_SOURCES]);
  

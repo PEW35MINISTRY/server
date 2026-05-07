@@ -1,6 +1,10 @@
 /***** ONLY DEPENDENCY:./inputField - Define all other types locally *****/
-import { ENVIRONMENT_TYPE } from "../input-config-sync/inputField.mjs";
-import { ModelSourceEnvironmentEnum, RoleEnum } from "../input-config-sync/profile-field-config.mjs";
+import { ENVIRONMENT_TYPE } from '../input-config-sync/inputField.mjs';
+import { ModelSourceEnvironmentEnum, RoleEnum } from '../input-config-sync/profile-field-config.mjs';
+import { ModeratedCircleListItem } from './circle-types.mjs';
+import { ModeratedContentListItem } from './content-types.mjs';
+import { ModeratedPrayerRequestListItem, ModeratedPrayerRequestCommentListItem } from './prayer-request-types.mjs';
+import { ModeratedProfileListItem } from './profile-types.mjs';
 
 
 /*********************************
@@ -67,6 +71,13 @@ export type AdminStatsResponse = {
     logDailyTrendMap:Record<LogType, LogDailyTrend[]>,
     userStats:DatabaseUserStats,
     partnershipStats:DatabasePartnershipStats,
+    activeModeration: {
+        userList:ModeratedProfileListItem[],
+        circleList:ModeratedCircleListItem[],
+        prayerRequestList:ModeratedPrayerRequestListItem[],
+        prayerRequestCommentList:ModeratedPrayerRequestCommentListItem[],
+        contentList:ModeratedContentListItem[],
+    },
 }
 
 export interface DatabaseTableUsage {

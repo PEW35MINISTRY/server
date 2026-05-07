@@ -42,6 +42,11 @@ export interface PartnerCountListItem extends NewPartnerListItem {
     partnerCountMap: Map<PartnerStatusEnum, number> | [PartnerStatusEnum, number][]
 }
 
+export interface ModeratedProfileListItem extends ProfileListItem {
+    moderationStatus:string;
+    modifiedDT:Date;
+}
+
 export const PROFILE_PUBLIC_PROPERTY_LIST = [ //Sync to ProfilePublicResponse
     'userID', 'displayName', 'firstName', 'image', 'userRole', 'circleList'
 ];
@@ -81,6 +86,7 @@ export interface ProfileResponse extends ProfileListItem {
     maxPartners: number,
     walkLevel: number,
     notes?: string,
+    moderationStatus?: string,
     createdDT: string,
     modifiedDT: string,
 
