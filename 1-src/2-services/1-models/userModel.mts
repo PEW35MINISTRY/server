@@ -13,7 +13,7 @@ import { Exception } from '../../1-api/api-types.mjs';
 import { camelCase, getModelSourceEnvironment } from '../10-utilities/utilities.mjs';
 import { ContentListItem } from '../../0-assets/field-sync/api-type-sync/content-types.mjs';
 import CIRCLE_ANNOUNCEMENT from './circleAnnouncementModel.mjs';
-import { generatePasswordHash } from '../../1-api/2-auth/auth-utilities.mjs';
+import { generatePasswordHash, reinstateBlacklistedUser } from '../../1-api/2-auth/auth-utilities.mjs';
 
 
 
@@ -230,6 +230,8 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
     } else if(field.field === 'moderationStatus') {
         this.moderationStatus = jsonObj['moderationStatus'] === undefined ? undefined
                               : jsonObj['moderationStatus']?.trim() ? jsonObj['moderationStatus'].trim().toUpperCase() : null; //Convert to NULL to clear in Database
+        
+        if(this.moderationStatus === null) reinstateBlacklistedUser(this.userID);
 
     } else if(field.field === 'userRoleTokenList') {
         this.userRoleList = Array.from(jsonObj[field.field] as {role:string, token:string}[]).map(({role, token}) => RoleEnum[role as string] || RoleEnum.USER);
