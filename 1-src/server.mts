@@ -41,7 +41,7 @@ import { POST_circleReported, POST_contentReported, POST_prayerRequestCommentRep
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
 import { initializeDatabase } from './2-services/2-database/database.mjs';
-import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
+import { initializeUserBlacklist, verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
 import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-request-expired-script.mjs';
 import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_FLUSH_USER_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/user-queries.mjs';
@@ -67,6 +67,7 @@ const apiServer: Application = express();
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
 await initializeDatabase(); 
 await checkAWSAuthentication();
+await initializeUserBlacklist();
 await sendEmailSystemDeploymentReport();
 writeFileSync(SERVER_START_TIMESTAMP_PATH, SERVER_START_TIMESTAMP.toISOString(), 'utf8');
 

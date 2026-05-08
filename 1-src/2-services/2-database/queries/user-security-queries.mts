@@ -4,6 +4,7 @@ import * as log from '../../10-utilities/logging/log.mjs';
 import { RoleEnum, EmailSubscription } from '../../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 import { ModeratedProfileListItem } from '../../../0-assets/field-sync/api-type-sync/profile-types.mjs';
 import USER from '../../1-models/userModel.mjs';
+import { LIST_LIMIT } from '../../../0-assets/field-sync/input-config-sync/search-config.mjs';
 
 
 /**************************************************************************
@@ -124,23 +125,23 @@ export const DB_IS_USER_UNDER_MODERATION = async(userID:number, moderationStatus
 }
 
 
-export const DB_SELECT_USER_UNDER_MODERATION = async(status?:DATABASE_MODERATION_STATUS):Promise<ModeratedProfileListItem[]> => {
+export const DB_SELECT_USER_UNDER_MODERATION = async(status?:DATABASE_MODERATION_STATUS, limit = LIST_LIMIT):Promise<ModeratedProfileListItem[]> => {
     const rows = (status === undefined) ?
         await query('SELECT user.* '
             + 'FROM user '
             + 'WHERE user.moderationStatus IS NOT NULL '
-            + 'ORDER BY user.modifiedDT DESC;')
+            + 'ORDER BY user.modifiedDT DESC '
+            + `LIMIT ${limit};`)
 
         : await execute('SELECT user.* '
             + 'FROM user '
             + 'WHERE user.moderationStatus = ? '
-            + 'ORDER BY user.modifiedDT DESC;', [status]);
+            + 'ORDER BY user.modifiedDT DESC '
+            + `LIMIT ${limit};`, [status]);
 
     return rows.map(row => ({
         ...USER.constructByDatabase(row as DATABASE_USER).toListItem(),
-        moderationStatus: row.moderationStatus?.trim?.() ? row.moderationStatus : '[NOT NULL]',
-                modifiedDT: row.modifiedDT
-
+        moderationStatus: row.moderationStatus?.trim?.() ? row.moderationStatus : '[NOT NULL]', modifiedDT: row.modifiedDT
     }));
 }
 
