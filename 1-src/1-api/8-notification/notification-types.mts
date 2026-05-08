@@ -21,6 +21,7 @@ export interface NotificationDeviceVerifyRequest extends JwtClientRequest {
 export enum NotificationType {
     PARTNERSHIP_REQUEST = "PARTNERSHIP_REQUEST",
     PARTNERSHIP_ACCEPT = "PARTNERSHIP_ACCEPT",
+    PARTNERSHIP_ASSIGN = "PARTNERSHIP_ASSIGN",
     PRAYER_REQUEST_RECIPIENT = "PRAYER_REQUEST_RECIPIENT",
 }
 

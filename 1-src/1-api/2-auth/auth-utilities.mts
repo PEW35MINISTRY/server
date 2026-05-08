@@ -4,6 +4,7 @@ import { RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-fi
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_POPULATE_USER_PROFILE, DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
 import * as log from '../../2-services/10-utilities/logging/log.mjs';
+import { getEnv } from '../../2-services/10-utilities/utilities.mjs';
 import { JwtData } from './auth-types.mjs';
 import { LoginResponseBody } from '../../0-assets/field-sync/api-type-sync/auth-types.mjs';
 import { GetSecretValueCommand, GetSecretValueResponse, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
@@ -14,6 +15,8 @@ import { getEnvironment } from '../../2-services/10-utilities/env-utilities.mjs'
 import { Exception } from '../api-types.mjs';
 import { sendUserEmailVerification } from '../../2-services/4-email/configurations/email-verification.mjs';
 import { isInternalEmail } from '../../2-services/4-email/email-utilities.mjs';
+import { ModeratedProfileListItem } from '../../0-assets/field-sync/api-type-sync/profile-types.mjs';
+import { DB_SELECT_USER_UNDER_MODERATION } from '../../2-services/2-database/queries/user-security-queries.mjs';
 
 
 /********************
@@ -86,6 +89,75 @@ export const getJWTData = (jwt:string):JwtData => {
         };
 }
 
+
+/****************************
+ * BLACKLIST JWT BY USER ID *
+ ****************************/
+const USER_BLACKLIST_MAX_SIZE:number = 1000;
+const USER_BLACKLIST:Map<number, number> = new Map<number, number>(); //[userID, expirationTimestamp]
+
+
+export const initializeUserBlacklist = async():Promise<void> => {
+    const durationMilliseconds:number = parseJWTDurationToMS(getEnv('JWT_DURATION', 'string', '30d'));
+    const now:number = new Date().getTime();
+
+    USER_BLACKLIST.clear();
+    const userList:ModeratedProfileListItem[] = await DB_SELECT_USER_UNDER_MODERATION(undefined, USER_BLACKLIST_MAX_SIZE);
+    userList.forEach((user:ModeratedProfileListItem) => {
+        const expirationTimestamp:number = user.modifiedDT.getTime() + durationMilliseconds;
+        if(expirationTimestamp > now) USER_BLACKLIST.set(user.userID, expirationTimestamp);
+    });
+}
+
+
+export const blackListUser = async(userID:number):Promise<void> => {
+    const now:number = new Date().getTime();
+
+    if(USER_BLACKLIST.size >= USER_BLACKLIST_MAX_SIZE) {
+        log.error('USER_BLACKLIST_MAX_SIZE Reached:', USER_BLACKLIST_MAX_SIZE);
+
+        for(const [blacklistedUserID, expirationTimestamp] of USER_BLACKLIST) {
+            if(expirationTimestamp <= now) USER_BLACKLIST.delete(blacklistedUserID);
+        }
+
+        while(USER_BLACKLIST.size >= USER_BLACKLIST_MAX_SIZE) {
+            const oldestBlacklistedUserID:number | undefined = USER_BLACKLIST.keys().next().value;
+            if(!oldestBlacklistedUserID) break;
+            USER_BLACKLIST.delete(oldestBlacklistedUserID);
+        }
+    }
+
+    const durationMilliseconds:number = parseJWTDurationToMS(getEnv('JWT_DURATION', 'string', '30d'));
+    const expirationTimestamp:number = now + durationMilliseconds;
+    USER_BLACKLIST.set(userID, expirationTimestamp);
+}
+
+
+export const isUserBlacklisted = (userID:number):boolean => {
+    if(USER_BLACKLIST.size === 0) 
+        return false;
+
+    const expirationTimestamp:number|undefined = USER_BLACKLIST.get(userID);
+    if(!expirationTimestamp) 
+        return false;
+
+    else if(expirationTimestamp <= Date.now()) {
+        USER_BLACKLIST.delete(userID);
+        return false;
+    }
+
+    return true;
+}
+
+
+export const reinstateBlacklistedUser = async(userID:number):Promise<boolean> => {
+    return USER_BLACKLIST.delete(userID);
+}
+
+
+/*********************
+ * NEW ACCOUNT TOKEN *
+ *********************/
 export const validateNewRoleTokenList = async({newRoleList, jsonRoleTokenList, email, currentRoleList, adminOverride}
                                         :{newRoleList:RoleEnum[], jsonRoleTokenList:{role: RoleEnum, token: string}[], email:string, currentRoleList?:RoleEnum[], adminOverride?:boolean}) => 
     await [...newRoleList].every( async(role:RoleEnum) => {
@@ -174,9 +246,12 @@ export const getEmailLogin = async(email:string = '', password: string = '', det
                     await sendUserEmailVerification(userProfile.userID, userProfile.email, userProfile.firstName);
 
         return new Exception(403, 'Email address is not verified.', 'Please Verify Email');
-    }
 
-    return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
+    } else if(userProfile.moderationStatus !== undefined || isUserBlacklisted(userProfile.userID))
+        return new Exception(403, `Login Blocked with moderation status: ${userProfile.moderationStatus}.`, 'Account Locked');
+    
+    else
+        return await assembleLoginResponse(LoginMethod.EMAIL, userProfile, detailed);
 }
 
 
@@ -237,4 +312,22 @@ export const verifyPassword = async (passwordHash:string, password:string):Promi
 
 export const generatePasswordHash = async (password:string):Promise<string> => {
     return hash(password);
+}
+
+//JWT_DURATION=2h or 15d
+const parseJWTDurationToMS = (duration:string):number => {
+    const normalizedDuration:string = duration.trim().toLowerCase();
+    const match:RegExpMatchArray | null = normalizedDuration.match(/^(\d+)\s*([smhd])$/);
+
+    if(!match) return 0;
+
+    const value:number = Number(match[1]);
+    const unit:string = match[2];
+
+    if(unit === 's') return value * 1000;
+    if(unit === 'm') return value * 60 * 1000;
+    if(unit === 'h') return value * 60 * 60 * 1000;
+    if(unit === 'd') return value * 24 * 60 * 60 * 1000;
+
+    return 0;
 }
