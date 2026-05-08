@@ -12,6 +12,7 @@ import { PartnerListItem, ProfileListItem } from '../../0-assets/field-sync/api-
 import { sendTemplateNotification, sendNotificationPairedMessage } from '../8-notification/notification-utilities.mjs';
 import { NotificationType } from '../8-notification/notification-types.mjs';
 import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { findAndAssignNewPartner } from './partner-utilities.mjs';
 
 
 /*********************************
@@ -45,25 +46,12 @@ export const POST_NewPartnerSearch = async(request:JwtClientRequest, response:Re
     else if(!profile.isRole(RoleEnum.USER))
         return next(new Exception(401, `POST_NewPartnerSearch - user  ${request.clientID} is not a USER role and not eligible for partners.`, 'User Role Required')); 
 
-
-    const availableList:ProfileListItem[] = await DB_SELECT_AVAILABLE_PARTNER_LIST(profile);
-
-    if(availableList.length === 0) { 
-        //TODO also notify support of un-partnered user
+    const newPartner:PartnerListItem|undefined = await findAndAssignNewPartner(profile);
+    if(newPartner !== undefined)
+        response.status(202).send(newPartner);
+    else
         return next(new Exception(404, `Unable to find available partner, support has been notified.`, 'Partner Unavailable')); 
-        
-    } else { //Assign new Partnership
-        const newPartner:PartnerListItem = {...availableList[0], status: PartnerStatusEnum.PENDING_CONTRACT_BOTH};
-
-        log.event(`Creating new partnership between ${request.clientID} and ${newPartner.userID}`);
-        //TODO also notify users
-
-        if(await DB_ASSIGN_PARTNER_STATUS(request.clientID, newPartner.userID, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH))
-            response.status(200).send(newPartner);
-        else
-            return next(new Exception(500, `Failed to create new  partnership status for user ${request.clientID} and partner ${newPartner.userID}`, 'Save Failed'));
-    }
-};
+}
 
 
 //user 'jwtUserID' is taking action with partner 'clientID'

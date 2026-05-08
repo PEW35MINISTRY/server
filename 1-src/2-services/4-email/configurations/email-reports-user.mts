@@ -120,12 +120,6 @@ export const assemblePartnerReportHTML = async():Promise<EmailReportContent> => 
                     ])
                 ),
 
-                htmlSummaryList([
-                    ['Gender Match Required:', partnershipStats.matchGender ? 'Yes' : 'No'],
-                    ['Allowed Age Range:', `±${partnershipStats.ageYearRange} years`],
-                    ['Allowed Walk Level Range:', `±${partnershipStats.walkLevelRange}`],
-                ], 'Matching Criteria:'),
-
                 await renderDatabaseTableUsage([DATABASE_TABLE.PARTNER], true),
 
                 htmlSection('Unmatched Users'),

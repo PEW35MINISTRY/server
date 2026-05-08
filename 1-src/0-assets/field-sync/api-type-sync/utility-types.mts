@@ -105,10 +105,6 @@ export type LogDailyTrend = {
 }
 
 export interface DatabasePartnershipStats {
-    matchGender:boolean,                //Matching Criteria
-    ageYearRange:number,
-    walkLevelRange:number,
-
     totalUsers:number,                  // Total users in the selected model source environment.
     usersInPartnerships:number,         // Distinct users currently in active PARTNER relationships.
     unassignedPartners:number,          // Users with partner capacity enabled but no assigned partnerships.

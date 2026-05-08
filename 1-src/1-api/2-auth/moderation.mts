@@ -23,6 +23,7 @@ import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN, DB_SELECT_CIRCLE, DB_SELECT_CIRCLE_
 import { getEnv } from '../../2-services/10-utilities/utilities.mjs';
 import { DB_ASSIGN_PARTNER_STATUS, DB_SELECT_PARTNERSHIP } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { PartnerStatusEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
+import { findAndAssignNewPartner } from '../6-partner/partner-utilities.mjs';
 
 
 
@@ -60,8 +61,7 @@ export const POST_userReported = async(request:JwtClientRequest, response:Respon
 
     if(partnership) {
         await DB_ASSIGN_PARTNER_STATUS(reportingUser.userID, flaggedUser.userID, DATABASE_PARTNER_STATUS_ENUM.ENDED);
-
-        //TODO auto-assign reportingUser new partner with card #279
+        await findAndAssignNewPartner(reportingUser);
     }
 
     await sendModerationEmail({
