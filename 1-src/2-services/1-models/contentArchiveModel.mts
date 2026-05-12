@@ -15,7 +15,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
 
     //Private static list of class property fields | (This is display-responses; NOT edit-access.)
     static DATABASE_IDENTIFYING_PROPERTY_LIST = [ 'recorderID', 'type', 'source', 'url' ]; //exclude: contentID, complex types, and lists
-    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile', 'createdDT', 'modifiedDT' ];
+    static PROPERTY_LIST = [ 'contentID', 'recorderID', 'type', 'customType', 'source', 'customSource', 'url', 'keywordList', 'title', 'description', 'image', 'likeCount', 'gender', 'minimumAge', 'maximumAge', 'minimumWalkLevel', 'maximumWalkLevel', 'notes', 'recorderProfile', 'createdDT', 'modifiedDT', 'moderationStatus' ];
 
     contentID: number = -1;
     recorderID: number; //user that recorded
@@ -35,6 +35,7 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
     minimumWalkLevel: number;
     maximumWalkLevel: number; 
     notes?: string;
+    moderationStatus?:string|null;
 
     //Database - Read Only
     createdDT:Date;
@@ -170,6 +171,10 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
         } else if(field.field === 'source' && jsonObj['source'] === 'CUSTOM' && field.customField !== undefined) {
             this.source = ContentSourceEnum.CUSTOM;
             this.customSource = (jsonObj['customSource'] || '').replace(/^[a-zA-Z0-9_ ]$/g, '').replace(/ /g, '_').toUpperCase();
+
+        } else if(field.field === 'moderationStatus') {
+            this.moderationStatus = jsonObj['moderationStatus'] === undefined ? undefined
+                                  : jsonObj['moderationStatus']?.trim() ? jsonObj['moderationStatus'].trim().toUpperCase() : null; //Convert to NULL to clear in Database
 
         } else //No Field Match
             return undefined;

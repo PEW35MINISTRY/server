@@ -3,7 +3,7 @@ import * as log from '../../2-services/10-utilities/logging/log.mjs';
 import { Exception } from '../api-types.mjs';
 import { JwtAdminRequest, JwtClientPartnerRequest, JwtClientRequest, JwtClientStatusFilterRequest } from '../2-auth/auth-types.mjs';
 import { PartnerStatusEnum, RoleEnum } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
-import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP,  DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PARTNERSHIP, DB_SELECT_PENDING_PARTNER_LIST, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
+import { DB_ASSIGN_PARTNER_STATUS, DB_DELETE_PARTNERSHIP,  DB_SELECT_AVAILABLE_PARTNER_LIST, DB_SELECT_PARTNER_LIST, DB_SELECT_PARTNER_STATUS, DB_SELECT_PARTNER_STATUS_MAP, DB_SELECT_PARTNERSHIP, DB_SELECT_PENDING_PARTNER_PAIR_LIST, DB_SELECT_UNASSIGNED_PARTNER_USER_LIST, getPartnerID, getUserID } from '../../2-services/2-database/queries/partner-queries.mjs';
 import { DATABASE_PARTNER_STATUS_ENUM, DATABASE_USER_ROLE_ENUM } from '../../2-services/2-database/database-types.mjs';
 import USER from '../../2-services/1-models/userModel.mjs';
 import { DB_DELETE_CONTACT_CACHE, DB_DELETE_CONTACT_CACHE_BATCH, DB_SELECT_USER } from '../../2-services/2-database/queries/user-queries.mjs';
@@ -12,6 +12,7 @@ import { PartnerListItem, ProfileListItem } from '../../0-assets/field-sync/api-
 import { sendTemplateNotification, sendNotificationPairedMessage } from '../8-notification/notification-utilities.mjs';
 import { NotificationType } from '../8-notification/notification-types.mjs';
 import { makeDisplayText } from '../../0-assets/field-sync/input-config-sync/inputField.mjs';
+import { findAndAssignNewPartner } from './partner-utilities.mjs';
 
 
 /*********************************
@@ -27,7 +28,7 @@ export const GET_PartnerList = async(statusFilter:PartnerStatusEnum|undefined, r
 
 
 export const GET_PendingPartnerList = async(request:JwtClientRequest, response:Response) => {
-    response.status(200).send(await DB_SELECT_PENDING_PARTNER_LIST(request.clientID));
+    response.status(200).send(await DB_SELECT_PARTNER_LIST(request.clientID, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_USER));
 };
 
 
@@ -45,25 +46,12 @@ export const POST_NewPartnerSearch = async(request:JwtClientRequest, response:Re
     else if(!profile.isRole(RoleEnum.USER))
         return next(new Exception(401, `POST_NewPartnerSearch - user  ${request.clientID} is not a USER role and not eligible for partners.`, 'User Role Required')); 
 
-
-    const availableList:ProfileListItem[] = await DB_SELECT_AVAILABLE_PARTNER_LIST(profile);
-
-    if(availableList.length === 0) { 
-        //TODO also notify support of un-partnered user
+    const newPartner:PartnerListItem|undefined = await findAndAssignNewPartner(profile);
+    if(newPartner !== undefined)
+        response.status(202).send(newPartner);
+    else
         return next(new Exception(404, `Unable to find available partner, support has been notified.`, 'Partner Unavailable')); 
-        
-    } else { //Assign new Partnership
-        const newPartner:PartnerListItem = {...availableList[0], status: PartnerStatusEnum.PENDING_CONTRACT_BOTH};
-
-        log.event(`Creating new partnership between ${request.clientID} and ${newPartner.userID}`);
-        //TODO also notify users
-
-        if(await DB_ASSIGN_PARTNER_STATUS(request.clientID, newPartner.userID, DATABASE_PARTNER_STATUS_ENUM.PENDING_CONTRACT_BOTH))
-            response.status(200).send(newPartner);
-        else
-            return next(new Exception(500, `Failed to create new  partnership status for user ${request.clientID} and partner ${newPartner.userID}`, 'Save Failed'));
-    }
-};
+}
 
 
 //user 'jwtUserID' is taking action with partner 'clientID'

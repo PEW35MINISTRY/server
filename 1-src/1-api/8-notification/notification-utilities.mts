@@ -27,6 +27,7 @@ const getIndividualPrayerRequestNotificationBody = (username: string) => `New pr
 const getCirclePrayerRequestNotificationBody = (username:string, circleName: string) => `New prayer request from ${username} in ${circleName}`;
 const getNewPartnershipRequestNotificationBody = (username:string) => `You have a new prayer partner contract available with ${username}`;
 const getPartnershipAcceptanceNotificationBody = (username:string) => `${username} accepted the prayer partner contract`;
+const getPartnershipAssignmentNotificationBody = (username:string) => `${username} is your new prayer partner!`;
 const getCircleInviteNotificationBody = (username:string, circleName:string) => `${username} has sent an invite to join ${circleName}`;
 
 const getStringifiedNotification = (body:string) => {
@@ -158,6 +159,9 @@ export const sendTemplateNotification = async (senderID:number, recipientIDList:
     switch(notificationType) {
         case NotificationType.PARTNERSHIP_ACCEPT:
             message = getPartnershipAcceptanceNotificationBody(senderDisplayName);
+            break;
+        case NotificationType.PARTNERSHIP_ASSIGN:
+            message = getPartnershipAssignmentNotificationBody(senderDisplayName);
             break;
         case NotificationType.PARTNERSHIP_REQUEST:
             message = getNewPartnershipRequestNotificationBody(senderDisplayName);

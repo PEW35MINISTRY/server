@@ -18,7 +18,7 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
     static PUBLIC_PROPERTY_LIST = ['circleID', 'leaderID', 'name', 'description', 'postalCode', 'image', 'requestorID', 'requestorStatus', 'leaderProfile', 'memberList', 'eventList'];
     static MEMBER_PROPERTY_LIST = [...CIRCLE.PUBLIC_PROPERTY_LIST, 'announcementList', 'prayerRequestList', 'pendingRequestList', 'pendingInviteList'];
     static LEADER_PROPERTY_LIST = [...CIRCLE.MEMBER_PROPERTY_LIST, 'inviteToken'];
-    static PROPERTY_LIST = [...CIRCLE.LEADER_PROPERTY_LIST, 'isActive','notes', 'createdDT', 'modifiedDT'];
+    static PROPERTY_LIST = [...CIRCLE.LEADER_PROPERTY_LIST, 'isActive','notes', 'createdDT', 'modifiedDT', 'moderationStatus'];
 
     circleID: number = -1;
     leaderID: number;
@@ -29,6 +29,7 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
     inviteToken?: string;
     image?: string;
     notes?: string;
+    moderationStatus?:string|null;
 
     //Database - Read Only
     createdDT:Date;
@@ -92,6 +93,12 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
           model: this, baseModel: undefined, includeID: includeCircleID, includeObjects: true, includeNull: false,
           complexFieldMap});
     }
+
+    static getUniqueDatabaseProperties = (model:CIRCLE, baseModel:CIRCLE):Map<string, any> =>
+        BASE_MODEL.getUniquePropertiesUtility<CIRCLE>({fieldList: CIRCLE_TABLE_COLUMNS_EDIT, getModelProperty: (column) => model.getPropertyFromDatabaseColumn(column) ? column : undefined,
+            model, baseModel, includeID: false, includeObjects: false, includeNull: true});
+
+    override getUniqueDatabaseProperties = (baseModel:CIRCLE):Map<string, any> => CIRCLE.getUniqueDatabaseProperties(this, baseModel);
   
     toPublicJSON = ():CircleResponse => Object.fromEntries(this.getValidProperties(CIRCLE.PUBLIC_PROPERTY_LIST)) as CircleResponse;
 
@@ -109,6 +116,10 @@ export default class CIRCLE extends BASE_MODEL<CIRCLE, CircleListItem, CircleRes
         //Handle inviteToken for security
         if(field.field === 'inviteToken') {
             this.inviteToken = (String(jsonObj[field.field]) || '').toLowerCase();
+
+        } else if(field.field === 'moderationStatus') {
+            this.moderationStatus = jsonObj['moderationStatus'] === undefined ? undefined
+                                  : jsonObj['moderationStatus']?.trim() ? jsonObj['moderationStatus'].trim().toUpperCase() : null; //Convert to NULL to clear in Database
 
         } else //No Field Match
             return undefined;

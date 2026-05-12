@@ -13,6 +13,7 @@ import { CircleListItem } from './circle-types.mjs'
 * Mobile:                                                                               *
 *****************************************************************************************/
 
+/* Prayer Request Model */
 export interface PrayerRequestListItem {
     prayerRequestID:number,
     requestorID: number,
@@ -26,6 +27,12 @@ export interface PrayerRequestListItem {
     modifiedDT:string
 }
 
+export interface ModeratedPrayerRequestListItem extends PrayerRequestListItem {
+    moderationStatus:string;
+}
+
+
+/* Prayer Request Comment */
 export interface PrayerRequestCommentListItem {
     commentID: number,
     prayerRequestID: number,
@@ -34,6 +41,11 @@ export interface PrayerRequestCommentListItem {
     likeCount: number,
     isLikedByRecipient: boolean,
     createdDT:string,
+}
+
+export interface ModeratedPrayerRequestCommentListItem extends PrayerRequestCommentListItem {
+    moderationStatus:string;
+    modifiedDT:Date;
 }
 
 export interface PrayerRequestResponseBody extends PrayerRequestListItem{

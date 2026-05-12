@@ -74,6 +74,7 @@ export const PRAYER_REQUEST_FIELDS_ADMIN:InputField[] = [
     ...EDIT_PRAYER_REQUEST_FIELDS,
     new InputSelectionField({title: 'Remind Me', field: 'isOnGoing', value: 'false', type: InputType.SELECT_LIST, selectOptionList: ['true', 'false'], displayOptionList: ['Yes', 'No']}),
     new InputField({title: 'Expiration Date', field: 'expirationDate', type: InputType.DATE, value: getDateDaysFuture(DEFAULT_PRAYER_REQUEST_EXPIRATION_DAYS).toISOString(), validationRegex: DATE_REGEX, validationMessage: 'Must be future date.' }),
+    new InputField({title: 'Moderation', field: 'moderationStatus', type: InputType.TEXT, length:{min:0, max:60}}),
 ];
 
 export const PRAYER_REQUEST_COMMENT_FIELDS:InputField[] = [

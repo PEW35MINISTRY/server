@@ -50,6 +50,13 @@ export const warn = async(...messages:any[]):Promise<boolean> => {
         && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
 }
 
+export const warnWithTrace = async(...messages:any[]):Promise<boolean> => {
+    const entry:LOG_ENTRY = new LOG_ENTRY(LogType.WARN, messages, getStackTrace(10));
+
+    return (!SAVE_LOGS_LOCALLY || await writeLogFile(entry))
+        && (!UPLOAD_LOGS_S3 || await uploadS3LogEntry(entry));
+}
+
 export const db = async(...messages:any[]):Promise<boolean> => {
     const entry:LOG_ENTRY = new LOG_ENTRY(LogType.DB, messages, getStackTrace());
 
@@ -87,7 +94,7 @@ export const email = async(...messages:any[]):Promise<boolean> => {
 
 
 /* LOGGING UTILITIES */
-export const getStackTrace = ():string[] => {
+export const getStackTrace = (depth:number = 5):string[] => {
     const stack = new Error().stack?.split('\n').slice(2) || [];
-    return stack.slice(0, 5).map(line => line.trim());
+    return stack.slice(0, depth).map(line => line.trim());
 };

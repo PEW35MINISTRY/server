@@ -127,13 +127,17 @@ export const PATCH_circle =  async(request: JwtCircleRequest, response: Response
     const editCircle:CIRCLE|Exception = await CIRCLE.constructAndEvaluateByJson({currentModel: currentCircle, jsonObj:request.body, fieldList: FIELD_LIST});
 
     if(currentCircle.isValid && !(editCircle instanceof Exception) && editCircle.isValid) { 
+        const fieldChanges:Map<string, any> = editCircle.getUniqueDatabaseProperties(currentCircle);
+
+        if(fieldChanges.size === 0)
+            next(new Exception(400, `Edit Circle Failed :: No valid changes provided for circle ${request.circleID}.`, 'No Changes'));
+
         //Verify leaderID is leader role
-        if(editCircle.leaderID !== undefined && editCircle.leaderID !== currentCircle.leaderID 
+        else if(editCircle.leaderID !== undefined && editCircle.leaderID !== currentCircle.leaderID 
                 && await DB_IS_USER_ROLE(editCircle.leaderID, DATABASE_USER_ROLE_ENUM.CIRCLE_LEADER) === false)
             next(new Exception(401, `Edit Circle Failed :: failed to verify leader status of userID: ${editCircle.leaderID}`, 'Leader status not verified.'));
 
-        else if((editCircle.getUniqueDatabaseProperties(currentCircle).size > 0 )
-                && await DB_UPDATE_CIRCLE(request.circleID, editCircle.getUniqueDatabaseProperties(currentCircle)) === false) 
+        else if(await DB_UPDATE_CIRCLE(request.circleID, fieldChanges) === false) 
             next(new Exception(500, `Edit Circle Failed :: Failed to update circle ${request.circleID}.`, 'Save Failed'));
 
         else {

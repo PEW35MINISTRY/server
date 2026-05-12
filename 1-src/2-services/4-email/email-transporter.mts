@@ -1,6 +1,7 @@
 import { SESClient, SendEmailCommand, SendRawEmailCommand } from '@aws-sdk/client-ses';
 import fs from 'fs';
 import * as log from '../10-utilities/logging/log.mjs';
+import { getEnv } from '../10-utilities/utilities.mjs';
 import { EMAIL_ADDRESS_REGEX_SIMPLE, EMAIL_SENDER_ADDRESS, EmailAttachment, EmailSenderAddress } from './email-types.mjs';
 import { LogType } from '../../0-assets/field-sync/api-type-sync/utility-types.mjs';
 import { getLogFilePath } from '../10-utilities/logging/log-types.mjs';
@@ -37,7 +38,7 @@ export const sendTemplateEmail = async(subject:string, htmlBody:string, senderAd
             return false;
         }
 
-        if(process.env.SEND_EMAILS !== 'true') {
+        if(!getEnv('SEND_EMAILS', 'boolean', false)) {
             console.log('Email Sending Disabled - ', subject, ' to: ', ...recipientMap.entries());
             return true;
         }

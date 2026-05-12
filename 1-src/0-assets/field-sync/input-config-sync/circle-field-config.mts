@@ -60,6 +60,7 @@ export const CIRCLE_FIELDS_ADMIN:InputField[] = [
     ...CIRCLE_FIELDS,
     new InputField({title: 'Image URI', field: 'image', type: InputType.TEXT, length:{min: 5, max: 2000}}),
     new InputField({title: 'Notes', field: 'notes', type: InputType.PARAGRAPH, length:{min: 0, max: 3000} }),
+    new InputField({title: 'Moderation', field: 'moderationStatus', type: InputType.TEXT, length:{min:0, max:60}}),
 ];
 
 export const CIRCLE_ANNOUNCEMENT_FIELDS:InputField[] = [

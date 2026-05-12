@@ -1,5 +1,7 @@
-import { getEnv } from "../10-utilities/utilities.mjs";
-import { EMAIL_SENDER_ADDRESS, EmailSenderAddress  } from "./email-types.mjs";
+import { getEnv } from '../10-utilities/utilities.mjs';
+import USER from '../1-models/userModel.mjs';
+import { EMAIL_SENDER_ADDRESS, EmailSenderAddress  } from './email-types.mjs';
+import { getDateYearsAgo } from '../../0-assets/field-sync/input-config-sync/profile-field-config.mjs';
 
 
 
@@ -56,3 +58,8 @@ export const getEmailSignature = (sender:EmailSenderAddress): string[] => {
       return [];
   }
 };
+
+//Under 18, must include EMAIL_YOUTH_SAFETY for communication record
+export const minorInvolved = (...userList:USER[]):boolean => {
+    return userList.some(user => !!user.dateOfBirth && user.dateOfBirth.getTime() > getDateYearsAgo(18).getTime());
+}

@@ -36,11 +36,12 @@ import { DELETE_flushSearchCacheAdmin, GET_SearchList } from './1-api/api-search
 import { POST_PartnerContractAccept, DELETE_PartnerContractDecline, DELETE_PartnershipLeave, GET_PartnerList, GET_PendingPartnerList, POST_NewPartnerSearch, DELETE_PartnershipAdmin, DELETE_PartnershipByTypeAdmin, POST_PartnerStatusAdmin, GET_AvailablePartnerList, GET_AllFewerPartnerStatusMap, GET_AllPartnerStatusMap, GET_AllUnassignedPartnerList, GET_AllPartnerPairPendingList } from './1-api/6-partner/partner-request.mjs';
 import { DELETE_allUserNotificationDevices, DELETE_notificationDevice, GET_notificationDeviceDetailAdmin, GET_notificationDeviceList, PATCH_notificationDeviceAdmin, PATCH_notificationDeviceName, POST_newNotificationDeviceUser, POST_verifyNotificationDeviceUser } from './1-api/8-notification/notification.mjs';
 import { GET_EmailReportDownloadFile, GET_EmailSubscriptionUnsubscribe, POST_EmailReportAdmin, POST_EmailSubscriptionBroadcastAdmin } from './1-api/9-email/email.mjs';
+import { POST_circleReported, POST_contentReported, POST_prayerRequestCommentReported, POST_prayerRequestReported, POST_userReported } from './1-api/2-auth/moderation.mjs';
 
 //Import Services
 import * as log from './2-services/10-utilities/logging/log.mjs';
 import { initializeDatabase } from './2-services/2-database/database.mjs';
-import { verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
+import { initializeUserBlacklist, verifyJWT } from './1-api/2-auth/auth-utilities.mjs';
 import CHAT from './2-services/3-chat/chat.mjs';
 import { answerAndNotifyPrayerRequests } from './3-lambda/prayer-request/prayer-request-expired-script.mjs';
 import { DB_FLUSH_CONTACT_CACHE_ADMIN, DB_FLUSH_USER_SEARCH_CACHE_ADMIN } from './2-services/2-database/queries/user-queries.mjs';
@@ -48,6 +49,7 @@ import { DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN } from './2-services/2-database/quer
 import { DB_FLUSH_EXPIRED_TOKENS } from './2-services/2-database/queries/user-security-queries.mjs';
 import { sendEmailVerificationReminderBatch } from './2-services/4-email/configurations/email-verification.mjs';
 import { sendEmailReport, sendEmailSystemDeploymentReport } from './2-services/4-email/email.mjs';
+import { sendModerationReminderEmail } from './2-services/4-email/configurations/email-moderation.mjs';
 
 
 /********************
@@ -65,6 +67,7 @@ const apiServer: Application = express();
 const httpServer = createServer(apiServer).listen( SERVER_PORT, () => console.log(`Back End Server listening on HTTP port: ${SERVER_PORT} at ${SERVER_START_TIMESTAMP.toISOString()}`));
 await initializeDatabase(); 
 await checkAWSAuthentication();
+await initializeUserBlacklist();
 await sendEmailSystemDeploymentReport();
 writeFileSync(SERVER_START_TIMESTAMP_PATH, SERVER_START_TIMESTAMP.toISOString(), 'utf8');
 
@@ -74,18 +77,20 @@ if((getEnv<boolean>('ENABLE_CRON', 'boolean')) && isEnvironment(ENVIRONMENT_TYPE
     //Run at 15:00 UTC - 9am CST
     // schedule("0 15 * * *", async () => answerAndNotifyPrayerRequests());
     //Run at 01:00 UTC - Sundays 7pm CST
-    schedule("1 1 * * 1", async () => sendEmailVerificationReminderBatch());
+    schedule("1 1 * * 1", async () => await sendEmailVerificationReminderBatch());
 
     //Run at 13:00 UTC - Mondays 7AM CST
     schedule('0 13 * * 1', async () => await sendEmailReport(EmailSubscription.USER_WEEKLY));
     //Run at 13:00 UTC - Fridays 7AM CST
     schedule('0 13 * * 5', async () => await sendEmailReport(EmailSubscription.PARTNER_WEEKLY));
+    //Run at 13:15 UTC - Monday/Wednesday/Friday 7:15am CST
+    schedule('15 13 * * 1,3,5', async () => await sendModerationReminderEmail());
 
     //Run at 08:00-8:02 UTC - 2AM CST
-    schedule("0 8 * * *", async () => DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
-    schedule("1 8 * * *", async () => DB_FLUSH_CONTACT_CACHE_ADMIN());
-    schedule("2 8 * * *", async () => DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN());
-    schedule("3 8 * * *", async () => DB_FLUSH_EXPIRED_TOKENS());
+    schedule("0 8 * * *", async () => await DB_FLUSH_USER_SEARCH_CACHE_ADMIN());
+    schedule("1 8 * * *", async () => await DB_FLUSH_CONTACT_CACHE_ADMIN());
+    schedule("2 8 * * *", async () => await DB_FLUSH_CIRCLE_SEARCH_CACHE_ADMIN());
+    schedule("3 8 * * *", async () => await DB_FLUSH_EXPIRED_TOKENS());
 }
 
 /* CRON JOBS FOR DEVELOPMENT & PRODUCTION */
@@ -229,6 +234,9 @@ apiServer.get('/api/search-list/:type', (request:JwtSearchRequest, response:Resp
 apiServer.get('/api/prayer-request/user-list', GET_PrayerRequestUserList);
 apiServer.post('/api/prayer-request', POST_prayerRequest);
 
+apiServer.post('/api/prayer-request/:prayer/report', POST_prayerRequestReported);
+apiServer.post('/api/prayer-request/:prayer/comment/:comment/report', POST_prayerRequestCommentReported);
+
 apiServer.use('/api/prayer-request/:prayer', (request:JwtPrayerRequest, response:Response, next:NextFunction) => authenticatePrayerRequestRecipientMiddleware(request, response, next));
 
 apiServer.get('/api/prayer-request/:prayer', GET_PrayerRequest);
@@ -277,6 +285,7 @@ apiServer.get('/api/partner/:client/prayer-request-list', GET_PrayerRequestReque
 /******************************************************/
 apiServer.use('/api/user/:client', (request:JwtClientRequest, response:Response, next:NextFunction) => extractClientMiddleware(request, response, next));
 
+apiServer.post('/api/user/:client/report', POST_userReported);
 apiServer.get('/api/user/:client/public', GET_publicProfile);
 apiServer.get('/api/user/:client/image', GET_profileImage);
 
@@ -335,6 +344,7 @@ apiServer.use('/api/circle/:circle', (request:JwtCircleRequest, response:Respons
 
 apiServer.get('/api/circle/:circle', GET_circle);  //Handles relevant circle status
 apiServer.get('/api/circle/:circle/image', GET_circleImage);
+apiServer.post('/api/circle/:circle/report', POST_circleReported);
 
 apiServer.post('/api/circle/:circle/request', POST_circleMemberRequest);
 apiServer.post('/api/circle/:circle/accept', POST_circleMemberAccept); //Existing Circle Membership Invite must exist (User Accepts)
@@ -404,6 +414,7 @@ apiServer.get('/api/content-archive/:content', GET_ContentRequest);
 apiServer.patch('/api/content-archive/:content', PATCH_contentArchive);
 apiServer.delete('/api/content-archive/:content', DELETE_contentArchive);
 
+apiServer.post('/api/content-archive/:content/report', POST_contentReported);
 apiServer.get('/api/content-archive/:content/image', GET_contentArchiveImage);
 apiServer.delete('/api/content-archive/:content/image', DELETE_contentArchiveImage);
 

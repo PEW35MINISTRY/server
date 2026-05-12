@@ -26,7 +26,7 @@ const saveLogLocally = async(type:LogType, ...messages:string[]):Promise<boolean
 //Calculate Daily Trends for Log Type (Days split by America/Chicago Midnight)
 export const calculateLogDailyTrends = async(type:LogType, pastDays:number = 7, logList?:LOG_ENTRY[]):Promise<LogDailyTrend[]> => {
     const now:Date = new Date();
-    const chicagoMidnightMS:number = getDateInChicago().getMilliseconds();
+    const chicagoMidnightMS:number = getDateInChicago().getTime();
 
     const dailyTrendBuckets:LogDailyTrend[] = Array.from({ length:pastDays + 1 }, (_, i):LogDailyTrend => ({ startTimestamp:chicagoMidnightMS - (i * (24 * 60 * 60 * 1000)), total:0, unique:0, burstEvents:0 }));
 
