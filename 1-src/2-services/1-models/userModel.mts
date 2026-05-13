@@ -290,4 +290,8 @@ export default class USER extends BASE_MODEL<USER, ProfileListItem, ProfileRespo
         else
           return [...normalizedNewList];
     }
+
+    static areListSetsDifferent<T>(newList:T[], currentList:T[]):boolean {
+      return (newList.length !== currentList.length) || newList.some((item:T) => !currentList.includes(item));
+  }
 };
