@@ -113,42 +113,43 @@ export const PATCH_prayerRequest = async (request: PrayerRequestPatchRequest, re
     if(currentPrayerRequest.isValid && !(editPrayerRequest instanceof Exception) && editPrayerRequest.isValid) {  //undefined handles next(Exception)
         const fieldChanges:Map<string, any> = PRAYER_REQUEST.getUniqueDatabaseProperties(editPrayerRequest, currentPrayerRequest);
 
-        if(fieldChanges.size === 0)
+        //Handle changes in user recipient lists
+        const userRecipientCurrentList:number[] = currentPrayerRequest.userRecipientList.map((profile) => profile.userID);
+        const userRecipientToDeleteList:number[] = editPrayerRequest.removeUserRecipientIDList?.filter((id) => userRecipientCurrentList.includes(id)) || [];
+        const userRecipientToInsertList:number[] = editPrayerRequest.addUserRecipientIDList?.filter((id) => !userRecipientCurrentList.includes(id) && !userRecipientToDeleteList.includes(id)) || [];
+        //Handle changes in circle recipient lists
+        const circleRecipientCurrentList:number[] = currentPrayerRequest.circleRecipientList.map((circle) => circle.circleID);
+        const circleRecipientToDeleteList:number[] = editPrayerRequest.removeCircleRecipientIDList?.filter((id) => circleRecipientCurrentList.includes(id)) || [];
+        const circleRecipientToInsertList:number[] = editPrayerRequest.addCircleRecipientIDList?.filter((id) => !circleRecipientCurrentList.includes(id) && !circleRecipientToDeleteList.includes(id)) || [];
+
+        if(fieldChanges.size === 0
+            && userRecipientToDeleteList.length === 0 && userRecipientToInsertList.length === 0
+            && circleRecipientToDeleteList.length === 0 && circleRecipientToInsertList.length === 0)
             next(new Exception(400, `Edit Prayer Request Failed :: No valid changes provided for Prayer Request ${request.prayerRequestID}.`, 'No Changes'));
 
-        else if(await DB_UPDATE_PRAYER_REQUEST(request.prayerRequestID, fieldChanges) === false) 
+        else if((userRecipientToDeleteList.length > 0 || circleRecipientToDeleteList.length > 0) 
+            && await DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH({prayerRequestID: request.prayerRequestID, userRecipientIDList: userRecipientToDeleteList, circleRecipientIDList: circleRecipientToDeleteList}) === false)
+            next(new Exception(500, 'Edit Prayer Request Failed :: Failed to delete batch remove recipients.', 'Remove Recipients Failed'));
+
+        else if((userRecipientToInsertList.length > 0 || circleRecipientToInsertList.length > 0) 
+            && await DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH({prayerRequestID: request.prayerRequestID, userRecipientIDList: userRecipientToInsertList, circleRecipientIDList: circleRecipientToInsertList}) === false)
+            next(new Exception(500, 'Edit Prayer Request Failed :: Failed to insert batch add recipients.', 'Add Recipients Failed'));
+
+        else if(fieldChanges.size > 0 && await DB_UPDATE_PRAYER_REQUEST(request.prayerRequestID, fieldChanges) === false) 
             next(new Exception(500, `Edit Prayer Request Failed :: Failed to update prayer request ${request.prayerRequestID}.`, 'Save Failed'));
 
-        else { //Handle changes in user recipient lists
-            const userRecipientCurrentList:number[] = currentPrayerRequest.userRecipientList.map((profile) => profile.userID);
-            const userRecipientToDeleteList:number[] = editPrayerRequest.removeUserRecipientIDList?.filter((id) => userRecipientCurrentList.includes(id)) || [];
-            const userRecipientToInsertList:number[] = editPrayerRequest.addUserRecipientIDList?.filter((id) => !userRecipientCurrentList.includes(id) && !userRecipientToDeleteList.includes(id)) || [];
-            //Handle changes in circle recipient lists
-            const circleRecipientCurrentList:number[] = currentPrayerRequest.circleRecipientList.map((circle) => circle.circleID);
-            const circleRecipientToDeleteList:number[] = editPrayerRequest.removeCircleRecipientIDList?.filter((id) => circleRecipientCurrentList.includes(id)) || [];
-            const circleRecipientToInsertList:number[] = editPrayerRequest.addCircleRecipientIDList?.filter((id) => !circleRecipientCurrentList.includes(id) && !circleRecipientToDeleteList.includes(id)) || [];
-                
-            if((userRecipientToDeleteList.length > 0 || circleRecipientToDeleteList.length > 0) 
-                && await DB_DELETE_RECIPIENT_PRAYER_REQUEST_BATCH({prayerRequestID: request.prayerRequestID, userRecipientIDList: userRecipientToDeleteList, circleRecipientIDList: circleRecipientToDeleteList}) === false)
-                next(new Exception(500, 'Edit Prayer Request Failed :: Failed to delete batch remove recipients.', 'Remove Recipients Failed'));
+        else {
+            const savedPrayerRequest:PRAYER_REQUEST = await DB_SELECT_PRAYER_REQUEST_DETAIL(request.prayerRequestID, request.jwtUserID, true);
 
-            else if((userRecipientToInsertList.length > 0 || circleRecipientToInsertList.length > 0) 
-                && await DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH({prayerRequestID: request.prayerRequestID, userRecipientIDList: userRecipientToInsertList, circleRecipientIDList: circleRecipientToInsertList}) === false)
-                next(new Exception(500, 'Edit Prayer Request Failed :: Failed to insert batch add recipients.', 'Add Recipients Failed'));
-
-            else {
-                const savedPrayerRequest:PRAYER_REQUEST = await DB_SELECT_PRAYER_REQUEST_DETAIL(request.prayerRequestID, request.jwtUserID, true);
-
-                // send notifications asynchronously
-                for (const circleID of (editPrayerRequest.addCircleRecipientIDList || [])) {
-                    const userIDs = await DB_SELECT_CIRCLE_USER_IDS(circleID, undefined, false);
-                    sendNotificationCircle(editPrayerRequest.requestorID, userIDs, circleID, CircleNotificationType.PRAYER_REQUEST_RECIPIENT, currentPrayerRequest.requestorProfile.displayName);
-                }
-                if(editPrayerRequest.addUserRecipientIDList !== undefined && editPrayerRequest.addUserRecipientIDList.length > 0)
-                    sendTemplateNotification(editPrayerRequest.requestorID, editPrayerRequest.addUserRecipientIDList, NotificationType.PRAYER_REQUEST_RECIPIENT, currentPrayerRequest.requestorProfile.displayName);
-
-                response.status(202).send(savedPrayerRequest.toJSON());
+            // send notifications asynchronously
+            for (const circleID of (editPrayerRequest.addCircleRecipientIDList || [])) {
+                const userIDs = await DB_SELECT_CIRCLE_USER_IDS(circleID, undefined, false);
+                sendNotificationCircle(editPrayerRequest.requestorID, userIDs, circleID, CircleNotificationType.PRAYER_REQUEST_RECIPIENT, currentPrayerRequest.requestorProfile.displayName);
             }
+            if(editPrayerRequest.addUserRecipientIDList !== undefined && editPrayerRequest.addUserRecipientIDList.length > 0)
+                sendTemplateNotification(editPrayerRequest.requestorID, editPrayerRequest.addUserRecipientIDList, NotificationType.PRAYER_REQUEST_RECIPIENT, currentPrayerRequest.requestorProfile.displayName);
+
+            response.status(202).send(savedPrayerRequest.toJSON());
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
         next((editPrayerRequest instanceof Exception) ? editPrayerRequest
