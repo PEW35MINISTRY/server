@@ -401,6 +401,13 @@ apiServer.use('/api/manager', (request:JwtRequest, response:Response, next:NextF
 apiServer.get('/api/manager/profile-access', GET_profileAccessUserList);
 
 
+/********************************************************/
+/* Extract Content Parameter | cache: request.contentID */
+/********************************************************/
+apiServer.use('/api/content-archive/:content', (request:JwtContentRequest, response:Response, next:NextFunction) => extractContentMiddleware(request, response, next));
+apiServer.post('/api/content-archive/:content/report', POST_contentReported);
+
+
 /**************************************/
 /* Authenticate CONTENT_APPROVER Role */
 /**************************************/
@@ -409,12 +416,10 @@ apiServer.use('/api/content-archive', (request:JwtRequest, response:Response, ne
 apiServer.post('/api/content-archive/', POST_newContentArchive);
 apiServer.post('/api/content-archive/utility/meta-data', POST_fetchContentArchiveMetaData); //Utility doesn't save to model
 
-apiServer.use('/api/content-archive/:content', (request:JwtContentRequest, response:Response, next:NextFunction) => extractContentMiddleware(request, response, next));
 apiServer.get('/api/content-archive/:content', GET_ContentRequest);
 apiServer.patch('/api/content-archive/:content', PATCH_contentArchive);
 apiServer.delete('/api/content-archive/:content', DELETE_contentArchive);
 
-apiServer.post('/api/content-archive/:content/report', POST_contentReported);
 apiServer.get('/api/content-archive/:content/image', GET_contentArchiveImage);
 apiServer.delete('/api/content-archive/:content/image', DELETE_contentArchiveImage);
 
