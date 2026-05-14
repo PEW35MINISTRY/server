@@ -192,18 +192,16 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
     if(currentProfile.isValid && !(editProfile instanceof Exception) && editProfile.isValid) {
         //Verify user roles and verify account type tokens
         const currentRoleList:RoleEnum[] = await DB_SELECT_USER_ROLES(request.clientID);
-        const fieldChanges:Map<string, any> = USER.getUniqueDatabaseProperties(editProfile, currentProfile);
-
-        if(fieldChanges.size === 0)
-            next(new Exception(400, `Edit Profile Failed :: No valid changes provided for user ${request.clientID}.`, 'No Changes'));
-
-        else if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: currentRoleList, adminOverride: (request.jwtUserRole === RoleEnum.ADMIN)}) === false)
+        if(await validateNewRoleTokenList({newRoleList:editProfile.userRoleList, jsonRoleTokenList: request.body.userRoleTokenList, email: editProfile.email, currentRoleList: currentRoleList, adminOverride: (request.jwtUserRole === RoleEnum.ADMIN)}) === false)
             next(new Exception(401, `Edit Profile Failed :: failed to verify token for user roles: ${JSON.stringify(editProfile.userRoleList)} for user ${editProfile.email}.`, 'Ineligible Account Type'));
 
-        else if(await DB_UPDATE_USER(request.clientID, fieldChanges) === false) 
+        else if((USER.getUniqueDatabaseProperties(editProfile, currentProfile).size > 0 )
+                && await DB_UPDATE_USER(request.clientID, USER.getUniqueDatabaseProperties(editProfile, currentProfile)) === false) 
             next(new Exception(500, `Edit Profile Failed :: Failed to update user ${request.clientID} account.`, 'Save Failed'));
 
         else {
+            let updated:boolean = (USER.getUniqueDatabaseProperties(editProfile, currentProfile).size > 0);
+
             //Handle userRoleList: Add new user roles, already verified permission above
             const saveUserRole:boolean = (editProfile.userRoleList.length > 1); //Only save 'USER' role for multi role users
             editProfile.userRoleList = await USER.syncDatabaseList<RoleEnum, DATABASE_USER_ROLE_ENUM>({
@@ -215,6 +213,7 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
                 DBSelectList: DB_SELECT_USER_ROLES,
                 mapToDatabaseEnum: (role:RoleEnum):DATABASE_USER_ROLE_ENUM|undefined => DATABASE_USER_ROLE_ENUM[role],
             });
+            updated = updated || USER.areListSetsDifferent<RoleEnum>(editProfile.userRoleList, currentRoleList);
 
             if(currentProfile.isEmailVerified && Array.isArray(editProfile.emailSubscriptionList)) {
                 currentProfile.emailSubscriptionList = await DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST(currentProfile.userID);
@@ -226,10 +225,16 @@ export const PATCH_userProfile = async (request: ProfileEditRequest, response: R
                     DBDeleteBatch: DB_DELETE_USER_EMAIL_SUBSCRIPTION_BATCH,
                     DBSelectList: DB_SELECT_USER_EMAIL_SUBSCRIPTION_LIST,
                 });
+                updated = updated || USER.areListSetsDifferent<EmailSubscription>(editProfile.emailSubscriptionList, currentProfile.emailSubscriptionList);
             }
-            
-            editProfile.modifiedDT = new Date(); //Local update, database sets modifiedDT
-            response.status(202).send(editProfile.toJSON());
+
+            if(!updated)
+                next(new Exception(400, `Edit Profile Failed :: No valid changes provided for user ${request.clientID}.`, 'No Changes'));
+
+            else {                    
+                editProfile.modifiedDT = new Date(); //Local update, database sets modifiedDT
+                response.status(202).send(editProfile.toJSON());
+            }
         }
     } else //Necessary; otherwise no response waits for timeout | Ignored if next() already replied
         next((editProfile instanceof Exception) ? editProfile
