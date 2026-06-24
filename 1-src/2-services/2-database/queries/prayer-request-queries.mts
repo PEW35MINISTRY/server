@@ -211,6 +211,7 @@ export const DB_SELECT_PRAYER_REQUEST_USER_LIST = async(userID:number, includeOw
         + 'WHERE prayer_request.isResolved = FALSE ' //Active Requests Only
         + (includeOwned ? '' : 'AND prayer_request.requestorID != ? ')
         + 'AND prayer_request.moderationStatus IS NULL '
+        + 'AND user.moderationStatus IS NULL '
         + 'AND ( '
             //Owned by User
             + (includeOwned ? 'prayer_request.requestorID = ? OR ' : '')
@@ -425,7 +426,7 @@ export const DB_INSERT_RECIPIENT_PRAYER_REQUEST_BATCH = async({prayerRequestID, 
 }
 
 //Delete recipient individually, all connections by recipientID, or all connections by prayerRequestID
-export const DB_DELETE_RECIPIENT_PRAYER_REQUEST = async({prayerRequestID, userID, circleID}:{prayerRequestID?:number, userID?:number, circleID?:number}):Promise<boolean> => {
+export const DB_DELETE_RECIPIENT_PRAYER_REQUEST = async({prayerRequestID, userID, circleID}:{prayerRequestID?:number, userID?:number, recipientID?:number, circleID?:number}):Promise<boolean> => {
 
     const response:CommandResponseType = (prayerRequestID === undefined && userID !== undefined)
         ? await command(`DELETE FROM prayer_request_recipient WHERE userID = ? ;`, [userID])

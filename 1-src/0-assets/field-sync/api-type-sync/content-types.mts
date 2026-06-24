@@ -14,6 +14,7 @@ import { ProfileListItem } from './profile-types.mjs';
 
 export interface ContentListItem {
     contentID: number,
+    recorderID: number,
     type: ContentTypeEnum,
     source: ContentSourceEnum,
     url: string,
