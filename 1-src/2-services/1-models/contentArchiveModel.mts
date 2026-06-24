@@ -139,7 +139,9 @@ export default class CONTENT_ARCHIVE extends BASE_MODEL<CONTENT_ARCHIVE, Content
                     ? JSON.stringify(model.keywordList) : undefined; }],
             ])});
 
-    override toListItem = ():ContentListItem => ({contentID: this.contentID, 
+    override toListItem = ():ContentListItem => ({
+        contentID: this.contentID, 
+        recorderID: this.recorderID,
         type: this.type, 
         source: this.source,  
         url: this.url, image: this.image,
